@@ -1,0 +1,172 @@
+%Đây là template dùng cho đề cương đề tài tốt nghiệp
+%Khoa Công nghệ Thông tin
+%Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM
+
+%Liên hệ về mẫu LaTEX này: Thầy Bùi Huy Thông (bhthong@fit.hcmus.edu.vn)
+
+\documentclass{article}[14pt]
+\usepackage[utf8]{vietnam}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage[left=2cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{fancyhdr}
+\usepackage{fancybox,framed}
+\linespread{1.3}
+\usepackage{lastpage}
+\usepackage{floatrow}
+\usepackage{floatrow}
+\pagenumbering{arabic}
+%\pagestyle{fancy}
+\newfloatcommand{capbtabbox}{table}[][\FBwidth]
+
+\usepackage{blindtext}
+\usepackage{titlesec}
+\usepackage[nottoc]{tocbibind}
+
+\titleformat*{\section}{\LARGE\bfseries}
+\titleformat*{\subsection}{\Large\bfseries}
+\titleformat*{\subsubsection}{\large\bfseries}
+%\addbibresource{ref.bib}
+
+
+\begin{document}
+    \begin{figure}[h]
+        \begin{floatrow}
+        \ffigbox{\includegraphics[scale = .4]{logo.png}}  
+        {%
+    
+        }
+        \capbtabbox{
+            \begin{tabular}{l}
+            \multicolumn{1}{c}{\textbf{\begin{tabular}[c]{@{}c@{}}TRƯỜNG ĐẠI HỌC KHOA HỌC TỰ NHIÊN\\KHOA CÔNG NGHỆ THÔNG TIN\end{tabular}}} \\ \\ \\
+            \end{tabular}
+        }
+        {%
+    
+        }
+        \end{floatrow}
+    \end{figure}
+    
+    \begin{center}
+        
+        %Xác định loại đề tài tốt nghiệp tương ứng: Khóa luận, Thực tập, Đồ án
+        \textbf{\Large ĐỀ CƯƠNG [KHOÁ LUẬN|THỰC TẬP|THỰC TẬP DỰ ÁN] TỐT NGHIỆP} \\ 
+    \end{center}
+    
+    %\vspace{.5cm}
+    
+    \begin{center}
+    %Tên đề tài phải VIẾT HOA
+        
+        \textbf{\huge TÊN ĐỀ TÀI TIẾNG VIỆT (\textit{bắt buộc})} 
+        \\
+        
+    %Tên đề tài bằng tiếng Anh (nếu có)
+    \vspace{.5cm}
+        \textit{\textbf{\Large (Tên Đề Tài bằng Tiếng Anh \footnote{Nếu có. Nếu không có thì xoá footnote này} )}}
+    \end{center}
+    
+    \vspace{.5cm}
+    
+    \Large
+    \section{THÔNG TIN CHUNG}
+    \begin{itemize}[label = {}]
+        
+        \item \textbf{Người hướng dẫn:} 
+        %Thể hiện dạng: <Chức danh> <Họ và tên> (<Đơn vị công tác>)
+        \begin{itemize}
+            \item TS. Trần Văn A (Khoa Công nghệ Thông tin)
+            \item Bà Lý Thị B (Công ty XYZ - bắt buộc đối với các đề tài doanh nghiệp)
+        \end{itemize}{}
+    
+        
+        \item \textbf{[Nhóm] Sinh viên thực hiện:}
+        
+        %Thể hiện dạng: <Họ và tên sinh viên> (MSSV: )
+        \begin{enumerate}
+        
+            \item Tô Văn X (MSSV: ) 
+            \item Đào Thị Y (MSSV: )
+        \end{enumerate}
+
+       %Chọn loại thích hợp
+        \item \textbf{Loại đề tài:} [Nghiên cứu | Ứng dụng]
+        
+        \item \textbf{Thời gian thực hiện:} Từ \textit{tháng/năm} đến \textit{tháng/năm}
+        
+        
+    \end{itemize}
+    
+    \pagebreak 
+    
+    \section{NỘI DUNG THỰC HIỆN}
+    {
+
+    %Mỗi mục dưới đây phải viết ít nhất là 5 câu mô tả/giới thiệu.
+    
+    \subsection{Giới thiệu về đề tài}
+    
+    Phần này giới thiệu tóm tắt về đề tài và ngữ cảnh thực hiện (Nêu vấn đề, ý tưởng giải quyết, phương pháp giải quyết và ý nghĩa thực tiễn của vấn đề)
+    
+    %\textbf{Ghi chú:} Cần đăng ký tài khoản trên Overleaf\footnote{https://www.overleaf.com} và đọc cách sử dụng LaTeX tại hướng dẫn này \footnote{https://www.overleaf.com/learn/latex/Learn\_LaTeX\_in\_30\_minutes}% \cite{overleaf}.
+    
+    \subsection{Mục tiêu đề tài}
+    
+    %Phần này mô tả về động lực để giải quyết vấn đề. 
+    Thông tin về bối cảnh của đề tài. Cần trả lời các câu hỏi:
+    \begin{itemize}
+        \item Tại sao cần thực hiện đề tài này?
+        \item Đề tài mang lại được điều gì?
+        \item Ảnh hưởng và ý nghĩa có thể có của kết quả đối với vấn đề đã được đặt ra nói riêng và toàn bộ hướng nghiên cứu nói chung?
+    \end{itemize}
+    
+    \subsection{Phạm vi của đề tài}
+    
+    Nội dung nghiên cứu chính của đề tài. Các đối tượng nghiên cứu, thực thể liên quan, tập dữ liệu, ... có thể xuất hiện trong đề tài. Các giới hạn hoặc ràng buộc của đề tài. 
+    
+    \subsection{Cách tiếp cận dự kiến}
+    
+    %Có thể bổ sung hình ảnh vào để làm rõ phương pháp hoặc cách tiếp cận dự kiến.
+    Giới thiệu một số nghiên cứu (trong hoặc ngoài nước) đã được tiến hành theo hướng nghiên cứu của đề tài, nêu kết quả và nhận xét với các nghiên cứu này. Các trích dẫn từ các tài liệu sử dụng theo định dạng của tổ chức IEEE. Các ví dụ kế tiếp thể hiện trích dẫn tài liệu từ sách (\cite{latexcompanion}), từ bài báo trong tạp chí (\cite{einstein}) hay từ đường dẫn đến website (\cite{knuthwebsite}). \newline
+    Nêu các phương pháp, cách tiếp cận cũng như mô hình dự kiến thực hiện trong đề tài, chỉ rõ sự khác biệt (nếu có) so với các nghiên cứu đã được tiến hành ở trên.
+    
+    
+    
+    \subsection{Kết quả dự kiến của đề tài}
+        
+    Phần này nêu mô tả dự kiến các kết quả đạt được, có thể bao gồm: 
+    \begin{itemize}
+        \item Số liệu định lượng (độ chính xác, tốc độ thực thi, ...)
+        \item Sản phẩm đầu ra (phần mềm, website, hệ thống...)
+        \item Các công trình khoa học liên quan (bài báo khoa học, ...)
+    \end{itemize}
+    
+    \subsection{Kế hoạch thực hiện}
+        
+    Phần này mô tả về kế hoạch thực hiện (với các mốc thời gian tương ứng) cùng với việc phân chia công việc cho các thành viên tham gia đề tài. \textit{(Nên thể hiện dưới dạng bảng biểu)}
+    
+    
+    }
+    
+    \pagebreak 
+    %TÀI LIỆU TRÍCH DẪN
+    %Đây là ví dụ
+    \bibliographystyle{ieeetr}
+    \bibliography{sample}
+    \nocite{*}
+
+    \begin{table}[h]
+    \centering
+        \begin{tabular}{p{7cm}p{7cm}}
+        \textbf{\begin{tabular}[c]{@{}c@{}}\\XÁC NHẬN\\CỦA NGƯỜI HƯỚNG DẪN\\ \textit{(Ký và ghi rõ họ tên)}\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}\textit{TP. Hồ Chí Minh, ngày... tháng... năm...}\\NHÓM SINH VIÊN THỰC HIỆN\\\textit{(Ký và ghi rõ họ tên}) \end{tabular}}
+        \end{tabular}
+    \end{table}
+    
+\end{document}
+
+
