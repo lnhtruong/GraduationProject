@@ -22,3 +22,33 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Build / output
+build/
+out/
+
+# Vite / bundler caches
+.vite/
+.cache/
+.parcel-cache/
+
+# Environment / secret files
+.env
+.env.*.local
+.env.local
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+jest-cache/
+
+# Tooling caches and configs
+.eslintcache
+.pnp.*
+.yarn/*
+.turbo/
