@@ -1,4 +1,6 @@
 import type { Clip } from "../types";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface ResultsSectionProps {
   clips: Clip[];
@@ -21,15 +23,26 @@ export default function ResultsSection({
           <div key={idx} className="bg-muted/10 p-4 rounded-lg border">
             <div className="flex items-center justify-between mb-3">
               <div className="font-medium">{clip.name}</div>
-              <a
-                className="text-sm text-primary hover:underline"
-                href={clip.url}
-                target="_blank"
-                rel="noreferrer"
-                download
-              >
-                Tải xuống
-              </a>
+              <div className="flex items-center gap-3">
+                <a
+                  className="text-sm text-primary hover:underline"
+                  href={clip.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                >
+                  Tải xuống
+                </a>
+
+                {/* Edit in editor - pass clip URL as query param */}
+                {clip.url ? (
+                  <Link to={`/editor?src=${encodeURIComponent(clip.url)}`}>
+                    <Button variant="ghost" size="sm">
+                      Mở trình chỉnh sửa
+                    </Button>
+                  </Link>
+                ) : null}
+              </div>
             </div>
 
             {clip.url && clip.url.endsWith(".zip") ? (

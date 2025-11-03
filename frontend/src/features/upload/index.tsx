@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import FilePreview from "@/features/upload/components/FilePreview";
 import UploadProgress from "@/features/upload/components/UploadProgress";
-import ResultsSection from "@/features/upload/components/ResultsSection";
 import useUpload from "@/features/upload/hooks/useUpload";
 
 export default function Upload() {
@@ -18,11 +17,10 @@ export default function Upload() {
     cancel,
   } = useUpload();
 
-  const [showResults, setShowResults] = useState(false);
+  const navigate = useNavigate();
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
-    setShowResults(false);
   };
 
   const handleUpload = () => {
@@ -33,17 +31,27 @@ export default function Upload() {
 
   const handleCancel = () => {
     cancel();
-    setShowResults(false);
   };
 
   const handleStartNew = () => {
     cancel();
-    setShowResults(false);
   };
 
   const isProcessing =
     progress !== null || (status !== null && status !== "completed");
   const isCompleted = status === "completed" && clips.length > 0;
+
+  const handleViewResults = () => {
+    // If there are clips, navigate to editor and load the first clip
+    if (clips && clips.length > 0 && clips[0].url) {
+      const url = `/editor?src=${encodeURIComponent(clips[0].url)}`;
+      navigate(url);
+      return;
+    }
+
+    // Fallback: do nothing (no results section) — user can view clips from UploadProgress
+    return;
+  };
 
   return (
     <div className="max-w-5xl mx-auto py-10">
@@ -67,7 +75,7 @@ export default function Upload() {
             jobId={jobId}
             isDownloading={isDownloading}
             clipsCount={clips.length}
-            onViewResults={() => setShowResults(true)}
+            onViewResults={handleViewResults}
             onStartNew={handleStartNew}
           />
         ) : (
@@ -87,15 +95,12 @@ export default function Upload() {
               jobId={jobId}
               isDownloading={isDownloading}
               clipsCount={clips.length}
-              onViewResults={() => setShowResults(true)}
+              onViewResults={handleViewResults}
               onStartNew={handleStartNew}
             />
           </div>
         )}
       </div>
-
-      {/* Results */}
-      <ResultsSection clips={clips} isVisible={showResults} />
     </div>
   );
 }
