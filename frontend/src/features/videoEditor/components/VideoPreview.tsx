@@ -1,23 +1,79 @@
-import React from "react";
+import { useEffect } from 'react';
+import type { TextOption } from '../types';
 
 interface Props {
   videoRef: React.RefObject<HTMLVideoElement>;
-  src: string;
-  filter?: string;
+  src?: string;
+  filter: string;
+  textOverlays?: TextOption[];
 }
 
-export default function VideoPreview({ videoRef, src, filter }: Props) {
+export default function VideoPreview({ videoRef, src, filter, textOverlays = [] }: Props) {
+  // Apply filter khi thay đổi
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.style.filter = filter;
+    }
+  }, [filter, videoRef]);
+
   return (
-    <div className="flex-1 bg-dark rounded-md flex items-center justify-center">
+    <div className="relative w-full bg-black rounded-md overflow-hidden flex items-center justify-center">
       <video
         ref={videoRef}
-        className="max-h-[60vh] max-w-full"
-        controls
         src={src}
-        style={filter ? { filter } : undefined}
+        controls
+        className="max-h-[60vh] w-auto"
+        style={{ filter }}
       >
-        Trình duyệt của bạn không hỗ trợ tag video.
+        Your browser does not support video.
       </video>
+
+      {/* Text Overlays */}
+      {textOverlays.map((text) => (
+        <div
+          key={text.id}
+          className="absolute pointer-events-none"
+          style={{
+            left: `${text.position.x}%`,
+            top: `${text.position.y}%`,
+            transform: 'translate(-50%, -50%)',
+            fontSize: `${text.fontSize}px`,
+            color: text.color,
+            fontFamily: text.fontFamily,
+            fontWeight: text.fontWeight,
+            textAlign: text.textAlign,
+            textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+            whiteSpace: 'pre-wrap',
+            maxWidth: '80%',
+          }}
+        >
+          {text.text}
+        </div>
+      ))}
     </div>
   );
 }
+
+// import React from "react";
+
+// interface Props {
+//   videoRef: React.RefObject<HTMLVideoElement>;
+//   src: string;
+//   filter?: string;
+// }
+
+// export default function VideoPreview({ videoRef, src, filter }: Props) {
+//   return (
+//     <div className="flex-1 bg-dark rounded-md flex items-center justify-center">
+//       <video
+//         ref={videoRef}
+//         className="max-h-[60vh] max-w-full"
+//         controls
+//         src={src}
+//         style={filter ? { filter } : undefined}
+//       >
+//         Trình duyệt của bạn không hỗ trợ tag video.
+//       </video>
+//     </div>
+//   );
+// }
