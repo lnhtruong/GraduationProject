@@ -10,9 +10,9 @@ export interface VoiceOption {
   type: 'preset' | 'none' | 'custom';
   presetId?: string;
   customFile?: File;
-  speed: number; // 0.5 - 2.0
+  speed: number;  // 0.5 - 2.0
   volume: number; // 0 - 100
-  pitch: number; // -12 to +12
+  pitch: number;  // -12 to +12
 }
 
 export interface TextOption {
@@ -32,11 +32,4 @@ export interface EffectOption {
   saturation: number;
   hue: number;
   filter?: 'none' | 'vintage' | 'cinematic' | 'vivid' | 'grayscale' | 'sepia' | 'warm' | 'cool';
-}
-
-export interface VideoStyle {
-  brightness: number;
-  contrast: number;
-  saturation: number;
-  hue: number;
 }
