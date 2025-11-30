@@ -38,6 +38,7 @@ export default function useVideoEditor(initialSrc?: string) {
     contrast: 100,
     saturation: 100,
     hue: 0,
+    filter: 'none',
   });
   const cssFilter = () => {
     const { brightness, contrast, saturation, hue } = effect;
@@ -59,10 +60,10 @@ export default function useVideoEditor(initialSrc?: string) {
   };
 
   // ===== Quản lý mascot
-  const [mascot, setMascot] = useState<MascotOption>({ type: 'none' });
-  const updateMascot = (updates: Partial<MascotOption>) => {
-    setMascot(prev => ({ ...prev, ...updates }));
-  };
+  const [mascot, setMascot] = useState<MascotOption>({ 
+    type: 'none', 
+    position: 'replace', 
+  });
 
   // ===== Quản lý voice
   const [voice, setVoice] = useState<VoiceOption>({
@@ -71,9 +72,6 @@ export default function useVideoEditor(initialSrc?: string) {
     volume: 100,
     pitch: 0,
   });
-  const updateVoice = (updates: Partial<VoiceOption>) => {
-    setVoice(prev => ({ ...prev, ...updates }));
-  };
 
   // ===== Tải video đã chỉnh sửa
   const download = async (fileName?: string) => {
@@ -99,24 +97,37 @@ export default function useVideoEditor(initialSrc?: string) {
   };
 
   return {
+    // Video
     videoRef,
     videoSrc,
     setVideoSrc,
+    
+    // Playback
     isPlaying,
     play,
     pause,
     toggle,
+    
+    // Effect
     effect,
     setEffect,
     cssFilter,
+    
+    // Text
     textOverlays,
     addTextOverlay,
     updateTextOverlay,
     removeTextOverlay,
+    
+    // Mascot
     mascot,
-    updateMascot,
+    setMascot,
+    
+    // Voice
     voice,
-    updateVoice,
+    setVoice,
+    
+    // Download
     download,
   } as const;
 }

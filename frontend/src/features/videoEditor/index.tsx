@@ -11,7 +11,6 @@ export default function VideoEditor() {
   const {
     videoRef,
     videoSrc,
-    setVideoSrc,
     isPlaying,
     play,
     pause,
@@ -24,9 +23,9 @@ export default function VideoEditor() {
     updateTextOverlay,
     removeTextOverlay,
     mascot,
-    updateMascot,
+    setMascot,
     voice,
-    updateVoice,
+    setVoice,
     download,
   } = editor;
   
@@ -36,19 +35,12 @@ export default function VideoEditor() {
     setIsDownloading(true);
     try {
       await download();
-    } catch (_e) {
-      void _e;
+    } catch (error) {
+      console.error('Download error:', error);
     } finally {
       setIsDownloading(false);
     }
   };
-
-  // ===== Quản lý bộ lọc video
-  const computedFilter = useMemo(
-    () =>
-      `brightness(${effect.brightness}%) contrast(${effect.contrast}%) saturate(${effect.saturation}%) hue-rotate(${effect.hue}deg)`,
-    [effect.brightness, effect.contrast, effect.saturation, effect.hue]
-  );
   
   return (
     <div className="min-h-screen bg-background">
@@ -93,24 +85,23 @@ export default function VideoEditor() {
         {/* Main preview area */}
         <section className="col-span-8 bg-card rounded-md shadow-sm p-4 flex flex-col">
           <VideoPreview
-            videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+            videoRef={videoRef}
             src={videoSrc}
-            filter={computedFilter}
+            filter={cssFilter()}
             textOverlays={textOverlays}
           />
         </section>
 
         {/* Right panel */}
         <EditorRightPanel
-          brightness={effect.brightness}
-          contrast={effect.contrast}
-          saturation={effect.saturation}
-          hue={effect.hue}
-          onChange={(next) => setEffect(next)}
-          onTextChange={(text) => {
-            // TODO: Implement text overlay management
-            console.log('Text changed:', text);
-          }}
+          effect={effect}
+          onEffectChange={setEffect}
+          mascot={mascot}
+          onMascotChange={setMascot}
+          voice={voice}
+          onVoiceChange={setVoice}
+          text={textOverlays}
+          onTextChange={updateTextOverlay}
         />
       </div>
     </div>

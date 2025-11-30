@@ -10,6 +10,7 @@ interface Props {
   onChange: (value: EffectOption) => void;
 }
 
+// Filter effect có sẵn
 const presetFilters: Array<{
   id: EffectOption['filter'];
   name: string;
@@ -88,7 +89,7 @@ export default function EffectOptions({ value, onChange }: Props) {
           <Slider
             value={[value.brightness]}
             onValueChange={([brightness]) =>
-              onChange({ ...value, brightness, filter: undefined })
+              onChange({ ...value, brightness})
             }
             min={0}
             max={200}
@@ -108,7 +109,7 @@ export default function EffectOptions({ value, onChange }: Props) {
           <Slider
             value={[value.contrast]}
             onValueChange={([contrast]) =>
-              onChange({ ...value, contrast, filter: undefined })
+              onChange({ ...value, contrast})
             }
             min={0}
             max={200}
@@ -128,7 +129,7 @@ export default function EffectOptions({ value, onChange }: Props) {
           <Slider
             value={[value.saturation]}
             onValueChange={([saturation]) =>
-              onChange({ ...value, saturation, filter: undefined })
+              onChange({ ...value, saturation})
             }
             min={0}
             max={200}
@@ -148,7 +149,7 @@ export default function EffectOptions({ value, onChange }: Props) {
           <Slider
             value={[value.hue]}
             onValueChange={([hue]) =>
-              onChange({ ...value, hue, filter: undefined })
+              onChange({ ...value, hue})
             }
             min={0}
             max={360}

@@ -14,88 +14,27 @@ import type {
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Props {
-  brightness: number;
-  contrast: number;
-  saturation: number;
-  hue: number;
-  onChange: (next: {
-    brightness: number;
-    contrast: number;
-    saturation: number;
-    hue: number;
-  }) => void;
-  
+  effect: EffectOption;
+  onEffectChange?: (effect: EffectOption) => void;
+  mascot: MascotOption;
   onMascotChange?: (mascot: MascotOption) => void;
+  voice: VoiceOption;
   onVoiceChange?: (voice: VoiceOption) => void;
+  text: TextOption;
   onTextChange?: (text: TextOption) => void;
 }
 
 export default function EditorRightPanel({
-  brightness,
-  contrast,
-  saturation,
-  hue,
-  onChange,
+  effect,
+  onEffectChange,
+  mascot,
   onMascotChange,
+  voice,
   onVoiceChange,
+  text,
   onTextChange,
 }: Props) {
   const [activeOption, setActiveOption] = useState<OptionType>('effect');
-  
-  const [mascotOption, setMascotOption] = useState<MascotOption>({
-    type: 'none',
-  });
-  
-  const [voiceOption, setVoiceOption] = useState<VoiceOption>({
-    type: 'none',
-    speed: 1,
-    volume: 100,
-    pitch: 0,
-  });
-  
-  const [textOption, setTextOption] = useState<TextOption>({
-    id: crypto.randomUUID(),
-    text: '',
-    position: { x: 50, y: 50 },
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontFamily: 'Arial',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  });
-
-  const [effectsOption, setEffectsOption] = useState<EffectOption>({
-    brightness,
-    contrast,
-    saturation,
-    hue,
-    filter: 'none',
-  });
-
-  const handleMascotChange = (value: MascotOption) => {
-    setMascotOption(value);
-    onMascotChange?.(value);
-  };
-
-  const handleVoiceChange = (value: VoiceOption) => {
-    setVoiceOption(value);
-    onVoiceChange?.(value);
-  };
-
-  const handleTextChange = (value: TextOption) => {
-    setTextOption(value);
-    onTextChange?.(value);
-  };
-
-  const handleEffectsChange = (value: EffectOption) => {
-    setEffectsOption(value);
-    onChange({
-      brightness: value.brightness,
-      contrast: value.contrast,
-      saturation: value.saturation,
-      hue: value.hue,
-    });
-  };
 
   return (
     <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col h-full border">
@@ -109,22 +48,19 @@ export default function EditorRightPanel({
       <ScrollArea className="flex-1">
         <div className="p-4">
           {activeOption === 'mascot' && (
-            <MascotOptions value={mascotOption} onChange={handleMascotChange} />
+            <MascotOptions value={mascot} onChange={onMascotChange} />
           )}
           
           {activeOption === 'voice' && (
-            <VoiceOptions value={voiceOption} onChange={handleVoiceChange} />
+            <VoiceOptions value={voice} onChange={onVoiceChange} />
           )}
           
           {activeOption === 'text' && (
-            <TextOptions value={textOption} onChange={handleTextChange} />
+            <TextOptions value={text} onChange={onTextChange} />
           )}
           
           {activeOption === 'effect' && (
-            <EffectOptions
-              value={effectsOption}
-              onChange={handleEffectsChange}
-            />
+            <EffectOptions value={effect} onChange={onEffectChange} />
           )}
         </div>
       </ScrollArea>

@@ -2,6 +2,7 @@ export type OptionType = 'mascot' | 'voice' | 'text' | 'effect';
 
 export interface MascotOption {
   type: 'preset' | 'none' | 'custom';
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'replace';
   presetId?: string;
   customFile?: File;
 }
