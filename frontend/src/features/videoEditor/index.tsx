@@ -100,8 +100,10 @@ export default function VideoEditor() {
           onMascotChange={setMascot}
           voice={voice}
           onVoiceChange={setVoice}
-          text={textOverlays}
-          onTextChange={updateTextOverlay}
+          textOverlays={textOverlays}
+          onTextAdd={addTextOverlay}
+          onTextUpdate={updateTextOverlay}
+          onTextRemove={removeTextOverlay}
         />
       </div>
     </div>

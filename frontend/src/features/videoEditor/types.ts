@@ -34,3 +34,10 @@ export interface EffectOption {
   hue: number;
   filter?: 'none' | 'vintage' | 'cinematic' | 'vivid' | 'grayscale' | 'sepia' | 'warm' | 'cool';
 }
+
+// Helper type for text overlays array operations
+export interface TextOverlayActions {
+  add: (text: TextOption) => void;
+  update: (id: string, updates: Partial<TextOption>) => void;
+  remove: (id: string) => void;
+}

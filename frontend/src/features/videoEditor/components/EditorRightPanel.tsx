@@ -20,8 +20,10 @@ interface Props {
   onMascotChange?: (mascot: MascotOption) => void;
   voice: VoiceOption;
   onVoiceChange?: (voice: VoiceOption) => void;
-  text: TextOption;
-  onTextChange?: (text: TextOption) => void;
+  textOverlays: TextOption[];
+  onTextAdd: (text: TextOption) => void;
+  onTextUpdate: (id: string, updates: Partial<TextOption>) => void;
+  onTextRemove: (id: string) => void;
 }
 
 export default function EditorRightPanel({
@@ -31,10 +33,64 @@ export default function EditorRightPanel({
   onMascotChange,
   voice,
   onVoiceChange,
-  text,
-  onTextChange,
+  textOverlays,
+  onTextAdd,
+  onTextUpdate,
+  onTextRemove,
 }: Props) {
+  // ===== Option selection
   const [activeOption, setActiveOption] = useState<OptionType>('effect');
+
+  // ===== Text editor
+  const [currentTextId, setCurrentTextId] = useState<string | null>(
+    textOverlays[0]?.id || null
+  );
+
+  const currentText = textOverlays.find(t => t.id === currentTextId) || {
+    id: crypto.randomUUID(),
+    text: '',
+    position: { x: 50, y: 50 },
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontFamily: 'Arial',
+    fontWeight: 'bold' as const,
+    textAlign: 'center' as const,
+  };
+
+  const handleTextChange = (updates: Partial<TextOption>) => {
+    if (currentTextId && textOverlays.find(t => t.id === currentTextId)) {
+      // Update existing
+      onTextUpdate(currentTextId, updates);
+    } else {
+      // Add new
+      const newText = { ...currentText, ...updates };
+      onTextAdd(newText);
+      setCurrentTextId(newText.id);
+    }
+  };
+
+  const handleTextAdd = () => {
+    const newText: TextOption = {
+      id: crypto.randomUUID(),
+      text: 'New Text',
+      position: { x: 50, y: 50 },
+      fontSize: 32,
+      color: '#FFFFFF',
+      fontFamily: 'Arial',
+      fontWeight: 'bold',
+      textAlign: 'center',
+    };
+    onTextAdd(newText);
+    setCurrentTextId(newText.id);
+  };
+
+  const handleTextRemove = () => {
+    if (currentTextId) {
+      onTextRemove(currentTextId);
+      const remaining = textOverlays.filter(t => t.id !== currentTextId);
+      setCurrentTextId(remaining[0]?.id || null);
+    }
+  };
 
   return (
     <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col h-full border">
@@ -56,7 +112,12 @@ export default function EditorRightPanel({
           )}
           
           {activeOption === 'text' && (
-            <TextOptions value={text} onChange={onTextChange} />
+            <TextOptions 
+              value={currentText}
+              onChange={handleTextChange}
+              onAdd={handleTextAdd}
+              onRemove={textOverlays.length > 0 ? handleTextRemove : undefined}
+            />
           )}
           
           {activeOption === 'effect' && (
