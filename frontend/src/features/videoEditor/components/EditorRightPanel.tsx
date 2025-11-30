@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import EditorOptions from '@/features/videoEditor/components/EditorOptions';
 import MascotOptions from '@/features/videoEditor/components/optionDetails/Mascot';
 import VoiceOptions from '@/features/videoEditor/components/optionDetails/Voice';
@@ -22,8 +22,10 @@ interface Props {
   onVoiceChange?: (voice: VoiceOption) => void;
   textOverlays: TextOption[];
   onTextAdd: (text: TextOption) => void;
-  onTextUpdate: (id: string, updates: Partial<TextOption>) => void;
+  onTextUpdate: (id: string, updates: Partial<TextOption> | TextOption) => void;
   onTextRemove: (id: string) => void;
+  selectedTextId?: string | null;
+  onTextSelect?: (id: string | null) => void;
 }
 
 export default function EditorRightPanel({
@@ -37,16 +39,30 @@ export default function EditorRightPanel({
   onTextAdd,
   onTextUpdate,
   onTextRemove,
+  selectedTextId,
+  onTextSelect,
 }: Props) {
   // ===== Option selection
   const [activeOption, setActiveOption] = useState<OptionType>('effect');
 
   // ===== Text editor
-  const [currentTextId, setCurrentTextId] = useState<string | null>(
-    textOverlays[0]?.id || null
-  );
+  // Auto-select first text when switching to text tab
+  useEffect(() => {
+    if (activeOption === 'text' && textOverlays.length > 0 && !selectedTextId) {
+      onTextSelect?.(textOverlays[0].id);
+    }
+  }, [activeOption, textOverlays.length, selectedTextId, onTextSelect]);
 
-  const currentText = textOverlays.find(t => t.id === currentTextId) || {
+  // Reset selectedTextId nếu text bị xóa
+  useEffect(() => {
+    if (selectedTextId && !textOverlays.find(t => t.id === selectedTextId)) {
+      // Text đã bị xóa, chọn text đầu tiên hoặc null
+      onTextSelect?.(textOverlays[0]?.id || null);
+    }
+  }, [selectedTextId, textOverlays, onTextSelect]);
+
+  // Get current text or create new default
+  const currentText = textOverlays.find(t => t.id === selectedTextId) || {
     id: crypto.randomUUID(),
     text: '',
     position: { x: 50, y: 50 },
@@ -54,18 +70,20 @@ export default function EditorRightPanel({
     color: '#FFFFFF',
     fontFamily: 'Arial',
     fontWeight: 'bold' as const,
+    fontStyle: 'normal' as const,
+    textDecoration: 'none' as const,
     textAlign: 'center' as const,
   };
 
-  const handleTextChange = (updates: Partial<TextOption>) => {
-    if (currentTextId && textOverlays.find(t => t.id === currentTextId)) {
-      // Update existing
-      onTextUpdate(currentTextId, updates);
+  // Handle text changes
+  const handleTextChange = (newValue: TextOption) => {
+    if (selectedTextId && textOverlays.find(t => t.id === selectedTextId)) {
+      // Update existing text
+      onTextUpdate(selectedTextId, newValue);
     } else {
-      // Add new
-      const newText = { ...currentText, ...updates };
-      onTextAdd(newText);
-      setCurrentTextId(newText.id);
+      // Add new text
+      onTextAdd(newValue);
+      onTextSelect?.(newValue.id);
     }
   };
 
@@ -78,17 +96,18 @@ export default function EditorRightPanel({
       color: '#FFFFFF',
       fontFamily: 'Arial',
       fontWeight: 'bold',
+      fontStyle: 'normal',
+      textDecoration: 'none',
       textAlign: 'center',
     };
     onTextAdd(newText);
-    setCurrentTextId(newText.id);
+    onTextSelect?.(newText.id);
   };
 
   const handleTextRemove = () => {
-    if (currentTextId) {
-      onTextRemove(currentTextId);
-      const remaining = textOverlays.filter(t => t.id !== currentTextId);
-      setCurrentTextId(remaining[0]?.id || null);
+    if (selectedTextId) {
+      onTextRemove(selectedTextId);
+      // useEffect sẽ tự động chọn text tiếp theo
     }
   };
 
@@ -102,26 +121,26 @@ export default function EditorRightPanel({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4">
-          {activeOption === 'mascot' && (
-            <MascotOptions value={mascot} onChange={onMascotChange} />
+        <div className="p-4 space-y-4">
+          {activeOption === 'effect' && onEffectChange && (
+            <EffectOptions value={effect} onChange={onEffectChange} />
           )}
-          
-          {activeOption === 'voice' && (
-            <VoiceOptions value={voice} onChange={onVoiceChange} />
-          )}
-          
+
           {activeOption === 'text' && (
             <TextOptions 
               value={currentText}
               onChange={handleTextChange}
               onAdd={handleTextAdd}
-              onRemove={textOverlays.length > 0 ? handleTextRemove : undefined}
+              onRemove={selectedTextId ? handleTextRemove : undefined}
             />
           )}
+
+          {activeOption === 'mascot' && onMascotChange && (
+            <MascotOptions value={mascot} onChange={onMascotChange} />
+          )}
           
-          {activeOption === 'effect' && (
-            <EffectOptions value={effect} onChange={onEffectChange} />
+          {activeOption === 'voice' && onVoiceChange && (
+            <VoiceOptions value={voice} onChange={onVoiceChange} />
           )}
         </div>
       </ScrollArea>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import EditorToolbar from "@/features/videoEditor/components/EditorToolbar";
 import VideoPreview from "@/features/videoEditor/components/VideoPreview";
 import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
@@ -41,7 +41,10 @@ export default function VideoEditor() {
       setIsDownloading(false);
     }
   };
-  
+
+  // ===== Quản lý chọn text overlay
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+    
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
@@ -53,7 +56,7 @@ export default function VideoEditor() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => void play()}>
+              <Button variant="ghost" size="sm">
                 <Save className="w-4 h-4 mr-2" /> Lưu
               </Button>
               <Button
@@ -89,6 +92,8 @@ export default function VideoEditor() {
             src={videoSrc}
             filter={cssFilter()}
             textOverlays={textOverlays}
+            selectedTextId={selectedTextId}
+            onTextSelect={setSelectedTextId}
           />
         </section>
 
@@ -104,6 +109,8 @@ export default function VideoEditor() {
           onTextAdd={addTextOverlay}
           onTextUpdate={updateTextOverlay}
           onTextRemove={removeTextOverlay}
+          selectedTextId={selectedTextId}
+          onTextSelect={setSelectedTextId}
         />
       </div>
     </div>

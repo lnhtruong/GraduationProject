@@ -59,22 +59,22 @@ export default function MascotOptions({ value, onChange }: Props) {
               </div>
             </summary>
 
-            <div className="grid grid-cols-2 gap-2 mt-2 px-1">
+            <div className="grid grid-cols-4 gap-1.5 mt-2 px-1">
               {presetMascots.map((mascot) => (
-                <div
-                  key={mascot.id}
-                  onClick={() => onChange({ type: 'preset', presetId: mascot.id, position: 'replace' })}
-                  className={`p-2 rounded-lg border-2 cursor-pointer ${
-                    value.type === 'preset' && value.presetId === mascot.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="aspect-square bg-muted rounded mb-1 flex items-center justify-center">
-                    <span className="text-2xl">{mascot.name[0]}</span>
-                  </div>
-                  <p className="text-xs text-center font-medium">{mascot.name}</p>
+              <div
+                key={mascot.id}
+                onClick={() => onChange({ type: 'preset', presetId: mascot.id, position: 'replace' })}
+                className={`p-1.5 rounded-md border cursor-pointer transition-colors ${
+                value.type === 'preset' && value.presetId === mascot.id
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="aspect-square bg-muted rounded-sm mb-1 flex items-center justify-center">
+                <span className="text-lg">{mascot.name[0]}</span>
                 </div>
+                <p className="text-[10px] text-center font-medium leading-tight">{mascot.name}</p>
+              </div>
               ))}
             </div>
           </details>

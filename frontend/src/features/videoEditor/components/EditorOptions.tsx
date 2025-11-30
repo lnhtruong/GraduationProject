@@ -8,10 +8,10 @@ interface Props {
 }
 
 const options = [
+  { id: 'effect' as const, label: 'Hiệu ứng', icon: Sparkles },
+  { id: 'text' as const, label: 'Văn bản', icon: Type },
   { id: 'mascot' as const, label: 'Mascot', icon: Film },
   { id: 'voice' as const, label: 'Giọng nói', icon: Mic },
-  { id: 'text' as const, label: 'Văn bản', icon: Type },
-  { id: 'effect' as const, label: 'Hiệu ứng', icon: Sparkles },
 ];
 
 export default function EditorOptions({ activeOption, onOptionChange }: Props) {

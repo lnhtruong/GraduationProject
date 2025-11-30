@@ -68,9 +68,9 @@ export default function EffectOptions({ value, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Custom Adjustments */}
-      <div className="space-y-5 pt-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between mb-4">
           <Label className="text-sm font-semibold">Tùy chỉnh chi tiết</Label>
           <Button variant="ghost" size="sm" onClick={resetToDefault}>
