@@ -11,6 +11,8 @@ export default function VideoEditor() {
   const {
     videoRef,
     videoSrc,
+    setVideoSrc,
+    originalVideoFile,
     isPlaying,
     play,
     pause,
@@ -24,6 +26,9 @@ export default function VideoEditor() {
     removeTextOverlay,
     mascot,
     setMascot,
+    applyMascot,
+    isApplyingMascot,
+    mascotProgress,
     voice,
     setVoice,
     download,
@@ -44,6 +49,18 @@ export default function VideoEditor() {
 
   // ===== Quản lý chọn text overlay
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+
+  // ===== Quản lý áp dụng mascot
+  const handleMascotApply = async () => {
+    if (!originalVideoFile) {
+      alert('Video chưa sẵn sàng. Vui lòng thử lại.');
+      return;
+    }
+    
+    await applyMascot(mascot, originalVideoFile, (blobUrl) => {
+      setVideoSrc(blobUrl);
+    });
+  };
     
   return (
     <div className="min-h-screen bg-background">
@@ -103,6 +120,10 @@ export default function VideoEditor() {
           onEffectChange={setEffect}
           mascot={mascot}
           onMascotChange={setMascot}
+          onMascotApply={handleMascotApply}
+          isApplyingMascot={isApplyingMascot}
+          mascotProgress={mascotProgress}
+          videoFile={originalVideoFile}
           voice={voice}
           onVoiceChange={setVoice}
           textOverlays={textOverlays}

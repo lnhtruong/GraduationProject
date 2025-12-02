@@ -18,13 +18,6 @@ export default function VideoPreview({
   selectedTextId,
   onTextSelect,
 }: Props) {
-  // // Apply filter khi thay đổi
-  // useEffect(() => {
-  //   if (videoRef.current) {
-  //     videoRef.current.style.filter = filter;
-  //   }
-  // }, [filter, videoRef]);
-
   return (
     <div className="relative w-full bg-black rounded-md overflow-hidden flex items-center justify-center">
       <video

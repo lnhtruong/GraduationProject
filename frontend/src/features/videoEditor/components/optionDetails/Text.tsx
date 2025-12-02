@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { TextOption } from '@/features/videoEditor/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea-custom';
+import { Textarea } from '@/features/videoEditor/components/TextareaCustom';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

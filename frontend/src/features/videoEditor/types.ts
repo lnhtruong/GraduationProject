@@ -4,7 +4,12 @@ export interface MascotOption {
   type: 'preset' | 'none' | 'custom';
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'replace';
   presetId?: string;
+  presetUrl?: string;
   customFile?: File;
+  audioFile?: File;
+  margin_x: number;
+  margin_y: number;
+  scale: number;
 }
 
 export interface VoiceOption {

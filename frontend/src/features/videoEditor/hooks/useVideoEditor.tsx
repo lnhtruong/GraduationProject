@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { mascotService } from '@/services/mascotService';
 import type { MascotOption, VoiceOption, TextOption, EffectOption } from '@/features/videoEditor/types';
 
 export default function useVideoEditor(initialSrc?: string) {
@@ -8,8 +9,27 @@ export default function useVideoEditor(initialSrc?: string) {
   
   // ===== Xử lý nguồn video
   const [videoSrc, setVideoSrc] = useState<string>(() => {
-    return searchParams.get('src') || initialSrc || "/videos/sample-video.mp4";
+    // return searchParams.get('src') || initialSrc || "/videos/sample-video.mp4";
+    return searchParams.get('src') || initialSrc || "/videos/Download.mp4";
   });
+
+  // ===== Lưu trữ file video gốc để gọi API xử lý
+  const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
+  // Tải video gốc khi videoSrc thay đổi
+  useEffect(() => {
+    const loadVideoFile = async () => {
+      try {
+        const response = await fetch(videoSrc);
+        const blob = await response.blob();
+        const file = new File([blob], 'video.mp4', { type: 'video/mp4' });
+        setOriginalVideoFile(file);
+      } catch (error) {
+        console.error('Failed to load video file:', error);
+      }
+    };
+
+    loadVideoFile();
+  }, []); // Chỉ tải một lần khi component mount
   
   // ===== Xử lý dừng phát video
   const [isPlaying, setIsPlaying] = useState(false);
@@ -65,8 +85,103 @@ export default function useVideoEditor(initialSrc?: string) {
   // ===== Quản lý mascot
   const [mascot, setMascot] = useState<MascotOption>({ 
     type: 'none', 
-    position: 'replace', 
+    position: 'bottom-right',
+    margin_x: 40,
+    margin_y: 40,
+    scale: 1,
   });
+
+  // ===== Áp dụng mascot lên video
+  const [isApplyingMascot, setIsApplyingMascot] = useState(false);
+  const [mascotProgress, setMascotProgress] = useState<string>(''); // Track progress
+  const applyMascot = async (
+    mascotOption: MascotOption,
+    videoFile: File,
+    onSuccess: (blobUrl: string) => void
+  ) => {
+    if (mascotOption.type === 'none') {
+      console.log('No mascot to apply');
+      return;
+    }
+
+    // Get mascot file (from custom upload OR preset URL)
+    let mascotFile: File;
+
+    if (mascotOption.type === 'custom' && mascotOption.customFile) {
+      mascotFile = mascotOption.customFile;
+    } else if (mascotOption.type === 'preset' && mascotOption.presetUrl) {
+      try {
+        console.log('Fetching preset mascot from:', mascotOption.presetUrl);
+        const response = await fetch(mascotOption.presetUrl);
+        const blob = await response.blob();
+        mascotFile = new File([blob], `${mascotOption.presetId}.png`, { type: 'image/png' });
+        console.log('Preset mascot loaded:', mascotFile);
+      } catch (error) {
+        console.error('Failed to load preset mascot:', error);
+        alert('Không thể tải mascot có sẵn. Vui lòng thử lại.');
+        return;
+      }
+    } else {
+      alert('Vui lòng chọn file mascot');
+      return;
+    }
+
+    // Validate params
+    const validation = mascotService.validateMascotParams(
+      mascotOption.position,
+      mascotOption.margin_x,
+      mascotOption.margin_y,
+      mascotOption.scale
+    );
+
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
+    setIsApplyingMascot(true);
+    setMascotProgress('Đang tải lên...');
+
+    try {
+      console.log('Applying mascot with params:', {
+        position: mascotOption.position,
+        margin_x: mascotOption.margin_x,
+        margin_y: mascotOption.margin_y,
+        scale: mascotOption.scale,
+        type: mascotOption.type,
+        audio: mascotOption.audioFile?.name,
+      });
+
+      // Call API
+      const blobUrl = await mascotService.addMascotAndDownload(
+        videoFile,
+        mascotFile,
+        mascotOption.position,
+        mascotOption.margin_x,
+        mascotOption.margin_y,
+        mascotOption.scale,
+        mascotOption.audioFile,
+        (stage) => {
+          setMascotProgress(stage);
+        }
+      );
+
+      console.log('Mascot applied successfully. New video URL:', blobUrl);
+
+      // Update mascot state
+      setMascot(mascotOption);
+
+      // Callback to update video source
+      onSuccess(blobUrl);
+
+      alert('Mascot đã được áp dụng thành công!');
+    } catch (error) {
+      console.error('Failed to apply mascot:', error);
+      alert('Không thể áp dụng mascot. Vui lòng thử lại.');
+    } finally {
+      setIsApplyingMascot(false);
+    }
+  };
 
   // ===== Quản lý voice
   const [voice, setVoice] = useState<VoiceOption>({
@@ -104,6 +219,7 @@ export default function useVideoEditor(initialSrc?: string) {
     videoRef,
     videoSrc,
     setVideoSrc,
+    originalVideoFile,
     
     // Playback
     isPlaying,
@@ -125,6 +241,9 @@ export default function useVideoEditor(initialSrc?: string) {
     // Mascot
     mascot,
     setMascot,
+    applyMascot,
+    isApplyingMascot,
+    mascotProgress,
     
     // Voice
     voice,

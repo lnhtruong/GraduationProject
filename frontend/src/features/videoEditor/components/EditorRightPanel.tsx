@@ -4,13 +4,7 @@ import MascotOptions from '@/features/videoEditor/components/optionDetails/Masco
 import VoiceOptions from '@/features/videoEditor/components/optionDetails/Voice';
 import TextOptions from '@/features/videoEditor/components/optionDetails/Text';
 import EffectOptions from '@/features/videoEditor/components/optionDetails/Effect';
-import type {
-  OptionType,
-  MascotOption,
-  VoiceOption,
-  TextOption,
-  EffectOption,
-} from '@/features/videoEditor/types';
+import type { OptionType, MascotOption, VoiceOption, TextOption, EffectOption } from '@/features/videoEditor/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Props {
@@ -18,6 +12,10 @@ interface Props {
   onEffectChange?: (effect: EffectOption) => void;
   mascot: MascotOption;
   onMascotChange?: (mascot: MascotOption) => void;
+  onMascotApply?: () => void;
+  isApplyingMascot?: boolean;
+  videoFile?: File | null;
+  mascotProgress?: string;
   voice: VoiceOption;
   onVoiceChange?: (voice: VoiceOption) => void;
   textOverlays: TextOption[];
@@ -33,6 +31,10 @@ export default function EditorRightPanel({
   onEffectChange,
   mascot,
   onMascotChange,
+  onMascotApply,
+  isApplyingMascot,
+  mascotProgress,
+  videoFile,
   voice,
   onVoiceChange,
   textOverlays,
@@ -136,7 +138,14 @@ export default function EditorRightPanel({
           )}
 
           {activeOption === 'mascot' && onMascotChange && (
-            <MascotOptions value={mascot} onChange={onMascotChange} />
+            <MascotOptions 
+              value={mascot} 
+              onChange={onMascotChange}
+              onApply={onMascotApply}
+              isApplying={isApplyingMascot}
+              mascotProgress={mascotProgress}
+              videoFile={videoFile}
+            />
           )}
           
           {activeOption === 'voice' && onVoiceChange && (
