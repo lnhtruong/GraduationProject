@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { TextOption } from '@/features/videoEditor/types';
+import { cn } from "@/lib/utils";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/features/videoEditor/components/TextareaCustom';
+import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,7 +54,15 @@ export default function TextOptions({ value, onChange, onAdd, onRemove }: Props)
           onChange={(e) => onChange({ ...value, text: e.target.value })}
           placeholder="Nhập văn bản của bạn..."
           rows={3}
-          className="resize-none"
+          className={cn(
+            "resize-none overflow-y-auto ![field-sizing:fixed]",
+            // Đây không phải là hardcode, mà là cách để thêm kiểu cho scrollbar trong Tailwind CSS, xin cảm ơn!
+            "[&::-webkit-scrollbar]:w-2",
+            "[&::-webkit-scrollbar-track]:bg-transparent",
+            "[&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full",
+            "[&::-webkit-scrollbar-thumb]:hover:bg-gray-400",
+            "dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:[&::-webkit-scrollbar-thumb]:hover:bg-gray-500",
+          )}
         />
       </div>
 
