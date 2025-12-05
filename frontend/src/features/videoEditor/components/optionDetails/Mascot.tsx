@@ -18,10 +18,11 @@ interface Props {
 }
 
 const presetMascots = [
-  { id: 'cat', name: 'Mèo', thumbnail: '/mascots/cat.jpg', filePath: '/mascots/cat.png' },
-  { id: 'dog', name: 'Chó', thumbnail: '/mascots/dog.jpg', filePath: '/mascots/dog.png' },
-  { id: 'bear', name: 'Gấu', thumbnail: '/mascots/bear.jpg', filePath: '/mascots/bear.png' },
-  { id: 'rabbit', name: 'Thỏ', thumbnail: '/mascots/rabbit.jpg', filePath: '/mascots/rabbit.png' },
+  { id: 'cat', name: 'Mèo', thumbnail: '/mascots/cat.jpg', filePath: '/mascots/cat.jpg' },
+  { id: 'dog', name: 'Chó', thumbnail: '/mascots/dog.jpg', filePath: '/mascots/dog.jpg' },
+  { id: 'bear', name: 'Gấu', thumbnail: '/mascots/bear.jpg', filePath: '/mascots/bear.jpg' },
+  { id: 'rabbit', name: 'Thỏ', thumbnail: '/mascots/rabbit.jpg', filePath: '/mascots/rabbit.jpg' },
+  { id: 'person', name: 'Người', thumbnail: '/mascots/person.jpg', filePath: '/mascots/person.jpg' },
 ];
 
 export default function MascotOptions({ 
@@ -367,7 +368,7 @@ export default function MascotOptions({
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    ⏳ Đang tính toán giới hạn lề...
+                    Đang tính toán giới hạn lề...
                   </AlertDescription>
                 </Alert>
               )}

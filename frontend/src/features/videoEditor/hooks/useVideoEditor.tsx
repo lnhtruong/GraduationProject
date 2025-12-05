@@ -114,7 +114,7 @@ export default function useVideoEditor(initialSrc?: string) {
         console.log('Fetching preset mascot from:', mascotOption.presetUrl);
         const response = await fetch(mascotOption.presetUrl);
         const blob = await response.blob();
-        mascotFile = new File([blob], `${mascotOption.presetId}.png`, { type: 'image/png' });
+        mascotFile = new File([blob], `${mascotOption.presetId}.jpg`, { type: 'image/jpg' });
         console.log('Preset mascot loaded:', mascotFile);
       } catch (error) {
         console.error('Failed to load preset mascot:', error);
