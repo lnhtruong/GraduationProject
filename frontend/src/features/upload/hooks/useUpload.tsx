@@ -1,310 +1,298 @@
 import { useRef, useState } from "react";
-import {
-  uploadHighlightReel,
-  getJobStatus,
-  downloadResult,
-  downloadResultByUrl,
-} from "@/services/urlService";
-import type { Clip } from "@/features/upload/types";
+import { highlightService } from "@/services/highlightService";
+import { jobService } from "@/services/jobService";
+import type { Clip, UploadState, UploadHookReturn } from "@/features/upload/types";
 
-export function useUpload() {
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [isDownloading, setIsDownloading] = useState(false);
+// ============================================================================
+// INITIAL STATE
+// ============================================================================
 
+const INITIAL_STATE: UploadState = {
+  file: null,
+  progress: null,
+  status: "idle",
+  jobId: null,
+  clips: [],
+  isDownloading: false,
+  error: null,
+};
+
+// ============================================================================
+// HOOK
+// ============================================================================
+
+export function useUpload(): UploadHookReturn {
+  const [state, setState] = useState<UploadState>(INITIAL_STATE);
   const stopPollingRef = useRef<(() => void) | null>(null);
 
-  async function startUpload(fileToUpload: File) {
-    setFile(fileToUpload);
-    setProgress(0);
-    setClips([]);
-    setJobId(null);
-    setStatus(null); // Reset status
+  // ============================================================================
+  // HELPER: Update state
+  // ============================================================================
+  const updateState = (updates: Partial<UploadState>) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  };
+
+  // ============================================================================
+  // SET FILE
+  // ============================================================================
+  const setFile = (file: File | null) => {
+    updateState({ file });
+  };
+
+  // ============================================================================
+  // START UPLOAD
+  // ============================================================================
+  const startUpload = async (fileToUpload: File) => {
+    console.log("[useUpload] Starting upload workflow");
+
+    // Reset state
+    updateState({
+      file: fileToUpload,
+      progress: 0,
+      status: "uploading",
+      clips: [],
+      jobId: null,
+      error: null,
+    });
 
     try {
-      // build FormData
-      const form = new FormData();
-      form.append("file", fileToUpload);
-      form.append("topic", "Binary Tree data structures and problem-solving");
-      form.append(
-        "include_keywords",
-        '"solution explanations","step-by-step problem solving","algorithm analysis","implementation details","time/space complexity discussion"'
-      );
-      form.append(
-        "exclude_keywords",
-        '"advertisements","course promotions","discount announcements","channel subscriptions","greetings and sign-offs","emotional filler"'
-      );
+      // Step 1: Upload file
+      console.log("[useUpload] Step 1: Uploading file...");
+      updateState({ progress: 50 });
 
-      // perform upload (no XHR progress callback to avoid XHR-specific behavior)
-      setProgress(100); // Set progress to 100% after upload
-      const resp = await uploadHighlightReel(form);
-      setProgress(null); // Remove progress bar after upload
+      const jobId = await highlightService.uploadHighlightReel({
+        file: fileToUpload,
+      });
 
-      // server may return { data: { id } } or { job_id } or { jobId } or { id }
-      const r = resp as Record<string, unknown> | null;
-      let id: string | null = null;
-      if (r) {
-        if (typeof r["data"] === "object" && r["data"] !== null) {
-          const d = r["data"] as Record<string, unknown>;
-          if (typeof d["id"] === "string") id = d["id"] as string;
-          else if (typeof d["job_id"] === "string") id = d["job_id"] as string;
-        }
-        if (!id) {
-          if (typeof r["job_id"] === "string") id = r["job_id"] as string;
-          else if (typeof r["jobId"] === "string") id = r["jobId"] as string;
-          else if (typeof r["id"] === "string") id = r["id"] as string;
-        }
+      console.log("[useUpload] Upload completed, jobId:", jobId);
+      updateState({
+        jobId,
+        progress: 100,
+        status: "pending",
+      });
+
+      // Wait a bit then hide progress bar
+      setTimeout(() => {
+        updateState({ progress: null });
+      }, 500);
+
+      // Step 2: Start polling
+      console.log("[useUpload] Step 2: Starting polling...");
+      await pollJobStatus(jobId);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Upload failed";
+      console.error("[useUpload] Upload error:", errorMessage);
+      updateState({
+        status: "failed",
+        error: errorMessage,
+        progress: null,
+      });
+    }
+  };
+
+  // ============================================================================
+  // POLL JOB STATUS
+  // ============================================================================
+  const pollJobStatus = async (jobId: string) => {
+    let stopped = false;
+    const pollInterval = 2000; // 2 seconds
+
+    // Create stop function
+    stopPollingRef.current = () => {
+      stopped = true;
+      console.log("[useUpload] Polling stopped by user");
+    };
+
+    console.log("[useUpload] Starting status polling");
+
+    const interval = setInterval(async () => {
+      if (stopped) {
+        clearInterval(interval);
+        return;
       }
 
-      if (id) {
-        setJobId(id);
-        setStatus("pending"); // Set initial status
+      try {
+        const result = await jobService.pollJobStatus(jobId, {
+          onProgress: (stage, progress) => {
+            console.log("[useUpload] Progress update:", { stage, progress });
+            updateState({ status: "processing" });
+          },
+          maxRetries: 1, // Only 1 retry per poll, we'll handle retries in the loop
+          pollInterval: 0, // We're handling interval manually
+        });
 
-        // start polling every 1s
-        let stopped = false;
-        const interval = setInterval(async () => {
-          if (stopped) {
-            clearInterval(interval);
-            return;
-          }
-          try {
-            const st = await getJobStatus(id);
+        // Update status
+        updateState({ status: result.status });
 
-            // st is the direct response, not wrapped in .data
-            const payload = st as Record<string, unknown>;
-
-            // extract status/state safely
-            let s: string | null = null;
-            if (payload) {
-              const statusVal = payload["status"] ?? payload["state"];
-              if (typeof statusVal === "string") s = statusVal;
-            }
-
-            setStatus(s);
-
-            if (s === "completed") {
-              stopped = true;
-              clearInterval(interval);
-
-              // if backend provided a download URL in the job result, use it
-              try {
-                const result = payload["result"] as
-                  | Record<string, unknown>
-                  | undefined;
-
-                // Check multiple possible download URL fields
-                let downloadUrl: string | null = null;
-                if (result) {
-                  downloadUrl =
-                    (typeof result["download_url"] === "string"
-                      ? result["download_url"]
-                      : null) ||
-                    (typeof result["output_filename"] === "string"
-                      ? result["output_filename"]
-                      : null) ||
-                    (typeof result["url"] === "string" ? result["url"] : null);
-                }
-
-                // Also check direct fields on payload
-                if (!downloadUrl) {
-                  downloadUrl =
-                    (typeof payload["download_url"] === "string"
-                      ? payload["download_url"]
-                      : null) ||
-                    (typeof payload["output_filename"] === "string"
-                      ? payload["output_filename"]
-                      : null) ||
-                    (typeof payload["url"] === "string"
-                      ? payload["url"]
-                      : null);
-                }
-
-                if (downloadUrl) {
-                  // fetch and handle the download using the provided path/url
-                  void fetchAndHandleDownloadFromUrl(
-                    downloadUrl,
-                    file?.name || `${id}.mp4`
-                  );
-                } else {
-                  void fetchAndHandleDownload(id);
-                }
-              } catch {
-                // fallback to default download
-                void fetchAndHandleDownload(id);
-              }
-            }
-            if (s === "failed") {
-              stopped = true;
-              clearInterval(interval);
-            }
-          } catch {
-            // ignore transient polling errors
-          }
-        }, 1000); // Changed to 1 second polling
-
-        stopPollingRef.current = () => {
+        // Handle completion
+        if (result.status === "completed") {
           stopped = true;
           clearInterval(interval);
-        };
-      }
-    } catch {
-      setProgress(null);
-    }
-  }
+          console.log("[useUpload] Job completed, downloading result...");
 
-  function cancel() {
-    setFile(null);
-    setProgress(null);
-    setStatus(null);
-    if (stopPollingRef.current) stopPollingRef.current();
-    stopPollingRef.current = null;
-  }
+          // Download result
+          await downloadResult(jobId, result);
+        }
 
-  async function fetchAndHandleDownload(id: string) {
-    setIsDownloading(true);
-    try {
-      const resp = await downloadResult(id);
-      const contentType = resp.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const payload = (await resp.json()) as unknown;
-
-        // payload may be { clips: [...] } or an array
-        if (
-          typeof payload === "object" &&
-          payload !== null &&
-          "clips" in (payload as Record<string, unknown>)
-        ) {
-          const maybeClips = (payload as Record<string, unknown>)["clips"];
-          if (Array.isArray(maybeClips)) {
-            const mapped = maybeClips.map((it) => {
-              if (typeof it === "string") return { name: it, url: it };
-              if (typeof it === "object" && it !== null) {
-                const r = it as Record<string, unknown>;
-                return {
-                  name:
-                    typeof r["name"] === "string" ? (r["name"] as string) : "",
-                  url: typeof r["url"] === "string" ? (r["url"] as string) : "",
-                };
-              }
-              return { name: "clip", url: String(it) };
-            });
-            setClips(mapped as Clip[]);
-          }
-        } else if (Array.isArray(payload)) {
-          const mapped = (payload as unknown[]).map((item, i) => {
-            if (typeof item === "string")
-              return { name: `clip-${i + 1}`, url: item };
-            if (typeof item === "object" && item !== null) {
-              const r = item as Record<string, unknown>;
-              return {
-                name:
-                  typeof r["name"] === "string"
-                    ? (r["name"] as string)
-                    : `clip-${i + 1}`,
-                url:
-                  typeof r["url"] === "string"
-                    ? (r["url"] as string)
-                    : String(item),
-              };
-            }
-            return { name: `clip-${i + 1}`, url: String(item) };
+        // Handle failure
+        if (result.status === "failed") {
+          stopped = true;
+          clearInterval(interval);
+          const errorMsg = result.error || "Processing failed";
+          console.error("[useUpload] Job failed:", errorMsg);
+          updateState({
+            status: "failed",
+            error: errorMsg,
           });
-          setClips(mapped as Clip[]);
         }
-      } else {
-        const blob = await resp.blob();
-        if (contentType.includes("zip")) {
-          const url = URL.createObjectURL(blob);
-          setClips([{ name: `${id}.zip`, url }]);
-        } else if (blob.type.startsWith("video/")) {
-          const url = URL.createObjectURL(blob);
-          setClips([{ name: file?.name || "result.mp4", url }]);
-        } else {
-          const url = URL.createObjectURL(blob);
-          setClips([{ name: `${id}.bin`, url }]);
-        }
-      }
-    } catch {
-      // ignore download errors
-    } finally {
-      setIsDownloading(false);
-      setProgress(null);
-    }
-  }
 
-  async function fetchAndHandleDownloadFromUrl(
-    pathOrUrl: string,
-    fallbackName?: string
-  ) {
-    setIsDownloading(true);
+      } catch (err) {
+        console.error("[useUpload] Polling error (will retry):", err);
+        // Don't stop polling on transient errors
+      }
+    }, pollInterval);
+  };
+
+  // ============================================================================
+  // DOWNLOAD RESULT
+  // ============================================================================
+  const downloadResult = async (
+    jobId: string,
+    jobResult: Awaited<ReturnType<typeof jobService.pollJobStatus>>
+  ) => {
+    updateState({ isDownloading: true });
+
     try {
-      const resp = await downloadResultByUrl(pathOrUrl);
-      const contentType = resp.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const payload = (await resp.json()) as unknown;
-        // if server returned JSON metadata with a URL, try to fetch that
-        if (
-          typeof payload === "object" &&
-          payload !== null &&
-          "download_url" in (payload as Record<string, unknown>)
-        ) {
-          const u = (payload as Record<string, unknown>)[
-            "download_url"
-          ] as string;
-          if (u) {
-            // fetch the actual binary
-            const binResp = await downloadResultByUrl(u);
-            const blob = await binResp.blob();
-            const url = URL.createObjectURL(blob);
-            const baseName =
-              fallbackName ??
-              (() => {
-                const parts = u.split("/").filter(Boolean);
-                return parts.length ? parts[parts.length - 1] : "result.mp4";
-              })();
-            setClips([{ name: baseName, url }]);
-            return;
-          }
-        }
-      }
+      console.log("[useUpload] Downloading result...");
 
-      // otherwise treat as binary
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const baseName =
-        fallbackName ??
-        (() => {
-          const parts = pathOrUrl.split("/").filter(Boolean);
-          return parts.length ? parts[parts.length - 1] : "result";
-        })();
-      if (contentType.includes("zip")) {
-        setClips([{ name: `${baseName}.zip`, url }]);
-      } else if (blob.type.startsWith("video/")) {
-        setClips([{ name: fallbackName || file?.name || `${baseName}`, url }]);
+      // Try to get download URL from result
+      const downloadUrl = jobService.extractDownloadUrl(jobResult.result);
+
+      let response: Response;
+      if (downloadUrl) {
+        console.log("[useUpload] Using download URL from result:", downloadUrl);
+        response = await jobService.downloadJobResultByUrl(downloadUrl);
       } else {
-        setClips([{ name: `${baseName}.bin`, url }]);
+        console.log("[useUpload] Using job ID for download:", jobId);
+        response = await jobService.downloadJobResult(jobId);
       }
-    } catch {
-      // ignore
-    } finally {
-      setIsDownloading(false);
-      setProgress(null);
-    }
-  }
 
+      // Parse response
+      const clips = await parseDownloadResponse(response, jobId);
+
+      console.log("[useUpload] Download completed, clips:", clips);
+      updateState({
+        clips,
+        isDownloading: false,
+        status: "completed",
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Download failed";
+      console.error("[useUpload] Download error:", errorMessage);
+      updateState({
+        isDownloading: false,
+        error: errorMessage,
+      });
+    }
+  };
+
+  // ============================================================================
+  // PARSE DOWNLOAD RESPONSE
+  // ============================================================================
+  const parseDownloadResponse = async (
+    response: Response,
+    fallbackName: string
+  ): Promise<Clip[]> => {
+    const contentType = response.headers.get("content-type") || "";
+
+    // Handle JSON response (clips metadata)
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+
+      // Check for clips array
+      if (data.clips && Array.isArray(data.clips)) {
+        return jobService.parseClipsFromResult({ clips: data.clips });
+      }
+
+      // Check if response itself is an array
+      if (Array.isArray(data)) {
+        return jobService.parseClipsFromResult({ clips: data });
+      }
+
+      // If JSON has a download URL, fetch that
+      if (data.download_url) {
+        const binaryResponse = await jobService.downloadJobResultByUrl(data.download_url);
+        return parseDownloadResponse(binaryResponse, fallbackName);
+      }
+    }
+
+    // Handle binary response (video/zip file)
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Determine file name and extension
+    let fileName = fallbackName;
+    if (contentType.includes("zip") || blob.type.includes("zip")) {
+      fileName = `${fallbackName}.zip`;
+    } else if (blob.type.startsWith("video/")) {
+      fileName = state.file?.name || `${fallbackName}.mp4`;
+    }
+
+    console.log("[useUpload] Created blob URL:", { fileName, blobUrl, size: blob.size });
+
+    return [{ name: fileName, url: blobUrl }];
+  };
+
+  // ============================================================================
+  // CANCEL
+  // ============================================================================
+  const cancel = () => {
+    console.log("[useUpload] Canceling upload");
+
+    // Stop polling
+    if (stopPollingRef.current) {
+      stopPollingRef.current();
+      stopPollingRef.current = null;
+    }
+
+    // Reset state
+    setState(INITIAL_STATE);
+  };
+
+  // ============================================================================
+  // RESET (for starting new upload without clearing file)
+  // ============================================================================
+  const reset = () => {
+    console.log("[useUpload] Resetting state");
+
+    // Stop polling
+    if (stopPollingRef.current) {
+      stopPollingRef.current();
+      stopPollingRef.current = null;
+    }
+
+    // Reset but keep file
+    updateState({
+      progress: null,
+      status: "idle",
+      jobId: null,
+      clips: [],
+      isDownloading: false,
+      error: null,
+    });
+  };
+
+  // ============================================================================
+  // RETURN
+  // ============================================================================
   return {
-    file,
+    ...state,
     setFile,
-    progress,
-    status,
-    jobId,
-    clips,
-    isDownloading,
     startUpload,
     cancel,
+    reset,
   };
 }
 
