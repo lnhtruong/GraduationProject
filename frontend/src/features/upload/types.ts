@@ -41,11 +41,20 @@ export interface UploadState {
 }
 
 /**
+ * Highlight parameters for form
+ */
+export interface HighlightParams {
+  topic: string;
+  includeKeywords: string[];
+  excludeKeywords: string[];
+}
+
+/**
  * Upload hook return type
  */
 export interface UploadHookReturn extends UploadState {
   setFile: (file: File | null) => void;
-  startUpload: (file: File) => Promise<void>;
+  startUpload: (file: File, params: HighlightParams) => Promise<void>;
   cancel: () => void;
   reset: () => void;
 }

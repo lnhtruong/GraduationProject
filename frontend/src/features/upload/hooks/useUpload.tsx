@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { highlightService } from "@/services/highlightService";
 import { jobService } from "@/services/jobService";
 import type { Clip, UploadState, UploadHookReturn } from "@/features/upload/types";
+import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
 
 // ============================================================================
 // INITIAL STATE
@@ -40,10 +41,10 @@ export function useUpload(): UploadHookReturn {
   };
 
   // ============================================================================
-  // START UPLOAD
+  // START UPLOAD - NOW ACCEPTS HIGHLIGHT PARAMS
   // ============================================================================
-  const startUpload = async (fileToUpload: File) => {
-    console.log("[useUpload] Starting upload workflow");
+  const startUpload = async (fileToUpload: File, params: HighlightParams) => {
+    console.log("[useUpload] Starting upload workflow with params:", params);
 
     // Reset state
     updateState({
@@ -60,8 +61,19 @@ export function useUpload(): UploadHookReturn {
       console.log("[useUpload] Step 1: Uploading file...");
       updateState({ progress: 50 });
 
+      // Format keywords as quoted strings
+      const includeKeywordsFormatted = params.includeKeywords
+        .map((k) => `"${k}"`)
+        .join(",");
+      const excludeKeywordsFormatted = params.excludeKeywords
+        .map((k) => `"${k}"`)
+        .join(",");
+
       const jobId = await highlightService.uploadHighlightReel({
         file: fileToUpload,
+        topic: params.topic,
+        includeKeywords: includeKeywordsFormatted,
+        excludeKeywords: excludeKeywordsFormatted,
       });
 
       console.log("[useUpload] Upload completed, jobId:", jobId);

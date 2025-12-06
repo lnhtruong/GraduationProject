@@ -1,9 +1,12 @@
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import FilePreview from "@/features/upload/components/FilePreview";
+import HighlightParamsForm from "@/features/upload/components/HighlightParamsForm";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import ResultsSection from "@/features/upload/components/ResultsSection";
 import useUpload from "@/features/upload/hooks/useUpload";
+import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
 
 // ============================================================================
 // COMPONENT
@@ -26,25 +29,42 @@ export default function Upload() {
   const navigate = useNavigate();
 
   // ============================================================================
+  // STATE - Form visibility
+  // ============================================================================
+  const [showForm, setShowForm] = React.useState(false);
+
+  // ============================================================================
   // HANDLERS
   // ============================================================================
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
+    setShowForm(false); // Reset form khi chọn file mới
   };
 
-  const handleUpload = () => {
+  const handleConfirmFile = () => {
+    setShowForm(true); // Hiển thị form khi user confirm file
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false); // Quay lại file preview
+  };
+
+  const handleFormSubmit = (params: HighlightParams) => {
     if (file) {
-      startUpload(file);
+      startUpload(file, params);
+      setShowForm(false); // Ẩn form khi bắt đầu upload
     }
   };
 
-  const handleCancel = () => {
+  const handleRemoveFile = () => {
     cancel();
+    setShowForm(false);
   };
 
   const handleStartNew = () => {
     cancel();
+    setShowForm(false);
   };
 
   const handleViewResults = () => {
@@ -72,7 +92,7 @@ export default function Upload() {
     status === "processing";
 
   const isCompleted = status === "completed" && clips.length > 0;
-  const showFilePreview = file && !isCompleted;
+  const showFilePreview = file && !showForm && !isProcessing && !isCompleted;
   const showResults = isCompleted;
 
   // ============================================================================
@@ -91,36 +111,59 @@ export default function Upload() {
 
       {/* Upload Section */}
       <div className="space-y-6">
-        {!file ? (
-          // Show upload dropzone when no file selected
+        {/* Step 1: Upload Dropzone */}
+        {!file && (
           <UploadDropzone onFileSelect={handleFileSelect} />
-        ) : (
-          <div className="space-y-4">
-            {/* File Preview - hide when completed */}
-            {showFilePreview && (
-              <FilePreview
-                file={file}
-                onRemove={handleCancel}
-                onUpload={handleUpload}
-                isUploading={isProcessing}
-              />
-            )}
-
-            {/* Progress/Status */}
-            <UploadProgress
-              progress={progress}
-              status={status}
-              jobId={jobId}
-              isDownloading={isDownloading}
-              clipsCount={clips.length}
-              error={error}
-              onViewResults={handleViewResults}
-              onStartNew={handleStartNew}
-            />
-          </div>
         )}
 
-        {/* Results Section */}
+        {/* Step 2: File Preview (cho user confirm hoặc đổi file) */}
+        {showFilePreview && (
+          <FilePreview
+            file={file}
+            onRemove={handleRemoveFile}
+            onUpload={handleConfirmFile}
+            isUploading={false}
+          />
+        )}
+
+        {/* Step 3: Highlight Params Form */}
+        {file && showForm && !isProcessing && (
+          <HighlightParamsForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleCancelForm}
+            isSubmitting={false}
+          />
+        )}
+
+        {/* Step 4: Processing Status */}
+        {isProcessing && (
+          <UploadProgress
+            progress={progress}
+            status={status}
+            jobId={jobId}
+            isDownloading={isDownloading}
+            clipsCount={clips.length}
+            error={error}
+            onViewResults={handleViewResults}
+            onStartNew={handleStartNew}
+          />
+        )}
+
+        {/* Step 5: Success Status (included in UploadProgress) */}
+        {isCompleted && (
+          <UploadProgress
+            progress={progress}
+            status={status}
+            jobId={jobId}
+            isDownloading={isDownloading}
+            clipsCount={clips.length}
+            error={error}
+            onViewResults={handleViewResults}
+            onStartNew={handleStartNew}
+          />
+        )}
+
+        {/* Step 6: Results Section */}
         <div data-results-section>
           <ResultsSection clips={clips} isVisible={showResults} />
         </div>
