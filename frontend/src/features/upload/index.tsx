@@ -1,8 +1,16 @@
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import FilePreview from "@/features/upload/components/FilePreview";
+import HighlightParamsForm from "@/features/upload/components/HighlightParamsForm";
 import UploadProgress from "@/features/upload/components/UploadProgress";
+import ResultsSection from "@/features/upload/components/ResultsSection";
 import useUpload from "@/features/upload/hooks/useUpload";
+import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function Upload() {
   const {
@@ -13,48 +21,86 @@ export default function Upload() {
     jobId,
     clips,
     isDownloading,
+    error,
     startUpload,
     cancel,
   } = useUpload();
 
   const navigate = useNavigate();
 
+  // ============================================================================
+  // STATE - Form visibility
+  // ============================================================================
+  const [showForm, setShowForm] = React.useState(false);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
+    setShowForm(false); // Reset form khi chọn file mới
   };
 
-  const handleUpload = () => {
+  const handleConfirmFile = () => {
+    setShowForm(true); // Hiển thị form khi user confirm file
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false); // Quay lại file preview
+  };
+
+  const handleFormSubmit = (params: HighlightParams) => {
     if (file) {
-      startUpload(file);
+      startUpload(file, params);
+      setShowForm(false); // Ẩn form khi bắt đầu upload
     }
   };
 
-  const handleCancel = () => {
+  const handleRemoveFile = () => {
     cancel();
+    setShowForm(false);
   };
 
   const handleStartNew = () => {
     cancel();
+    setShowForm(false);
   };
 
-  const isProcessing =
-    progress !== null || (status !== null && status !== "completed");
-  const isCompleted = status === "completed" && clips.length > 0;
-
   const handleViewResults = () => {
-    // If there are clips, navigate to editor and load the first clip
+    // Navigate to editor with first clip
     if (clips && clips.length > 0 && clips[0].url) {
       const url = `/editor?src=${encodeURIComponent(clips[0].url)}`;
       navigate(url);
       return;
     }
 
-    // Fallback: do nothing (no results section) — user can view clips from UploadProgress
-    return;
+    // If no clips, scroll to results section
+    const resultsSection = document.querySelector('[data-results-section]');
+    if (resultsSection) {
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
+  // ============================================================================
+  // COMPUTED STATES
+  // ============================================================================
+
+  const isProcessing =
+    status === "uploading" ||
+    status === "pending" ||
+    status === "processing";
+
+  const isCompleted = status === "completed" && clips.length > 0;
+  const showFilePreview = file && !showForm && !isProcessing && !isCompleted;
+  const showResults = isCompleted;
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
   return (
-    <div className="max-w-5xl mx-auto py-10">
+    <div className="max-w-5xl mx-auto py-10 px-4">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold">Tải lên video bài giảng</h1>
@@ -65,41 +111,62 @@ export default function Upload() {
 
       {/* Upload Section */}
       <div className="space-y-6">
-        {!file ? (
+        {/* Step 1: Upload Dropzone */}
+        {!file && (
           <UploadDropzone onFileSelect={handleFileSelect} />
-        ) : isCompleted ? (
-          // Show only status when completed
+        )}
+
+        {/* Step 2: File Preview (cho user confirm hoặc đổi file) */}
+        {showFilePreview && (
+          <FilePreview
+            file={file}
+            onRemove={handleRemoveFile}
+            onUpload={handleConfirmFile}
+            isUploading={false}
+          />
+        )}
+
+        {/* Step 3: Highlight Params Form */}
+        {file && showForm && !isProcessing && (
+          <HighlightParamsForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleCancelForm}
+            isSubmitting={false}
+          />
+        )}
+
+        {/* Step 4: Processing Status */}
+        {isProcessing && (
           <UploadProgress
             progress={progress}
             status={status}
             jobId={jobId}
             isDownloading={isDownloading}
             clipsCount={clips.length}
+            error={error}
             onViewResults={handleViewResults}
             onStartNew={handleStartNew}
           />
-        ) : (
-          <div className="space-y-4">
-            {/* File preview - only show when not completed */}
-            <FilePreview
-              file={file}
-              onRemove={handleCancel}
-              onUpload={handleUpload}
-              isUploading={isProcessing}
-            />
-
-            {/* Progress/Status */}
-            <UploadProgress
-              progress={progress}
-              status={status}
-              jobId={jobId}
-              isDownloading={isDownloading}
-              clipsCount={clips.length}
-              onViewResults={handleViewResults}
-              onStartNew={handleStartNew}
-            />
-          </div>
         )}
+
+        {/* Step 5: Success Status (included in UploadProgress) */}
+        {isCompleted && (
+          <UploadProgress
+            progress={progress}
+            status={status}
+            jobId={jobId}
+            isDownloading={isDownloading}
+            clipsCount={clips.length}
+            error={error}
+            onViewResults={handleViewResults}
+            onStartNew={handleStartNew}
+          />
+        )}
+
+        {/* Step 6: Results Section */}
+        <div data-results-section>
+          <ResultsSection clips={clips} isVisible={showResults} />
+        </div>
       </div>
     </div>
   );

@@ -1,19 +1,52 @@
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import type { UploadStatus } from "@/features/upload/types";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface ProcessingStatusProps {
-  status: string | null;
+  status: UploadStatus;
   jobId: string | null;
   isDownloading?: boolean;
+  error?: string | null;
 }
 
-const statusConfig = {
+interface StatusConfig {
+  label: string;
+  color: string;
+  icon: React.ElementType;
+  progress: number;
+  description: string;
+}
+
+// ============================================================================
+// STATUS CONFIGURATIONS
+// ============================================================================
+
+const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
+  idle: {
+    label: "Sẵn sàng",
+    color: "bg-gray-100 text-gray-800 border-gray-200",
+    icon: Clock,
+    progress: 0,
+    description: "Chọn file video để bắt đầu",
+  },
+  uploading: {
+    label: "Đang tải lên",
+    color: "bg-blue-100 text-blue-800 border-blue-200",
+    icon: Loader2,
+    progress: 50,
+    description: "Đang tải video lên server...",
+  },
   pending: {
     label: "Đang chờ xử lý",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
-    progress: 10,
+    progress: 20,
     description: "Video đã được tải lên, đang xếp hàng để xử lý",
   },
   processing: {
@@ -39,21 +72,36 @@ const statusConfig = {
   },
 };
 
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
 export default function ProcessingStatus({
   status,
   isDownloading = false,
+  error,
 }: ProcessingStatusProps) {
-  if (!status) return null;
+  // Don't render if idle
+  if (status === "idle") return null;
 
-  const config = statusConfig[status as keyof typeof statusConfig] || {
-    label: status,
-    color: "bg-gray-100 text-gray-800 border-gray-200",
-    icon: Clock,
-    progress: 50,
-    description: `Trạng thái: ${status}`,
-  };
-
+  const config = STATUS_CONFIG[status];
   const Icon = config.icon;
+
+  // Icon color based on status
+  const iconColor =
+    status === "processing" || status === "uploading"
+      ? "text-blue-600"
+      : status === "completed"
+      ? "text-green-600"
+      : status === "pending"
+      ? "text-yellow-600"
+      : status === "failed"
+      ? "text-red-600"
+      : "text-gray-600";
+
+  // Icon animation
+  const iconAnimation =
+    status === "processing" || status === "uploading" ? "animate-spin" : "";
 
   return (
     <div className="space-y-4 p-4 bg-card border rounded-lg">
@@ -61,27 +109,11 @@ export default function ProcessingStatus({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Icon
-              className={`w-5 h-5 ${
-                status === "processing" ? "animate-spin" : ""
-              } ${
-                config.color.includes("blue")
-                  ? "text-blue-600"
-                  : config.color.includes("green")
-                  ? "text-green-600"
-                  : config.color.includes("yellow")
-                  ? "text-yellow-600"
-                  : config.color.includes("red")
-                  ? "text-red-600"
-                  : "text-gray-600"
-              }`}
-            />
+            <Icon className={`w-5 h-5 ${iconColor} ${iconAnimation}`} />
           </div>
           <div>
             <h3 className="font-medium">{config.label}</h3>
-            <p className="text-sm text-muted-foreground">
-              {config.description}
-            </p>
+            <p className="text-sm text-muted-foreground">{config.description}</p>
           </div>
         </div>
         <Badge variant="outline" className={config.color}>
@@ -90,13 +122,23 @@ export default function ProcessingStatus({
       </div>
 
       {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Tiến độ</span>
-          <span className="font-medium">{config.progress}%</span>
+      {status !== "failed" && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Tiến độ</span>
+            <span className="font-medium">{config.progress}%</span>
+          </div>
+          <Progress value={config.progress} className="h-2" />
         </div>
-        <Progress value={config.progress} className="h-2" />
-      </div>
+      )}
+
+      {/* Error Message */}
+      {status === "failed" && error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Additional Info */}
       <div className="space-y-2">
@@ -108,27 +150,37 @@ export default function ProcessingStatus({
         )}
 
         <div className="text-xs text-muted-foreground">
-          Cập nhật lần cuối: {new Date().toLocaleTimeString()}
+          Cập nhật lần cuối: {new Date().toLocaleTimeString("vi-VN")}
         </div>
       </div>
 
-      {/* Processing Steps (for processing status) */}
+      {/* Processing Steps */}
       {status === "processing" && (
         <div className="space-y-2 pt-2 border-t">
           <h4 className="text-sm font-medium">Các bước xử lý:</h4>
           <div className="space-y-1 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-3 h-3 text-green-500" />
-              Phân tích nội dung video
+              <span>Phân tích nội dung video</span>
             </div>
             <div className="flex items-center gap-2">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-              Tạo highlight clips tự động
+              <span>Tạo highlight clips tự động</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-3 h-3 text-gray-400" />
-              Xuất video và tạo file tải về
+              <span>Xuất video và tạo file tải về</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Steps */}
+      {status === "pending" && (
+        <div className="space-y-2 pt-2 border-t">
+          <h4 className="text-sm font-medium">Đang chờ:</h4>
+          <div className="text-xs text-muted-foreground">
+            Video của bạn đang trong hàng đợi. Thời gian xử lý tùy thuộc vào độ dài video và số lượng yêu cầu đang chờ.
           </div>
         </div>
       )}
