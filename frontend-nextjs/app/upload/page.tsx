@@ -1,5 +1,5 @@
-import UploadForm from "@/features/upload/UploadForm";
+import Upload from "@/features/upload";
 
 export default function UploadPage() {
-  return <UploadForm />;
+  return <Upload />;
 }

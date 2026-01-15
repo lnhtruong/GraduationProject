@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ThemeProviderContext } from "./ThemeContext";
+import { ThemeProviderContext } from "@/lib/shared/theme-context";
 
 type Theme = "dark" | "light" | "system";
 
@@ -14,7 +14,7 @@ type ThemeProviderProps = {
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "datn-theme",
+  storageKey = "csdl-monhoc-theme",
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {

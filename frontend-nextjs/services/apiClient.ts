@@ -1,12 +1,9 @@
-/**
- * Client-side HTTP utilities for Next.js App Router
- * Used for client-side API calls via Route Handlers
- */
+import { API_BASE_URL } from "@/lib/config";
 
-class HttpClient {
+class ApiClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || "") {
+  constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
@@ -19,9 +16,11 @@ class HttpClient {
     const defaultHeaders = {
       "Content-Type": "application/json",
       Accept: "application/json",
+      "ngrok-skip-browser-warning": "true",
     };
 
     const config: RequestInit = {
+      mode: "cors",
       headers: {
         ...defaultHeaders,
         ...options.headers,
@@ -53,22 +52,6 @@ class HttpClient {
     });
   }
 
-  async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
-    // Don't set Content-Type for FormData - let browser handle it
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data as T;
-  }
-
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: "PUT",
@@ -83,5 +66,4 @@ class HttpClient {
   }
 }
 
-// Export singleton instance for client-side usage
-export const httpClient = new HttpClient();
+export const apiClient = new ApiClient(API_BASE_URL);
