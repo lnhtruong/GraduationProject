@@ -7,7 +7,7 @@ import FilePreview from "@/features/upload/components/FilePreview";
 import HighlightParamsForm from "@/features/upload/components/HighlightParamsForm";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import ResultsSection from "@/features/upload/components/ResultsSection";
-import useUpload from "@/features/upload/hooks/useUpload";
+import { useUpload } from "@/features/upload/hooks/useUpload";
 import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
 
 // ============================================================================
@@ -24,6 +24,8 @@ export default function Upload() {
     clips,
     isDownloading,
     error,
+    stage,
+    progressPercent,
     startUpload,
     cancel,
   } = useUpload();
@@ -142,6 +144,8 @@ export default function Upload() {
             isDownloading={isDownloading}
             clipsCount={clips.length}
             error={error}
+            stage={stage}
+            progressPercent={progressPercent}
             onViewResults={handleViewResults}
             onStartNew={handleStartNew}
           />
@@ -156,6 +160,8 @@ export default function Upload() {
             isDownloading={isDownloading}
             clipsCount={clips.length}
             error={error}
+            stage={stage}
+            progressPercent={progressPercent}
             onViewResults={handleViewResults}
             onStartNew={handleStartNew}
           />

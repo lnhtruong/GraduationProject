@@ -13,6 +13,8 @@ interface ProcessingStatusProps {
   jobId: string | null;
   isDownloading?: boolean;
   error?: string | null;
+  stage?: string; // Dynamic stage from backend
+  progressPercent?: number; // Dynamic progress from backend (0-100)
 }
 
 interface StatusConfig {
@@ -80,6 +82,8 @@ export default function ProcessingStatus({
   status,
   isDownloading = false,
   error,
+  stage,
+  progressPercent,
 }: ProcessingStatusProps) {
   // Don't render if idle
   if (status === "idle") return null;
@@ -87,17 +91,21 @@ export default function ProcessingStatus({
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
 
+  // Use backend stage if available, but use config progress (backend not ready yet)
+  const displayStage = stage || config.description;
+  const displayProgress = config.progress; // Use hardcoded progress until backend implements it
+
   // Icon color based on status
   const iconColor =
     status === "processing" || status === "uploading"
       ? "text-blue-600"
       : status === "completed"
-      ? "text-green-600"
-      : status === "pending"
-      ? "text-yellow-600"
-      : status === "failed"
-      ? "text-red-600"
-      : "text-gray-600";
+        ? "text-green-600"
+        : status === "pending"
+          ? "text-yellow-600"
+          : status === "failed"
+            ? "text-red-600"
+            : "text-gray-600";
 
   // Icon animation
   const iconAnimation =
@@ -113,7 +121,7 @@ export default function ProcessingStatus({
           </div>
           <div>
             <h3 className="font-medium">{config.label}</h3>
-            <p className="text-sm text-muted-foreground">{config.description}</p>
+            <p className="text-sm text-muted-foreground">{displayStage}</p>
           </div>
         </div>
         <Badge variant="outline" className={config.color}>
@@ -126,9 +134,9 @@ export default function ProcessingStatus({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Tiến độ</span>
-            <span className="font-medium">{config.progress}%</span>
+            <span className="font-medium">{Math.round(displayProgress)}%</span>
           </div>
-          <Progress value={config.progress} className="h-2" />
+          <Progress value={displayProgress} className="h-2" />
         </div>
       )}
 
@@ -180,7 +188,8 @@ export default function ProcessingStatus({
         <div className="space-y-2 pt-2 border-t">
           <h4 className="text-sm font-medium">Đang chờ:</h4>
           <div className="text-xs text-muted-foreground">
-            Video của bạn đang trong hàng đợi. Thời gian xử lý tùy thuộc vào độ dài video và số lượng yêu cầu đang chờ.
+            Video của bạn đang trong hàng đợi. Thời gian xử lý tùy thuộc vào độ
+            dài video và số lượng yêu cầu đang chờ.
           </div>
         </div>
       )}

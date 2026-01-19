@@ -122,15 +122,15 @@ export default function EditorRightPanel({
   };
 
   return (
-    <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col h-full border">
-      <div className="p-4 border-b">
+    <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col max-h-full border overflow-hidden">
+      <div className="p-4 border-b flex-shrink-0">
         <EditorOptions
           activeOption={activeOption}
           onOptionChange={setActiveOption}
         />
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-auto">
         <div className="p-4 space-y-4">
           {activeOption === "effect" && onEffectChange && (
             <EffectOptions value={effect} onChange={onEffectChange} />

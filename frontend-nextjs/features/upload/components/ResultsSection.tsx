@@ -97,7 +97,17 @@ function ClipCard({ clip, index }: ClipCardProps) {
 
           {/* Edit Button (only for videos) */}
           {isVideo && (
-            <Button variant="default" size="sm" asChild>
+            <Button
+              variant="default"
+              size="sm"
+              asChild
+              onClick={() => {
+                console.log(
+                  "[ResultsSection] Navigating to editor with URL:",
+                  clip.url,
+                );
+              }}
+            >
               <Link href={`/editor?src=${encodeURIComponent(clip.url)}`}>
                 <Edit className="w-4 h-4 mr-2" />
                 Chỉnh sửa

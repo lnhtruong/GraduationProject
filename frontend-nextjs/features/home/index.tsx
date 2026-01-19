@@ -11,7 +11,7 @@ export default function Home() {
       {/* 1. Hero Section - Thêm hiệu ứng nền và Typography mạnh mẽ */}
       <section className="relative py-24 lg:py-32 overflow-hidden border-b border-border/40">
         {/* Background Gradients (Hiệu ứng nền loang màu) */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-125 bg-primary/5 rounded-full blur-[100px] -z-10" />
 
         <div className="container mx-auto px-4 text-center">
           {/* Main Heading */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Upload, AlertCircle } from "lucide-react";
 import type { MascotOption } from "@/features/videoEditor/types";
 import { Label } from "@/components/ui/label";
@@ -8,7 +9,10 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { mascotService } from "@/services/mascotService";
+import {
+  validateMascotParams,
+  calculateMaxMargins,
+} from "@/features/_shared/utils/validation";
 
 interface Props {
   value: MascotOption;
@@ -95,10 +99,10 @@ export default function MascotOptions({
           return;
         }
 
-        const margins = await mascotService.calculateMaxMargins(
+        const margins = await calculateMaxMargins(
           videoFile,
           mascotFile,
-          value.scale
+          value.scale,
         );
         setMaxMargins(margins);
 
@@ -128,6 +132,7 @@ export default function MascotOptions({
     videoFile,
     value.position,
     value.type,
+    onChange,
   ]);
 
   // Validate parameters
@@ -137,16 +142,22 @@ export default function MascotOptions({
       return;
     }
 
-    const validation = mascotService.validateMascotParams(
+    if (!maxMargins) {
+      setValidationError(null);
+      return;
+    }
+
+    const validation = validateMascotParams(
       value.position,
       value.margin_x,
       value.margin_y,
-      value.scale,
-      maxMargins?.maxMarginX,
-      maxMargins?.maxMarginY
+      maxMargins.maxMarginX,
+      maxMargins.maxMarginY,
     );
 
-    setValidationError(validation.valid ? null : validation.error || null);
+    setValidationError(
+      validation.isValid ? null : validation.errors[0] || null,
+    );
   }, [value, maxMargins]);
 
   const canApply =
@@ -238,22 +249,13 @@ export default function MascotOptions({
                       : "border-border hover:border-primary/50"
                   }`}
                 >
-                  <div className="aspect-square bg-muted rounded-sm mb-1 flex items-center justify-center overflow-hidden">
-                    <img
+                  <div className="aspect-square bg-muted rounded-sm mb-1 flex items-center justify-center overflow-hidden relative">
+                    <Image
                       src={mascot.thumbnail}
                       alt={mascot.name}
-                      className="w-full h-full object-contain p-1"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        const parent = e.currentTarget.parentElement;
-                        if (parent && !parent.querySelector(".fallback-text")) {
-                          const fallback = document.createElement("div");
-                          fallback.className =
-                            "fallback-text text-2xl font-bold text-muted-foreground";
-                          fallback.textContent = mascot.name[0];
-                          parent.appendChild(fallback);
-                        }
-                      }}
+                      fill
+                      sizes="(max-width: 768px) 25vw, 10vw"
+                      className="object-contain p-1"
                     />
                   </div>
                   <p className="text-[10px] text-center font-medium leading-tight truncate">
@@ -275,7 +277,7 @@ export default function MascotOptions({
         >
           <label className="cursor-pointer block">
             <div className="flex items-center gap-2">
-              <Upload className="w-4 h-4 flex-shrink-0" />
+              <Upload className="w-4 h-4 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">Mascot tự tạo</p>
                 <p className="text-xs text-muted-foreground truncate">
@@ -314,9 +316,9 @@ export default function MascotOptions({
       {value.type !== "none" && (
         <>
           {/* Current Selection Info */}
-          <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border-2 border-primary rounded-lg p-3 shadow-sm">
+          <div className="bg-linear-to-r from-primary/20 via-primary/10 to-primary/20 border-2 border-primary rounded-lg p-3 shadow-sm">
             <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <div className="shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <svg
                   className="w-4 h-4 text-primary-foreground"
                   fill="none"
@@ -505,17 +507,17 @@ export default function MascotOptions({
               {/* Visual hint */}
               <div className="bg-muted/50 rounded-lg p-3 border">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Lề được tính từ góc{" "}
                     <span className="font-semibold text-foreground">
                       {value.position === "top-left"
                         ? "trên trái"
                         : value.position === "top-right"
-                        ? "trên phải"
-                        : value.position === "bottom-left"
-                        ? "dưới trái"
-                        : "dưới phải"}
+                          ? "trên phải"
+                          : value.position === "bottom-left"
+                            ? "dưới trái"
+                            : "dưới phải"}
                     </span>{" "}
                     của ảnh mascot
                   </p>

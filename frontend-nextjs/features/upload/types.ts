@@ -11,12 +11,12 @@
  * - completed: Hoàn thành
  * - failed: Thất bại
  */
-export type UploadStatus = 
-  | "idle" 
-  | "uploading" 
-  | "pending" 
-  | "processing" 
-  | "completed" 
+export type UploadStatus =
+  | "idle"
+  | "uploading"
+  | "pending"
+  | "processing"
+  | "completed"
   | "failed";
 
 /**
@@ -38,6 +38,8 @@ export interface UploadState {
   clips: Clip[];
   isDownloading: boolean;
   error: string | null;
+  stage?: string; // Stage message from backend
+  progressPercent?: number; // Progress percentage from backend (0-100)
 }
 
 /**

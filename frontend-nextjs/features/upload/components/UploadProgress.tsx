@@ -17,6 +17,8 @@ interface UploadProgressProps {
   error?: string | null;
   onViewResults: () => void;
   onStartNew?: () => void;
+  stage?: string;
+  progressPercent?: number;
 }
 
 // ============================================================================
@@ -30,6 +32,8 @@ export default function UploadProgress({
   isDownloading,
   clipsCount,
   error,
+  stage,
+  progressPercent,
   onViewResults,
   onStartNew,
 }: UploadProgressProps) {
@@ -76,6 +80,8 @@ export default function UploadProgress({
         jobId={jobId}
         isDownloading={isDownloading}
         error={error}
+        stage={stage}
+        progressPercent={progressPercent}
       />
     );
   }

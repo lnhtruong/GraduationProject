@@ -15,6 +15,7 @@ export default function VideoEditor() {
     videoSrc,
     setVideoSrc,
     originalVideoFile,
+    loadVideoFile,
     isPlaying,
     play,
     pause,
@@ -54,12 +55,15 @@ export default function VideoEditor() {
 
   // ===== Quản lý áp dụng mascot
   const handleMascotApply = async () => {
-    if (!originalVideoFile) {
-      alert("Video chưa sẵn sàng. Vui lòng thử lại.");
+    // Lazy load video file when needed
+    const videoFile = await loadVideoFile();
+
+    if (!videoFile) {
+      alert("Không thể tải video. Vui lòng thử lại.");
       return;
     }
 
-    await applyMascot(mascot, originalVideoFile, (blobUrl) => {
+    await applyMascot(mascot, videoFile, (blobUrl) => {
       setVideoSrc(blobUrl);
     });
   };
@@ -92,9 +96,9 @@ export default function VideoEditor() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-12 gap-6 h-[calc(100vh-3.5rem)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-12 gap-6 h-[calc(100vh-7rem)] overflow-hidden">
         {/* Left toolbar */}
-        <aside className="col-span-1">
+        <aside className="col-span-1 overflow-y-auto">
           <EditorToolbar
             isPlaying={isPlaying}
             onPlay={play}

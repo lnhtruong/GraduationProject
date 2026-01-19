@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ThemeProviderContext } from "@/lib/shared/theme-context";
+import React, { useState, useEffect, createContext } from "react";
 
 type Theme = "dark" | "light" | "system";
+
+interface ThemeProviderState {
+  theme: Theme;
+  setTheme: (_theme: Theme) => void;
+}
+
+export const ThemeProviderContext = createContext<
+  ThemeProviderState | undefined
+>(undefined);
 
 type ThemeProviderProps = {
   children: React.ReactNode;
