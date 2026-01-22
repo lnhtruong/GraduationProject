@@ -55,7 +55,7 @@ export function useMascot() {
 
   const applyMascot = async (
     mascotOption: MascotOption,
-    videoFile: File,
+    videoSrc: string,
     onSuccess: (blobUrl: string) => void,
   ) => {
     if (mascotOption.type === "none") {
@@ -116,7 +116,7 @@ export function useMascot() {
 
     // Start processing with React Query
     await processMascot.mutateAsync({
-      videoOrUrl: videoFile,
+      videoOrUrl: videoSrc,
       mascotImage: mascotFile,
       position: mascotOption.position,
       margin_x: mascotOption.margin_x,

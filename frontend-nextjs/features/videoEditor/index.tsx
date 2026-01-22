@@ -55,15 +55,12 @@ export default function VideoEditor() {
 
   // ===== Quản lý áp dụng mascot
   const handleMascotApply = async () => {
-    // Lazy load video file when needed
-    const videoFile = await loadVideoFile();
-
-    if (!videoFile) {
-      alert("Không thể tải video. Vui lòng thử lại.");
+    if (!videoSrc) {
+      alert("Không có video để áp dụng mascot.");
       return;
     }
 
-    await applyMascot(mascot, videoFile, (blobUrl) => {
+    await applyMascot(mascot, videoSrc, (blobUrl) => {
       setVideoSrc(blobUrl);
     });
   };
