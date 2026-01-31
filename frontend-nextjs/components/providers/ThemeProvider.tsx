@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ThemeProviderContext } from "./ThemeContext";
+import React, { useState, useEffect, createContext } from "react";
 
 type Theme = "dark" | "light" | "system";
+
+interface ThemeProviderState {
+  theme: Theme;
+  setTheme: (_theme: Theme) => void;
+}
+
+export const ThemeProviderContext = createContext<
+  ThemeProviderState | undefined
+>(undefined);
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -14,7 +22,7 @@ type ThemeProviderProps = {
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "datn-theme",
+  storageKey = "csdl-monhoc-theme",
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
