@@ -15,7 +15,10 @@ export class UsersService {
   async getUserProfile(userId: number) {
     const user = await this.userModel.findByPk(userId, {
       attributes: { exclude: ['password'] },
+      raw: true,
     });
+
+    // console.log('check user: ', user);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -26,7 +29,7 @@ export class UsersService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      phone: user.phone,
+      role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -46,7 +49,7 @@ export class UsersService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      phone: user.phone,
+      role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
