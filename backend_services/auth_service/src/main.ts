@@ -1,0 +1,41 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [];
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Cho phép request không có origin (Postman, curl)
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    credentials: true,
+  });
+
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  const port = process.env.PORT || 8001;
+  await app.listen(port);
+  console.log(`Auth Service is running on: http://localhost:${port}`);
+}
+bootstrap();
