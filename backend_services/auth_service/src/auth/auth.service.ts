@@ -27,6 +27,8 @@ export class AuthService {
     async register(registerDto: RegisterDto) {
         const { email, password, firstName, lastName } = registerDto;
 
+        console.log('check: ', email, password, firstName, lastName)
+
         const existingUser = await this.userModel.findOne({
             where: { email },
         });
@@ -45,13 +47,13 @@ export class AuthService {
             role: 1,
         });
 
-        const tokenPair = await this.jwtTokenService.generateTokenPair({
-            userId: user.id,
-            email: user.email,
-            role: user.role,
-        });
+        // const tokenPair = await this.jwtTokenService.generateTokenPair({
+        //     userId: user.id,
+        //     email: user.email,
+        //     role: user.role,
+        // });
 
-        await this.storeRefreshToken(user.id, tokenPair.refreshToken);
+        // await this.storeRefreshToken(user.id, tokenPair.refreshToken);
 
         return {
             user: {
@@ -61,16 +63,20 @@ export class AuthService {
                 lastName: user.lastName,
                 role: user.role,
             },
-            ...tokenPair,
+            // ...tokenPair,
         };
     }
 
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto;
+        // console.log('check: ', email, password);
 
         const user = await this.userModel.findOne({
             where: { email },
+            raw: true,
         });
+
+        // console.log('check user: ', user);
 
         if (!user) {
             throw new UnauthorizedException('Invalid credentials');
