@@ -35,6 +35,7 @@ export function useVideoSource(initialSrc?: string) {
     videoSrc,
     setVideoSrc,
     originalVideoFile,
+    setOriginalVideoFile, // Expose setter for VideoUploader
     loadVideoFile,
   } as const;
 }
