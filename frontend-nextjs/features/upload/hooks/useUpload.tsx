@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useProcessHighlight, useJobStatus } from "../api/upload.hooks";
+import { useProcessHighlight } from "../api/upload.hooks";
 import type {
-  Clip,
   UploadState,
   UploadHookReturn,
 } from "@/features/upload/types";
