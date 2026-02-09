@@ -106,8 +106,8 @@ export class AuthService {
         };
     }
 
-    async refreshToken(refreshTokenDto: RefreshTokenDto) {
-        const { refreshToken } = refreshTokenDto;
+    async refreshToken(refreshToken: string) {
+        // const { refreshToken } = refreshTokenDto;
 
         const payload = await this.jwtTokenService.decodeToken(refreshToken);
 
@@ -143,7 +143,13 @@ export class AuthService {
     }
 
     async issueToken(payload: TokenPayload) {
-        return await this.jwtTokenService.generateTokenPair(payload);
+        const tokenPair = this.jwtTokenService.generateTokenPair(payload);
+        await this.storeRefreshToken(payload.userId, (await tokenPair).refreshToken);
+
+        return {
+            accessToken: (await tokenPair).accessToken,
+            refreshToken: (await tokenPair).refreshToken,
+        };
     }
 
     async validateCredential(validateTokenDto: ValidateTokenDto) {
