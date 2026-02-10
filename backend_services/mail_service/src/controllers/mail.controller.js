@@ -1,16 +1,23 @@
 const { mailService } = require('../services');
 const { generateOTP } = require('../utils');
+const redis = require('../configs/redis.config');
 
 exports.sendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
     const otp = generateOTP();
-    await mailService.sendOTP(email, otp);
+
+    const emailKey = email.trim().toLowerCase();
+    await redis.set(`MAIL_OTP:${emailKey}`, otp, 'EX', 300); // 5 mins
+
+    await mailService.sendOTP(emailKey, otp);
+
     res.json({ statusCode: 200, message: 'OTP sent' });
   } catch (err) {
     next(err);
   }
 };
+
 
 exports.sendForgotPassword = async (req, res, next) => {
   try {
