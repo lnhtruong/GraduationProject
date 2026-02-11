@@ -15,22 +15,35 @@ router.use(
     },
     onProxyReq: (proxyReq, req: Request) => {
 
+      // console.log('request: ', req);
+
       // console.log('req: ', req);
-      const bodyData = JSON.stringify(req.body);
+      // const bodyData = JSON.stringify(req.body);
       // Forward original headers 
       if (req.headers['content-type']) {
         proxyReq.setHeader('Content-Type', req.headers['content-type']);
+      }
+      if (req.headers.cookie) {
+        proxyReq.setHeader('Cookie', req.headers.cookie);
       }
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
 
-      proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+      // proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
 
-      proxyReq.write(bodyData);
+      if (req.body && Object.keys(req.body).length > 0) {
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
+      }
 
     },
     onProxyRes: (proxyRes, req: Request, res: Response) => {
+
+      if (proxyRes.headers['set-cookie']) {
+        res.setHeader('Set-Cookie', proxyRes.headers['set-cookie']);
+      }
       // Log proxy response
       console.log(
         `[Auth Service] ${req.method} ${req.path} -> ${proxyRes.statusCode}`,

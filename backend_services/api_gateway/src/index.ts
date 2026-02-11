@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { rateLimitMiddleware } from './middleware/rate-limit.middleware';
 import { loggingMiddleware, requestLogger } from './middleware/logging.middleware';
@@ -10,11 +11,18 @@ import userRoutes from './routes/user.routes';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  credentials: true, // ⭐ Cho phép gửi cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(loggingMiddleware);
 app.use(requestLogger);
+
+// ⭐ Parse cookies - BẮT BUỘC để đọc cookies
+app.use(cookieParser());
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
