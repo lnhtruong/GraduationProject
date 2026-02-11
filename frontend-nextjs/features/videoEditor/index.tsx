@@ -10,7 +10,7 @@ import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Save, Download } from "lucide-react";
-import {DragStartEvent, MeasuringStrategy} from "@dnd-kit/core";
+import {DragStartEvent} from "@dnd-kit/core";
 import { DragOverlay } from "@dnd-kit/core";
 
 import {
@@ -54,7 +54,6 @@ export default function VideoEditor() {
     setVoice,
     download,
   } = editor;
-    const [activeId, setActiveId] = useState<string | null>(null);
     const [activeItem, setActiveItem] = useState<LayerItem | null>(null);
 
     // ===== DnD Setup (Core Infrastructure)
@@ -94,25 +93,21 @@ export default function VideoEditor() {
     // PREVIEW DRAG HANDLER
     // =========================
     const handlePreviewDragStart = (event: DragStartEvent) => {
-        setActiveId(String(event.active.id));
+        const id = String(event.active.id);
+        const item = layers.find((l) => l.id === id);
+        if (item) setActiveItem(item);
     };
 
     const handlePreviewDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (!over) {
-            setActiveId(null);
-            return;
+        if (active.data.current?.source === "preview" && over?.id === "trash") {
+            handleRemoveText(String(active.id));
         }
 
-        const activeId = String(active.id);
-
-        if (active.data.current?.source === "preview" && over.id === "trash") {
-            handleRemoveText(activeId);
-        }
-
-        setActiveId(null);
+        setActiveItem(null);
     };
+
 
 
 
@@ -220,11 +215,7 @@ export default function VideoEditor() {
                 {/* ================= PREVIEW DND CONTEXT ================= */}
                 <DndContext
                     sensors={sensors}
-                    onDragStart={(event) => {
-                        const id = event.active.id;
-                        const item = layers.find((l) => l.id === id);
-                        if (item) setActiveItem(item);
-                    }}
+                    onDragStart={handlePreviewDragStart}
                     onDragEnd={(event) => {
                         handlePreviewDragEnd(event);
                         setActiveItem(null);
