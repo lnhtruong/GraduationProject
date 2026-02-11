@@ -66,4 +66,5 @@ export interface MascotLayer extends BaseLayer {
     data: MascotOption;
 }
 
+//use layerItem contain TextLayer and MascotLayer (for now)
 export type LayerItem = TextLayer | MascotLayer;

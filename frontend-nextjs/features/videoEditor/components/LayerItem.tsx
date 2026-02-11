@@ -18,7 +18,14 @@ export default function LayerRow({ layer, selected, onSelect }: Props) {
         setNodeRef,
         transform,
         transition,
-    } = useSortable({ id: layer.id });
+    } = useSortable({
+        id: layer.id,
+        data: {
+            source: "panel", //để phần biệt trong panel hay trong màn hình review do dùng chung id
+            layerId: layer.id,
+        },
+    });
+
 
     const style = {
         transform: CSS.Transform.toString(transform),

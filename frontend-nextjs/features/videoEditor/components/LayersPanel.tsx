@@ -1,6 +1,6 @@
 "use client";
 
-import {TextLayer, TextOption} from "@/features/videoEditor/types";
+//Panel hiển thị danh sách các layer, cho phép sort để thay đổi z-index
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import LayerRow from "./LayerItem";
 import type { LayerItem } from "@/features/videoEditor/types";
@@ -40,11 +40,10 @@ export default function LayersPanel({
                             selected={selectedId === layer.id}
                             onSelect={() => onSelect?.(layer.id)}
                         />
-
                     ))}
-
                 </div>
             </SortableContext>
+
         </div>
     );
 }
