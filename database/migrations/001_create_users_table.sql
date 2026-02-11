@@ -6,11 +6,11 @@ CREATE TABLE IF NOT EXISTS `roles` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `roles` (`name`, `description`)
+INSERT INTO `roles` (`name`)
 VALUES
-  ('ADMIN', 'Administrator'),
-  ('STUDENT', 'Student'),
-  ('LECTURER', 'Lecturer / Teacher');
+  ('ADMIN'),
+  ('STUDENT'),
+  ('LECTURER');
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS `users` (

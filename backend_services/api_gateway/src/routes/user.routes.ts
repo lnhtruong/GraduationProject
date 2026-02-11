@@ -15,6 +15,8 @@ router.use(
       '^/api': '', // Remove /api prefix when forwarding
     },
     onProxyReq: (proxyReq, req: AuthRequest) => {
+
+      console.log('check header: ', req.headers);
       // Forward original headers
       if (req.headers['content-type']) {
         proxyReq.setHeader('Content-Type', req.headers['content-type']);
@@ -23,11 +25,18 @@ router.use(
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
 
-      if (req.body) {
+      if (req.headers.cookie) {
+        proxyReq.setHeader('Cookie', req.headers.cookie);
+      }
+
+      if (
+        req.method !== 'GET' &&
+        req.method !== 'HEAD' &&
+        req.body &&
+        Object.keys(req.body).length > 0
+      ) {
         const bodyData = JSON.stringify(req.body);
-
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-
         proxyReq.write(bodyData);
       }
 
@@ -40,6 +49,9 @@ router.use(
       }
     },
     onProxyRes: (proxyRes, req: Request, res: Response) => {
+      if (proxyRes.headers['set-cookie']) {
+        res.setHeader('Set-Cookie', proxyRes.headers['set-cookie']);
+      }
       // Log proxy response
       console.log(
         `[User Service] ${req.method} ${req.path} -> ${proxyRes.statusCode}`,
