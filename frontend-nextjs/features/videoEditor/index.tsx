@@ -6,6 +6,7 @@ import VideoPreview from "@/features/videoEditor/components/VideoPreview";
 import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import useVideoEditor from "@/features/videoEditor/hooks/useVideoEditor";
+import { arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Save, Download } from "lucide-react";
 import {
@@ -16,6 +17,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { restrictToParentElement } from "@dnd-kit/modifiers";
+import LayersPanel from "@/features/videoEditor/components/LayersPanel";
 
 export default function VideoEditor() {
   const editor = useVideoEditor();
@@ -33,10 +35,11 @@ export default function VideoEditor() {
     effect,
     setEffect,
     cssFilter,
-    textOverlays,
-    addTextOverlay,
-    updateTextOverlay,
-    removeTextOverlay,
+    layers,
+      handleAddText,
+      handleUpdateText,
+      handleRemoveText,
+      handleReorderText,
     mascot,
     setMascot,
     applyMascot,
@@ -56,11 +59,22 @@ export default function VideoEditor() {
     }),
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    // TODO: Implement drag logic for mascots, layers, etc.
-    // Team members sẽ implement phần này cho feature của họ
-    console.log("Drag ended:", event);
-  };
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = layers.findIndex((l) => l.id === active.id);
+        const newIndex = layers.findIndex((l) => l.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newOrder = arrayMove(layers, oldIndex, newIndex);
+        handleReorderText(newOrder);
+    };
+
+
+
 
   // ===== Quản lý tải video
   const [isDownloading, setIsDownloading] = useState(false);
@@ -158,13 +172,21 @@ export default function VideoEditor() {
             />
           </aside>
 
+            <aside className="col-span-2 bg-card rounded-md shadow-sm p-3 overflow-auto">
+                <LayersPanel
+                    layers={layers}
+                    selectedId={selectedTextId}
+                    onSelect={setSelectedTextId}
+                />
+            </aside>
+
           {/* Main preview area */}
-          <section className="col-span-8 bg-card rounded-md shadow-sm p-4 flex flex-col">
+          <section className="col-span-6 bg-card rounded-md shadow-sm p-4 flex flex-col">
             <VideoPreview
               videoRef={videoRef}
               src={videoSrc}
               filter={cssFilter()}
-              textOverlays={textOverlays}
+              layers={layers}
               selectedTextId={selectedTextId}
               onTextSelect={setSelectedTextId}
             />
@@ -182,10 +204,10 @@ export default function VideoEditor() {
             videoFile={originalVideoFile}
             voice={voice}
             onVoiceChange={setVoice}
-            textOverlays={textOverlays}
-            onTextAdd={addTextOverlay}
-            onTextUpdate={updateTextOverlay}
-            onTextRemove={removeTextOverlay}
+            layers={layers}
+            onTextAdd={handleAddText}
+            onTextUpdate={handleUpdateText}
+            onTextRemove={handleRemoveText}
             selectedTextId={selectedTextId}
             onTextSelect={setSelectedTextId}
           />

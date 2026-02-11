@@ -48,3 +48,22 @@ export interface TextOverlayActions {
   update: (id: string, updates: Partial<TextOption>) => void;
   remove: (id: string) => void;
 }
+
+export type LayerType = "text" | "mascot";
+
+export interface BaseLayer {
+    id: string;
+    type: LayerType;
+}
+
+export interface TextLayer extends BaseLayer {
+    type: "text";
+    data: TextOption;
+}
+
+export interface MascotLayer extends BaseLayer {
+    type: "mascot";
+    data: MascotOption;
+}
+
+export type LayerItem = TextLayer | MascotLayer;
