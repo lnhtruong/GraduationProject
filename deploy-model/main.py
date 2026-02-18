@@ -65,9 +65,9 @@ async def startup_event():
    # Load Whisper on GPU 0
     print(f"🎤 Loading Whisper on {whisper_device}...")
     start = time.time()
-    # ✅ FIX: Use int8_float16 for CUDA (faster), int8 for CPU
+    # ✅ OPTIMIZED: Use float16 for RTX 4090 (fastest, still accurate)
     if whisper_device.startswith("cuda"):
-        whisper_compute = "int8_float16"  # Best for RTX 4090
+        whisper_compute = "float16"  # RTX 4090 has excellent FP16 performance
     else:
         whisper_compute = "int8"
     
@@ -554,6 +554,7 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
     
     try:
         jobs[job_id]["status"] = "processing"
+        jobs[job_id]["start_time"] = time.time()
         
         # Stage 1: Transcribe
         jobs[job_id]["stage"] = "1/4: Transcribing"
@@ -589,6 +590,9 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
         # Done
         jobs[job_id]["stage"] = "4/4: Complete"
         jobs[job_id]["status"] = "completed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {
             "output_filename": output_filename,
             "download_url": f"/download/{job_id}"
@@ -596,6 +600,9 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
         
     except Exception as e:
         jobs[job_id]["status"] = "failed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
         for p in [video_path, audio_path, full_srt, selected_srt]:
@@ -610,6 +617,7 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
     
     try:
         jobs[job_id]["status"] = "processing"
+        jobs[job_id]["start_time"] = time.time()
         
         # Stage 1: Create mascot
         jobs[job_id]["stage"] = "1/2: Creating Mascot"
@@ -623,6 +631,9 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
         
         # Done
         jobs[job_id]["status"] = "completed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         if jobs[job_id].get("result") is None:
             jobs[job_id]["result"] = {}
         
@@ -634,6 +645,9 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
         
     except Exception as e:
         jobs[job_id]["status"] = "failed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
         temp_files = [video_path, audio_path, mascot_image_path]
@@ -671,7 +685,7 @@ async def create_highlight_reel_job(
         "exclude": [k.strip() for k in exclude_keywords.split(",")] if exclude_keywords else []
     }
     
-    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None}
+    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None, "created_time": time.time()}
     
     background_tasks.add_task(process_highlight_reel_in_background, job_id, temp_video, topic_config)
     
@@ -709,7 +723,7 @@ async def create_mascot_reel_job(
             with open(audio_path, "wb") as buffer:
                 buffer.write(audio_content)
     
-    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None}
+    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None, "created_time": time.time()}
     
     background_tasks.add_task(process_mascot_in_background, job_id, temp_video, mascot_path, audio_path, position, margin_x, margin_y, scale)
     
@@ -720,7 +734,29 @@ def get_job_status(job_id: str):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    
+    # Prepare response with time information
+    response = job.copy()
+    
+    # Add human-readable timestamps
+    if "created_time" in job:
+        response["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["created_time"]))
+    
+    if "start_time" in job:
+        response["started_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["start_time"]))
+    
+    if "end_time" in job:
+        response["completed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["end_time"]))
+    
+    if "processing_duration" in job:
+        response["processing_duration_seconds"] = round(job["processing_duration"], 2)
+        # Format as human-readable
+        duration = job["processing_duration"]
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        response["processing_duration_formatted"] = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+    
+    return response
 
 @app.get("/download/{job_id}")
 def download_video(job_id: str):

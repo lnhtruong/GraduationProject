@@ -19,12 +19,11 @@ ls cleanup_vps.sh    # Script cleanup (optional)
 
 ```powershell
 # Thay PORT và VPS_IP cho phù hợp
-$PORT = 3931
-$VPS = "root@n1.ckey.vn"
+$PORT = 1795
+$VPS = "root@n2.ckey.vn"
 
 # Upload setup script
 scp -P $PORT .\setup.sh ${VPS}:~/setup.sh
-scp -P $PORT .\cleanup_vps.sh ${VPS}:~/cleanup_vps.sh
 
 # Tạo thư mục app
 ssh -p $PORT $VPS "mkdir -p /opt/app /opt/sadtalker"
