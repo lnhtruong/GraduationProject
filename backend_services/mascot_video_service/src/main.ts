@@ -20,7 +20,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT || 8002;
+  const port = process.env.PORT || 8003;
   await app.listen(port);
   console.log(`User Service is running on: http://localhost:${port}`);
 }
