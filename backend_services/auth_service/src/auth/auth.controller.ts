@@ -14,6 +14,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { CheckOtpDto } from './dto/check-otp.dto';
 import { JwtAuthGuard } from './jwt/jwt.guard';
 import { COOKIE_CONFIG } from './constants/cookie.constant';
 import type { Response, Request } from 'express';
@@ -100,5 +102,17 @@ export class AuthController {
     return {
       accessToken: result.accessToken,
     };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('check-otp')
+  @HttpCode(HttpStatus.OK)
+  async checkOtp(@Body() checkOtpDto: CheckOtpDto) {
+    return this.authService.checkOtpAndResetPassword(checkOtpDto);
   }
 }

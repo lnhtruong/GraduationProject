@@ -42,6 +42,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/refresh',
+  '/api/auth/forgot-password',
+  '/api/auth/check-otp',
 ];
 
 // Global auth middleware for all other routes
