@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from '../users/users.module';
@@ -7,7 +8,7 @@ import { RedisModule } from '../redis/redis.module';
 import { RedisService } from '../redis/redis.service';
 
 @Module({
-  imports: [UsersModule, JwtTokenModule, RedisModule],
+  imports: [UsersModule, JwtTokenModule, RedisModule, HttpModule],
   controllers: [AuthController],
   providers: [AuthService, RedisService],
   exports: [AuthService],

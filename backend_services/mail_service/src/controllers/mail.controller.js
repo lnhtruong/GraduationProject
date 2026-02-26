@@ -12,7 +12,11 @@ exports.sendOTP = async (req, res, next) => {
 
     await mailService.sendOTP(emailKey, otp);
 
-    res.json({ statusCode: 200, message: 'OTP sent' });
+    res.json({
+      statusCode: 200,
+      message: 'OTP sent',
+      // data: { otp },
+    });
   } catch (err) {
     next(err);
   }
