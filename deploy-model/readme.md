@@ -5,43 +5,45 @@
 
 ## 🔧 Setup Lần Đầu
 
-### Bước 1: Chuẩn bị files trên local
+### Bước 1: Setup JoyVASA trên VPS
 
 ```powershell
-# Kiểm tra các file cần thiết
-ls setup.sh          # Script setup tự động
-ls main.py           # FastAPI application
-ls sadtalker_wrapper.py  # Wrapper cho SadTalker (QUAN TRỌNG!)
-ls cleanup_vps.sh    # Script cleanup (optional)
+# SSH vào VPS
+ssh -p 2291 root@n2.ckey.vn
+
+# Chạy script setup JoyVASA (nếu chưa có)
+bash ~/setup_joyvasa_fast.sh
+
+# Hoặc nếu đã có, chỉ cần verify:
+ls /opt/joyvasa/JoyVASA/pretrained_weights/  # Phải có models
+conda env list | grep joyvasa 
 ```
 
-### Bước 2: Upload files lên VPS
+### Bước 2: Setup API dependencies
 
 ```powershell
-# Thay PORT và VPS_IP cho phù hợp
-$PORT = 1795
+# Upload script setup (từ máy local)
+$PORT = 2291
 $VPS = "root@n2.ckey.vn"
+scp -P $PORT .\setup_api_only.sh ${VPS}:~/setup_api_only.sh
 
-# Upload setup script
-scp -P $PORT .\setup.sh ${VPS}:~/setup.sh
+# SSH và chạy script
+ssh -p 2291 root@n2.ckey.vn
+bash ~/setup_api_only.sh
 
-# Tạo thư mục app
-ssh -p $PORT $VPS "mkdir -p /opt/app /opt/sadtalker"
-
-# Upload application files
-scp -P $PORT .\main.py ${VPS}:/opt/app/main.py
-scp -P $PORT .\sadtalker_wrapper.py ${VPS}:/opt/sadtalker/sadtalker_wrapper.py
+# Verify:
+/opt/venv/bin/python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-### Bước 3: SSH vào VPS và chạy setup
+### Bước 3: Upload các file code
 
 ```bash
-# Kết nối SSH (thay PORT và VPS cho đúng)
-ssh -p 3931 root@n1.ckey.vn
+# Từ máy local, upload 2 file chính:
+$PORT = 2291
+$VPS = "root@n2.ckey.vn"
 
-# Chạy setup (mất ~15-20 phút)
-chmod +x ~/setup.sh
-~/setup.sh
+scp -P $PORT .\main.py ${VPS}:/opt/app/main.py
+scp -P $PORT .\joyvasa_wrapper.py ${VPS}:/opt/joyvasa/joyvasa_wrapper.py
 ```
 
 **Setup sẽ tự động:**
@@ -56,17 +58,14 @@ chmod +x ~/setup.sh
 ### Bước 4: Khởi động service
 
 ```bash
-# Start API
-supervisorctl start highlight-api
+# SSH vào VPS
+ssh -p 2291 root@n2.ckey.vn
 
-# Kiểm tra status
-supervisorctl status highlight-api
+# Restart service
+supervisorctl restart highlight-api
 
-# Xem logs realtime
+# Xem logs để verify
 supervisorctl tail -f highlight-api
-
-# Test API
-curl http://localhost:8000/
 ```
 
 ---
