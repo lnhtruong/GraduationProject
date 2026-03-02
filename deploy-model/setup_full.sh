@@ -207,6 +207,15 @@ cd ${JOYVASA_DIR}/JoyVASA
 echo ""
 echo "✓ All models downloaded"
 
+# Fix model paths with symlinks
+echo ""
+echo "  Creating model path symlinks..."
+cd ${JOYVASA_DIR}/JoyVASA/pretrained_weights
+ln -sf chinese-hubert-base "TencentGameMate:chinese-hubert-base" 2>/dev/null || true
+ln -sf wav2vec2-base-960h "facebook:wav2vec2-base-960h" 2>/dev/null || true
+cd ${JOYVASA_DIR}/JoyVASA
+echo "✓ Model symlinks created"
+
 # Create wrapper script
 echo ""
 echo "  Creating wrapper script..."
