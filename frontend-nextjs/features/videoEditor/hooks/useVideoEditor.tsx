@@ -19,8 +19,7 @@ export default function useVideoEditor(initialSrc?: string) {
   } = useVideoSource(initialSrc);
   const { videoRef, isPlaying, play, pause, toggle } = useVideoPlayback();
   const { effect, setEffect, cssFilter } = useVideoEffects();
-  const { textOverlays, addTextOverlay, updateTextOverlay, removeTextOverlay } =
-    useTextOverlays();
+  const { layers, handleAddText, handleUpdateText, handleReorderText, handleRemoveText } = useTextOverlays();
   const { mascot, setMascot, applyMascot, isApplyingMascot, mascotProgress } =
     useMascot();
 
@@ -76,10 +75,11 @@ export default function useVideoEditor(initialSrc?: string) {
     cssFilter,
 
     // Text
-    textOverlays,
-    addTextOverlay,
-    updateTextOverlay,
-    removeTextOverlay,
+      layers,
+      handleAddText,
+      handleUpdateText,
+      handleReorderText,
+      handleRemoveText,
 
     // Mascot
     mascot,

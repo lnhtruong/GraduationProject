@@ -6,8 +6,13 @@ import VideoPreview from "@/features/videoEditor/components/VideoPreview";
 import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import useVideoEditor from "@/features/videoEditor/hooks/useVideoEditor";
+import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
+import { arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Save, Download } from "lucide-react";
+import {DragStartEvent} from "@dnd-kit/core";
+import { DragOverlay } from "@dnd-kit/core";
+
 import {
   DndContext,
   DragEndEvent,
@@ -16,6 +21,8 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { restrictToParentElement } from "@dnd-kit/modifiers";
+import LayersPanel from "@/features/videoEditor/components/LayersPanel";
+import { LayerItem } from "./types";
 
 export default function VideoEditor() {
   const editor = useVideoEditor();
@@ -33,10 +40,11 @@ export default function VideoEditor() {
     effect,
     setEffect,
     cssFilter,
-    textOverlays,
-    addTextOverlay,
-    updateTextOverlay,
-    removeTextOverlay,
+    layers,
+      handleAddText,
+      handleUpdateText,
+      handleRemoveText,
+      handleReorderText,
     mascot,
     setMascot,
     applyMascot,
@@ -46,8 +54,9 @@ export default function VideoEditor() {
     setVoice,
     download,
   } = editor;
+    const [activeItem, setActiveItem] = useState<LayerItem | null>(null);
 
-  // ===== DnD Setup (Core Infrastructure)
+    // ===== DnD Setup (Core Infrastructure)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -56,13 +65,54 @@ export default function VideoEditor() {
     }),
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    // TODO: Implement drag logic for mascots, layers, etc.
-    // Team members sẽ implement phần này cho feature của họ
-    console.log("Drag ended:", event);
-  };
+    // =========================
+    // PANEL SORT HANDLER
+    // =========================
+    const handlePanelDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const source = active.data.current?.source;
+        if (source === "panel") {
+            if (active.id === over.id) return;
 
-  // ===== Quản lý tải video
+            const oldIndex = layers.findIndex(
+                (l) => l.id === active.id
+            );
+            const newIndex = layers.findIndex(
+                (l) => l.id === over.id
+            );
+
+            if (oldIndex === -1 || newIndex === -1) return;
+
+            const newOrder = arrayMove(layers, oldIndex, newIndex);
+            handleReorderText(newOrder);
+        }
+    };
+
+    // =========================
+    // PREVIEW DRAG HANDLER
+    // =========================
+    const handlePreviewDragStart = (event: DragStartEvent) => {
+        const id = String(event.active.id);
+        const item = layers.find((l) => l.id === id);
+        if (item) setActiveItem(item);
+    };
+
+    const handlePreviewDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (active.data.current?.source === "preview" && over?.id === "trash") {
+            handleRemoveText(String(active.id));
+        }
+
+        setActiveItem(null);
+    };
+
+
+
+
+
+    // ===== Quản lý tải video
   const [isDownloading, setIsDownloading] = useState(false);
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -113,84 +163,120 @@ export default function VideoEditor() {
     );
   }
 
-  return (
-    <DndContext
-      sensors={sensors}
-      onDragEnd={handleDragEnd}
-      modifiers={[restrictToParentElement]}
-    >
-      <div className="min-h-screen bg-background">
-        {/* Top bar */}
-        <div className="bg-card border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14">
-              <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold">Trình chỉnh sửa video</h2>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
-                  <Save className="w-4 h-4 mr-2" /> Lưu
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleDownload}
-                  disabled={isDownloading}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {isDownloading ? "Đang tải..." : "Xuất"}
-                </Button>
-              </div>
+    return (
+        <div className="min-h-screen bg-background">
+            {/* Top bar */}
+            <div className="bg-card border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-14">
+                        <h2 className="text-lg font-semibold">Trình chỉnh sửa video</h2>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm">
+                                <Save className="w-4 h-4 mr-2" /> Lưu
+                            </Button>
+                            <Button
+                                variant="default"
+                                size="sm"
+                                onClick={handleDownload}
+                                disabled={isDownloading}
+                            >
+                                <Download className="w-4 h-4 mr-2" />
+                                {isDownloading ? "Đang tải..." : "Xuất"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-12 gap-6 h-[calc(100vh-7rem)] overflow-hidden">
+
+                {/* LEFT TOOLBAR */}
+                <aside className="col-span-1 overflow-y-auto">
+                    <EditorToolbar
+                        isPlaying={isPlaying}
+                        onPlay={play}
+                        onPause={pause}
+                        onToggle={toggle}
+                        onDownload={download}
+                    />
+                </aside>
+
+                {/* ================= PANEL DND CONTEXT ================= */}
+                <DndContext sensors={sensors} onDragEnd={handlePanelDragEnd}>
+                    <aside className="col-span-2 bg-card rounded-md shadow-sm p-3 overflow-auto">
+                        <LayersPanel
+                            layers={layers}
+                            selectedId={selectedTextId}
+                            onSelect={setSelectedTextId}
+                        />
+                    </aside>
+                </DndContext>
+
+                {/* ================= PREVIEW DND CONTEXT ================= */}
+                <DndContext
+                    sensors={sensors}
+                    onDragStart={handlePreviewDragStart}
+                    onDragEnd={(event) => {
+                        handlePreviewDragEnd(event);
+                        setActiveItem(null);
+                    }}
+                >
+                    <section className="col-span-6 bg-card rounded-md shadow-sm p-4 flex flex-col">
+                        <VideoPreview
+                            videoRef={videoRef}
+                            src={videoSrc}
+                            filter={cssFilter()}
+                            layers={layers}
+                            selectedTextId={selectedTextId}
+                            onTextSelect={setSelectedTextId}
+                        />
+                    </section>
+
+                    <TrashDropZone />
+
+                    <DragOverlay dropAnimation={null}>
+                        {activeItem && activeItem.type === "text" && (
+                            <div
+                                className="pointer-events-none"
+                                style={{
+                                    padding: "4px 8px",
+                                    fontSize: activeItem.data.fontSize,
+                                    fontWeight: activeItem.data.fontWeight,
+                                    color: activeItem.data.color,
+                                    background: "rgba(0,0,0,0.4)",
+                                    borderRadius: 6,
+                                    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
+                                    transform: "scale(1.05)",
+                                    backdropFilter: "blur(4px)",
+                                }}
+                            >
+                                {activeItem.data.text}
+                            </div>
+                        )}
+                    </DragOverlay>
+
+                </DndContext>
+
+                {/* RIGHT PANEL */}
+                <EditorRightPanel
+                    effect={effect}
+                    onEffectChange={setEffect}
+                    mascot={mascot}
+                    onMascotChange={setMascot}
+                    onMascotApply={handleMascotApply}
+                    isApplyingMascot={isApplyingMascot}
+                    mascotProgress={mascotProgress}
+                    videoFile={originalVideoFile}
+                    voice={voice}
+                    onVoiceChange={setVoice}
+                    layers={layers}
+                    onTextAdd={handleAddText}
+                    onTextUpdate={handleUpdateText}
+                    onTextRemove={handleRemoveText}
+                    selectedTextId={selectedTextId}
+                    onTextSelect={setSelectedTextId}
+                />
+            </div>
         </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-12 gap-6 h-[calc(100vh-7rem)] overflow-hidden">
-          {/* Left toolbar */}
-          <aside className="col-span-1 overflow-y-auto">
-            <EditorToolbar
-              isPlaying={isPlaying}
-              onPlay={play}
-              onPause={pause}
-              onToggle={toggle}
-              onDownload={download}
-            />
-          </aside>
-
-          {/* Main preview area */}
-          <section className="col-span-8 bg-card rounded-md shadow-sm p-4 flex flex-col">
-            <VideoPreview
-              videoRef={videoRef}
-              src={videoSrc}
-              filter={cssFilter()}
-              textOverlays={textOverlays}
-              selectedTextId={selectedTextId}
-              onTextSelect={setSelectedTextId}
-            />
-          </section>
-
-          {/* Right panel */}
-          <EditorRightPanel
-            effect={effect}
-            onEffectChange={setEffect}
-            mascot={mascot}
-            onMascotChange={setMascot}
-            onMascotApply={handleMascotApply}
-            isApplyingMascot={isApplyingMascot}
-            mascotProgress={mascotProgress}
-            videoFile={originalVideoFile}
-            voice={voice}
-            onVoiceChange={setVoice}
-            textOverlays={textOverlays}
-            onTextAdd={addTextOverlay}
-            onTextUpdate={updateTextOverlay}
-            onTextRemove={removeTextOverlay}
-            selectedTextId={selectedTextId}
-            onTextSelect={setSelectedTextId}
-          />
-        </div>
-      </div>
-    </DndContext>
-  );
+    );
 }

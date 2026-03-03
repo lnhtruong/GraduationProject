@@ -1,22 +1,95 @@
-import type { TextOption } from "@/features/videoEditor/types";
+import type {TextLayer, TextOption} from "@/features/videoEditor/types";
+import type {LayerItem} from "@/features/videoEditor/types";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+
+// Component hiển thị text layer trên video preview,
+// xử lý drag bằng dnd-kit và áp dụng style theo trạng thái dragging / selected
+function DraggableTextLayer({
+                                layer,
+                                index,
+                                total,
+                                selectedTextId,
+                                onTextSelect,
+                            }: {
+    layer: TextLayer;
+    index: number;
+    total: number;
+    selectedTextId?: string | null;
+    onTextSelect?: (id: string) => void;
+}) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } =
+        useDraggable({
+            id: `${layer.id}`,
+            data: {
+                source: "preview",
+                layerId: layer.id,
+            },
+        });
+
+    const style = {
+        left: `${layer.data.position.x}%`,
+        top: `${layer.data.position.y}%`,
+        transform: isDragging
+            ? `${CSS.Translate.toString(transform)} translate(-50%, -50%)`
+            : "translate(-50%, -50%)",
+        zIndex: total - index + 1,
+        opacity: isDragging ? 0.5 : 1,
+        position: "absolute" as const,
+        cursor: "grab",
+        border:
+            selectedTextId === layer.id
+                ? "2px solid #3b82f6"
+                : "2px solid transparent",
+    };
+
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...listeners}
+            {...attributes}
+            onClick={() => onTextSelect?.(layer.id)}
+        >
+            <p
+                style={{
+                    fontSize: `${layer.data.fontSize}px`,
+                    color: layer.data.color,
+                    fontWeight: layer.data.fontWeight,
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    userSelect: "none",
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {layer.data.text}
+            </p>
+        </div>
+    );
+}
 
 interface Props {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   src?: string;
   filter: string;
-  textOverlays?: TextOption[];
+  layers?: LayerItem[];
   selectedTextId?: string | null;
   onTextSelect?: (id: string) => void;
 }
+
+
 
 export default function VideoPreview({
   videoRef,
   src,
   filter,
-  textOverlays = [],
+  layers = [],
   selectedTextId,
   onTextSelect,
 }: Props) {
+
+
   return (
     <div className="relative w-full bg-black rounded-md overflow-hidden flex items-center justify-center">
       <video
@@ -30,37 +103,21 @@ export default function VideoPreview({
       </video>
 
       {/* Text overlays */}
-      {textOverlays.map((text) => (
-        <div
-          key={text.id}
-          className="absolute cursor-pointer"
-          style={{
-            left: `${text.position.x}%`,
-            top: `${text.position.y}%`,
-            transform: "translate(-50%, -50%)",
-            zIndex: selectedTextId === text.id ? 50 : 10,
-            border:
-              selectedTextId === text.id
-                ? "2px solid #3b82f6"
-                : "2px solid transparent",
-          }}
-          onClick={() => onTextSelect?.(text.id)}
-        >
-          <p
-            style={{
-              fontSize: `${text.fontSize}px`,
-              color: text.color,
-              fontWeight: text.fontWeight,
-              padding: "4px 8px",
-              borderRadius: "4px",
-              userSelect: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {text.text}
-          </p>
-        </div>
-      ))}
+        {layers?.map((layer, index) => {
+            if (layer.type !== "text") return null;
+            //TODO: bổ sung thêm cho trường hợp không phải là text (vd: mascot)
+            return (
+                <DraggableTextLayer
+                    key={layer.id}
+                    layer={layer}
+                    index={index}
+                    total={layers.length}
+                    selectedTextId={selectedTextId}
+                    onTextSelect={onTextSelect}
+                />
+            );
+        })}
+
     </div>
   );
 }
