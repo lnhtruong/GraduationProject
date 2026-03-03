@@ -7,6 +7,8 @@ import { loggingMiddleware, requestLogger } from './middleware/logging.middlewar
 import { authMiddleware, AuthRequest } from './middleware/auth.middleware';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import mascotRoutes from './routes/mascot.routes';
+import editRoutes from './routes/edit.routes';
 
 const app = express();
 
@@ -58,6 +60,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/mascot', mascotRoutes);
+app.use('/api/edit', editRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -81,6 +85,8 @@ app.listen(config.port, () => {
   console.log(`🚀 API Gateway is running on port ${config.port}`);
   console.log(`📡 Auth Service: ${config.services.auth.url}`);
   console.log(`👤 User Service: ${config.services.user.url}`);
+  console.log(`🎭 Mascot Service: ${config.services.mascot.url}`);
+  console.log(`✂️ Edit Session Service: ${config.services.edit.url}`);
 });
 
 

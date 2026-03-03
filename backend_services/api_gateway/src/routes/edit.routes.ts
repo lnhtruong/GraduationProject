@@ -1,4 +1,3 @@
-// src/routes/mascot.routes.ts
 import { Router, Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { config } from '../config';
@@ -7,21 +6,23 @@ import type { AuthRequest } from '../middleware/auth.middleware';
 const router = Router();
 
 /**
- *  - Incoming:  /api/mascot/mascot_videos    -> Forward to: <mascot_service_url>/mascot_videos
- *  - Incoming:  /api/mascot/mascot_images    -> Forward to: <mascot_service_url>/mascot_images
+ *  - Incoming:  /api/edit/projects        -> Forward to: <edit_service_url>/projects
+ *  - Incoming:  /api/edit/mascot_images   -> Forward to: <edit_service_url>/mascot_images
  */
+
 router.use(
     '/',
     createProxyMiddleware({
-        target: config.services.mascot.url,
+        target: config.services.edit.url,
         changeOrigin: true,
         pathRewrite: {
-            '^/api/mascot': '',
+            '^/api/edit': '',
         },
         onProxyReq: (proxyReq, req: AuthRequest) => {
             if (req.headers['content-type']) {
                 proxyReq.setHeader('Content-Type', req.headers['content-type']);
             }
+
             if (req.headers.authorization) {
                 proxyReq.setHeader('Authorization', req.headers.authorization);
             }
@@ -43,17 +44,19 @@ router.use(
         },
         onProxyRes: (proxyRes, req: Request, res: Response) => {
             console.log(
-                `[Mascot Service] ${req.method} ${req.originalUrl} -> ${proxyRes.statusCode}`,
+                `[Edit Session Service] ${req.method} ${req.originalUrl} -> ${proxyRes.statusCode}`,
             );
         },
         onError: (err, req: Request, res: Response) => {
-            console.error('[Mascot Service Proxy Error]', err && err.message);
+            console.error('[Edit Session Service Proxy Error]', err && err.message);
             res.status(503).json({
                 success: false,
-                message: 'Mascot service is unavailable',
+                message: 'Edit session service is unavailable',
             });
         },
     }),
 );
 
 export default router;
+
+
