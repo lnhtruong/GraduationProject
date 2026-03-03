@@ -91,11 +91,18 @@ export const uploadApi = createApi({
     if (params.excludeKeywords)
       formData.append("exclude_keywords", params.excludeKeywords);
 
-    const data = await apiClient.post<JobIdResponse>(UPLOAD_ENDPOINT, formData);
+    const { data } = await apiClient.post<JobIdResponse>(
+      UPLOAD_ENDPOINT,
+      formData,
+    );
     return data.job_id;
   },
-  getStatus: (jobId: string) =>
-    apiClient.get<JobStatusResponse>(`/jobs/status/${jobId}`),
+  getStatus: async (jobId: string) => {
+    const { data } = await apiClient.get<JobStatusResponse>(
+      `/jobs/status/${jobId}`,
+    );
+    return data;
+  },
   processResult: async (jobResult: JobStatusResponse) => {
     const downloadUrl = jobResult.result?.download_url;
     const clips = downloadUrl ? await parseClipsFromUrl(downloadUrl) : [];

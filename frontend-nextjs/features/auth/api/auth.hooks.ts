@@ -1,115 +1,143 @@
 /**
  * Auth Hooks
- * TanStack Query hooks for authentication
+ * TanStack Query hooks for authentication using shared patterns
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createMutationHooks } from "@/features/_shared/hooks";
 import { authApi, tokenManager } from "./auth.api";
 import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from "../types";
 import { createKeyFactory } from "@/lib/queryKeys";
 
 const keys = createKeyFactory("auth");
 
-/**
- * Login mutation
- */
+// ============================================================================
+// LOGIN
+// ============================================================================
+
+const useLoginBase = createMutationHooks<LoginResponse, LoginRequest>(
+  "auth",
+  "login",
+  authApi.login,
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      // Save tokens and user
+      tokenManager.setTokens(data.accessToken, data.refreshToken);
+      tokenManager.setUser(data.user);
+      // Invalidate auth queries
+      queryClient.invalidateQueries({ queryKey: keys.root });
+    },
+  },
+);
+
 export function useLogin(options?: {
   onSuccess?: (data: LoginResponse) => void;
   onError?: (error: Error) => void;
 }) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: LoginRequest) => authApi.login(data),
-    onSuccess: (data) => {
-      // Save tokens and user
-      tokenManager.setTokens(data.accessToken, data.refreshToken);
-      tokenManager.setUser(data.user);
-
-      // Invalidate auth queries
-      queryClient.invalidateQueries({ queryKey: keys.root });
-
-      options?.onSuccess?.(data);
-    },
-    onError: options?.onError,
-  });
+  return useLoginBase(options);
 }
 
-/**
- * Register mutation
- */
+// ============================================================================
+// REGISTER
+// ============================================================================
+
+const useRegisterBase = createMutationHooks<RegisterResponse, RegisterRequest>(
+  "auth",
+  "register",
+  authApi.register,
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      // Only save tokens if backend returns them (current backend doesn't)
+      if (data.accessToken && data.refreshToken) {
+        tokenManager.setTokens(data.accessToken, data.refreshToken);
+        tokenManager.setUser(data.user);
+        queryClient.invalidateQueries({ queryKey: keys.root });
+      }
+    },
+  },
+);
+
 export function useRegister(options?: {
   onSuccess?: (data: RegisterResponse) => void;
   onError?: (error: Error) => void;
 }) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: RegisterRequest) => authApi.register(data),
-    onSuccess: (data) => {
-      // Save tokens and user
-      tokenManager.setTokens(data.accessToken, data.refreshToken);
-      tokenManager.setUser(data.user);
-
-      // Invalidate auth queries
-      queryClient.invalidateQueries({ queryKey: keys.root });
-
-      options?.onSuccess?.(data);
-    },
-    onError: options?.onError,
-  });
+  return useRegisterBase(options);
 }
 
-/**
- * Logout mutation
- */
+// ============================================================================
+// LOGOUT
+// ============================================================================
+
+const useLogoutBase = createMutationHooks<{ message: string }, void>(
+  "auth",
+  "logout",
+  authApi.logout,
+  {
+    retry: false,
+    onSuccess: (_data, _variables, queryClient) => {
+      // Clear tokens and user
+      tokenManager.clearAll();
+      // Clear all queries
+      queryClient.clear();
+    },
+  },
+);
+
 export function useLogout(options?: {
   onSuccess?: () => void;
   onError?: (error: Error) => void;
 }) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => authApi.logout(),
-    onSuccess: () => {
-      // Clear tokens and user
-      tokenManager.clearAll();
-
-      // Clear all queries
-      queryClient.clear();
-
-      options?.onSuccess?.();
-    },
-    onError: options?.onError,
-  });
+  return useLogoutBase(options);
 }
 
-/**
- * Refresh token mutation
- */
-export function useRefreshToken(options?: {
-  onSuccess?: (accessToken: string) => void;
+// ============================================================================
+// FORGOT PASSWORD
+// ============================================================================
+
+const useForgotPasswordBase = createMutationHooks<
+  ForgotPasswordResponse,
+  ForgotPasswordRequest
+>("auth", "forgot-password", authApi.forgotPassword, {
+  retry: false,
+});
+
+export function useForgotPassword(options?: {
+  onSuccess?: (data: ForgotPasswordResponse) => void;
   onError?: (error: Error) => void;
 }) {
-  return useMutation({
-    mutationFn: () => {
-      const refreshToken = tokenManager.getRefreshToken();
-      if (!refreshToken) throw new Error("No refresh token");
-      return authApi.refreshToken({ refreshToken });
-    },
-    onSuccess: (data) => {
-      // Only update access token (refresh token stays the same)
-      const currentRefreshToken = tokenManager.getRefreshToken();
-      if (currentRefreshToken) {
-        tokenManager.setTokens(data.accessToken, currentRefreshToken);
-      }
-      options?.onSuccess?.(data.accessToken);
-    },
-    onError: options?.onError,
-  });
+  return useForgotPasswordBase(options);
+}
+
+// ============================================================================
+// RESET PASSWORD
+// ============================================================================
+
+const useResetPasswordBase = createMutationHooks<
+  ResetPasswordResponse,
+  ResetPasswordRequest
+>("auth", "reset-password", authApi.resetPassword, {
+  retry: false,
+  onSuccess: (_data, _variables, queryClient) => {
+    // Clear tokens in case user was logged in
+    tokenManager.clearAll();
+    // Clear all queries
+    queryClient.clear();
+  },
+});
+
+export function useResetPassword(options?: {
+  onSuccess?: (data: ResetPasswordResponse) => void;
+  onError?: (error: Error) => void;
+}) {
+  return useResetPasswordBase(options);
 }

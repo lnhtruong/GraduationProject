@@ -7,8 +7,12 @@ import {
   useRegister,
   useLogout,
 } from "@/features/auth/api//auth.hooks";
-import { tokenManager } from "@/features/auth/api/auth.api";
-import type { User, LoginRequest, RegisterRequest } from "@/features/auth/types";
+import { tokenManager } from "@/lib/http";
+import type {
+  User,
+  LoginRequest,
+  RegisterRequest,
+} from "@/features/auth/types";
 
 interface AuthContextType {
   user: User | null;
@@ -37,14 +41,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const returnUrl = params.get("returnUrl");
       router.push(returnUrl || "/");
     },
-  });
-
-  const registerMutation = useRegister({
-    onSuccess: (data) => {
-      setUser(data.user);
-      router.push("/");
+    onError: (error) => {
+      // Don't redirect on error, let form handle it
+      console.error("Login failed:", error.message);
     },
   });
+
+  const registerMutation = useRegister({});
 
   const logoutMutation = useLogout({
     onSuccess: () => {
@@ -67,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storedUser && token) {
         setUser(storedUser);
+        // Token refresh handled automatically by axios interceptor
       }
       setIsLoading(false);
     };

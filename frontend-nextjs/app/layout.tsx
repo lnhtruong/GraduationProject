@@ -27,9 +27,7 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider defaultTheme="system" storageKey="datn-theme">
             <AuthProvider>
-              <LayoutWrapper>
-                {children}
-              </LayoutWrapper>
+              <LayoutWrapper>{children}</LayoutWrapper>
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>

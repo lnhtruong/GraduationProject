@@ -19,6 +19,8 @@
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.6358 0.2088 25.4126);
   --destructive-foreground: oklch(0.9851 0 0);
+  --success: oklch(0.6873 0.1646 142.5);
+  --success-foreground: oklch(0.9851 0 0);
   --border: oklch(0.8936 0.0123 96.4377);
   --input: oklch(0.8936 0.0123 96.4377);
   --ring: oklch(0.7664 0.1585 68.0095);
@@ -84,6 +86,8 @@
   --accent-foreground: oklch(0.1838 0.0052 67.497);
   --destructive: oklch(0.6007 0.2083 26.1624);
   --destructive-foreground: oklch(0.9728 0.0054 95.0993);
+  --success: oklch(0.7012 0.1374 142.5);
+  --success-foreground: oklch(0.9728 0.0054 95.0993);
   --border: oklch(0.4283 0.0206 75.8682);
   --input: oklch(0.4283 0.0206 75.8682);
   --ring: oklch(0.849 0.1433 90.5285);
@@ -147,6 +151,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -222,13 +228,15 @@
 
 /* Grid pattern */
 .bg-grid-slate-900\/\[0\.04\] {
-  background-image: linear-gradient(to right, rgb(15 23 42 / 0.04) 1px, transparent 1px),
+  background-image:
+    linear-gradient(to right, rgb(15 23 42 / 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(15 23 42 / 0.04) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .dark .bg-grid-slate-100\/\[0\.03\] {
-  background-image: linear-gradient(to right, rgb(241 245 249 / 0.03) 1px, transparent 1px),
+  background-image:
+    linear-gradient(to right, rgb(241 245 249 / 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(241 245 249 / 0.03) 1px, transparent 1px);
   background-size: 24px 24px;
 }
