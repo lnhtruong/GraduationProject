@@ -27,9 +27,12 @@ const getOrderStatus = async (req, res) => {
 // Callback từ PayOS
 const payosCallback = async (req, res) => {
     try {
+        console.log("Nhận webhook từ PayOS:", req.body);
         const result = await paymentService.payosCallback(req);
+        console.log("✅ Webhook xử lý thành công:", result);
         res.status(200).json(result);
     } catch (err) {
+        console.error("❌ Lỗi xử lý webhook:", err.message);
         res.status(err.status || 403).json({ message: err.message || "Lỗi xử lý callback" });
     }
 };
