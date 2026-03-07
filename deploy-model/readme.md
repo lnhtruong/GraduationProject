@@ -5,69 +5,73 @@
 
 ## 🔧 Setup Lần Đầu
 
-### Bước 1: Chuẩn bị files trên local
+### Bước 1: Setup JoyVASA trên VPS
 
 ```powershell
-# Kiểm tra các file cần thiết
-ls setup.sh          # Script setup tự động
-ls main.py           # FastAPI application
-ls sadtalker_wrapper.py  # Wrapper cho SadTalker (QUAN TRỌNG!)
-ls cleanup_vps.sh    # Script cleanup (optional)
+# Chỉ cần 2 bước:
+$PORT = 2291; $VPS = "root@n2.ckey.vn"
+
+# 1. Upload & setup (20-30 phút)
+ssh -p $PORT $VPS "mkdir -p /opt/app /opt/joyvasa /opt/outputs"
+scp -P $PORT .\setup_full.sh ${VPS}:~/
+scp -P $PORT .\main.py ${VPS}:/opt/app/
+scp -P $PORT .\joyvasa_wrapper.py ${VPS}:/opt/joyvasa/
+
+# Fix line endings và chạy
+ssh -p $PORT $VPS "sed -i 's/\r$//' ~/setup_full.sh && bash ~/setup_full.sh"
+
+# 2. Start API
+ssh -p $PORT $VPS "supervisorctl restart highlight-api"
 ```
 
-### Bước 2: Upload files lên VPS
+### Bước 2: Setup API dependencies
 
 ```powershell
-# Thay PORT và VPS_IP cho phù hợp
-$PORT = 3931
-$VPS = "root@n1.ckey.vn"
+# Upload script setup (từ máy local)
+chmod +x ~/setup_full.sh
+~/setup_full.sh
+supervisorctl restart highlight-api"
 
-# Upload setup script
-scp -P $PORT .\setup.sh ${VPS}:~/setup.sh
-scp -P $PORT .\cleanup_vps.sh ${VPS}:~/cleanup_vps.sh
+# # SSH và chạy script
+# ssh -p 2291 root@n2.ckey.vn
+# bash ~/setup_api_only.sh
 
-# Tạo thư mục app
-ssh -p $PORT $VPS "mkdir -p /opt/app /opt/sadtalker"
-
-# Upload application files
-scp -P $PORT .\main.py ${VPS}:/opt/app/main.py
-scp -P $PORT .\sadtalker_wrapper.py ${VPS}:/opt/sadtalker/sadtalker_wrapper.py
+# # Verify:
+# /opt/venv/bin/python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-### Bước 3: SSH vào VPS và chạy setup
+### Bước 3: Upload các file code
 
 ```bash
-# Kết nối SSH (thay PORT và VPS cho đúng)
-ssh -p 3931 root@n1.ckey.vn
+# Từ máy local, upload 2 file chính:
+$PORT = 2291
+$VPS = "root@n2.ckey.vn"
 
-# Chạy setup (mất ~15-20 phút)
-chmod +x ~/setup.sh
-~/setup.sh
+scp -P $PORT .\main.py ${VPS}:/opt/app/main.py
+scp -P $PORT .\joyvasa_wrapper.py ${VPS}:/opt/joyvasa/joyvasa_wrapper.py
 ```
 
 **Setup sẽ tự động:**
-- ✅ Cài đặt: Python 3.10, FFmpeg, CUDA tools
+- ✅ Cài đặt: Python 3.10, FFmpeg, CUDA tools, pkg-config
 - ✅ Tạo virtual environment tại `/opt/venv`
 - ✅ Cài đặt PyTorch 2.1.2 + CUDA 12.1
-- ✅ Cài đặt SadTalker trong conda env `/opt/conda/envs/sadtalker`
-- ✅ Patch NumPy compatibility issues
-- ✅ Fix supervisor killasgroup
+- ✅ Cài đặt JoyVASA trong conda env `/opt/conda/envs/joyvasa`
+- ✅ Download models (~6GB): JoyVASA, Chinese Hubert, Wav2Vec2, LivePortrait, InsightFace
+- ✅ Tạo symlinks cho model paths (TencentGameMate:chinese-hubert-base)
 - ✅ Cấu hình Supervisor tự động chạy API
+- ✅ NumPy<2, transformers 4.39.2 cho Qwen2Tokenizer
 
 ### Bước 4: Khởi động service
 
 ```bash
-# Start API
-supervisorctl start highlight-api
+# SSH vào VPS
+ssh -p 2291 root@n2.ckey.vn
 
-# Kiểm tra status
-supervisorctl status highlight-api
+# Restart service
+supervisorctl restart highlight-api
 
-# Xem logs realtime
+# Xem logs để verify
 supervisorctl tail -f highlight-api
-
-# Test API
-curl http://localhost:8000/
 ```
 
 ---
@@ -78,15 +82,16 @@ Khi có thay đổi code, chỉ cần:
 
 ```powershell
 # Upload file đã sửa
-scp -P 3931 .\main.py root@n1.ckey.vn:/opt/app/main.py
+$PORT = 2291; $VPS = "root@n2.ckey.vn"
+scp -P $PORT .\main.py ${VPS}:/opt/app/main.py
 
 # Hoặc upload wrapper nếu có thay đổi
-scp -P 3931 .\sadtalker_wrapper.py root@n1.ckey.vn:/opt/sadtalker/
+scp -P $PORT .\joyvasa_wrapper.py ${VPS}:/opt/joyvasa/
 ```
 
 ```bash
 # SSH vào và restart
-ssh -p 3931 root@n1.ckey.vn
+ssh -p 2291 root@n2.ckey.vn
 supervisorctl restart highlight-api
 
 # Xem logs để kiểm tra
@@ -97,17 +102,34 @@ supervisorctl tail -f highlight-api
 
 ## 🛠️ Troubleshooting
 
-### SadTalker bị "Terminated" (-15)
+### JoyVASA model path error (TencentGameMate:chinese-hubert-base)
 ```bash
-# Kiểm tra wrapper có đúng không
-ls -l /opt/sadtalker/sadtalker_wrapper.py
+# Tạo symlinks cho model paths
+cd /opt/joyvasa/JoyVASA/pretrained_weights
+ln -sf chinese-hubert-base "TencentGameMate:chinese-hubert-base"
+ln -sf wav2vec2-base-960h "facebook:wav2vec2-base-960h"
+
+# Verify
+ls -la | grep ":"
+
+# Restart API
+supervisorctl restart highlight-api
+```
+
+### JoyVASA bị lỗi khi generate video
+```bash
+# Check wrapper
+ls -l /opt/joyvasa/joyvasa_wrapper.py
 
 # Test wrapper trực tiếp
-cd /opt/sadtalker/SadTalker
-/opt/conda/envs/sadtalker/bin/python /opt/sadtalker/sadtalker_wrapper.py --help
+/opt/conda/envs/joyvasa/bin/python /opt/joyvasa/joyvasa_wrapper.py \
+  -r /opt/joyvasa/JoyVASA/assets/examples/imgs/joyvasa_001.png \
+  -a /opt/joyvasa/JoyVASA/assets/examples/audios/joyvasa_001.wav \
+  -o /tmp/test.mp4 \
+  --animation_mode human
 
-# Nếu fail, check log
-cat /tmp/sadtalker_*.log
+# Check GPU trong conda env
+/opt/conda/envs/joyvasa/bin/python -c "import torch; print(torch.cuda.is_available())"
 ```
 
 ### API không start
@@ -130,11 +152,11 @@ supervisorctl update
 nvidia-smi
 nvcc --version
 
-# Test PyTorch CUDA
+# Test PyTorch CUDA trong API venv
 /opt/venv/bin/python -c "import torch; print(torch.cuda.is_available())"
 
-# Test SadTalker CUDA
-/opt/conda/envs/sadtalker/bin/python -c "import torch; print(torch.cuda.is_available())"
+# Test PyTorch CUDA trong JoyVASA conda env
+/opt/conda/envs/joyvasa/bin/python -c "import torch; print(torch.cuda.is_available())"
 ```
 
 ### Cleanup và setup lại từ đầu
@@ -156,16 +178,18 @@ chmod +x ~/cleanup_vps.sh
 ├── app/
 │   └── main.py              # FastAPI application
 ├── venv/                    # Python venv cho API
-├── sadtalker/
-│   ├── sadtalker_wrapper.py # Wrapper (QUAN TRỌNG!)
-│   └── SadTalker/           # SadTalker repo
+├── joyvasa/
+│   ├── joyvasa_wrapper.py   # Wrapper (QUAN TRỌNG!)
+│   └── JoyVASA/             # JoyVASA repo
+│       └── pretrained_weights/  # Models (~6GB)
 ├── conda/
 │   └── envs/
-│       └── sadtalker/       # Conda env cho SadTalker
-└── outputs/                 # Video outputs
+│       └── joyvasa/         # Conda env cho JoyVASA
+├── outputs/                 # Video outputs
+└── models/                  # HuggingFace cache (Whisper, LLM, etc.)
 
 /tmp/
-├── sadtalker_*.log          # SadTalker logs
+├── joyvasa_output/          # JoyVASA temp outputs
 ├── video_*.mp4              # Temp videos
 └── audio_*.wav              # Temp audio files
 
@@ -187,7 +211,6 @@ supervisorctl status
 # Logs
 supervisorctl tail -f highlight-api
 tail -f /var/log/highlight-api.err.log
-cat /tmp/sadtalker_<JOB_ID>.log
 
 # System info
 nvidia-smi                   # GPU status
@@ -198,18 +221,18 @@ ps aux | grep python         # Python processes
 # Cleanup temps
 rm -rf /tmp/video_*
 rm -rf /tmp/audio_*
-rm -rf /tmp/sadtalker_*.log
+rm -rf /tmp/joyvasa_output
 ```
 
 ---
 
 ## ⚠️ Lưu ý quan trọng
 
-1. **KHÔNG xóa `sadtalker_wrapper.py`** - File này là giải pháp cho SIGTERM bug
-2. **KHÔNG chạy `python inference.py`** trực tiếp - Sẽ bị Terminated
+1. **KHÔNG xóa `joyvasa_wrapper.py`** - File này bridge giữa subprocess và JoyVASA inference
+2. **JoyVASA timeout: 900s (15 phút)** - Chậm hơn SadTalker, cần kiên nhẫn
 3. Setup chỉ chạy **1 lần đầu**, sau đó chỉ upload file và restart
-4. Khi SadTalker chạy lâu (2-3 phút), đừng panic - đó là bình thường
-5. Check log tại `/tmp/sadtalker_*.log` nếu có lỗi
+4. **animation_mode**: "human" (mặt người) hoặc "animal" (động vật)
+5. Model symlinks quan trọng: `TencentGameMate:chinese-hubert-base` → `chinese-hubert-base`
 
 ---
 
@@ -217,16 +240,24 @@ rm -rf /tmp/sadtalker_*.log
 
 ```bash
 # API có chạy không?
-curl http://localhost:8000/
+curl http://localhost:1434/
 
 # GPU có hoạt động không?
 nvidia-smi
 
 # Python environments đúng không?
 /opt/venv/bin/python --version                    # API (3.10.x)
-/opt/conda/envs/sadtalker/bin/python --version    # SadTalker (3.10.x)
+/opt/conda/envs/joyvasa/bin/python --version      # JoyVASA (3.10.x)
 
 # Test imports
 /opt/venv/bin/python -c "import torch; import transformers; print('API OK')"
-/opt/conda/envs/sadtalker/bin/python -c "from inference import main; print('SadTalker OK')"
+/opt/conda/envs/joyvasa/bin/python -c "import torch; print(f'JoyVASA OK - CUDA: {torch.cuda.is_available()}')"
+
+# Test JoyVASA với sample
+cd /opt/joyvasa/JoyVASA
+/opt/conda/envs/joyvasa/bin/python /opt/joyvasa/joyvasa_wrapper.py \
+  -r assets/examples/imgs/joyvasa_001.png \
+  -a assets/examples/audios/joyvasa_001.wav \
+  -o /tmp/test_joyvasa.mp4 \
+  --animation_mode human
 ```

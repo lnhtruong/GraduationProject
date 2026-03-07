@@ -36,8 +36,9 @@ jobs: Dict[str, Dict[str, Any]] = {}
 
 # VPS PATHS
 OUTPUT_DIR = "/opt/outputs"
-SADTALKER_REPO_PATH = "/opt/sadtalker/SadTalker"
-SADTALKER_PYTHON = "/opt/conda/envs/sadtalker/bin/python"
+JOYVASA_REPO_PATH = "/opt/joyvasa/JoyVASA"
+JOYVASA_PYTHON = "/opt/conda/envs/joyvasa/bin/python"
+JOYVASA_WRAPPER = "/opt/joyvasa/joyvasa_wrapper.py"
 
 # --- STARTUP ---
 @app.on_event("startup")
@@ -65,9 +66,19 @@ async def startup_event():
    # Load Whisper on GPU 0
     print(f"🎤 Loading Whisper on {whisper_device}...")
     start = time.time()
-    # ✅ FIX: Use int8_float16 for CUDA (faster), int8 for CPU
+    
+    # Auto-detect best compute type based on GPU
     if whisper_device.startswith("cuda"):
-        whisper_compute = "int8_float16"  # Best for RTX 4090
+        gpu_name = torch.cuda.get_device_name(0)
+        if "RTX" in gpu_name or "A100" in gpu_name or "V100" in gpu_name or "H100" in gpu_name:
+            whisper_compute = "float16"  # Modern GPUs with tensor cores
+            print(f"  ✓ Detected {gpu_name} → using float16 (fastest)")
+        elif "P104" in gpu_name or "GTX 10" in gpu_name or "GTX 9" in gpu_name:
+            whisper_compute = "int8"  # Older Pascal/Maxwell GPUs without FP16
+            print(f"  ✓ Detected {gpu_name} → using int8 (compatible)")
+        else:
+            whisper_compute = "int8_float16"  # Fallback for unknown GPUs
+            print(f"  ✓ Detected {gpu_name} → using int8_float16 (fallback)")
     else:
         whisper_compute = "int8"
     
@@ -108,11 +119,11 @@ async def startup_event():
     app.state.llm = llm
     print(f"✓ LLM loaded ({time.time()-start:.2f}s)")
 
-    # Check SadTalker
-    if os.path.exists(SADTALKER_REPO_PATH):
-        print(f"✓ SadTalker available at {SADTALKER_REPO_PATH}")
+    # Check JoyVASA
+    if os.path.exists(JOYVASA_REPO_PATH):
+        print(f"✓ JoyVASA available at {JOYVASA_REPO_PATH}")
     else:
-        print(f"⚠️  SadTalker not found - mascot feature disabled")
+        print(f"⚠️  JoyVASA not found - mascot feature disabled")
 
     print("🚀 Server ready!")
 
@@ -418,10 +429,24 @@ def picture_in_picture(main_video, sub_video, output_video, position="bottom-rig
     ]
     run_cmd(cmd)
 
-def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_path=None):
-    if not os.path.exists(SADTALKER_REPO_PATH):
-        raise RuntimeError("SadTalker not available")
+def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_path=None, animation_mode="human"):
+    """
+    Create mascot video using JoyVASA
     
+    Args:
+        job_id: Unique job identifier
+        highlight_video_path: Path to highlight video
+        mascot_image_path: Path to mascot image
+        audio_path: Path to audio file (optional, extracted from video if None)
+        animation_mode: "human" or "animal"
+    
+    Returns:
+        Path to generated mascot video
+    """
+    if not os.path.exists(JOYVASA_REPO_PATH):
+        raise RuntimeError("JoyVASA not available")
+    
+    # Extract audio from video if not provided
     is_temp_audio = False
     if not audio_path:
         audio_path = f"/tmp/mascot_audio_{job_id}.wav"
@@ -445,63 +470,64 @@ def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_p
     if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
         raise RuntimeError("Failed to extract audio")
     
+    # Create output directory
     mascot_output_dir = os.path.join(OUTPUT_DIR, job_id, "mascot")
     os.makedirs(mascot_output_dir, exist_ok=True)
     
-    # Use Python wrapper that calls main() directly (avoids container SIGTERM issue)
-    sadtalker_cmd = [
-        "/opt/conda/envs/sadtalker/bin/python",
-        "/opt/sadtalker/sadtalker_wrapper.py",
-        "--driven_audio", os.path.abspath(audio_path),
-        "--source_image", os.path.abspath(mascot_image_path),
-        "--result_dir", os.path.abspath(mascot_output_dir),
-        "--checkpoint_dir", f"{SADTALKER_REPO_PATH}/checkpoints",
-        "--size", "256",
-        "--preprocess", "full",
-        "--still",
-        "--verbose"  # Keep intermediate files for debugging
+    # Prepare output path
+    mascot_output_path = os.path.join(mascot_output_dir, f"mascot_{job_id}.mp4")
+    
+    # Run JoyVASA via wrapper
+    joyvasa_cmd = [
+        JOYVASA_PYTHON,
+        JOYVASA_WRAPPER,
+        "-r", os.path.abspath(mascot_image_path),
+        "-a", os.path.abspath(audio_path),
+        "-o", os.path.abspath(mascot_output_path),
+        "--animation_mode", animation_mode,
     ]
     
-    log_file = f"/tmp/sadtalker_{job_id}.log"
+    log_file = f"/tmp/joyvasa_{job_id}.log"
     
-    logger.info(f"🎭 Starting SadTalker for job {job_id}")
-    logger.info(f"📂 Using wrapper: /opt/sadtalker/sadtalker_wrapper.py")
+    logger.info(f"🎭 Starting JoyVASA for job {job_id} ({animation_mode} mode)")
+    logger.info(f"📂 Output: {mascot_output_path}")
     logger.info(f"📄 Log file: {log_file}")
     
-    log = open(log_file, 'w', buffering=1)  # Line buffered
+    log = open(log_file, 'w', buffering=1)
     
     process = subprocess.Popen(
-        sadtalker_cmd,
+        joyvasa_cmd,
         stdout=log,
         stderr=subprocess.STDOUT
     )
     
-    logger.info(f"🔢 SadTalker process started with PID: {process.pid}")
+    logger.info(f"🔢 JoyVASA process started with PID: {process.pid}")
     
     try:
-        # Wait for process with timeout
-        logger.info(f"⏳ Waiting for SadTalker (timeout: 600s)...")
         start_time = time.time()
+        timeout = 900  # 15 minutes (JoyVASA slower than SadTalker)
         
-        while time.time() - start_time < 600:
+        logger.info(f"⏳ Waiting for JoyVASA (timeout: {timeout}s)...")
+        
+        while time.time() - start_time < timeout:
             poll_result = process.poll()
             if poll_result is not None:
                 logger.info(f"✅ Process finished with exit code: {poll_result}")
                 break
             
-            # Check log has content after 10s
-            if time.time() - start_time > 10:
+            # Check log progress every 10s
+            if int(time.time() - start_time) % 10 == 0:
                 log.flush()
                 log_size = os.path.getsize(log_file) if os.path.exists(log_file) else 0
                 if log_size == 0:
-                    logger.warning(f"⚠️ Log still empty after 10s (size: {log_size})")
+                    logger.warning(f"⚠️  Log still empty after {int(time.time() - start_time)}s")
             
             time.sleep(2)
         else:
-            logger.error(f"⏰ Timeout!")
+            logger.error(f"⏰ Timeout after {timeout}s!")
             process.kill()
             log.close()
-            raise Exception(f"SadTalker timeout. Check log: {log_file}")
+            raise Exception(f"JoyVASA timeout. Check log: {log_file}")
         
         log.close()
         
@@ -511,7 +537,7 @@ def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_p
                 log_content = f.read()
             logger.error(f"❌ Failed with code {process.returncode}")
             logger.error(f"📋 Log:\n{log_content[-1000:]}")
-            raise Exception(f"SadTalker failed ({process.returncode}). Log:\n{log_content[-500:]}")
+            raise Exception(f"JoyVASA failed ({process.returncode}). Log:\n{log_content[-500:]}")
         
         # Check log for errors
         with open(log_file, 'r') as f:
@@ -519,21 +545,14 @@ def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_p
         
         if "Error" in log_content or "Exception" in log_content:
             logger.error(f"❌ Errors in log:\n{log_content[-1000:]}")
-            raise Exception(f"SadTalker failed. Log:\n{log_content[-500:]}")
+            raise Exception(f"JoyVASA failed. Log:\n{log_content[-500:]}")
         
-        # Find video - look for the largest MP4 (final output with video)
-        logger.info(f"🔍 Looking for video in {mascot_output_dir}")
-        video_files = glob.glob(os.path.join(mascot_output_dir, "**/*.mp4"), recursive=True)
-        logger.info(f"📹 Found {len(video_files)} files: {video_files}")
-        
-        if not video_files:
+        # Check if output file exists
+        if os.path.exists(mascot_output_path) and os.path.getsize(mascot_output_path) > 0:
+            logger.info(f"✅ Video generated ({os.path.getsize(mascot_output_path)/1024/1024:.2f}MB): {mascot_output_path}")
+            return mascot_output_path
+        else:
             raise FileNotFoundError(f"No video generated. Log:\n{log_content[-1000:]}")
-        
-        # Get the largest video file (the one with actual video frames)
-        mascot_video_path = max(video_files, key=lambda x: os.path.getsize(x))
-        logger.info(f"✅ Selected largest video ({os.path.getsize(mascot_video_path)/1024/1024:.2f}MB): {mascot_video_path}")
-        
-        return mascot_video_path
         
     except Exception as e:
         if not log.closed:
@@ -541,7 +560,13 @@ def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_p
         logger.error(f"💥 Error: {str(e)}")
         raise
     finally:
-        logger.info(f"📄 Log at: {log_file}")
+        # Cleanup temp audio
+        if is_temp_audio and os.path.exists(audio_path):
+            try:
+                os.remove(audio_path)
+            except:
+                pass
+        logger.info(f"📄 Full log at: {log_file}")
 
 # --- BACKGROUND TASKS ---
 
@@ -554,6 +579,7 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
     
     try:
         jobs[job_id]["status"] = "processing"
+        jobs[job_id]["start_time"] = time.time()
         
         # Stage 1: Transcribe
         jobs[job_id]["stage"] = "1/4: Transcribing"
@@ -589,6 +615,9 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
         # Done
         jobs[job_id]["stage"] = "4/4: Complete"
         jobs[job_id]["status"] = "completed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {
             "output_filename": output_filename,
             "download_url": f"/download/{job_id}"
@@ -596,13 +625,16 @@ def process_highlight_reel_in_background(job_id, video_path, topic_config):
         
     except Exception as e:
         jobs[job_id]["status"] = "failed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
         for p in [video_path, audio_path, full_srt, selected_srt]:
             if os.path.exists(p):
                 os.remove(p)
 
-def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_path, position, margin_x, margin_y, scale):
+def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_path, position, margin_x, margin_y, scale, animation_mode="human"):
     output_filename = f"highlight_mascot_{job_id}.mp4"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     mascot_video_filename = None
@@ -610,10 +642,11 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
     
     try:
         jobs[job_id]["status"] = "processing"
+        jobs[job_id]["start_time"] = time.time()
         
         # Stage 1: Create mascot
-        jobs[job_id]["stage"] = "1/2: Creating Mascot"
-        mascot_video_filename = create_mascot_video(job_id, video_path, mascot_image_path, audio_path)
+        jobs[job_id]["stage"] = f"1/2: Creating Mascot ({animation_mode} mode)"
+        mascot_video_filename = create_mascot_video(job_id, video_path, mascot_image_path, audio_path, animation_mode)
         mascot_video_path = os.path.join(OUTPUT_DIR, mascot_video_filename)
         
         # Stage 2: Overlay or replace
@@ -623,6 +656,9 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
         
         # Done
         jobs[job_id]["status"] = "completed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         if jobs[job_id].get("result") is None:
             jobs[job_id]["result"] = {}
         
@@ -634,6 +670,9 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
         
     except Exception as e:
         jobs[job_id]["status"] = "failed"
+        jobs[job_id]["end_time"] = time.time()
+        if "start_time" in jobs[job_id]:
+            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
         temp_files = [video_path, audio_path, mascot_image_path]
@@ -671,7 +710,7 @@ async def create_highlight_reel_job(
         "exclude": [k.strip() for k in exclude_keywords.split(",")] if exclude_keywords else []
     }
     
-    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None}
+    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None, "created_time": time.time()}
     
     background_tasks.add_task(process_highlight_reel_in_background, job_id, temp_video, topic_config)
     
@@ -686,12 +725,17 @@ async def create_mascot_reel_job(
     position: str = Form(...),
     margin_x: int = Form(40),
     margin_y: int = Form(40),
-    scale: float = Form(1)
+    scale: float = Form(1),
+    animation_mode: str = Form("human")
 ):
     job_id = str(uuid.uuid4())
     
-    if not os.path.exists(SADTALKER_REPO_PATH):
-        raise HTTPException(status_code=503, detail="SadTalker unavailable")
+    if not os.path.exists(JOYVASA_REPO_PATH):
+        raise HTTPException(status_code=503, detail="JoyVASA unavailable")
+    
+    # Validate animation_mode
+    if animation_mode not in ["human", "animal"]:
+        raise HTTPException(status_code=400, detail="animation_mode must be 'human' or 'animal'")
     
     temp_video = f"/tmp/video_{job_id}{os.path.splitext(video.filename)[1]}"
     with open(temp_video, "wb") as buffer:
@@ -709,9 +753,9 @@ async def create_mascot_reel_job(
             with open(audio_path, "wb") as buffer:
                 buffer.write(audio_content)
     
-    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None}
+    jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None, "created_time": time.time()}
     
-    background_tasks.add_task(process_mascot_in_background, job_id, temp_video, mascot_path, audio_path, position, margin_x, margin_y, scale)
+    background_tasks.add_task(process_mascot_in_background, job_id, temp_video, mascot_path, audio_path, position, margin_x, margin_y, scale, animation_mode)
     
     return {"job_id": job_id, "status": "pending"}
 
@@ -720,7 +764,29 @@ def get_job_status(job_id: str):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    
+    # Prepare response with time information
+    response = job.copy()
+    
+    # Add human-readable timestamps
+    if "created_time" in job:
+        response["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["created_time"]))
+    
+    if "start_time" in job:
+        response["started_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["start_time"]))
+    
+    if "end_time" in job:
+        response["completed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job["end_time"]))
+    
+    if "processing_duration" in job:
+        response["processing_duration_seconds"] = round(job["processing_duration"], 2)
+        # Format as human-readable
+        duration = job["processing_duration"]
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        response["processing_duration_formatted"] = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+    
+    return response
 
 @app.get("/download/{job_id}")
 def download_video(job_id: str):
