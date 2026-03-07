@@ -72,14 +72,18 @@ export const mascotApi = createApi({
       formData.append("audio", params.audio);
     }
 
-    const data = await apiClient.post<{ job_id: string }>(
+    const { data } = await apiClient.post<{ job_id: string }>(
       MASCOT_ENDPOINT,
       formData,
     );
     return data.job_id;
   },
-  getStatus: (jobId: string) =>
-    apiClient.get<JobStatusResponse>(`/jobs/status/${jobId}`),
+  getStatus: async (jobId: string) => {
+    const { data } = await apiClient.get<JobStatusResponse>(
+      `/jobs/status/${jobId}`,
+    );
+    return data;
+  },
   processResult: async (jobResult: JobStatusResponse) =>
     ({
       jobId: (jobResult as { jobId?: string }).jobId || "",
@@ -98,14 +102,18 @@ export const highlightApi = createApi({
     if (params.excludeKeywords)
       formData.append("exclude_keywords", params.excludeKeywords);
 
-    const data = await apiClient.post<{ job_id: string }>(
+    const { data } = await apiClient.post<{ job_id: string }>(
       HIGHLIGHT_ENDPOINT,
       formData,
     );
     return data.job_id;
   },
-  getStatus: (jobId: string) =>
-    apiClient.get<JobStatusResponse>(`/jobs/status/${jobId}`),
+  getStatus: async (jobId: string) => {
+    const { data } = await apiClient.get<JobStatusResponse>(
+      `/jobs/status/${jobId}`,
+    );
+    return data;
+  },
   processResult: async (jobResult: JobStatusResponse) =>
     ({
       jobId: (jobResult as { jobId?: string }).jobId || "",

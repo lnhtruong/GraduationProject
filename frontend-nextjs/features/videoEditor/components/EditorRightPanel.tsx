@@ -11,7 +11,7 @@ import type {
   MascotOption,
   VoiceOption,
   TextOption,
-  EffectOption,
+  EffectOption, LayerItem,
 } from "@/features/videoEditor/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -26,7 +26,7 @@ interface Props {
   mascotProgress?: string;
   voice: VoiceOption;
   onVoiceChange?: (voice: VoiceOption) => void;
-  textOverlays: TextOption[];
+  layers: LayerItem[];
   onTextAdd: (text: TextOption) => void;
   onTextUpdate: (id: string, updates: Partial<TextOption> | TextOption) => void;
   onTextRemove: (id: string) => void;
@@ -45,14 +45,18 @@ export default function EditorRightPanel({
   videoFile,
   voice,
   onVoiceChange,
-  textOverlays,
+  layers,
   onTextAdd,
   onTextUpdate,
   onTextRemove,
   selectedTextId,
   onTextSelect,
 }: Props) {
-  // ===== Option selection
+    const textOverlays = layers
+        .filter((l) => l.type === "text")
+        .map((l) => l.data as TextOption);
+
+    // ===== Option selection
   const [activeOption, setActiveOption] = useState<OptionType>("effect");
 
   // ===== Text editor
@@ -136,14 +140,17 @@ export default function EditorRightPanel({
             <EffectOptions value={effect} onChange={onEffectChange} />
           )}
 
-          {activeOption === "text" && (
-            <TextOptions
-              value={currentText}
-              onChange={handleTextChange}
-              onAdd={handleTextAdd}
-              onRemove={selectedTextId ? handleTextRemove : undefined}
-            />
-          )}
+            {activeOption === "text" && (
+                <>
+                    <TextOptions
+                        value={currentText}
+                        onChange={handleTextChange}
+                        onAdd={handleTextAdd}
+                        onRemove={selectedTextId ? handleTextRemove : undefined}
+                    />
+                </>
+            )}
+
 
           {activeOption === "mascot" && onMascotChange && (
             <MascotOptions

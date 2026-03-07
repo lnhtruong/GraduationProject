@@ -10,12 +10,16 @@ import type { VoiceOption } from "@/features/videoEditor/types";
 
 export default function useVideoEditor(initialSrc?: string) {
   // Compose smaller hooks
-  const { videoSrc, setVideoSrc, originalVideoFile, loadVideoFile } =
-    useVideoSource(initialSrc);
+  const {
+    videoSrc,
+    setVideoSrc,
+    originalVideoFile,
+    setOriginalVideoFile,
+    loadVideoFile,
+  } = useVideoSource(initialSrc);
   const { videoRef, isPlaying, play, pause, toggle } = useVideoPlayback();
   const { effect, setEffect, cssFilter } = useVideoEffects();
-  const { textOverlays, addTextOverlay, updateTextOverlay, removeTextOverlay } =
-    useTextOverlays();
+  const { layers, handleAddText, handleUpdateText, handleReorderText, handleRemoveText } = useTextOverlays();
   const { mascot, setMascot, applyMascot, isApplyingMascot, mascotProgress } =
     useMascot();
 
@@ -56,6 +60,7 @@ export default function useVideoEditor(initialSrc?: string) {
     videoSrc,
     setVideoSrc,
     originalVideoFile,
+    setOriginalVideoFile,
     loadVideoFile,
 
     // Playback
@@ -70,10 +75,11 @@ export default function useVideoEditor(initialSrc?: string) {
     cssFilter,
 
     // Text
-    textOverlays,
-    addTextOverlay,
-    updateTextOverlay,
-    removeTextOverlay,
+      layers,
+      handleAddText,
+      handleUpdateText,
+      handleReorderText,
+      handleRemoveText,
 
     // Mascot
     mascot,

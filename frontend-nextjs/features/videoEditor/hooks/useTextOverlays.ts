@@ -4,35 +4,55 @@
  */
 
 import { useState } from "react";
-import type { TextOption } from "@/features/videoEditor/types";
+import type { TextOption, LayerItem } from "@/features/videoEditor/types";
 
 export function useTextOverlays() {
-  const [textOverlays, setTextOverlays] = useState<TextOption[]>([]);
+    // const [textOverlays, setTextOverlays] = useState<TextOption[]>([]);
 
-  const addTextOverlay = (text: TextOption) => {
-    console.log("Adding text overlay:", text);
-    setTextOverlays((prev) => [...prev, text]);
-  };
+    const [layers, setLayers] = useState<LayerItem[]>([]);
 
-  const updateTextOverlay = (
-    id: string,
-    updates: Partial<TextOption> | TextOption
-  ) => {
-    console.log("Updating text overlay:", id, updates);
-    setTextOverlays((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    );
-  };
+    const handleAddText = (text: TextOption) => {
+        console.log("Adding text overlay:", text);
+        setLayers((prev) => [
+            {
+                id: text.id,
+                type: "text",
+                data: text,
+            },
+            ...prev,
 
-  const removeTextOverlay = (id: string) => {
-    console.log("Removing text overlay:", id);
-    setTextOverlays((prev) => prev.filter((t) => t.id !== id));
-  };
+        ]);
+    };
 
-  return {
-    textOverlays,
-    addTextOverlay,
-    updateTextOverlay,
-    removeTextOverlay,
+    const handleUpdateText = (id: string, updates: Partial<TextOption>) => {
+        console.log("Updating text overlay:", id, updates);
+        setLayers((prev) =>
+            prev.map((layer) =>
+                layer.type === "text" && layer.id === id
+                    ? { ...layer, data: { ...layer.data, ...updates } }
+                    : layer
+            )
+        );
+    };
+
+    const handleRemoveText = (id: string) => {
+        console.log("Removing text overlay:", id);
+        setLayers((prev) => prev.filter((layer) => layer.id !== id));
+    };
+
+    const handleReorderText = (newOrder: LayerItem[]) => {
+        setLayers(newOrder);
+    };
+
+
+
+
+    return {
+    layers,
+        handleAddText,
+        handleUpdateText,
+        handleRemoveText,
+        handleReorderText
+
   } as const;
 }
