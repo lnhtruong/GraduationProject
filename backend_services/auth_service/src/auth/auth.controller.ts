@@ -14,6 +14,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
 import { JwtAuthGuard } from './jwt/jwt.guard';
 
+//jwtauthguard chạy trước -> decode token -> payload -> lưu vào req.user. Controller sẽ đọc đc req.user và truyền vào service
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
@@ -21,6 +23,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
+    console.log('check2')
     return this.authService.register(registerDto);
   }
 

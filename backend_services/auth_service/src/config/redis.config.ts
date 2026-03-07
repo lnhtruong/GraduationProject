@@ -2,8 +2,8 @@ import { registerAs } from '@nestjs/config';
 
 export default registerAs('redis', () => ({
   host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+  port: parseInt(process.env.REDIS_PORT ?? '6379', 10) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
-  db: parseInt(process.env.REDIS_DB, 10) || 0,
-  ttl: parseInt(process.env.REDIS_TTL, 10) || 604800, // 7 days default
+  db: parseInt(process.env.REDIS_DB ?? '0', 10) || 0,
+  ttl: parseInt(process.env.REDIS_TTL ?? '604800', 10) || 604800, // 7 days default
 }));

@@ -11,9 +11,12 @@ router.use(
     target: config.services.auth.url,
     changeOrigin: true,
     pathRewrite: {
-      '^/api/auth': '', // Remove /api/auth prefix when forwarding
+      '^/api': '', // Remove /api/auth prefix when forwarding
     },
     onProxyReq: (proxyReq, req: Request) => {
+
+      // console.log('req: ', req);
+      const bodyData = JSON.stringify(req.body);
       // Forward original headers 
       if (req.headers['content-type']) {
         proxyReq.setHeader('Content-Type', req.headers['content-type']);
@@ -21,6 +24,11 @@ router.use(
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
+
+      proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+
+      proxyReq.write(bodyData);
+
     },
     onProxyRes: (proxyRes, req: Request, res: Response) => {
       // Log proxy response

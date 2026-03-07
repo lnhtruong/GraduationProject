@@ -12,7 +12,7 @@ router.use(
     target: config.services.user.url,
     changeOrigin: true,
     pathRewrite: {
-      '^/api/users': '', // Remove /api/users prefix when forwarding
+      '^/api': '', // Remove /api prefix when forwarding
     },
     onProxyReq: (proxyReq, req: AuthRequest) => {
       // Forward original headers
@@ -22,6 +22,16 @@ router.use(
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
+
+      if (req.body) {
+        const bodyData = JSON.stringify(req.body);
+
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+
+        proxyReq.write(bodyData);
+      }
+
+      // console.log('check req.user: ', req.user);
 
       // Forward userId in header for user service
       if (req.user) {
