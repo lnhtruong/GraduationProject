@@ -14,6 +14,9 @@ from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, F
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# HTTP client for downloading files
+import httpx
+
 # --- CONFIG ---
 hf_logging.set_verbosity_error()
 warnings.filterwarnings("ignore")
@@ -380,6 +383,40 @@ def split_and_burn_ass(input_video, srt_file, output_video):
     
     shutil.rmtree(temp_dir)
 
+async def download_file_from_url(url: str, dest_path: str, timeout: int = 300) -> str:
+    """
+    Download file from URL to destination path
+    
+    Args:
+        url: URL to download from
+        dest_path: Destination file path
+        timeout: Download timeout in seconds (default: 300)
+    
+    Returns:
+        Path to downloaded file
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            logger.info(f"Downloading from URL: {url}")
+            response = await client.get(url)
+            response.raise_for_status()
+            
+            # Write to file
+            with open(dest_path, 'wb') as f:
+                f.write(response.content)
+            
+            if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
+                raise RuntimeError("Downloaded file is empty")
+            
+            logger.info(f"Downloaded {os.path.getsize(dest_path)/1024/1024:.2f}MB to {dest_path}")
+            return dest_path
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download: HTTP {e.response.status_code}")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=408, detail="Download timeout")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Download error: {str(e)}")
+
 def get_video_duration(path: str) -> float:
     cmd = [
         "ffprobe",
@@ -690,16 +727,23 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
 @app.post("/highlight-reel", status_code=202)
 async def create_highlight_reel_job(
     background_tasks: BackgroundTasks,
-    video: UploadFile = File(...),
+    video_url: str = Form(...),
     topic: str = Form(...),
     include_keywords: str = Form(...),
     exclude_keywords: str = Form("")
 ):
     job_id = str(uuid.uuid4())
     
-    temp_video = f"/tmp/video_{job_id}{os.path.splitext(video.filename)[1]}"
-    with open(temp_video, "wb") as buffer:
-        shutil.copyfileobj(video.file, buffer)
+    # Determine file extension from URL or default to .mp4
+    url_path = video_url.split('?')[0]  # Remove query params
+    ext = os.path.splitext(url_path)[1] or '.mp4'
+    temp_video = f"/tmp/video_{job_id}{ext}"
+    
+    # Download video from URL
+    try:
+        await download_file_from_url(video_url, temp_video)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download video: {str(e)}")
     
     if not os.path.exists(temp_video) or os.path.getsize(temp_video) == 0:
         raise HTTPException(status_code=400, detail="Invalid video")
@@ -719,9 +763,9 @@ async def create_highlight_reel_job(
 @app.post("/mascot", status_code=202)
 async def create_mascot_reel_job(
     background_tasks: BackgroundTasks,
-    video: UploadFile = File(...),
-    mascot_image: UploadFile = File(...),
-    audio: UploadFile = File(None),
+    video_url: str = Form(...),
+    mascot_image_url: str = Form(...),
+    audio_url: str = Form(None),
     position: str = Form(...),
     margin_x: int = Form(40),
     margin_y: int = Form(40),
@@ -737,21 +781,32 @@ async def create_mascot_reel_job(
     if animation_mode not in ["human", "animal"]:
         raise HTTPException(status_code=400, detail="animation_mode must be 'human' or 'animal'")
     
-    temp_video = f"/tmp/video_{job_id}{os.path.splitext(video.filename)[1]}"
-    with open(temp_video, "wb") as buffer:
-        shutil.copyfileobj(video.file, buffer)
+    # Download video from URL
+    video_ext = os.path.splitext(video_url.split('?')[0])[1] or '.mp4'
+    temp_video = f"/tmp/video_{job_id}{video_ext}"
+    try:
+        await download_file_from_url(video_url, temp_video)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download video: {str(e)}")
     
-    mascot_path = f"/tmp/mascot_{job_id}{os.path.splitext(mascot_image.filename)[1]}"
-    with open(mascot_path, "wb") as buffer:
-        shutil.copyfileobj(mascot_image.file, buffer)
+    # Download mascot image from URL
+    mascot_ext = os.path.splitext(mascot_image_url.split('?')[0])[1] or '.png'
+    mascot_path = f"/tmp/mascot_{job_id}{mascot_ext}"
+    try:
+        await download_file_from_url(mascot_image_url, mascot_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download mascot image: {str(e)}")
     
+    # Download audio from URL if provided
     audio_path = None
-    if audio and audio.filename:
-        audio_content = await audio.read()
-        if audio_content:
-            audio_path = f"/tmp/audio_{job_id}{os.path.splitext(audio.filename)[1]}"
-            with open(audio_path, "wb") as buffer:
-                buffer.write(audio_content)
+    if audio_url:
+        audio_ext = os.path.splitext(audio_url.split('?')[0])[1] or '.wav'
+        audio_path = f"/tmp/audio_{job_id}{audio_ext}"
+        try:
+            await download_file_from_url(audio_url, audio_path)
+        except Exception as e:
+            logger.warning(f"Failed to download audio: {str(e)}")
+            audio_path = None
     
     jobs[job_id] = {"status": "pending", "stage": "Queued", "result": None, "created_time": time.time()}
     
