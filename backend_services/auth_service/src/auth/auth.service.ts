@@ -3,6 +3,7 @@ import {
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/user.model';
@@ -13,6 +14,8 @@ import { ValidateTokenDto } from './dto/validate-token.dto';
 import { JwtTokenService, TokenPayload } from './jwt/jwt.service';
 import { RedisService } from '../redis/redis.service';
 import { ConfigService } from '@nestjs/config';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { CheckOtpDto } from './dto/check-otp.dto';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +25,7 @@ export class AuthService {
         private readonly jwtTokenService: JwtTokenService,
         private readonly redisService: RedisService,
         private readonly configService: ConfigService,
+        private readonly httpService: HttpService,
     ) { }
 
     async register(registerDto: RegisterDto) {
@@ -106,8 +110,8 @@ export class AuthService {
         };
     }
 
-    async refreshToken(refreshTokenDto: RefreshTokenDto) {
-        const { refreshToken } = refreshTokenDto;
+    async refreshToken(refreshToken: string) {
+        // const { refreshToken } = refreshTokenDto;
 
         const payload = await this.jwtTokenService.decodeToken(refreshToken);
 
@@ -143,7 +147,13 @@ export class AuthService {
     }
 
     async issueToken(payload: TokenPayload) {
-        return await this.jwtTokenService.generateTokenPair(payload);
+        const tokenPair = this.jwtTokenService.generateTokenPair(payload);
+        await this.storeRefreshToken(payload.userId, (await tokenPair).refreshToken);
+
+        return {
+            accessToken: (await tokenPair).accessToken,
+            refreshToken: (await tokenPair).refreshToken,
+        };
     }
 
     async validateCredential(validateTokenDto: ValidateTokenDto) {
@@ -176,6 +186,69 @@ export class AuthService {
                 reason: error.message || 'Invalid token',
             };
         }
+    }
+
+    async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+        const { email } = forgotPasswordDto;
+
+        const user = await this.userModel.findOne({ where: { email } });
+        if (!user) {
+            throw new BadRequestException('User with this email does not exist');
+        }
+
+        const mailServiceUrl =
+            this.configService.get<string>('MAIL_SERVICE_URL') ||
+            process.env.MAIL_SERVICE_URL ||
+            'http://localhost:3000';
+
+        try {
+            const response = await this.httpService.axiosRef.post(
+                `${mailServiceUrl}/mail/otp`,
+                { email },
+            );
+
+            const otp = response.data?.data?.otp;
+
+            return {
+                message: 'OTP sent to email',
+                // otp,
+            };
+        } catch (error) {
+            throw new BadRequestException('Failed to send OTP email');
+        }
+    }
+
+    async checkOtpAndResetPassword(checkOtpDto: CheckOtpDto) {
+        const { email, otp, newPassword } = checkOtpDto;
+
+        const emailKey = email.trim().toLowerCase();
+        const redisKey = `MAIL_OTP:${emailKey}`;
+
+        const storedOtp = await this.redisService.get(redisKey);
+
+        if (!storedOtp || storedOtp !== otp) {
+            throw new BadRequestException('Invalid or expired OTP');
+        }
+
+        const user = await this.userModel.findOne({ where: { email } });
+        if (!user) {
+            throw new BadRequestException('User with this email does not exist');
+        }
+
+        console.log('check user', user);
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        // user.password = hashedPassword;
+        await user.update({
+            password: hashedPassword,
+        });
+
+        // Xóa OTP sau khi dùng xong
+        await this.redisService.del(redisKey);
+
+        return {
+            message: 'Password has been reset successfully',
+        };
     }
 
     private async storeRefreshToken(userId: number, refreshToken: string) {

@@ -12,6 +12,13 @@ export const config = {
     user: {
       url: process.env.USER_SERVICE_URL || 'http://localhost:8002',
     },
+    mascot: {
+      url: process.env.MASCOT_SERVICE_URL || 'http://localhost:8003',
+    },
+    edit: {
+      // edit_session_service (projects, mascot_overlays)
+      url: process.env.EDIT_SESSION_SERVICE_URL || 'http://localhost:8004',
+    },
   },
   // trong 15p 1 ip dc gửi tối đa 100 request
   rateLimit: {
