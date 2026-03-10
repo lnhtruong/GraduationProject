@@ -1,0 +1,645 @@
+enum level_Beginner_Intermediate_Advanced_t {
+	Beginner
+	Intermediate
+	Advanced
+}
+
+enum status_draft_pending_approved_rejected_publish_t {
+	draft
+	pending
+	approved
+	rejected
+	publish
+}
+
+enum status_null_learning_finish_t {
+	null
+	learning
+	finish
+}
+
+enum contentType_video_text_quiz_assignment_t {
+	video
+	text
+	quiz
+	assignment
+}
+
+enum status_active_removed_blocked_t {
+	active
+	removed
+	blocked
+}
+
+enum status_active_completed_dropped_t {
+	active
+	completed
+	dropped
+}
+
+enum progress_not_started_in_progress_completed_t {
+	not_started
+	in_progress
+	completed
+}
+
+enum " assignment_type_code_quiz_t" {
+	code
+	quiz
+}
+
+enum "ques_type_MCQ_SHORT_TEXT_TRUE/FALSE_t" {
+	MCQ
+	SHORT_TEXT
+	"TRUE/FALSE"
+}
+
+enum status_IN_PROGRESS_SUBMITTED_PASSED_FAILED_t {
+	IN_PROGRESS
+	SUBMITTED
+	PASSED
+	FAILED
+}
+
+enum activity_type_QUIZ_ASSIGNMENT_t {
+	QUIZ
+	ASSIGNMENT
+}
+
+enum status_DRAFT_PUBLISH_ARCHIVED_t {
+	DRAFT
+	PUBLISH
+	ARCHIVED
+}
+
+enum answer_type_OPTION_TEXT_CODE_FILE_t {
+	OPTION
+	TEXT
+	CODE
+	FILE
+}
+
+enum status_processing_ready_t {
+	processing
+	ready
+}
+
+enum status_draft_saved_finalized_t {
+	draft
+	saved
+	finalized
+}
+
+enum status_processing_done_failed_t {
+	processing
+	done
+	failed
+}
+
+enum status_pending_paid_failed_t {
+	pending
+	paid
+	failed
+}
+
+enum status_READ_UNREAD_t {
+	READ
+	UNREAD
+}
+
+Table Users [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	email varchar(255) [ not null ]
+	password_hash varchar(255) [ not null ]
+	fname varchar(255) [ not null ]
+	lname varchar(255)
+	role integer
+	updated_at datetime
+	created_at datetime
+}
+
+Table Roles [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	name varchar(255) [ not null ]
+}
+
+Table Courses [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	name varchar(255) [ not null ]
+	description varchar(255)
+	categories integer [ not null, note: '''mảng key trỏ đến categories
+''' ]
+	level level_Beginner_Intermediate_Advanced_t [ not null, default: 'Beginner', note: 'Beginner, Intermediate, Advanced' ]
+	duration time [ not null ]
+	language varchar(255) [ not null ]
+	price double [ not null ]
+	user_id integer [ not null ]
+	status status_draft_pending_approved_rejected_publish_t [ not null, note: 'draft, pending, approved, rejected, publish' ]
+	created_at datetime
+	updated_at datetime
+}
+
+Table RoadMaps [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer
+	description varchar(255)
+	name char(1)
+	total_courses integer
+	progress integer [ note: 'total number courses finished' ]
+}
+
+Table RoadMap_Course [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	course_id integer
+	roadmap_id integer
+	index integer [ note: 'learning order in roadmap' ]
+	status status_null_learning_finish_t [ default: null, note: 'null, learning, finish' ]
+}
+
+Table Lessons [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	couse_id integer [ not null ]
+	title varchar(255) [ not null ]
+	contentType contentType_video_text_quiz_assignment_t [ not null, default: 'video', note: 'video, text, quiz, assignment' ]
+	content json [ not null ]
+	duration float [ not null ]
+	status status_active_removed_blocked_t [ default: 'active' ]
+	description varchar(255) [ not null ]
+	created_at datetime
+	updated_at datetime
+}
+
+Table Enrolls [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer
+	course_id integer
+	progress double
+	status status_active_completed_dropped_t [ default: 'active', note: 'active, completed, dropped' ]
+	enrolled_at datetime
+	completed_at datetime
+}
+
+Table LessonProgress [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer
+	course_id integer
+	lesson_id integer
+	progress progress_not_started_in_progress_completed_t [ default: 'not_started', note: 'not_started, in_progress, completed' ]
+}
+
+Table Quizzes [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	lesson_activity_id integer
+	name varchar(255)
+	shuffle_ques boolean [ default: false ]
+	shuffle_options boolean [ default: false, note: 'đảo thứ tự câu trả lời' ]
+	passing_score double
+	time_limit_minutes integer
+}
+
+Table Assignments [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	lesson_activity_id integer
+	" assignment_type" " assignment_type_code_quiz_t" [ default: 'code', note: 'code, quiz' ]
+	content text(65535)
+	expected_output text(65535)
+	max_score double
+	pass_score double
+	created_at datetime
+	updated_at datetime
+}
+
+Table Quiz_Options [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	question_id integer
+	option_text text(65535)
+	is_correct boolean
+	order_index integer
+	created_at datetime
+	updated_at datetime
+}
+
+Table Quiz_Questions [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	quiz_id integer [ not null ]
+	ques_type "ques_type_MCQ_SHORT_TEXT_TRUE/FALSE_t" [ not null, default: 'MCQ', note: 'MCQ, SHORT_TEXT, TRUE/FALSE' ]
+	ques_text text(65535) [ not null ]
+	point decimal [ not null ]
+	correct_ans text(65535) [ not null ]
+	order_index integer [ not null ]
+	created_at datetime [ not null ]
+	updated_at datetime
+}
+
+Table Submissions [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	lesson_activity_id integer [ not null ]
+	user_id integer [ not null ]
+	status status_IN_PROGRESS_SUBMITTED_PASSED_FAILED_t [ not null, default: 'IN_PROGRESS', note: 'IN_PROGRESS, SUBMITTED, PASSED, FAILED' ]
+	started_at datetime [ not null ]
+	submitted_at datetime [ not null ]
+	graded_at datetime [ not null ]
+	score double [ not null ]
+	max_score double [ not null ]
+	pass_flag boolean [ not null ]
+	grader_id integer [ not null ]
+	created_at datetime
+	updated_at datetime
+}
+
+Table Lesson_Activities [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	lesson_id integer
+	activity_type activity_type_QUIZ_ASSIGNMENT_t [ default: 'QUIZ', note: 'QUIZ, ASSIGNMENT' ]
+	title text(65535)
+	description text(65535)
+	order_index integer
+	max_attempts integer
+	status status_DRAFT_PUBLISH_ARCHIVED_t [ default: 'DRAFT', note: 'DRAFT, PUBLISH, ARCHIVED' ]
+	created_by integer
+	created_at datetime
+	updated_at datetime
+}
+
+Table Submission_Answers [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	submission_id integer
+	question_id integer
+	answer_type answer_type_OPTION_TEXT_CODE_FILE_t [ default: 'OPTION', note: 'OPTION, TEXT, CODE, FILE' ]
+	select_option_id integer
+	answer_text text(65535)
+	answer_json json
+	is_correct boolean
+}
+
+Table Categories [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	name text(65535) [ not null ]
+	description text(65535) [ not null ]
+}
+
+Table Reviews [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	course_id integer
+	user_id integer
+	rating double
+	comment text(65535)
+	created_at datetime
+	updated_at datetime
+}
+
+Table Certificate_Templates [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	name text(65535) [ not null ]
+	description text(65535) [ not null ]
+	background_url text(65535) [ not null ]
+	is_active boolean [ not null ]
+	created_by integer [ not null ]
+	created_at datetime
+	updated_at datetime
+}
+
+Table Course_Certificate_Templates [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	course_id integer [ not null ]
+	certificate_id integer [ not null ]
+}
+
+Table Issued_Certificates [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer
+	course_id integer
+	certificate_template_id integer
+	created_at datetime
+	updated_at datetime
+}
+
+Table Mascot_Image [headercolor: #175e7a] {
+	image_id integer [ pk, increment ]
+	user_id integer
+	url text
+	created_at datetime
+}
+
+Table Mascot_Videos [headercolor: #175e7a] {
+	mascot_video_id integer [ pk, increment ]
+	image_id integer
+	url text
+	duration float
+	created_at datetime
+}
+
+Table Mascot_Overlay [headercolor: #175e7a] {
+	mascot_overlay_id integer [ pk, increment ]
+	edit_id integer
+	mascot_video_id integer
+	position_x float
+	position_y float
+	scale float
+	start_time float
+	end_time float
+	layer_index integer
+}
+
+Table Highlight_Videos [headercolor: #175e7a] {
+	highlight_id integer [ pk, increment ]
+	user_id integer
+	video_name varchar(255)
+	url text
+	duration float
+	highlight_metadata json
+	raw_video_id varchar(255)
+	status status_processing_ready_t
+	created_at datetime
+}
+
+Table Projects [headercolor: #175e7a] {
+	edit_id integer [ pk, increment ]
+	user_id integer
+	highlight_id integer
+	session_name varchar(255)
+	status status_draft_saved_finalized_t
+	created_at datetime
+	updated_at datetime
+}
+
+Table Text_Overlay [headercolor: #175e7a] {
+	text_id integer [ pk, increment ]
+	edit_id integer
+	content text
+	font_family varchar(255)
+	font_size integer
+	color varchar(50)
+	position_x float
+	position_y float
+	start_time float
+	end_time float
+	layer_index integer
+}
+
+Table Visual_Effects [headercolor: #175e7a] {
+	effect_id integer [ pk, increment ]
+	edit_id integer
+	filter_type varchar(100)
+	bright float
+	contrast float
+	saturate float
+	hue float
+	start_time float
+	end_time float
+	layer_index integer
+}
+
+Table Audio [headercolor: #175e7a] {
+	audio_id integer [ pk, increment ]
+	edit_id integer
+	voice_profile_id integer
+	url text
+	start_time float
+	end_time float
+	volume float
+}
+
+Table Voice_Profile [headercolor: #175e7a] {
+	voice_profile_id integer [ pk, increment ]
+	user_id integer
+	audio_url text
+	voice_name varchar(255)
+	created_at datetime
+}
+
+Table Final_Video [headercolor: #175e7a] {
+	final_video_id integer [ pk, increment ]
+	edit_id integer
+	user_id integer
+	video_name varchar(255)
+	url text
+	status status_processing_done_failed_t
+	created_at datetime
+}
+
+Table Payments [headercolor: #175e7a] {
+	id integer [ pk, increment ]
+	user_id integer
+	course_id integer
+	amount double
+	provider varchar(50)
+	provider_order_id varchar(255)
+	status status_pending_paid_failed_t [ default: 'pending' ]
+	created_at datetime
+	paid_at datetime
+}
+
+Table DiscussionForum [headercolor: #175e7a] {
+	post_id integer [ pk, increment, not null, unique ]
+	course_id integer
+	user_id integer
+	content integer
+	created_at datetime
+	updated_at datetime
+}
+
+Table Notifications [headercolor: #175e7a] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer
+	message text(65535)
+	status status_READ_UNREAD_t [ default: 'READ', note: 'READ, UNREAD' ]
+	created_at datetime
+	updated_at datetime
+}
+
+Ref fk_Users_role_Roles {
+	Users.role - Roles.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Courses_user_id_Users {
+	Courses.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_RoadMaps_user_id_Users {
+	RoadMaps.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_RoadMap_Course_course_id_Courses {
+	RoadMap_Course.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_RoadMap_Course_roadmap_id_RoadMaps {
+	RoadMap_Course.roadmap_id > RoadMaps.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Lessons_couse_id_Courses {
+	Lessons.couse_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Enrolls_user_id_Users {
+	Enrolls.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Enrolls_course_id_Courses {
+	Enrolls.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_LessonProgress_user_id_Users {
+	LessonProgress.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_LessonProgress_course_id_Courses {
+	LessonProgress.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_LessonProgress_lesson_id_Lessons {
+	LessonProgress.lesson_id - Lessons.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Quiz_Questions_quiz_id_Quizzes {
+	Quiz_Questions.quiz_id - Quizzes.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Quiz_Options_question_id_Quiz_Questions {
+	Quiz_Options.question_id > Quiz_Questions.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Submissions_user_id_Users {
+	Submissions.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Submissions_grader_id_Users {
+	Submissions.grader_id - Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Lesson_Activities_created_by_Users {
+	Lesson_Activities.created_by > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Submissions_lesson_activity_id_Lesson_Activities {
+	Submissions.lesson_activity_id > Lesson_Activities.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Lesson_Activities_lesson_id_Lessons {
+	Lesson_Activities.lesson_id > Lessons.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Quizzes_lesson_activity_id_Lesson_Activities {
+	Quizzes.lesson_activity_id - Lesson_Activities.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Assignments_lesson_activity_id_Lesson_Activities {
+	Assignments.lesson_activity_id - Lesson_Activities.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Submission_Answers_submission_id_Submissions {
+	Submission_Answers.submission_id > Submissions.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Submission_Answers_question_id_Lesson_Activities {
+	Submission_Answers.question_id - Lesson_Activities.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Courses_categories_Categories {
+	Courses.categories < Categories.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Reviews_user_id_Users {
+	Reviews.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Reviews_course_id_Courses {
+	Reviews.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Course_Certificate_Templates_certificate_id_Certificate_Templates {
+	Course_Certificate_Templates.certificate_id > Certificate_Templates.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Course_Certificate_Templates_course_id_Courses {
+	Course_Certificate_Templates.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Issue_Certificates_user_id_Users {
+	Issued_Certificates.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Issue_Certificates_certificate_template_id_Certificate_Templates {
+	Issued_Certificates.certificate_template_id > Certificate_Templates.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Issue_Certificates_course_id_Courses {
+	Issued_Certificates.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Mascot_Image_user_id_Users {
+	Mascot_Image.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Mascot_Videos_image_id_Mascot_Image {
+	Mascot_Videos.image_id - Mascot_Image.image_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Mascot_Overlay_mascot_video_id_Mascot_Videos {
+	Mascot_Overlay.mascot_video_id > Mascot_Videos.mascot_video_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Mascot_Overlay_edit_id_Projects {
+	Mascot_Overlay.edit_id - Projects.edit_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Projects_user_id_Users {
+	Projects.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Highlight_Videos_user_id_Users {
+	Highlight_Videos.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Projects_highlight_id_Highlight_Videos {
+	Projects.highlight_id - Highlight_Videos.highlight_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Text_Overlay_edit_id_Projects {
+	Text_Overlay.edit_id > Projects.edit_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Visual_Effects_edit_id_Projects {
+	Visual_Effects.edit_id - Projects.edit_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Audio_edit_id_Projects {
+	Audio.edit_id > Projects.edit_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Final_Video_edit_id_Projects {
+	Final_Video.edit_id - Projects.edit_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Final_Video_user_id_Users {
+	Final_Video.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Voice_Profile_user_id_Users {
+	Voice_Profile.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Audio_voice_profile_id_Voice_Profile {
+	Audio.voice_profile_id - Voice_Profile.voice_profile_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Payments_user_id_Users {
+	Payments.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Payments_course_id_Courses {
+	Payments.course_id - Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_DiscussionForum_user_id_Users {
+	DiscussionForum.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_DiscussionForum_course_id_Courses {
+	DiscussionForum.course_id > Courses.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Notifications_user_id_Users {
+	Notifications.user_id > Users.id [ delete: no action, update: no action ]
+}
