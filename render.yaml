@@ -1,0 +1,360 @@
+services:
+
+# =================================================
+# API GATEWAY (PUBLIC)
+# =================================================
+  - type: web
+    name: api-gateway
+    env: node
+    plan: free
+    rootDir: backend_services/api_gateway
+    buildCommand: yarn install
+    startCommand: yarn start
+    autoDeploy: true
+
+    envVars:
+      - key: PORT
+        value: 10000
+
+      - key: JWT_SECRET
+        value: fivetoneu2026
+
+      - key: AUTH_SERVICE_URL
+        value: http://auth-service:10000
+
+      - key: USER_SERVICE_URL
+        value: http://user-service:10000
+
+      - key: MASCOT_SERVICE_URL
+        value: http://mascot-video-service:10000
+
+      - key: EDIT_SESSION_SERVICE_URL
+        value: http://edit-session-service:10000
+
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+
+      - key: RATE_LIMIT_MAX
+        value: 100
+
+
+
+# =================================================
+# AUTH SERVICE
+# =================================================
+  - type: web
+    name: auth-service
+    env: node
+    plan: free
+    rootDir: backend_services/auth_service
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start:prod
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: NODE_ENV
+        value: production
+
+      - key: CORS_ORIGINS
+        sync: false
+
+      - key: DB_HOST
+        sync: false
+
+      - key: DB_PORT
+        value: 3306
+
+      - key: DB_USERNAME
+        sync: false
+
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: DB_DATABASE
+        sync: false
+
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: redis-cache
+          property: host
+
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: redis-cache
+          property: port
+
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: redis-cache
+          property: password
+
+      - key: REDIS_DB
+        value: 0
+
+      - key: REDIS_TTL
+        value: 604800
+
+      - key: JWT_SECRET
+        value: fivetoneu2026
+
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+      - key: MAIL_SERVICE_URL
+        value: http://mail-service:10000
+
+
+
+# =================================================
+# USER SERVICE
+# =================================================
+  - type: web
+    name: user-service
+    env: node
+    plan: free
+    rootDir: backend_services/user_service
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start:prod
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: NODE_ENV
+        value: production
+
+      - key: DB_HOST
+        sync: false
+
+      - key: DB_PORT
+        value: 3306
+
+      - key: DB_USERNAME
+        sync: false
+
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: DB_DATABASE
+        sync: false
+
+      - key: JWT_SECRET
+        value: fivetoneu2026
+
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+
+
+# =================================================
+# EDIT SESSION SERVICE
+# =================================================
+  - type: web
+    name: edit-session-service
+    env: node
+    plan: free
+    rootDir: backend_services/edit_session_service
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start:prod
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: NODE_ENV
+        value: production
+
+      - key: DB_HOST
+        sync: false
+
+      - key: DB_PORT
+        value: 3306
+
+      - key: DB_USERNAME
+        sync: false
+
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: DB_DATABASE
+        sync: false
+
+      - key: JWT_SECRET
+        value: fivetoneu2026
+
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+
+
+# =================================================
+# MAIL SERVICE
+# =================================================
+  - type: web
+    name: mail-service
+    env: node
+    plan: free
+    rootDir: backend_services/mail_service
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start:prod
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+
+      - key: MAIL_PORT
+        value: 587
+
+      - key: MAIL_USER
+        sync: false
+
+      - key: MAIL_PASS
+        sync: false
+
+      - key: MAIL_FROM
+        sync: false
+
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: redis-cache
+          property: host
+
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: redis-cache
+          property: port
+
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: redis-cache
+          property: password
+
+      - key: REDIS_DB
+        value: 0
+
+      - key: REDIS_TTL
+        value: 604800
+
+
+
+# =================================================
+# PAYMENT SERVICE
+# =================================================
+  - type: web
+    name: payment-service
+    env: node
+    plan: free
+    rootDir: backend_services/payment_service
+    buildCommand: yarn install
+    startCommand: yarn start
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: PAYOS_CLIENT_ID
+        sync: false
+
+      - key: PAYOS_API_KEY
+        sync: false
+
+      - key: PAYOS_CHECKSUM_KEY
+        sync: false
+
+      - key: PAYOS_WEBHOOK_URL
+        sync: false
+
+      - key: PAYOS_CANCEL_URL
+        sync: false
+
+      - key: PAYOS_RETURN_URL
+        sync: false
+
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: redis-cache
+          property: host
+
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: redis-cache
+          property: port
+
+
+
+# =================================================
+# MASCOT VIDEO SERVICE
+# =================================================
+  - type: web
+    name: mascot-video-service
+    env: node
+    plan: free
+    rootDir: backend_services/mascot_video_service
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start:prod
+    autoDeploy: true
+
+    envVars:
+
+      - key: PORT
+        value: 10000
+
+      - key: NODE_ENV
+        value: production
+
+      - key: DB_HOST
+        sync: false
+
+      - key: DB_PORT
+        value: 3306
+
+      - key: DB_USERNAME
+        sync: false
+
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: DB_DATABASE
+        sync: false
+
+
+
+# =================================================
+# REDIS
+# =================================================
+databases:
+  - name: redis-cache
+    type: redis
+    plan: free

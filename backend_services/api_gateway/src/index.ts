@@ -81,7 +81,7 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
 });
 
 // Start server
-app.listen(config.port, () => {
+app.listen(config.port, '0.0.0.0', () => {
   console.log(`🚀 API Gateway is running on port ${config.port}`);
   console.log(`📡 Auth Service: ${config.services.auth.url}`);
   console.log(`👤 User Service: ${config.services.user.url}`);
