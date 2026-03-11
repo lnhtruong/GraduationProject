@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mascotRoutes from './routes/mascot.routes';
 import editRoutes from './routes/edit.routes';
+import mascotColabRoutes from './routes/mascot_colab_routes';
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/mascot', mascotRoutes);
 app.use('/api/edit', editRoutes);
+app.use('/api/mascot_colab', mascotColabRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -82,11 +84,12 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
 
 // Start server
 app.listen(config.port, '0.0.0.0', () => {
-  console.log(`🚀 API Gateway is running on port ${config.port}`);
-  console.log(`📡 Auth Service: ${config.services.auth.url}`);
-  console.log(`👤 User Service: ${config.services.user.url}`);
-  console.log(`🎭 Mascot Service: ${config.services.mascot.url}`);
-  console.log(`✂️ Edit Session Service: ${config.services.edit.url}`);
+  console.log(` API Gateway is running on port ${config.port}`);
+  console.log(` Auth Service: ${config.services.auth.url}`);
+  console.log(` User Service: ${config.services.user.url}`);
+  console.log(` Mascot Service: ${config.services.mascot.url}`);
+  console.log(` Edit Session Service: ${config.services.edit.url}`);
+  console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
 
 
