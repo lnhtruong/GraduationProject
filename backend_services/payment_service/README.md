@@ -138,9 +138,10 @@ ngrok http 3000
 Bạn sẽ nhận được một URL public có dạng: `https://abcd-123.ngrok-free.app`
 
 ### Bước 2: Đăng ký Webhook trên PayOS Dashboard
-1. Truy cập [PayOS Dashboard -> Cấu hình Webhook](https://dashboard.payos.vn/).
-2. Nhập URL là: `https://abcd-123.ngrok-free.app/payment/payos-callback`
-3. Nhấn **Xác nhận/Lưu**. PayOS sẽ gửi một request test để kiểm tra endpoint của bạn.
+1. Truy cập [PayOS Dashboard](https://my.payos.vn/)
+2. Tìm mục ** Tổ chức ** -> ** Kênh thanh toán ** -> ** GraduationProject ** -> ** Webhook url **
+3. Nhập Webhook URL: `https://abcd-1234.ngrok-free.app/payment/payos-callback`
+4. Nhấn **Lưu/Xác nhận**
 
 ### Bước 3: Kiểm tra log
 Khi thực hiện thanh toán, PayOS sẽ gửi dữ liệu về. App sẽ log ra thông tin webhook. Nếu thanh toán thành công, sẽ log ra thông tin đơn hàng đã thanh toán. 
