@@ -16,7 +16,7 @@ Dịch vụ xử lý thanh toán tích hợp với **PayOS**. Được xây dự
    ```
 
 2. **Cấu hình môi trường:**
-   Tạo file `.env` từ `.env.example` và điền thông tin từ [PayOS Dashboard](https://dashboard.payos.vn/):
+   Tạo file `.env` từ `.env.example` và điền thông tin từ [PayOS Dashboard](https://my.payos.vn/):
    ```env
    PORT=3000
    PAYOS_CLIENT_ID=your_client_id
