@@ -94,12 +94,10 @@ npm run dev
 
 ### 🎯 Đăng ký Webhook trên PayOS Dashboard
 
-1. Truy cập [PayOS Dashboard](https://dashboard.payos.vn/)
-2. Tìm mục **Cài đặt → Webhook** 
+1. Truy cập [PayOS Dashboard](https://my.payos.vn/)
+2. Tìm mục ** Tổ chức ** -> ** Kênh thanh toán ** -> ** GraduationProject ** -> ** Webhook url **
 3. Nhập Webhook URL: `https://abcd-1234.ngrok-free.app/payment/payos-callback`
-4. Chọn Events muốn nhận (thường là `PAYMENT_COMPLETED`)
-5. Nhấn **Lưu/Xác nhận**
-6. PayOS sẽ gửi request test - kiểm tra console xem có log không
+4. Nhấn **Lưu/Xác nhận**
 
 ### 🧪 Test Webhook
 
