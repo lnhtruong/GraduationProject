@@ -106,9 +106,36 @@ const publishPaymentFailed = (orderCode, reason) => {
   });
 };
 
+/**
+ * Save payment data to Redis
+ * @param {string} orderCode - Order code
+ * @param {object} webhookData - Webhook data
+ */
+const savePaymentData = async (orderCode, webhookData) => {
+  try {
+    if (!isConnected) {
+      console.warn(`⚠️ Redis không kết nối, không thể lưu dữ liệu cho đơn hàng ${orderCode}`);
+      return;
+    }
+
+    const key = `PAYMENT_${orderCode}`;
+    const value = JSON.stringify({
+      savedAt: new Date().toISOString(),
+      ...webhookData,
+    });
+
+    // Lưu vào Redis với TTL là 24 giờ (86400 giây)
+    await publisherClient.setEx(key, 86400, value);
+    console.log(`💾 Đã lưu dữ liệu thanh toán cho đơn hàng ${orderCode} vào Redis`);
+  } catch (error) {
+    console.error(`❌ Lỗi khi lưu dữ liệu thanh toán đơn hàng ${orderCode}:`, error.message);
+  }
+};
+
 module.exports = {
   publishEvent,
   publishPaymentWebhook,
   publishPaymentSuccess,
   publishPaymentFailed,
+  savePaymentData,
 };

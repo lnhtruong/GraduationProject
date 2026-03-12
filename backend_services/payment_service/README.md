@@ -109,18 +109,6 @@ npm run dev
 3. PayOS sẽ gọi webhook endpoint của bạn
 4. Kiểm tra console/logs: `💵 Đơn hàng ... đã thanh toán thành công!`
 
-**Cách 2: Test bằng cURL (mô phỏng webhook)**
-```bash
-curl -X POST http://localhost:3000/payment/payos-callback \
-  -H "Content-Type: application/json" \
-  -d '{
-    "orderCode": 123456789,
-    "amount": 50000,
-    "status": "PAID",
-    "description": "Test"
-  }'
-```
-
 ### ❌ Troubleshooting Webhook
 
 | Vấn đề | Nguyên nhân | Giải pháp |
