@@ -5,23 +5,24 @@ APP_ROOT="/opt/graduation-project"
 BACKEND_ROOT="$APP_ROOT/backend_services"
 
 echo "[1/7] Update package index"
-sudo apt update -y
+apt update -y
 
 echo "[2/7] Install base packages"
-sudo apt install -y curl git build-essential redis-server
+apt install -y curl git build-essential redis-server
 
 echo "[3/7] Install Node.js 20"
 if ! command -v node >/dev/null 2>&1; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt install -y nodejs
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash
+  apt install -y nodejs
 fi
 
 echo "[4/7] Install Yarn and PM2"
-sudo npm install -g yarn pm2
+npm install -g yarn pm2
 
 echo "[5/7] Start and enable Redis"
-sudo systemctl enable redis-server
-sudo systemctl restart redis-server
+#  systemctl enable redis-server
+# sudo systemctl restart redis-server
+redis-server --daemonize yes
 
 echo "[6/7] Install dependencies and build services"
 
