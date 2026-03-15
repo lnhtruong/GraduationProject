@@ -52,7 +52,7 @@ build_nest "$BACKEND_ROOT/user_service"
 build_nest "$BACKEND_ROOT/mascot_video_share_service"
 
 # install_node "$BACKEND_ROOT/mail_service"
-# install_node "$BACKEND_ROOT/payment_service"
+install_node "$BACKEND_ROOT/payment_service"
 
 echo "[7/7] Start services with PM2"
 cd "$APP_ROOT"

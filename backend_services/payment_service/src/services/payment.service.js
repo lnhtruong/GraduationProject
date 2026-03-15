@@ -14,11 +14,19 @@ const RETURN_URL = process.env.PAYOS_RETURN_URL || `http://localhost:${PORT}/pay
 const WEBHOOK_URL = process.env.PAYOS_WEBHOOK_URL // Must public url
 
 const setupWebhookUrl = async () => {
+  if (!WEBHOOK_URL) {
+    console.warn("⚠️  CẢNH BÁO: PAYOS_WEBHOOK_URL chưa được cấu hình.");
+    console.warn("⚠️  Service vẫn chạy, nhưng PayOS sẽ không thể gọi webhook báo kết quả thanh toán.");
+    return;
+  }
+
   try {
     await payos.webhooks.confirm(WEBHOOK_URL);
-    console.log("Webhook registered successfully");
+    console.log("✅ Webhook registered successfully:", WEBHOOK_URL);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Lỗi khi đăng ký Webhook với PayOS:");
+    console.error("Chi tiết lỗi:", err.message || err.response?.data || err);
+    console.warn("⚠️  Service vẫn tiếp tục chạy, hãy kiểm tra lại cấu hình webhook URL.");
   }
 };
 

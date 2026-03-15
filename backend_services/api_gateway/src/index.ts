@@ -34,7 +34,13 @@ app.use(rateLimitMiddleware);
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     success: true,
-    message: 'API Gateway is running',
+    message: 'API Gateway is online and healthy',
+    services: {
+        auth: config.services.auth.url,
+        user: config.services.user.url,
+        mascot: config.services.mascot.url,
+        edit: config.services.edit.url
+    },
     timestamp: new Date().toISOString(),
   });
 });
