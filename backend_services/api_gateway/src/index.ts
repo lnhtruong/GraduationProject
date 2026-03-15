@@ -59,7 +59,9 @@ const PUBLIC_ROUTES = [
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (PUBLIC_ROUTES.includes(req.path)) {
+  const isPublicRoute = PUBLIC_ROUTES.includes(req.path);
+
+  if (isPublicRoute) {
     return next();
   }
 

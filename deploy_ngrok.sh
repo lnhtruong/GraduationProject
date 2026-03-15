@@ -34,7 +34,7 @@ NGROK_GW_PID=$!
 
 # Wait for ngrok to initialize and fetch the public URL
 echo "Waiting for ngrok to generate public URL..."
-MAX_RETRIES=10
+MAX_RETRIES=20
 GATEWAY_URL=""
 for ((i=1; i<=MAX_RETRIES; i++)); do
     sleep 2
@@ -55,7 +55,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     if [ -n "$GATEWAY_URL" ]; then
         break
     fi
-    echo "Retrying ($i/$MAX_RETRIES)..."
+    echo "Loading ($i/$MAX_RETRIES)..."
 done
 
 if [ -z "$GATEWAY_URL" ]; then

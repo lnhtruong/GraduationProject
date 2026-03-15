@@ -11,7 +11,7 @@ router.use(
     target: config.services.payment.url,
     changeOrigin: true,
     pathRewrite: {
-      '^/api/payment': '', // Remove /api/payment prefix when forwarding
+      '^/api': '', // Results in /payment/create-payment instead of /create-payment
     },
     onProxyReq: (proxyReq, req: Request) => {
       // Forward original headers 

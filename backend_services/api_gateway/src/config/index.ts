@@ -21,7 +21,7 @@ export const config = {
     },
     mascot_colab: { url: process.env.MASCOT_COLAB_SERVICE_URL || 'http://localhost:3005' },
     payment: {
-      url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3000',
+      url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:8006',
     },
   },
   // trong 15p 1 ip dc gửi tối đa 100 request
