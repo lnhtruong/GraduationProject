@@ -20,6 +20,9 @@ export const config = {
       url: process.env.EDIT_SESSION_SERVICE_URL || 'http://localhost:8004',
     },
     mascot_colab: { url: process.env.MASCOT_COLAB_SERVICE_URL || 'http://localhost:3005' },
+    payment: {
+      url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3000',
+    },
   },
   // trong 15p 1 ip dc gửi tối đa 100 request
   rateLimit: {

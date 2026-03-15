@@ -10,6 +10,7 @@ import userRoutes from './routes/user.routes';
 import mascotRoutes from './routes/mascot.routes';
 import editRoutes from './routes/edit.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
+import paymentRoutes from './routes/payment.routes';
 
 const app = express();
 
@@ -39,7 +40,8 @@ app.get('/health', (req: Request, res: Response) => {
         auth: config.services.auth.url,
         user: config.services.user.url,
         mascot: config.services.mascot.url,
-        edit: config.services.edit.url
+        edit: config.services.edit.url,
+        payment: config.services.payment.url
     },
     timestamp: new Date().toISOString(),
   });
@@ -70,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/mascot', mascotRoutes);
 app.use('/api/edit', editRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -96,6 +99,7 @@ app.listen(config.port, '0.0.0.0', () => {
   console.log(` Mascot Service: ${config.services.mascot.url}`);
   console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
+  console.log(` Payment Service: ${config.services.payment.url}`);
 });
 
 
