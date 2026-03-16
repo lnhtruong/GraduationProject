@@ -570,92 +570,132 @@ def create_mascot_video(job_id, highlight_video_path, mascot_image_path, audio_p
 
 # --- BACKGROUND TASKS ---
 
-def process_highlight_reel_in_background(job_id, video_path, topic_config):
-    full_srt = f"/tmp/full_{job_id}.srt"
-    srt_time = f"/tmp/srt_time_{job_id}.srt"
-    selected_srt = f"/tmp/selected_{job_id}.srt"
+def process_highlight_reel_in_background(job_id: str, video_path: str, topic_config: dict):
+    # Setup paths
     output_filename = f"highlight_{job_id}.mp4"
-    output_path = os.path.join(OUTPUT_DIR, output_filename)
-    
+    output_video_path = os.path.join(OUTPUT_DIR, output_filename)
+    audio_path = f"temp_audio_{job_id}.wav"
+    full_srt_path = f"temp_full_{job_id}.srt"
+    selected_srt_path = f"temp_selected_{job_id}.srt"
+    srt_time_path = f"srt_time_{job_id}.srt"
+
     try:
         jobs[job_id]["status"] = "processing"
-        jobs[job_id]["start_time"] = time.time()
-        
-        # Stage 1: Transcribe
-        jobs[job_id]["stage"] = "1/4: Transcribing"
-        audio_path = f"/tmp/audio_{job_id}.wav"
+
+        # ====================================================================
+        # STAGE 1: TRANSCRIBE
+        # ====================================================================
+        jobs[job_id]["stage"] = "1/4: Transcribing Video"
+
+        # 1. Transcribe
         run_cmd(["ffmpeg", "-y", "-i", video_path, "-ar", "16000", "-ac", "1", "-vn", audio_path])
-        
-        segments_gen, _ = app.state.whisper.transcribe(audio_path, beam_size=5, vad_filter=True)
-        
-        with open(full_srt, "w", encoding="utf-8") as f:
+        segments_generator, _ = app.state.whisper.transcribe(audio_path, beam_size=5, vad_filter=True)
+        with open(full_srt_path, "w", encoding="utf-8") as f:
             idx = 1
-            for seg in segments_gen:
-                f.write(f"{idx}\n")
-                f.write(f"{seconds_to_srt_time(seg.start)} --> {seconds_to_srt_time(seg.end)}\n")
-                f.write(f"{seg.text.strip()}\n\n")
+            for segment in segments_generator:
+                f.write(f"{idx}\n{seconds_to_srt_time(segment.start)} --> {seconds_to_srt_time(segment.end)}\n{segment.text.strip()}\n\n")
                 idx += 1
-        
-        # Stage 2: Select
-        jobs[job_id]["stage"] = "2/4: AI Selection"
-        selected_groups, all_segs = pipeline_select_highlight(
-            full_srt, topic_config, app.state.embed_model, app.state.llm, app.state.tokenizer, app.state.device
-        )
-        
+
+        # 2. Select
+        # ====================================================================
+        # STAGE 2: AI HIGHLIGHT SELECTION
+        # ====================================================================
+        jobs[job_id]["stage"] = "2/4: Selecting Highlights with AI"
+
+        selected_groups, all_segments = pipeline_select_highlight(full_srt_path, topic_config, app.state.embed_model, app.state.llm, app.state.tokenizer, app.state.device)
         if not selected_groups:
-            raise ValueError("No highlights found")
-        
-        save_srt(selected_groups, all_segs, selected_srt)
-        reindex_srt(selected_srt, srt_time)
-        
-        # Stage 3: Create video
-        jobs[job_id]["stage"] = "3/4: Creating Video"
-        split_and_burn_ass(video_path, selected_srt, output_path)
-        
-        # Done
-        jobs[job_id]["stage"] = "4/4: Complete"
+          raise ValueError("No highlights found.")
+        save_srt(selected_groups, all_segments, selected_srt_path)
+        reindex_srt(selected_srt_path, srt_time_path)
+
+        # ====================================================================
+        # STAGE 3: CREATE HIGHLIGHT VIDEO
+        # ====================================================================
+        jobs[job_id]["stage"] = "3/4: Creating Highlight Video"
+
+        split_and_burn_ass(video_path, selected_srt_path, output_video_path)
+
+        # 4. Upload
+        # ====================================================================
+        # FINALIZE + UPLOAD
+        # ====================================================================
+        cloud_url = upload_to_cloudinary(output_video_path, f"jobs/{job_id}/{output_filename}")
+        jobs[job_id]["stage"] = "4/4: Finalizing + upload cloud"
+
         jobs[job_id]["status"] = "completed"
-        jobs[job_id]["end_time"] = time.time()
-        if "start_time" in jobs[job_id]:
-            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {
             "output_filename": output_filename,
-            "download_url": f"/download/{job_id}"
+            "download_url": cloud_url,
+            "srt_time_path": srt_time_path
         }
-        
+        print(f"[{job_id}] Job Completed!")
+
     except Exception as e:
+        print(f"[{job_id}] FAILED: {e}")
         jobs[job_id]["status"] = "failed"
-        jobs[job_id]["end_time"] = time.time()
-        if "start_time" in jobs[job_id]:
-            jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
-        for p in [video_path, audio_path, full_srt, selected_srt]:
-            if os.path.exists(p):
-                os.remove(p)
+        for p in [video_path, audio_path, full_srt_path, selected_srt_path]:
+            if os.path.exists(p): os.remove(p)
 
-def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_path, position, margin_x, margin_y, scale, animation_mode="human"):
+# ============================================================================
+# BACKGROUND TASK 2 - Mascot
+# ============================================================================
+
+def process_mascot_in_background(
+    job_id: str,
+    video_path: str,
+    mascot_image_path: str,
+    audio_path: str, 
+    position="bottom-right", 
+    margin_x=0, 
+    margin_y=0, 
+    scale=0.5, 
+    animation_mode="human"
+    ):
     output_filename = f"highlight_mascot_{job_id}.mp4"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     mascot_video_filename = None
     mascot_video_path = None
+
+    total_stages = 3
     
     try:
         jobs[job_id]["status"] = "processing"
         jobs[job_id]["start_time"] = time.time()
         
         # Stage 1: Create mascot
-        jobs[job_id]["stage"] = f"1/2: Creating Mascot ({animation_mode} mode)"
+        jobs[job_id]["stage"] = f"1/{total_stages}: Creating Mascot ({animation_mode} mode)"
+
+        if (audio_path):
+            print(f"[{job_id}] Generating voice with audio: {audio_path}")
+        
         mascot_video_filename = create_mascot_video(job_id, video_path, mascot_image_path, audio_path, animation_mode)
         mascot_video_path = os.path.join(OUTPUT_DIR, mascot_video_filename)
         
         # Stage 2: Overlay or replace
         if position != 'replace':
-            jobs[job_id]["stage"] = "2/2: Overlay"
+            jobs[job_id]["stage"] = f"2/{total_stages}: Overlaying mascot on video"
             picture_in_picture(video_path, mascot_video_path, output_path, position, margin_x, margin_y, scale)
+        else:
+            jobs[job_id]["stage"] = f"2/{total_stages}: Using mascot video as final output"
+            shutil.copy2(mascot_video_path, output_path)
         
         # Done
+        jobs[job_id]["result"] = {}
+        jobs[job_id]["stage"] = f"3/{total_stages}: Success to create mascot video, pushing result video to cloud"
+        cloud_url = upload_to_cloudinary(output_path, f"jobs/{job_id}/{output_filename}")
+        jobs[job_id]["result"]["video_url"] = cloud_url
+
+        if position == 'replace':
+            jobs[job_id]["result"]["output_filename"] = mascot_video_filename
+        else:
+            jobs[job_id]["result"]["output_filename"] = output_filename
+
+
         jobs[job_id]["status"] = "completed"
+        jobs[job_id]["stage"] = f"3/{total_stages}: Completed"
+
         jobs[job_id]["end_time"] = time.time()
         if "start_time" in jobs[job_id]:
             jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
@@ -663,10 +703,7 @@ def process_mascot_in_background(job_id, video_path, mascot_image_path, audio_pa
             jobs[job_id]["result"] = {}
         
         jobs[job_id]["result"]["download_url"] = f"/download/{job_id}"
-        if position == 'replace':
-            jobs[job_id]["result"]["output_filename"] = mascot_video_filename
-        else:
-            jobs[job_id]["result"]["output_filename"] = output_filename
+        
         
     except Exception as e:
         jobs[job_id]["status"] = "failed"
@@ -719,7 +756,7 @@ async def create_highlight_reel_job(
 @app.post("/mascot", status_code=202)
 async def create_mascot_reel_job(
     background_tasks: BackgroundTasks,
-    video: UploadFile = File(...),
+    video_url: str = Form(..., description="Public URL"),
     mascot_image: UploadFile = File(...),
     audio: UploadFile = File(None),
     position: str = Form(...),
