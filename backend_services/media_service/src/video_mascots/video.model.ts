@@ -22,10 +22,10 @@ export enum VideoType {
   updatedAt: 'updated_at',
 })
 export class Video extends Model {
-  @PrimaryKey
-  @AutoIncrement
-  @Column(DataType.INTEGER)
-  id: number;
+  // @PrimaryKey
+  // @AutoIncrement
+  // @Column(DataType.INTEGER)
+  // id: number;
 
   @Column({
     type: DataType.INTEGER,

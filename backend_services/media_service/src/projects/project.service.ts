@@ -24,7 +24,7 @@ export class ProjectService {
 
         return this.projectModel.create({
             user_id: dto.user_id,
-            highlight_id: dto.highlight_id ?? null,
+            video_id: dto.video_id ?? null,
             session_name: dto.session_name,
             status: ProjectStatus.DRAFT,
         } as any);
@@ -51,7 +51,7 @@ export class ProjectService {
         const project = await this.findOne(edit_id);
 
         await project.update({
-            highlight_id: dto.highlight_id ?? project.highlight_id,
+            video_id: dto.video_id ?? project.video_id,
             session_name: dto.session_name ?? project.session_name,
             status: dto.status ?? project.status,
         });

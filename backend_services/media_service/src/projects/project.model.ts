@@ -36,7 +36,7 @@ export class Project extends Model {
         type: DataType.INTEGER,
         allowNull: true,
     })
-    highlight_id: number | null;
+    video_id: number | null;
 
     @Column({
         type: DataType.ENUM(...Object.values(ProjectStatus)),
