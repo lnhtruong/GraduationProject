@@ -7,7 +7,7 @@ import { loggingMiddleware, requestLogger } from './middleware/logging.middlewar
 import { authMiddleware, AuthRequest } from './middleware/auth.middleware';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
-import mascotRoutes from './routes/mascot.routes';
+import mediaRoutes from './routes/media.routes';
 import editRoutes from './routes/edit.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 
@@ -61,7 +61,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/mascot', mascotRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/edit', editRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
 
