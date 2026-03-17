@@ -4,7 +4,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 // import databaseConfig from '../config/database.config';
 // import { User } from '../users/user.model';
 import { MascotImage } from 'src/images_mascot/images.model';
-import { Video } from 'src/video_mascots/video.model';
+import { Video } from 'src/videos/video.model';
 
 @Module({
   imports: [

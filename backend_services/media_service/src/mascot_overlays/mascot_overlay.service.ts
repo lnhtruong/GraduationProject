@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { MascotOverlay } from './mascot_overlay.model';
 import { CreateMascotOverlayDto } from 'src/dto/create-mascot-overlay.dto';
 import { UpdateMascotOverlayDto } from 'src/dto/update-mascot-overlay.dto';
-import { Video, VideoType } from 'src/video_mascots/video.model';
+import { Video, VideoType } from 'src/videos/video.model';
 import { Project } from 'src/projects/project.model';
 
 @Injectable()
@@ -30,16 +30,13 @@ export class MascotOverlayService {
         return this.mascotOverlayModel.create(dto as any);
     }
 
-    async findOneByEdit(edit_id: number) {
-        const overlay = await this.mascotOverlayModel.findOne({
+    async findAllByEdit(edit_id: number) {
+        const overlays = await this.mascotOverlayModel.findAll({
             where: { edit_id },
+            order: [['createdAt', 'DESC']],
         });
 
-        if (!overlay) {
-            throw new NotFoundException('Mascot overlay not found for this project');
-        }
-
-        return overlay;
+        return overlays;
     }
 
     async findOne(id: number) {

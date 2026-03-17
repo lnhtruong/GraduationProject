@@ -8,7 +8,7 @@ import {
     AutoIncrement,
 } from 'sequelize-typescript';
 // import { Optional } from 'sequelize';
-import { Video } from 'src/video_mascots/video.model';
+import { Video } from 'src/videos/video.model';
 // import { MascotVideo } from '../images_mascot/images.model';
 
 @Table({

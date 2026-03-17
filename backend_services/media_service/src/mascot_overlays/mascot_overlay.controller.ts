@@ -21,8 +21,8 @@ export class MascotOverlayController {
     }
 
     @Get('edit/:edit_id')
-    findOneByEdit(@Param('edit_id') edit_id: string) {
-        return this.mascotOverlayService.findOneByEdit(+edit_id);
+    findAllByEdit(@Param('edit_id') edit_id: string) {
+        return this.mascotOverlayService.findAllByEdit(+edit_id);
     }
 
     @Get(':id')

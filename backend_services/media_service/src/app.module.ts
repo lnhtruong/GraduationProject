@@ -7,7 +7,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
-import { MascotVideoModule } from './video_mascots/video_mascot.module';
+import { VideoModule } from './videos/video.module';
 import { MascotImageModule } from './images_mascot/image_mascot.module';
 import { ProjectModule } from './projects/project.module';
 import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
@@ -23,7 +23,7 @@ import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
     // }),
     DatabaseModule,
     // UsersModule,
-    MascotVideoModule,
+    VideoModule,
     MascotImageModule,
     ProjectModule,
     MascotOverlayModule,

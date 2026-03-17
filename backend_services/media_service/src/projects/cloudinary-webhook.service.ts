@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Video, VideoType } from 'src/video_mascots/video.model';
+import { Video, VideoType } from 'src/videos/video.model';
 
 interface CloudinaryContextCustom {
     userId?: string;

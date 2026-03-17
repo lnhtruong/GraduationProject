@@ -4,7 +4,7 @@ import { IsAfterConstraint } from 'src/validators/is-ater.validator';
 import { MascotOverlay } from './mascot_overlay.model';
 import { MascotOverlayController } from './mascot_overlay.controller';
 import { MascotOverlayService } from './mascot_overlay.service';
-import { Video } from 'src/video_mascots/video.model';
+import { Video } from 'src/videos/video.model';
 
 @Module({
     imports: [SequelizeModule.forFeature([MascotOverlay, Video])],

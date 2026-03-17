@@ -8,7 +8,7 @@ import {
     ForeignKey,
     BelongsTo,
 } from 'sequelize-typescript';
-import { Video } from 'src/video_mascots/video.model';
+import { Video } from 'src/videos/video.model';
 import { Project } from 'src/projects/project.model';
 
 @Table({

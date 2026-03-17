@@ -5,7 +5,7 @@ import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
 import { CloudinaryWebhookController } from './cloudinary-webhook.controller';
 import { CloudinaryWebhookService } from './cloudinary-webhook.service';
-import { Video } from 'src/video_mascots/video.model';
+import { Video } from 'src/videos/video.model';
 
 @Module({
     imports: [SequelizeModule.forFeature([Project, Video])],

@@ -7,7 +7,7 @@ import type { AuthRequest } from '../middleware/auth.middleware';
 const router = Router();
 
 /**
- *  - Incoming:  /api/media/mascot_videos    -> Forward to: <media_service_url>/mascot_videos
+ *  - Incoming:  /api/media/videos    -> Forward to: <media_service_url>/videos
  *  - Incoming:  /api/media/mascot_images    -> Forward to: <media_service_url>/mascot_images
  *  - Incoming:  /api/media/mascot_overlays    -> Forward to: <media_service_url>/mascot_overlays
  *  - Incoming:  /api/media/projects    -> Forward to: <media_service_url>/projects

@@ -1,9 +1,9 @@
 import { IsOptional, IsString, IsNumber } from 'class-validator';
 
-export class UpdateMascotVideoDto {
+export class UpdateVideoDto {
     @IsOptional()
     @IsString()
-    image_id?: string;
+    image_id?: number;
 
     @IsOptional()
     @IsString()

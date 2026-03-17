@@ -20,7 +20,7 @@ export class MascotImageController {
         return this.mascotImageService.create(dto);
     }
 
-    @Get(':user_id')
+    @Get('user/:user_id')
     findAll(@Param('user_id') user_id: string) {
         return this.mascotImageService.findAll(Number(user_id));
     }

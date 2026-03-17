@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from './video.model';
-import { CreateMascotVideoDto } from 'src/dto/create-mascot-video.dto';
-import { UpdateMascotVideoDto } from 'src/dto/update-mascot-video.dto';
+import { CreateVideoDto } from 'src/dto/create-video.dto';
+import { UpdateVideoDto } from 'src/dto/update-video.dto';
 import { MascotImage } from 'src/images_mascot/images.model';
 
 @Injectable()
-export class MascotVideoService {
+export class VideoService {
     constructor(
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
@@ -15,7 +15,7 @@ export class MascotVideoService {
         private readonly mascotImageModel: typeof MascotImage,
     ) { }
 
-    async create(dto: CreateMascotVideoDto) {
+    async create(dto: CreateVideoDto) {
         const image = await this.mascotImageModel.findByPk(dto.image_id);
         if (!image) {
             throw new BadRequestException('Mascot image does not exist');
@@ -24,7 +24,7 @@ export class MascotVideoService {
         return this.videoModel.create({
             user_id: image.user_id,
             image_id: dto.image_id,
-            type: VideoType.MASCOT,
+            type: dto.type ?? VideoType.MASCOT,
             url: dto.url,
             duration: dto.duration,
         });
@@ -50,7 +50,7 @@ export class MascotVideoService {
         return video;
     }
 
-    async update(id: number, dto: UpdateMascotVideoDto) {
+    async update(id: number, dto: UpdateVideoDto) {
         const video = await this.findOne(id);
 
         if (dto.image_id) {
