@@ -5,6 +5,8 @@ from typing import Dict, Any, Optional
 # AI & ML
 import torch
 import numpy as np
+import cloudinary
+import cloudinary.uploader  
 from transformers import AutoTokenizer, AutoModelForCausalLM, logging as hf_logging
 from sentence_transformers import SentenceTransformer, util
 from faster_whisper import WhisperModel
@@ -17,6 +19,14 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- CONFIG ---
 hf_logging.set_verbosity_error()
 warnings.filterwarnings("ignore")
+
+# CẤU HÌNH CLOUDINARY
+cloudinary.config(
+  cloud_name = "dbwqzrbur",
+  api_key = "572214851492358",
+  api_secret = "0DTsa51ETUU9sK9IPFjoBMP35VI",
+  secure = True
+)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -128,6 +138,30 @@ async def startup_event():
     print("🚀 Server ready!")
 
 # --- HELPER FUNCTIONS ---
+
+def upload_to_cloudinary(local_file_path: str, folder_name: str = "highlight_videos") -> str:
+    print(f"☁️ Đang upload lên Cloudinary: {local_file_path}...")
+    try:
+        response = cloudinary.uploader.upload(
+            local_file_path,
+            resource_type = "video",
+            folder = folder_name,
+            public_id = os.path.splitext(os.path.basename(local_file_path))[0]
+        )
+        video_url = response.get("secure_url")
+        print(f"✅ Upload Cloudinary thành công! Link: {video_url}")
+        return video_url
+    except Exception as e:
+        print(f"❌ Lỗi Upload Cloudinary: {e}")
+        return ""
+
+def to_cloudinary_attachment_url(secure_url: str) -> str:
+    if not secure_url:
+        return ""
+    # Convert normal delivery URL to attachment delivery URL.
+    if "/video/upload/" in secure_url:
+        return secure_url.replace("/video/upload/", "/video/upload/fl_attachment/", 1)
+    return secure_url
 
 def parse_srt_time(s: str) -> float:
     h, m, rest = s.split(":")
@@ -620,12 +654,16 @@ def process_highlight_reel_in_background(job_id: str, video_path: str, topic_con
         # FINALIZE + UPLOAD
         # ====================================================================
         cloud_url = upload_to_cloudinary(output_video_path, f"jobs/{job_id}/{output_filename}")
+        if not cloud_url:
+            raise RuntimeError("Upload to Cloudinary failed")
+        download_url = to_cloudinary_attachment_url(cloud_url)
         jobs[job_id]["stage"] = "4/4: Finalizing + upload cloud"
 
         jobs[job_id]["status"] = "completed"
         jobs[job_id]["result"] = {
             "output_filename": output_filename,
-            "download_url": cloud_url,
+            "video_url": cloud_url,
+            "download_url": download_url,
             "srt_time_path": srt_time_path
         }
         print(f"[{job_id}] Job Completed!")
@@ -646,7 +684,7 @@ def process_mascot_in_background(
     job_id: str,
     video_path: str,
     mascot_image_path: str,
-    audio_path: str, 
+    audio_path: Optional[str], 
     position="bottom-right", 
     margin_x=0, 
     margin_y=0, 
@@ -670,8 +708,8 @@ def process_mascot_in_background(
         if (audio_path):
             print(f"[{job_id}] Generating voice with audio: {audio_path}")
         
-        mascot_video_filename = create_mascot_video(job_id, video_path, mascot_image_path, audio_path, animation_mode)
-        mascot_video_path = os.path.join(OUTPUT_DIR, mascot_video_filename)
+        mascot_video_path = create_mascot_video(job_id, video_path, mascot_image_path, audio_path, animation_mode)
+        mascot_video_filename = os.path.basename(mascot_video_path)
         
         # Stage 2: Overlay or replace
         if position != 'replace':
@@ -685,12 +723,12 @@ def process_mascot_in_background(
         jobs[job_id]["result"] = {}
         jobs[job_id]["stage"] = f"3/{total_stages}: Success to create mascot video, pushing result video to cloud"
         cloud_url = upload_to_cloudinary(output_path, f"jobs/{job_id}/{output_filename}")
+        if not cloud_url:
+            raise RuntimeError("Upload to Cloudinary failed")
+        download_url = to_cloudinary_attachment_url(cloud_url)
         jobs[job_id]["result"]["video_url"] = cloud_url
-
-        if position == 'replace':
-            jobs[job_id]["result"]["output_filename"] = mascot_video_filename
-        else:
-            jobs[job_id]["result"]["output_filename"] = output_filename
+        jobs[job_id]["result"]["download_url"] = download_url
+        jobs[job_id]["result"]["output_filename"] = output_filename
 
 
         jobs[job_id]["status"] = "completed"
@@ -701,8 +739,8 @@ def process_mascot_in_background(
             jobs[job_id]["processing_duration"] = jobs[job_id]["end_time"] - jobs[job_id]["start_time"]
         if jobs[job_id].get("result") is None:
             jobs[job_id]["result"] = {}
-        
-        jobs[job_id]["result"]["download_url"] = f"/download/{job_id}"
+        if not jobs[job_id]["result"].get("download_url"):
+            jobs[job_id]["result"]["download_url"] = download_url
         
         
     except Exception as e:
@@ -713,7 +751,7 @@ def process_mascot_in_background(
         jobs[job_id]["result"] = {"error": str(e)}
     finally:
         temp_files = [video_path, audio_path, mascot_image_path]
-        if position != 'replace' and mascot_video_path:
+        if mascot_video_path and mascot_video_path != output_path:
             temp_files.append(mascot_video_path)
         for p in temp_files:
             if p and os.path.exists(p):
@@ -758,7 +796,7 @@ async def create_mascot_reel_job(
     background_tasks: BackgroundTasks,
     video_url: str = Form(..., description="Public URL"),
     mascot_image: UploadFile = File(...),
-    audio: UploadFile = File(None),
+    audio: Optional[UploadFile] = File(None),
     position: str = Form(...),
     margin_x: int = Form(40),
     margin_y: int = Form(40),
@@ -774,9 +812,15 @@ async def create_mascot_reel_job(
     if animation_mode not in ["human", "animal"]:
         raise HTTPException(status_code=400, detail="animation_mode must be 'human' or 'animal'")
     
-    temp_video = f"/tmp/video_{job_id}{os.path.splitext(video.filename)[1]}"
-    with open(temp_video, "wb") as buffer:
-        shutil.copyfileobj(video.file, buffer)
+    # Download source video from public URL
+    temp_video = f"/tmp/video_{job_id}.mp4"
+    try:
+        run_cmd(["ffmpeg", "-y", "-i", video_url, "-c", "copy", temp_video], check=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Cannot fetch video from video_url: {e}")
+
+    if not os.path.exists(temp_video) or os.path.getsize(temp_video) == 0:
+        raise HTTPException(status_code=400, detail="Invalid video_url or empty video file")
     
     mascot_path = f"/tmp/mascot_{job_id}{os.path.splitext(mascot_image.filename)[1]}"
     with open(mascot_path, "wb") as buffer:
