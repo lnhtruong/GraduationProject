@@ -16,7 +16,7 @@ const router = Router();
 router.use(
     '/',
     createProxyMiddleware({
-        target: config.services.mascot.url,
+        target: config.services.media.url,
         changeOrigin: true,
         pathRewrite: {
             '^/api/media': '',

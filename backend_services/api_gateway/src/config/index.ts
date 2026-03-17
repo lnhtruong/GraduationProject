@@ -12,8 +12,8 @@ export const config = {
     user: {
       url: process.env.USER_SERVICE_URL || 'http://localhost:8002',
     },
-    mascot: {
-      url: process.env.MASCOT_SERVICE_URL || 'http://localhost:8003',
+    media: {
+      url: process.env.MEDIA_SERVICE_URL || 'http://localhost:8003',
     },
     edit: {
       // edit_session_service (projects, mascot_overlays)

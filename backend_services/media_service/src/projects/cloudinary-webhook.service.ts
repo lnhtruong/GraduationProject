@@ -16,6 +16,7 @@ interface CloudinaryPayload {
     context?: {
         custom?: CloudinaryContextCustom;
     };
+    display_name?: string;
 }
 
 @Injectable()
@@ -28,7 +29,7 @@ export class CloudinaryWebhookService {
     ) { }
 
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, duration, resource_type, context } = payload;
+        const { secure_url, url, duration, resource_type, context, display_name } = payload;
 
         if (resource_type !== 'video') {
             this.logger.debug(`Ignoring non-video resource_type=${resource_type}`);
@@ -70,8 +71,9 @@ export class CloudinaryWebhookService {
             user_id: userId,
             type,
             url: videoUrl,
-            // duration: typeof duration === 'number' ? duration : null,
-            duration: 5,
+            duration: typeof duration === 'number' ? duration : null,
+            name: display_name,
+            // duration: 5,
         });
 
         this.logger.log(

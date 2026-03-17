@@ -12,6 +12,7 @@ import editRoutes from './routes/edit.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
@@ -47,7 +48,19 @@ const PUBLIC_ROUTES = [
   '/api/auth/refresh',
   '/api/auth/forgot-password',
   '/api/auth/check-otp',
+  '/api/media/webhooks/cloudinary/upload',
 ];
+
+app.use((req, res, next) => {
+  if (req.path.includes('webhooks')) {
+    console.log('==== WEBHOOK HIT ====');
+    console.log('URL:', req.originalUrl);
+    console.log('METHOD:', req.method);
+    console.log('HEADERS:', req.headers);
+    console.log('BODY:', req.body);
+  }
+  next();
+});
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -87,7 +100,7 @@ app.listen(config.port, '0.0.0.0', () => {
   console.log(` API Gateway is running on port ${config.port}`);
   console.log(` Auth Service: ${config.services.auth.url}`);
   console.log(` User Service: ${config.services.user.url}`);
-  console.log(` Mascot Service: ${config.services.mascot.url}`);
+  console.log(` Media Service: ${config.services.media.url}`);
   console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
