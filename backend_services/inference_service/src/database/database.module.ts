@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { Video } from './video.model';
+import { MascotImage } from './images.model';
 
 @Module({
     imports: [
@@ -11,7 +12,7 @@ import { Video } from './video.model';
                 const dbConfig = configService.get('database');
                 return {
                     ...dbConfig,
-                    models: [Video],
+                    models: [Video, MascotImage],
                     autoLoadModels: true,
                     synchronize: false,
                 };

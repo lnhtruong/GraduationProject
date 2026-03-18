@@ -61,20 +61,22 @@ export class AppService {
         ),
       );
 
-      const data = response.data as any;
-      const outputUrl: string | undefined = isRecord(data)
-        ? (data.download_url as string | undefined) ?? (data.url as string | undefined)
-        : undefined;
+      // console.log('check res: ', response);
 
-      const userId = userIdFromHeader;
+      // const data = response.data as any;
+      // const outputUrl: string | undefined = isRecord(data)
+      //   ? (data.download_url as string | undefined) ?? (data.url as string | undefined)
+      //   : undefined;
 
-      if (outputUrl && userId && !Number.isNaN(userId)) {
-        await this.videoModel.create({
-          user_id: userId,
-          type: VideoType.HIGHLIGHT,
-          url: outputUrl,
-        });
-      }
+      // const userId = userIdFromHeader;
+
+      // if (outputUrl && userId && !Number.isNaN(userId)) {
+      //   await this.videoModel.create({
+      //     user_id: userId,
+      //     type: VideoType.HIGHLIGHT,
+      //     url: outputUrl,
+      //   });
+      // }
 
       return response.data;
     } catch (error: unknown) {
@@ -124,21 +126,23 @@ export class AppService {
         }),
       );
 
-      const data = response.data as any;
-      const outputUrl: string | undefined = isRecord(data)
-        ? (data.download_url as string | undefined) ??
-        (data.url as string | undefined)
-        : undefined;
+      // console.log('check response: ', response);
 
-      const userId = userIdFromHeader;
+      // const data = response.data as any;
+      // const outputUrl: string | undefined = isRecord(data)
+      //   ? (data.download_url as string | undefined) ??
+      //   (data.url as string | undefined)
+      //   : undefined;
 
-      if (outputUrl && userId && !Number.isNaN(userId)) {
-        await this.videoModel.create({
-          user_id: userId,
-          type: VideoType.MASCOT,
-          url: outputUrl,
-        });
-      }
+      // const userId = userIdFromHeader;
+
+      // if (outputUrl && userId && !Number.isNaN(userId)) {
+      //   await this.videoModel.create({
+      //     user_id: userId,
+      //     type: VideoType.MASCOT,
+      //     url: outputUrl,
+      //   });
+      // }
 
       return response.data;
     } catch (error: unknown) {
@@ -179,11 +183,28 @@ export class AppService {
   }
 
   // 4. Lấy trạng thái Job
-  async getJobStatus(jobId: string): Promise<unknown> {
+  async getJobStatus(jobId: string, userIdFromHeader?: number,): Promise<unknown> {
     try {
+
       const response = await firstValueFrom(
         this.httpService.get<unknown>(`${this.colabUrl}/jobs/status/${jobId}`),
       );
+
+      const data = response.data as any;
+      console.log('check data: ', data);
+      const outputUrl = (data as any)?.result?.download_url as string | '';
+
+      const userId = userIdFromHeader;
+      const isHighlight = (data as any)?.type.includes('highlight-reel');
+
+      if (outputUrl && userId && !Number.isNaN(userId)) {
+        await this.videoModel.create({
+          user_id: userId,
+          type: isHighlight ? VideoType.HIGHLIGHT : VideoType.MASCOT,
+          url: outputUrl,
+        });
+      }
+
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as AxiosError<unknown> | undefined;

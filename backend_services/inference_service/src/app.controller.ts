@@ -72,6 +72,8 @@ export class AppController {
         ? Number(userIdHeader)
         : undefined;
 
+    console.log('check userid: ', userId);
+
     return this.appService.createMascot(mascotImage, audio, body, userId);
   }
 
@@ -84,8 +86,12 @@ export class AppController {
 
   // Map với /jobs/status/{job_id}
   @Get('jobs/status/:job_id')
-  async getJobStatus(@Param('job_id') jobId: string): Promise<unknown> {
-    return this.appService.getJobStatus(jobId);
+  async getJobStatus(@Param('job_id') jobId: string, @Headers('x-user-id') userIdHeader?: string): Promise<unknown> {
+    const userId =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+    return this.appService.getJobStatus(jobId, userId);
   }
 
   // Map với /download/{job_id}
