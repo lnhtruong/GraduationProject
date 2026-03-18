@@ -8,7 +8,6 @@ import { authMiddleware, AuthRequest } from './middleware/auth.middleware';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
-import editRoutes from './routes/edit.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 
 const app = express();
@@ -75,7 +74,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/media', mediaRoutes);
-app.use('/api/edit', editRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
 
 // 404 handler
