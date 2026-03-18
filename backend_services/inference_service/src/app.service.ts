@@ -90,6 +90,7 @@ export class AppService {
     mascotImage: Express.Multer.File,
     audio: Express.Multer.File | undefined,
     body: unknown,
+    userIdFromHeader?: number,
   ): Promise<unknown> {
     try {
       const formData = new FormData();
@@ -122,6 +123,23 @@ export class AppService {
           headers: formData.getHeaders(),
         }),
       );
+
+      const data = response.data as any;
+      const outputUrl: string | undefined = isRecord(data)
+        ? (data.download_url as string | undefined) ??
+        (data.url as string | undefined)
+        : undefined;
+
+      const userId = userIdFromHeader;
+
+      if (outputUrl && userId && !Number.isNaN(userId)) {
+        await this.videoModel.create({
+          user_id: userId,
+          type: VideoType.MASCOT,
+          url: outputUrl,
+        });
+      }
+
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as AxiosError<unknown> | undefined;

@@ -59,6 +59,7 @@ export class AppController {
       audio?: Express.Multer.File[];
     },
     @Body() body: unknown,
+    @Headers('x-user-id') userIdHeader?: string,
   ): Promise<unknown> {
     if (!files || !files.mascot_image) {
       throw new BadRequestException('mascot_image is required');
@@ -66,7 +67,12 @@ export class AppController {
     const mascotImage = files.mascot_image[0];
     const audio = files.audio ? files.audio[0] : undefined;
 
-    return this.appService.createMascot(mascotImage, audio, body);
+    const userId =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+
+    return this.appService.createMascot(mascotImage, audio, body, userId);
   }
 
   // Map với /generate-quiz
