@@ -11,6 +11,8 @@ import { VideoModule } from './videos/video.module';
 import { MascotImageModule } from './images_mascot/image_mascot.module';
 import { ProjectModule } from './projects/project.module';
 import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
+import { WebsocketModule } from './websocket/websocket.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
     MascotImageModule,
     ProjectModule,
     MascotOverlayModule,
+    WebsocketModule,
+    WebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -47,6 +47,7 @@ export class AppService {
       const topic = getStringField(body, 'topic');
       const includeKeywords = getStringField(body, 'include_keywords');
       const excludeKeywords = getStringField(body, 'exclude_keywords');
+      formData.append('user_id', String(userIdFromHeader ?? ''));
       if (topic) formData.append('topic', topic);
       if (includeKeywords) formData.append('include_keywords', includeKeywords);
       if (excludeKeywords) formData.append('exclude_keywords', excludeKeywords);
@@ -104,6 +105,7 @@ export class AppService {
 
       if (videoUrl) formData.append('video_url', videoUrl);
       if (position) formData.append('position', position);
+      formData.append('user_id', String(userIdFromHeader ?? ''));
       formData.append('margin_x', marginX);
       formData.append('margin_y', marginY);
       formData.append('scale', scale);

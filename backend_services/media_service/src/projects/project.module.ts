@@ -3,14 +3,14 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { Project } from './project.model';
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
-import { CloudinaryWebhookController } from './cloudinary-webhook.controller';
-import { CloudinaryWebhookService } from './cloudinary-webhook.service';
+import { WebhookController } from '../webhook/webhook.controller';
+import { WebhookService } from '../webhook/webhook.service';
 import { Video } from 'src/videos/video.model';
 
 @Module({
     imports: [SequelizeModule.forFeature([Project, Video])],
-    controllers: [ProjectController, CloudinaryWebhookController],
-    providers: [ProjectService, CloudinaryWebhookService],
+    controllers: [ProjectController, WebhookController],
+    providers: [ProjectService, WebhookService],
     exports: [ProjectService],
 })
 export class ProjectModule { }
