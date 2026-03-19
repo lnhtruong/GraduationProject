@@ -9,9 +9,64 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import httpProxy from 'http-proxy';
+import { IncomingMessage, ServerResponse } from 'http';
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Create http-proxy for WebSocket upgrades
+const wsProxy = httpProxy.createProxyServer({
+  target: config.services.media.url,
+  changeOrigin: true,
+  ws: true,
+});
+
+wsProxy.on('error', (err: Error, req: IncomingMessage, res: ServerResponse | any) => {
+  console.error('[❌ Media WS Proxy Error]', {
+    message: err.message,
+    code: (err as any).code,
+    stack: err.stack,
+    url: req.url,
+  });
+  if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: false,
+      message: 'Media websocket service is unavailable',
+    }));
+  }
+});
+
+wsProxy.on('proxyRes', (proxyRes, req, res) => {
+  console.log('[✅ Media WS Proxy Response]', {
+    statusCode: proxyRes.statusCode,
+    url: req.url,
+  });
+});
+
+const mediaWebSocketProxy = createProxyMiddleware({
+  target: config.services.media.url,
+  changeOrigin: true,
+  ws: true,
+  logLevel: 'debug',
+  onError: (err: Error, req: IncomingMessage, res: ServerResponse) => {
+    console.error('[❌ Media WebSocket Proxy Middleware Error]', {
+      message: err.message,
+      code: (err as any).code,
+      stack: err.stack,
+      url: req.url,
+    });
+    if (res && !res.headersSent) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: false,
+        message: 'Media websocket service is unavailable',
+      }));
+    }
+  },
+});
 
 // Middleware
 app.use(cors({
@@ -26,6 +81,9 @@ app.use(requestLogger);
 
 // ⭐ Parse cookies - BẮT BUỘC để đọc cookies
 app.use(cookieParser());
+
+// Socket.IO handshake + polling/websocket transport forwarding to media service.
+app.use('/socket.io', mediaWebSocketProxy);
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
@@ -48,6 +106,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/check-otp',
   '/api/media/webhooks/cloudinary/upload',
+  '/api/media/webhooks/ai-model/result'
 ];
 
 app.use((req, res, next) => {
@@ -63,6 +122,10 @@ app.use((req, res, next) => {
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/socket.io')) {
+    return next();
+  }
+
   if (PUBLIC_ROUTES.includes(req.path)) {
     return next();
   }
@@ -94,13 +157,36 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
 });
 
 // Start server
-app.listen(config.port, '0.0.0.0', () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` API Gateway is running on port ${config.port}`);
   console.log(` Auth Service: ${config.services.auth.url}`);
   console.log(` User Service: ${config.services.user.url}`);
   console.log(` Media Service: ${config.services.media.url}`);
   console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
+});
+
+// Handle WebSocket upgrades and proxy to media service
+server.on('upgrade', (req, socket, head) => {
+  console.log('[📡 WebSocket Upgrade]', {
+    url: req.url,
+    headers: {
+      upgrade: req.headers.upgrade,
+      connection: req.headers.connection,
+      'sec-websocket-version': req.headers['sec-websocket-version'],
+    },
+  });
+
+  // Handle socket errors
+  socket.on('error', (err) => {
+    console.error('[❌ WebSocket Socket Error]', {
+      message: err.message,
+      code: (err as any).code,
+    });
+  });
+
+  // Proxy the upgrade
+  wsProxy.ws(req, socket, head);
 });
 
 
