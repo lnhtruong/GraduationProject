@@ -7,9 +7,10 @@ import { WebhookController } from '../webhook/webhook.controller';
 import { WebhookService } from '../webhook/webhook.service';
 import { Video } from 'src/videos/video.model';
 import { WebsocketModule } from 'src/websocket/websocket.module';
+import { WebhookModule } from 'src/webhook/webhook.module';
 
 @Module({
-    imports: [SequelizeModule.forFeature([Project, Video]), WebsocketModule],
+    imports: [SequelizeModule.forFeature([Project, Video]), WebsocketModule, WebhookModule],
     controllers: [ProjectController, WebhookController],
     providers: [ProjectService, WebhookService],
     exports: [ProjectService],
