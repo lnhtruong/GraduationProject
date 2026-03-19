@@ -48,6 +48,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/check-otp',
   '/api/media/webhooks/cloudinary/upload',
+  '/api/media/webhooks/ai-model/result'
 ];
 
 app.use((req, res, next) => {
