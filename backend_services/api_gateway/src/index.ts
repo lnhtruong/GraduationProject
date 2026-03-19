@@ -9,9 +9,26 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const app = express();
 app.set('trust proxy', 1);
+
+const mediaWebSocketProxy = createProxyMiddleware({
+  target: config.services.media.url,
+  changeOrigin: true,
+  ws: true,
+  logLevel: 'warn',
+  onError: (err, req: Request, res: Response) => {
+    console.error('[Media WS Proxy Error]', err && err.message);
+    if (res && !res.headersSent) {
+      res.status(503).json({
+        success: false,
+        message: 'Media websocket service is unavailable',
+      });
+    }
+  },
+});
 
 // Middleware
 app.use(cors({
@@ -26,6 +43,9 @@ app.use(requestLogger);
 
 // ⭐ Parse cookies - BẮT BUỘC để đọc cookies
 app.use(cookieParser());
+
+// Socket.IO handshake + polling/websocket transport forwarding to media service.
+app.use('/socket.io', mediaWebSocketProxy);
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
@@ -64,6 +84,10 @@ app.use((req, res, next) => {
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/socket.io')) {
+    return next();
+  }
+
   if (PUBLIC_ROUTES.includes(req.path)) {
     return next();
   }
@@ -95,7 +119,7 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
 });
 
 // Start server
-app.listen(config.port, '0.0.0.0', () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` API Gateway is running on port ${config.port}`);
   console.log(` Auth Service: ${config.services.auth.url}`);
   console.log(` User Service: ${config.services.user.url}`);
@@ -103,6 +127,9 @@ app.listen(config.port, '0.0.0.0', () => {
   console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
+
+// Required so websocket upgrade requests are proxied by Node server.
+server.on('upgrade', mediaWebSocketProxy.upgrade);
 
 
 
