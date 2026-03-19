@@ -1,12 +1,30 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Server } from "socket.io";
+import { Namespace, Server } from "socket.io";
 
 @Injectable()
 export class WebsocketService {
     private readonly logger = new Logger(WebsocketService.name);
-    private server: Server;
+    private server?: Server | Namespace;
 
-    setServer(server: Server) {
+    private getRoomsMap(): Map<string, Set<string>> | undefined {
+        if (!this.server) return undefined;
+
+        // Namespace (when @WebSocketGateway uses namespace)
+        const namespaceRooms = (this.server as Namespace).adapter?.rooms;
+        if (namespaceRooms) return namespaceRooms;
+
+        // Root Server fallback
+        const serverRooms = (this.server as Server).sockets?.adapter?.rooms;
+        if (serverRooms) return serverRooms;
+
+        return undefined;
+    }
+
+    private getRoomSize(room: string): number {
+        return this.getRoomsMap()?.get(room)?.size ?? 0;
+    }
+
+    setServer(server: Server | Namespace) {
         this.server = server;
     }
 
@@ -24,8 +42,12 @@ export class WebsocketService {
             return;
         }
 
+        const room = `user:${userId}`;
+        const roomSize = this.getRoomSize(room);
+        this.logger.log(`Emitting video:completed to ${room} (clients=${roomSize})`);
+
         // Gửi tới user cụ thể
-        this.server.to(`user:${userId}`).emit('video:completed', {
+        this.server.to(room).emit('video:completed', {
             success: true,
             data: videoData,
             timestamp: new Date().toISOString(),
@@ -49,7 +71,11 @@ export class WebsocketService {
             return;
         }
 
-        this.server.to(`user:${userId}`).emit('video:error', {
+        const room = `user:${userId}`;
+        const roomSize = this.getRoomSize(room);
+        this.logger.log(`Emitting video:error to ${room} (clients=${roomSize})`);
+
+        this.server.to(room).emit('video:error', {
             success: false,
             error,
             timestamp: new Date().toISOString(),
@@ -69,7 +95,11 @@ export class WebsocketService {
             return;
         }
 
-        this.server.to(`user:${userId}`).emit('video:progress', {
+        const room = `user:${userId}`;
+        const roomSize = this.getRoomSize(room);
+        this.logger.log(`Emitting video:progress to ${room} (clients=${roomSize})`);
+
+        this.server.to(room).emit('video:progress', {
             videoId,
             progress,
             timestamp: new Date().toISOString(),

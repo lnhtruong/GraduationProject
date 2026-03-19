@@ -2,31 +2,32 @@ import { Logger } from '@nestjs/common';
 import {
     WebSocketGateway,
     WebSocketServer,
+    OnGatewayInit,
     OnGatewayConnection,
     OnGatewayDisconnect,
     SubscribeMessage,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
 import { WebsocketService } from './websocket.service';
 
 @WebSocketGateway({
-    namespace: 'media',
+    namespace: '/media',
     cors: {
         origin: '*',
         methods: ['GET', 'POST'],
     },
 })
-export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     private readonly logger = new Logger(WebsocketGateway.name);
 
     @WebSocketServer()
-    server: Server;
+    server: Namespace;
 
-    constructor(private readonly websocketService: WebsocketService) {
-        // Thiết lập server cho service
-        setTimeout(() => {
-            this.websocketService.setServer(this.server);
-        }, 0);
+    constructor(private readonly websocketService: WebsocketService) { }
+
+    afterInit(server: Namespace) {
+        this.websocketService.setServer(server);
+        this.logger.log('WebSocket namespace /media initialized');
     }
 
     handleConnection(client: Socket) {
@@ -51,5 +52,19 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     handlePing(client: Socket): string {
         client.emit('pong');
         return 'pong';
+    }
+
+    @SubscribeMessage('subscribe:user')
+    handleSubscribeUser(client: Socket, payload: { userId?: string | number }): string {
+        const userId = payload?.userId;
+        if (!userId) {
+            this.logger.warn(`Client ${client.id} subscribe:user missing userId`);
+            return 'missing_user_id';
+        }
+
+        client.join(`user:${userId}`);
+        this.logger.log(`Client ${client.id} subscribed room user:${userId}`);
+        client.emit('subscribed', { room: `user:${userId}` });
+        return 'ok';
     }
 }

@@ -21,10 +21,11 @@ interface CloudinaryPayload {
 }
 
 interface ai_model_result {
-    user_id: string;
-    url: string;
+    user_id?: string | number;
+    url?: string;
+    video_url?: string;
     duration?: number;
-    type: VideoType;
+    type?: VideoType | string;
     display_name?: string;
 }
 
@@ -71,20 +72,27 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const rawType = custom?.type?.toLowerCase();
         const type: VideoType =
-            rawType === VideoType.MASCOT
+            custom?.type?.toLowerCase() === VideoType.MASCOT
                 ? VideoType.MASCOT
                 : VideoType.HIGHLIGHT;
 
-        const created = await this.videoModel.create({
+        const createPayload: Record<string, unknown> = {
             user_id: userId,
             type,
             url: videoUrl,
             duration: typeof duration === 'number' ? duration : null,
-            name: display_name,
-            // duration: 5,
-        });
+        };
+        if (display_name) createPayload.name = display_name;
+
+        let created: Video;
+        try {
+            created = await this.videoModel.create(createPayload as any);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Cloudinary webhook create video failed: ${message}`);
+            throw error;
+        }
 
         this.logger.log(
             `Created video from Cloudinary webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
@@ -94,7 +102,17 @@ export class WebhookService {
     }
 
     async handleAIResult(payload: ai_model_result) {
-        const { user_id, url, duration, type, display_name } = payload;
+        const userIdRaw = payload.user_id;
+        const url = payload.url ?? payload.video_url;
+        const duration = payload.duration;
+        const display_name = payload.display_name;
+
+        const type: VideoType | undefined =
+            payload.type?.toString().toLowerCase() === VideoType.MASCOT
+                ? VideoType.MASCOT
+                : payload.type?.toString().toLowerCase() === VideoType.HIGHLIGHT
+                    ? VideoType.HIGHLIGHT
+                    : undefined;
 
         if (type !== VideoType.MASCOT && type !== VideoType.HIGHLIGHT) {
             this.logger.debug(`Ignoring non-video type=${type}`);
@@ -106,7 +124,10 @@ export class WebhookService {
             return { ignored: true };
         }
 
-        const userIdStr = user_id;
+        const userIdStr =
+            typeof userIdRaw === 'number'
+                ? String(userIdRaw)
+                : userIdRaw;
 
         const userId =
             typeof userIdStr === 'string' && userIdStr.trim().length > 0
@@ -114,17 +135,26 @@ export class WebhookService {
                 : undefined;
 
         if (!userId || Number.isNaN(userId)) {
-            this.logger.warn('AI model webhook missing valid userId');
+            this.logger.warn(`AI model webhook missing valid userId. payload=${JSON.stringify(payload)}`);
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const created = await this.videoModel.create({
+        const createPayload: Record<string, unknown> = {
             user_id: userId,
             type,
             url,
             duration: typeof duration === 'number' ? duration : null,
-            name: display_name,
-        });
+        };
+        if (display_name) createPayload.name = display_name;
+
+        let created: Video;
+        try {
+            created = await this.videoModel.create(createPayload as any);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`AI webhook create video failed: ${message}`);
+            throw error;
+        }
 
         this.logger.log(
             `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,

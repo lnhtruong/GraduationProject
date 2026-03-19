@@ -10,22 +10,60 @@ import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import httpProxy from 'http-proxy';
+import { IncomingMessage, ServerResponse } from 'http';
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Create http-proxy for WebSocket upgrades
+const wsProxy = httpProxy.createProxyServer({
+  target: config.services.media.url,
+  changeOrigin: true,
+  ws: true,
+});
+
+wsProxy.on('error', (err: Error, req: IncomingMessage, res: ServerResponse | any) => {
+  console.error('[❌ Media WS Proxy Error]', {
+    message: err.message,
+    code: (err as any).code,
+    stack: err.stack,
+    url: req.url,
+  });
+  if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: false,
+      message: 'Media websocket service is unavailable',
+    }));
+  }
+});
+
+wsProxy.on('proxyRes', (proxyRes, req, res) => {
+  console.log('[✅ Media WS Proxy Response]', {
+    statusCode: proxyRes.statusCode,
+    url: req.url,
+  });
+});
 
 const mediaWebSocketProxy = createProxyMiddleware({
   target: config.services.media.url,
   changeOrigin: true,
   ws: true,
-  logLevel: 'warn',
-  onError: (err, req: Request, res: Response) => {
-    console.error('[Media WS Proxy Error]', err && err.message);
+  logLevel: 'debug',
+  onError: (err: Error, req: IncomingMessage, res: ServerResponse) => {
+    console.error('[❌ Media WebSocket Proxy Middleware Error]', {
+      message: err.message,
+      code: (err as any).code,
+      stack: err.stack,
+      url: req.url,
+    });
     if (res && !res.headersSent) {
-      res.status(503).json({
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
         success: false,
         message: 'Media websocket service is unavailable',
-      });
+      }));
     }
   },
 });
@@ -128,8 +166,28 @@ const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
 
-// Required so websocket upgrade requests are proxied by Node server.
-server.on('upgrade', mediaWebSocketProxy.upgrade);
+// Handle WebSocket upgrades and proxy to media service
+server.on('upgrade', (req, socket, head) => {
+  console.log('[📡 WebSocket Upgrade]', {
+    url: req.url,
+    headers: {
+      upgrade: req.headers.upgrade,
+      connection: req.headers.connection,
+      'sec-websocket-version': req.headers['sec-websocket-version'],
+    },
+  });
+
+  // Handle socket errors
+  socket.on('error', (err) => {
+    console.error('[❌ WebSocket Socket Error]', {
+      message: err.message,
+      code: (err as any).code,
+    });
+  });
+
+  // Proxy the upgrade
+  wsProxy.ws(req, socket, head);
+});
 
 
 
