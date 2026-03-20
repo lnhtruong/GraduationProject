@@ -15,22 +15,30 @@ export class VideoService {
         private readonly mascotImageModel: typeof MascotImage,
     ) { }
 
-    async create(dto: CreateVideoDto) {
-        const image = await this.mascotImageModel.findByPk(dto.image_id);
-        if (!image) {
-            throw new BadRequestException('Mascot image does not exist');
+    async create(dto: CreateVideoDto, userId: number | undefined) {
+        // const image = await this.mascotImageModel.findByPk(dto.image_id);
+        // if (!image) {
+        //     throw new BadRequestException('Mascot image does not exist');
+        // }
+        if (!userId) {
+            throw new BadRequestException('userId does not exist');
         }
 
         return this.videoModel.create({
-            user_id: image.user_id,
-            image_id: dto.image_id,
+            user_id: userId,
+            image_id: dto.image_id || null,
             type: dto.type ?? VideoType.MASCOT,
             url: dto.url,
             duration: dto.duration,
         });
     }
 
-    async findAll(user_id: number) {
+    async findAll(user_id: number | undefined) {
+
+        if (!user_id) {
+            throw new BadRequestException('userId does not exist');
+        }
+
         return this.videoModel.findAll({
             where: { user_id, type: VideoType.MASCOT },
             include: [MascotImage],

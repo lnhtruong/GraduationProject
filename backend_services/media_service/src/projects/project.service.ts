@@ -15,22 +15,22 @@ export class ProjectService {
         private readonly projectModel: typeof Project,
     ) { }
 
-    async create(dto: CreateProjectDto) {
-        const { user_id, session_name } = dto;
+    async create(dto: CreateProjectDto, userId: number | undefined) {
+        const { session_name } = dto;
 
-        if (user_id === undefined || !session_name) {
+        if (userId === undefined || !session_name) {
             throw new BadRequestException('Missing user_id or session_name');
         }
 
         return this.projectModel.create({
-            user_id: dto.user_id,
+            user_id: userId,
             video_id: dto.video_id ?? null,
             session_name: dto.session_name,
             status: ProjectStatus.DRAFT,
         } as any);
     }
 
-    async findAllByUser(user_id: number) {
+    async findAllByUser(user_id: number | undefined) {
         return this.projectModel.findAll({
             where: { user_id },
             order: [['updated_at', 'DESC']],

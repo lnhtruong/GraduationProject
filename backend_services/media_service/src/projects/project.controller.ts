@@ -6,6 +6,7 @@ import {
     Delete,
     Body,
     Param,
+    Headers
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from 'src/dto/create-project.dto';
@@ -16,13 +17,21 @@ export class ProjectController {
     constructor(private readonly projectService: ProjectService) { }
 
     @Post()
-    create(@Body() dto: CreateProjectDto) {
-        return this.projectService.create(dto);
+    create(@Body() dto: CreateProjectDto, @Headers('x-user-id') userIdHeader?: string) {
+        const userId =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.projectService.create(dto, userId);
     }
 
-    @Get('user/:user_id')
-    findAllByUser(@Param('user_id') user_id: string) {
-        return this.projectService.findAllByUser(+user_id);
+    @Get('user')
+    findAllByUser(@Headers('x-user-id') userIdHeader?: string) {
+        const user_id =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.projectService.findAllByUser(user_id);
     }
 
     @Get(':id')

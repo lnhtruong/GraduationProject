@@ -13,6 +13,7 @@ import { ProjectModule } from './projects/project.module';
 import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WebhookModule } from './webhook/webhook.module';
     MascotOverlayModule,
     WebsocketModule,
     WebhookModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
