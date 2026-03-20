@@ -6,6 +6,7 @@ import {
     Delete,
     Body,
     Param,
+    Headers
 } from '@nestjs/common';
 import { CreateMascotImageDto } from 'src/dto/create-mascot-image.dto';
 import { UpdateMascotImageDto } from 'src/dto/update-mascot-image.dto';
@@ -16,13 +17,21 @@ export class MascotImageController {
     constructor(private readonly mascotImageService: MascotImageService) { }
 
     @Post()
-    create(@Body() dto: CreateMascotImageDto) {
-        return this.mascotImageService.create(dto);
+    create(@Body() dto: CreateMascotImageDto, @Headers('x-user-id') userIdHeader?: string) {
+        const userId =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.mascotImageService.create(dto, userId);
     }
 
-    @Get('user/:user_id')
-    findAll(@Param('user_id') user_id: string) {
-        return this.mascotImageService.findAll(Number(user_id));
+    @Get('user')
+    findAll(@Headers('x-user-id') userIdHeader?: string) {
+        const userId =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.mascotImageService.findAll(userId);
     }
 
     @Get(':id')

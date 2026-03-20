@@ -63,12 +63,12 @@ module.exports = {
       interpreter: "node",
       env_file: "./backend_services/media_service/.env",
     },
-    {
-      name: "inference_service",
-      cwd: "./backend_services/inference_service",
-      script: "dist/main.js",
-      interpreter: "node",
-      env_file: "./backend_services/inference_service/.env",
-    },
+    // {
+    //   name: "inference_service",
+    //   cwd: "./backend_services/inference_service",
+    //   script: "dist/main.js",
+    //   interpreter: "node",
+    //   env_file: "./backend_services/inference_service/.env",
+    // },
   ],
 };

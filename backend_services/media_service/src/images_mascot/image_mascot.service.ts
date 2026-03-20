@@ -18,19 +18,24 @@ export class MascotImageService {
         private readonly mascotImageModel: typeof MascotImage,
     ) { }
 
-    async create(dto: CreateMascotImageDto) {
-        const { user_id, url } = dto;
+    async create(dto: CreateMascotImageDto, user_id: number | undefined) {
+        const { url } = dto;
         if (user_id === undefined || !url) {
             throw new BadRequestException('Missing user_id or url');
         }
         const payload: MascotImagePayload = {
-            ...dto
+            ...dto,
+            user_id,
         };
 
         return this.mascotImageModel.create(payload as any);
     }
 
-    async findAll(user_id: number) {
+    async findAll(user_id: number | undefined) {
+        if (user_id === undefined) {
+            throw new BadRequestException('Missing user_id');
+        }
+
         return this.mascotImageModel.findAll({
             where: { user_id },
             order: [['createdAt', 'DESC']],

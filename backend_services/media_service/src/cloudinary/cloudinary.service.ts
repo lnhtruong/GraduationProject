@@ -9,8 +9,8 @@ export class CloudinaryService {
   constructor() {
     cloudinary.config({
       cloud_name: 'dbwqzrbur',
-      api_key: '',
-      api_secret: '',
+      api_key: '57..',
+      api_secret: '0D..',
       secure: true,
     });
   }
@@ -21,6 +21,8 @@ export class CloudinaryService {
   async uploadToCloudinary(
     localFilePath: string,
     folderName: string = 'highlight_videos/1784452170',
+    userId?: number,
+    type: string = 'highlight',
   ): Promise<string> {
     console.log(`☁️ Uploading: ${localFilePath}...`);
 
@@ -30,8 +32,9 @@ export class CloudinaryService {
         folder: folderName,
         public_id: path.parse(localFilePath).name,
         context: {
-          "user_id": "1",
-          "type": "highlight",
+          // These values are used by `CloudinaryWebhookService` to decide user_id + VideoType
+          user_id: typeof userId === 'number' ? userId.toString() : '0',
+          type: type.toLowerCase(),
         }
       });
 

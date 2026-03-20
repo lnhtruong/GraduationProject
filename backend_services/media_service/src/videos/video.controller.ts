@@ -6,6 +6,7 @@ import {
     Delete,
     Body,
     Param,
+    Headers
 } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { CreateVideoDto } from 'src/dto/create-video.dto';
@@ -16,13 +17,21 @@ export class VideoController {
     constructor(private readonly VideoService: VideoService) { }
 
     @Post()
-    create(@Body() dto: CreateVideoDto) {
-        return this.VideoService.create(dto);
+    create(@Body() dto: CreateVideoDto, @Headers('x-user-id') userIdHeader?: string) {
+        const userId =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.VideoService.create(dto, userId);
     }
 
-    @Get('user/:user_id')
-    findAll(@Param('user_id') user_id: string) {
-        return this.VideoService.findAll(Number(user_id));
+    @Get('user')
+    findAll(@Headers('x-user-id') userIdHeader?: string) {
+        const userId =
+            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+                ? Number(userIdHeader)
+                : undefined;
+        return this.VideoService.findAll(userId);
     }
 
     @Get(':id')
