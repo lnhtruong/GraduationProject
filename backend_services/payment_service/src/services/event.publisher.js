@@ -106,9 +106,46 @@ const publishPaymentFailed = (orderCode, reason) => {
   });
 };
 
+/**
+ * Lưu dữ liệu payment vào Redis
+ */
+const savePaymentData = async (orderCode, data) => {
+  try {
+    if (!isConnected) {
+      console.warn("⚠️ Redis không kết nối, bỏ qua lưu dữ liệu payment");
+      return;
+    }
+    const key = `PAYMENT_${orderCode}`;
+    await publisherClient.set(key, JSON.stringify(data));
+    await publisherClient.expire(key, 86400); // 24 hours
+    console.log(`✅ Đã lưu data vào Redis với key: ${key}`);
+  } catch (error) {
+    console.error(`❌ Lỗi khi lưu payment data vào Redis:`, error.message);
+  }
+};
+
+/**
+ * Lấy dữ liệu payment từ Redis
+ */
+const getPaymentData = async (orderCode) => {
+  try {
+    if (!isConnected) {
+      return null;
+    }
+    const key = `PAYMENT_${orderCode}`;
+    const data = await publisherClient.get(key);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error(`❌ Lỗi khi lấy payment data từ Redis:`, error.message);
+    return null;
+  }
+};
+
 module.exports = {
   publishEvent,
   publishPaymentWebhook,
   publishPaymentSuccess,
   publishPaymentFailed,
+  savePaymentData,
+  getPaymentData,
 };
