@@ -12,7 +12,7 @@ const publisherClient = redis.createClient({
     port: REDIS_PORT,
   },
   password: REDIS_PASSWORD || undefined,
-  legacyMode: true, // Enable callback-based API
+  // Đã bỏ legacyMode: true để hỗ trợ Promise-based API cho get, set, publish
 });
 
 let isConnected = false;
@@ -107,28 +107,37 @@ const publishPaymentFailed = (orderCode, reason) => {
 };
 
 /**
- * Save payment data to Redis
- * @param {string} orderCode - Order code
- * @param {object} webhookData - Webhook data
+ * Lưu dữ liệu payment vào Redis
  */
-const savePaymentData = async (orderCode, webhookData) => {
+const savePaymentData = async (orderCode, data) => {
   try {
     if (!isConnected) {
-      console.warn(`⚠️ Redis không kết nối, không thể lưu dữ liệu cho đơn hàng ${orderCode}`);
+      console.warn("⚠️ Redis không kết nối, bỏ qua lưu dữ liệu payment");
       return;
     }
-
     const key = `PAYMENT_${orderCode}`;
-    const value = JSON.stringify({
-      savedAt: new Date().toISOString(),
-      ...webhookData,
-    });
-
-    // Lưu vào Redis với TTL là 24 giờ (86400 giây)
-    await publisherClient.setEx(key, 86400, value);
-    console.log(`💾 Đã lưu dữ liệu thanh toán cho đơn hàng ${orderCode} vào Redis`);
+    await publisherClient.set(key, JSON.stringify(data));
+    await publisherClient.expire(key, 86400); // 24 hours
+    console.log(`✅ Đã lưu data vào Redis với key: ${key}`);
   } catch (error) {
-    console.error(`❌ Lỗi khi lưu dữ liệu thanh toán đơn hàng ${orderCode}:`, error.message);
+    console.error(`❌ Lỗi khi lưu payment data vào Redis:`, error.message);
+  }
+};
+
+/**
+ * Lấy dữ liệu payment từ Redis
+ */
+const getPaymentData = async (orderCode) => {
+  try {
+    if (!isConnected) {
+      return null;
+    }
+    const key = `PAYMENT_${orderCode}`;
+    const data = await publisherClient.get(key);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error(`❌ Lỗi khi lấy payment data từ Redis:`, error.message);
+    return null;
   }
 };
 
@@ -138,4 +147,6 @@ module.exports = {
   publishPaymentSuccess,
   publishPaymentFailed,
   savePaymentData,
+  getPaymentData,
 };
+
