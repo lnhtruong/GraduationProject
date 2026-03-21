@@ -15,27 +15,6 @@ module.exports = {
       env_file: "/opt/graduation-project/backend_services/user_service/.env",
     },
     //   {
-    //     name: "edit_session_service",
-    //     cwd: "/opt/graduation-project/backend_services/edit_session_service",
-    //     script: "dist/main.js",
-    //     interpreter: "node",
-    //     env_file: "/opt/graduation-project/backend_services/edit_session_service/.env"
-    //   },
-    //   {
-    //     name: "mascot_video_service",
-    //     cwd: "/opt/graduation-project/backend_services/mascot_video_service",
-    //     script: "dist/main.js",
-    //     interpreter: "node",
-    //     env_file: "/opt/graduation-project/backend_services/mascot_video_service/.env"
-    //   },
-    // {
-    //   name: "mascot_video_share_service",
-    //   cwd: "/opt/graduation-project/backend_services/mascot_video_share_service",
-    //   script: "dist/main.js",
-    //   interpreter: "node",
-    //   env_file: "/opt/graduation-project/backend_services/mascot_video_share_service/.env"
-    // },
-    //   {
     //     name: "mail_service",
     //     cwd: "/opt/graduation-project/backend_services/mail_service",
     //     script: "src/server.js",
@@ -63,12 +42,12 @@ module.exports = {
       interpreter: "node",
       env_file: "./backend_services/media_service/.env",
     },
-    // {
-    //   name: "inference_service",
-    //   cwd: "./backend_services/inference_service",
-    //   script: "dist/main.js",
-    //   interpreter: "node",
-    //   env_file: "./backend_services/inference_service/.env",
-    // },
+    {
+      name: "inference_service",
+      cwd: "./backend_services/inference_service",
+      script: "dist/main.js",
+      interpreter: "node",
+      env_file: "./backend_services/inference_service/.env",
+    },
   ],
 };

@@ -42,6 +42,8 @@ export class WebhookService {
     async handleUpload(payload: CloudinaryPayload) {
         const { secure_url, url, duration, resource_type, context, display_name } = payload;
 
+        // console.log('check information: ', secure_url, url, duration, context, display_name);
+
         if (resource_type !== 'video') {
             this.logger.debug(`Ignoring non-video resource_type=${resource_type}`);
             return { ignored: true };
@@ -72,7 +74,8 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const type: VideoType =
+        let type: VideoType = VideoType.HIGHLIGHT;
+        type =
             custom?.type?.toLowerCase() === VideoType.MASCOT
                 ? VideoType.MASCOT
                 : VideoType.HIGHLIGHT;
@@ -84,6 +87,8 @@ export class WebhookService {
             duration: typeof duration === 'number' ? duration : null,
         };
         if (display_name) createPayload.name = display_name;
+
+        // console.log('payload create: ', createPayload);
 
         let created: Video;
         try {
