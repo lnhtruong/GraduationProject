@@ -3,17 +3,25 @@
  * Manages mascot application to video
  */
 
-import { useState } from "react";
-import { useProcessMascot, useMascotJobStatus } from "../api/editor.hooks";
+import { useRef, useState } from "react";
+import { useProcessMascot } from "../api/editor.hooks";
 import type { MascotOption } from "@/features/videoEditor/types";
+import { convertPlacementToBackendParams } from "@/features/videoEditor/utils/mascotPlacement";
 
 export function useMascot() {
+  const onSuccessRef = useRef<((blobUrl: string) => void) | null>(null);
+
   const [mascot, setMascot] = useState<MascotOption>({
     type: "none",
     position: "bottom-right",
     margin_x: 40,
     margin_y: 40,
     scale: 1,
+    uiPlacement: {
+      xPercent: 85,
+      yPercent: 85,
+      widthPercent: 20,
+    },
   });
 
   const [isApplyingMascot, setIsApplyingMascot] = useState(false);
@@ -41,21 +49,25 @@ export function useMascot() {
       setMascotProgress("");
 
       // Call the success callback
-      if (applyMascot.currentOnSuccess) {
-        applyMascot.currentOnSuccess(blobUrl);
+      if (onSuccessRef.current) {
+        onSuccessRef.current(blobUrl);
       }
+
+      onSuccessRef.current = null;
     },
     onError: (error) => {
       console.error("[useMascot] Error:", error);
       alert(`Lỗi: ${error.message}`);
       setIsApplyingMascot(false);
       setMascotProgress("");
+      onSuccessRef.current = null;
     },
   });
 
   const applyMascot = async (
     mascotOption: MascotOption,
     videoSrc: string,
+    videoSourceForMetadata: File | string,
     onSuccess: (blobUrl: string) => void,
   ) => {
     if (mascotOption.type === "none") {
@@ -87,14 +99,17 @@ export function useMascot() {
       return;
     }
 
-    // Validate params (basic validation without max margins)
-    // Max margins will be calculated by API
-    if (mascotOption.margin_x < 0 || mascotOption.margin_y < 0) {
+    const backendParams = await convertPlacementToBackendParams(
+      mascotOption,
+      videoSourceForMetadata,
+    );
+
+    if (backendParams.margin_x < 0 || backendParams.margin_y < 0) {
       alert("Lề không được âm");
       return;
     }
 
-    if (mascotOption.scale < 0.1 || mascotOption.scale > 2.0) {
+    if (backendParams.scale < 0.1 || backendParams.scale > 2.0) {
       alert("Kích thước phải từ 0.1 đến 2.0");
       return;
     }
@@ -103,13 +118,13 @@ export function useMascot() {
     setMascotProgress("Đang tải lên...");
 
     // Store callback for later use
-    applyMascot.currentOnSuccess = onSuccess;
+    onSuccessRef.current = onSuccess;
 
     console.log("Applying mascot with params:", {
-      position: mascotOption.position,
-      margin_x: mascotOption.margin_x,
-      margin_y: mascotOption.margin_y,
-      scale: mascotOption.scale,
+      position: backendParams.position,
+      margin_x: backendParams.margin_x,
+      margin_y: backendParams.margin_y,
+      scale: backendParams.scale,
       type: mascotOption.type,
       audio: mascotOption.audioFile?.name,
     });
@@ -118,16 +133,13 @@ export function useMascot() {
     await processMascot.mutateAsync({
       videoOrUrl: videoSrc,
       mascotImage: mascotFile,
-      position: mascotOption.position,
-      margin_x: mascotOption.margin_x,
-      margin_y: mascotOption.margin_y,
-      scale: mascotOption.scale,
+      position: backendParams.position,
+      margin_x: backendParams.margin_x,
+      margin_y: backendParams.margin_y,
+      scale: backendParams.scale,
       audio: mascotOption.audioFile,
     });
   };
-
-  // Store callback reference on function
-  applyMascot.currentOnSuccess = null as ((blobUrl: string) => void) | null;
 
   return {
     mascot,

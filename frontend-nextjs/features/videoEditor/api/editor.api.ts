@@ -46,10 +46,8 @@ export interface HighlightResult {
 // API OBJECTS
 // ============================================================================
 
-export const MASCOT_COLAB_BASE = "/mascot_colab";
-export const MASCOT_ENDPOINT = `${MASCOT_COLAB_BASE}/mascot`;
-export const HIGHLIGHT_ENDPOINT = `${MASCOT_COLAB_BASE}/highlight-reel`;
-export const JOB_STATUS_ENDPOINT = `${MASCOT_COLAB_BASE}/jobs/status`;
+export const MASCOT_ENDPOINT = "/mascot";
+export const HIGHLIGHT_ENDPOINT = "/highlight-reel";
 
 export const mascotApi = createApi({
   startJob: async (params: MascotParams) => {
@@ -82,7 +80,7 @@ export const mascotApi = createApi({
   },
   getStatus: async (jobId: string) => {
     const { data } = await apiClient.get<JobStatusResponse>(
-      `${JOB_STATUS_ENDPOINT}/${jobId}`,
+      `/jobs/status/${jobId}`,
     );
     return data;
   },
@@ -112,7 +110,7 @@ export const highlightApi = createApi({
   },
   getStatus: async (jobId: string) => {
     const { data } = await apiClient.get<JobStatusResponse>(
-      `${JOB_STATUS_ENDPOINT}/${jobId}`,
+      `/jobs/status/${jobId}`,
     );
     return data;
   },

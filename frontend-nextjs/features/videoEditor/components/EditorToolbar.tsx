@@ -4,8 +4,6 @@ import { Separator } from "@/components/ui/separator";
 
 interface Props {
   isPlaying: boolean;
-  onPlay: () => void;
-  onPause: () => void;
   onToggle: () => void;
   onDownload: () => Promise<void> | void;
 }

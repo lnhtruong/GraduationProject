@@ -1,10 +1,16 @@
 import { useDroppable } from "@dnd-kit/core";
+import { useDndContext } from "@dnd-kit/core";
 import { Trash2 } from "lucide-react";
 
 export default function TrashDropZone() {
+    const { active } = useDndContext();
     const { setNodeRef, isOver } = useDroppable({
         id: "trash",
     });
+
+    if (!active) {
+        return null;
+    }
 
     return (
         <div

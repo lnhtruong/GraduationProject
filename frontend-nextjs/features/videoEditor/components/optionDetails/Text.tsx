@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface Props {
   value: TextOption;
@@ -97,46 +95,13 @@ export default function TextOptions({
         </div>
       )}
 
-      {/* Position */}
-      <div className="space-y-3 border-t pt-4">
-        <Label className="text-sm font-semibold">Vị trí</Label>
-
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Ngang (X)</Label>
-              <Badge variant="secondary" className="text-xs font-mono">
-                {value.position.x}%
-              </Badge>
-            </div>
-            <Slider
-              value={[value.position.x]}
-              onValueChange={([x]) =>
-                onChange({ ...value, position: { ...value.position, x } })
-              }
-              min={0}
-              max={100}
-              step={1}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Dọc (Y)</Label>
-              <Badge variant="secondary" className="text-xs font-mono">
-                {value.position.y}%
-              </Badge>
-            </div>
-            <Slider
-              value={[value.position.y]}
-              onValueChange={([y]) =>
-                onChange({ ...value, position: { ...value.position, y } })
-              }
-              min={0}
-              max={100}
-              step={1}
-            />
-          </div>
+      <div className="rounded-lg border bg-muted/30 p-3">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Vị trí văn bản được chỉnh trực tiếp trên video: kéo để di chuyển, bấm
+          để chọn layer đang chỉnh sửa.
+        </p>
+        <div className="mt-2 text-xs font-mono text-muted-foreground">
+          X: {Math.round(value.position.x)}% | Y: {Math.round(value.position.y)}%
         </div>
       </div>
 

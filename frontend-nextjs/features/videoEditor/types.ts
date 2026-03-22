@@ -10,6 +10,11 @@ export interface MascotOption {
   margin_x: number;
   margin_y: number;
   scale: number;
+  uiPlacement?: {
+    xPercent: number;
+    yPercent: number;
+    widthPercent: number;
+  };
 }
 
 export interface VoiceOption {
@@ -68,3 +73,8 @@ export interface MascotLayer extends BaseLayer {
 
 //use layerItem contain TextLayer and MascotLayer (for now)
 export type LayerItem = TextLayer | MascotLayer;
+
+export type DragSource =
+  | 'preview-text'
+  | 'preview-mascot'
+  | 'mascot-palette';

@@ -9,6 +9,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import {
   validateMascotParams,
   calculateMaxMargins,
@@ -166,6 +168,19 @@ export default function MascotOptions({
     !validationError &&
     !isApplying &&
     !isCalculating;
+
+  const canDragToPreview = value.type !== "none" && !!(value.presetUrl || value.customFile);
+  const drag = useDraggable({
+    id: "mascot-palette",
+    disabled: !canDragToPreview,
+    data: {
+      source: "mascot-palette",
+    },
+  });
+
+  const dragStyle = {
+    transform: CSS.Translate.toString(drag.transform),
+  };
 
   return (
     <div className="space-y-4">
@@ -364,6 +379,20 @@ export default function MascotOptions({
                 </p>
               </div>
             </div>
+          </div>
+
+          <div
+            ref={drag.setNodeRef}
+            style={dragStyle}
+            {...drag.listeners}
+            {...drag.attributes}
+            className={`rounded-lg border border-dashed p-3 text-xs ${
+              canDragToPreview
+                ? "cursor-grab active:cursor-grabbing border-primary/40 bg-primary/5"
+                : "cursor-not-allowed border-border text-muted-foreground"
+            }`}
+          >
+            Kéo mascot và thả trực tiếp vào khung preview để đặt vị trí.
           </div>
 
           {/* Position Selection */}

@@ -7,8 +7,6 @@ import { useState } from "react";
 import type { TextOption, LayerItem } from "@/features/videoEditor/types";
 
 export function useTextOverlays() {
-    // const [textOverlays, setTextOverlays] = useState<TextOption[]>([]);
-
     const [layers, setLayers] = useState<LayerItem[]>([]);
 
     const handleAddText = (text: TextOption) => {
@@ -24,7 +22,7 @@ export function useTextOverlays() {
         ]);
     };
 
-    const handleUpdateText = (id: string, updates: Partial<TextOption>) => {
+    const handleUpdateText = (id: string, updates: Partial<TextOption> | TextOption) => {
         console.log("Updating text overlay:", id, updates);
         setLayers((prev) =>
             prev.map((layer) =>
@@ -40,19 +38,11 @@ export function useTextOverlays() {
         setLayers((prev) => prev.filter((layer) => layer.id !== id));
     };
 
-    const handleReorderText = (newOrder: LayerItem[]) => {
-        setLayers(newOrder);
-    };
-
-
-
-
     return {
     layers,
         handleAddText,
         handleUpdateText,
         handleRemoveText,
-        handleReorderText
 
   } as const;
 }

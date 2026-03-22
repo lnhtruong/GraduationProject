@@ -78,9 +78,7 @@ async function parseClipsFromUrl(downloadUrl: string): Promise<Clip[]> {
 // API OBJECT
 // ============================================================================
 
-export const MASCOT_COLAB_BASE = "/mascot_colab";
-export const UPLOAD_ENDPOINT = `${MASCOT_COLAB_BASE}/highlight-reel`;
-export const JOB_STATUS_ENDPOINT = `${MASCOT_COLAB_BASE}/jobs/status`;
+export const UPLOAD_ENDPOINT = "/highlight-reel";
 
 export const uploadApi = createApi({
   startJob: async (params: HighlightReelParams) => {
@@ -101,7 +99,7 @@ export const uploadApi = createApi({
   },
   getStatus: async (jobId: string) => {
     const { data } = await apiClient.get<JobStatusResponse>(
-      `${JOB_STATUS_ENDPOINT}/${jobId}`,
+      `/jobs/status/${jobId}`,
     );
     return data;
   },

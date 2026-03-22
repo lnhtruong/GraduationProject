@@ -14,6 +14,7 @@ import type {
   EffectOption, LayerItem,
 } from "@/features/videoEditor/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   effect: EffectOption;
@@ -104,7 +105,7 @@ export default function EditorRightPanel({
   const handleTextAdd = () => {
     const newText: TextOption = {
       id: crypto.randomUUID(),
-      text: "New Text",
+      text: "Văn bản mới",
       position: { x: 50, y: 50 },
       fontSize: 32,
       color: "#FFFFFF",
@@ -126,7 +127,7 @@ export default function EditorRightPanel({
   };
 
   return (
-    <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col max-h-full border overflow-hidden">
+    <aside className="col-span-12 lg:col-span-3 bg-card rounded-md shadow-sm flex flex-col max-h-full border overflow-hidden">
       <div className="p-4 border-b flex-shrink-0">
         <EditorOptions
           activeOption={activeOption}
@@ -141,14 +142,46 @@ export default function EditorRightPanel({
           )}
 
             {activeOption === "text" && (
-                <>
-                    <TextOptions
-                        value={currentText}
-                        onChange={handleTextChange}
-                        onAdd={handleTextAdd}
-                        onRemove={selectedTextId ? handleTextRemove : undefined}
-                    />
-                </>
+              <>
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      Layer văn bản
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {textOverlays.length}
+                    </span>
+                  </div>
+
+                  {textOverlays.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Chưa có layer. Bấm "Thêm văn bản mới" để bắt đầu.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {textOverlays.map((overlay, index) => (
+                        <Button
+                          key={overlay.id}
+                          type="button"
+                          size="sm"
+                          variant={selectedTextId === overlay.id ? "default" : "outline"}
+                          className="h-7 text-xs"
+                          onClick={() => onTextSelect?.(overlay.id)}
+                        >
+                          T{index + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <TextOptions
+                  value={currentText}
+                  onChange={handleTextChange}
+                  onAdd={handleTextAdd}
+                  onRemove={selectedTextId ? handleTextRemove : undefined}
+                />
+              </>
             )}
 
 
