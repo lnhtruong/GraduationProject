@@ -70,9 +70,19 @@ const mediaWebSocketProxy = createProxyMiddleware({
 
 // Middleware
 app.use(cors({
+  // Fix lỗi 1: Tự động lấy origin của request gửi đến để cho phép
+  origin: function (origin, callback) {
+    // Cho phép mọi origin (kể cả postman/curl không có origin)
+    callback(null, true);
+  },
   credentials: true, // ⭐ Cho phép gửi cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Fix lỗi 2: BẮT BUỘC thêm 'ngrok-skip-browser-warning' vào đây
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'ngrok-skip-browser-warning' // Bypass trang cảnh báo của ngrok
+  ],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -111,7 +121,7 @@ const PUBLIC_ROUTES = [
 ];
 
 app.use((req, res, next) => {
-  if (req.path.includes('webhooks')) {
+  if (req.path.includes('media')) {
     console.log('==== WEBHOOK HIT ====');
     console.log('URL:', req.originalUrl);
     console.log('METHOD:', req.method);
