@@ -54,6 +54,13 @@ export class Video extends Model {
   declare url: string;
 
   @Column({
+    type: DataType.TEXT,
+    allowNull: false,
+    defaultValue: 'https://placehold.co/320x180/png?text=thumbnail',
+  })
+  declare thumbnail: string;
+
+  @Column({
     type: DataType.DOUBLE,
     allowNull: true,
   })
