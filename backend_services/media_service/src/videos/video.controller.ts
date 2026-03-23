@@ -25,13 +25,16 @@ export class VideoController {
         return this.VideoService.create(dto, userId);
     }
 
-    @Get('user')
-    findAll(@Headers('x-user-id') userIdHeader?: string) {
+    @Get('user/:type')
+    findAll(
+        @Param('type') type: string,
+        @Headers('x-user-id') userIdHeader?: string,
+    ) {
         const userId =
             typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
                 ? Number(userIdHeader)
                 : undefined;
-        return this.VideoService.findAll(userId);
+        return this.VideoService.findAll(userId, type);
     }
 
     @Get(':id')
