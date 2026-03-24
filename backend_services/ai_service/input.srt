@@ -1,0 +1,1407 @@
+1
+00:00:00,000 --> 00:00:03,399
+Have you ever tried managing a project across emails,
+
+2
+00:00:04,040 --> 00:00:05,540
+Spreadsheets, and chat threads?
+
+3
+00:00:06,259 --> 00:00:07,559
+It gets messy fast.
+
+4
+00:00:08,400 --> 00:00:09,619
+That's where JIRA comes in.
+
+5
+00:00:10,019 --> 00:00:13,919
+It's an AI -powered project management tool that helps you plan,
+
+6
+00:00:14,560 --> 00:00:14,980
+Organize,
+
+7
+00:00:15,560 --> 00:00:18,239
+And automate your work all in one place.
+
+8
+00:00:18,940 --> 00:00:24,120
+Hi, I'm Kevin, and today I teamed up with JIRA to show you how any team can use
+
+9
+00:00:24,120 --> 00:00:24,339
+It.
+
+10
+00:00:24,920 --> 00:00:29,679
+Not just developers. You'll see how to get started, explore the key features,
+
+11
+00:00:30,179 --> 00:00:35,740
+And use AI to make project management faster and also a whole lot easier.
+
+12
+00:00:36,640 --> 00:00:40,219
+Let's dive in. To get started, head to the link right down below.
+
+13
+00:00:40,719 --> 00:00:43,880
+Once you're on the JIRA website, click get it for free.
+
+14
+00:00:44,280 --> 00:00:48,719
+One of the really nice things about JIRA is that you can use it completely for free for
+
+15
+00:00:48,719 --> 00:00:49,840
+Up to 10 users.
+
+16
+00:00:50,479 --> 00:00:55,039
+So if you want to follow along, go ahead and sign up now. Once you set up your
+
+17
+00:00:55,039 --> 00:00:58,179
+Account, JIRA will ask you to create a site.
+
+18
+00:00:58,840 --> 00:01:01,100
+A site is your team's shared workspace.
+
+19
+00:01:01,460 --> 00:01:04,819
+It's where all your projects, tasks, and dashboards will live.
+
+20
+00:01:05,579 --> 00:01:11,260
+Right here, JIRA automatically suggests a site name based on your email address. But you can change it
+
+21
+00:01:11,260 --> 00:01:12,840
+To anything that fits your team.
+
+22
+00:01:13,400 --> 00:01:17,400
+As an example, I'll set mine to Kevin Cookie Co for the Kevin Cookie Company.
+
+23
+00:01:17,939 --> 00:01:23,480
+And right down below, let's click on continue. Next, JIRA asks what kind of work your team does.
+
+24
+00:01:24,019 --> 00:01:29,739
+This helps it recommend templates and workflows that fit how your team operates, whether that happens to be
+
+25
+00:01:29,739 --> 00:01:34,859
+Software development, maybe marketing, down here we have finance, or maybe even operations.
+
+26
+00:01:35,519 --> 00:01:40,079
+Since I'm planning a cookie box launch campaign over here, I'll choose marketing.
+
+27
+00:01:40,500 --> 00:01:45,599
+But you can pick whatever best matches your team and JIRA will automatically set things up for you.
+
+28
+00:01:45,599 --> 00:01:46,420
+And I'll click on this.
+
+29
+00:01:46,780 --> 00:01:50,480
+On this screen, JIRA asks how your team plans to use it.
+
+30
+00:01:50,760 --> 00:01:55,299
+This helps customize the setup and recommend the right tools and also views.
+
+31
+00:01:55,980 --> 00:02:01,000
+Since I'm planning a cookie box launch campaign right up on top, I'll choose launch campaigns.
+
+32
+00:02:01,579 --> 00:02:07,599
+Let's also go with manage marketing content and right down here we have report on project progress. I
+
+33
+00:02:07,599 --> 00:02:08,280
+Think that works well.
+
+34
+00:02:08,879 --> 00:02:13,039
+You can pick up to three options here, but don't worry. Your choices won't limit what you can
+
+35
+00:02:13,039 --> 00:02:16,879
+Do later. Once you've made all your selections down at the bottom, click on continue.
+
+36
+00:02:17,360 --> 00:02:21,639
+Now, we're setting up our first project or what sometimes refer to as a space.
+
+37
+00:02:22,199 --> 00:02:24,080
+This is where your team's work will live.
+
+38
+00:02:24,639 --> 00:02:29,340
+You could think of a space as your team's hub for tracking progress and also staying organized.
+
+39
+00:02:29,939 --> 00:02:32,960
+Now, since I'm planning a cookie box launch campaign,
+
+40
+00:02:33,659 --> 00:02:34,960
+I'll name my project this.
+
+41
+00:02:35,740 --> 00:02:38,500
+Once you've chosen a name down at the bottom, click on get started.
+
+42
+00:02:38,900 --> 00:02:43,960
+Now, JIRA asks what type of work you want to track in this space. These are the building
+
+43
+00:02:43,960 --> 00:02:45,139
+Blocks of your project.
+
+44
+00:02:45,439 --> 00:02:46,240
+You have things like tasks,
+
+45
+00:02:46,840 --> 00:02:47,120
+Requests,
+
+46
+00:02:47,740 --> 00:02:48,379
+Campaigns.
+
+47
+00:02:49,180 --> 00:02:52,439
+Now, for this, I'm going to start with task to keep things simple,
+
+48
+00:02:52,759 --> 00:02:54,780
+But you can always add more later on.
+
+49
+00:02:55,199 --> 00:02:56,460
+Down below, let's click on next.
+
+50
+00:02:56,879 --> 00:03:01,080
+This brings us to the last step in the setup, choosing how you want to track work.
+
+51
+00:03:01,539 --> 00:03:06,360
+By default, JIRA gives you three simple stages. We have to do in progress and done.
+
+52
+00:03:06,979 --> 00:03:10,560
+I think that's perfect for getting started, so I'll leave it just like this. Of course,
+
+53
+00:03:11,020 --> 00:03:13,120
+You can always add or remove stages later.
+
+54
+00:03:13,759 --> 00:03:17,360
+Down at the bottom, let's now click on finish and JIRA will create your workspace.
+
+55
+00:03:17,919 --> 00:03:19,000
+And here we are.
+
+56
+00:03:19,280 --> 00:03:20,599
+You're making great progress.
+
+57
+00:03:21,099 --> 00:03:24,680
+This is our new space for the cookie box launch campaign.
+
+58
+00:03:25,379 --> 00:03:29,659
+Over on the left hand side, you'll see this sidebar with our current space selected.
+
+59
+00:03:30,099 --> 00:03:32,620
+This allows you to jump between all of your different spaces.
+
+60
+00:03:33,240 --> 00:03:37,419
+Right up on top, I'll click on this icon to minimize the sidebar. That way, we have a
+
+61
+00:03:37,419 --> 00:03:38,580
+Little bit more room to work.
+
+62
+00:03:39,300 --> 00:03:43,020
+Within this view, this is where we'll track everything from start to finish.
+
+63
+00:03:43,560 --> 00:03:45,520
+Across the top, you'll see different views.
+
+64
+00:03:45,780 --> 00:03:49,580
+Like here, we have the list view, a board, a calendar, and also a timeline.
+
+65
+00:03:50,219 --> 00:03:53,639
+Right now, we're in the list view, which works a lot like a spreadsheet.
+
+66
+00:03:54,039 --> 00:03:56,500
+It's perfect for adding and also organizing tasks.
+
+67
+00:03:57,139 --> 00:04:00,620
+Over on the right hand side, you'll notice the quick start guide.
+
+68
+00:04:01,080 --> 00:04:03,460
+This gives you tips for getting up and running fast.
+
+69
+00:04:03,879 --> 00:04:06,939
+It's really helpful if you're brand new to JIRA, but for now,
+
+70
+00:04:07,240 --> 00:04:09,300
+Let's close it out. I'll click on this icon.
+
+71
+00:04:09,560 --> 00:04:11,900
+That way, we can focus on building out our project.
+
+72
+00:04:12,419 --> 00:04:15,460
+Down in the bottom right -hand corner, you can always open it again if you want to review
+
+73
+00:04:15,460 --> 00:04:16,220
+Some of the tips.
+
+74
+00:04:16,579 --> 00:04:20,620
+Let's now start by adding a few tasks for the cookie box launch campaign.
+
+75
+00:04:21,220 --> 00:04:24,160
+To add a task right over here, let's click on Create.
+
+76
+00:04:24,560 --> 00:04:26,139
+And then we could type in the first task.
+
+77
+00:04:26,699 --> 00:04:28,480
+I'll type in Design Packaging.
+
+78
+00:04:28,779 --> 00:04:30,300
+We want this packaging to look good.
+
+79
+00:04:30,920 --> 00:04:34,980
+Over on the right hand side, we could click on Create. Or, what I like doing is simply
+
+80
+00:04:34,980 --> 00:04:38,339
+Press the Enter key on your keyboard, and that adds the first task.
+
+81
+00:04:38,740 --> 00:04:39,579
+Let's add a few more.
+
+82
+00:04:40,060 --> 00:04:44,220
+For the second one, we need to write a social media post, then I'll press Enter.
+
+83
+00:04:44,860 --> 00:04:47,879
+And lastly, we also need to review Add Copy with Legal.
+
+84
+00:04:48,240 --> 00:04:49,519
+This one's extremely important.
+
+85
+00:04:49,839 --> 00:04:51,600
+Then, here again, I'll press Enter.
+
+86
+00:04:52,199 --> 00:04:55,560
+And these will be the main things our marketing and design teams need to get started.
+
+87
+00:04:56,000 --> 00:04:58,480
+Of course, you could always come in and add more tasks later.
+
+88
+00:04:58,899 --> 00:05:03,720
+But keeping it simple like this makes it easy to focus on what really matters. For each of
+
+89
+00:05:03,720 --> 00:05:08,579
+These different tasks that we added, you could also set the details related to that task.
+
+90
+00:05:08,920 --> 00:05:12,240
+As an example, you could set a due date. For the Design Packaging,
+
+91
+00:05:12,540 --> 00:05:13,720
+We need that pretty urgently.
+
+92
+00:05:14,399 --> 00:05:15,800
+So, let's set that for next week.
+
+93
+00:05:16,139 --> 00:05:19,259
+Over here, I could also set dates for the other items as well.
+
+94
+00:05:19,579 --> 00:05:20,399
+I'll set a few different dates.
+
+95
+00:05:21,019 --> 00:05:22,759
+To the right of that, we could also set the Priority.
+
+96
+00:05:23,420 --> 00:05:26,160
+Design Packaging, like I said, is very important. So, let's click on that.
+
+97
+00:05:26,600 --> 00:05:31,620
+And let's set it to Highest Priority. If we scroll over to the right, you'll see that we
+
+98
+00:05:31,620 --> 00:05:35,360
+Also have additional fields or columns in. We could enter in different values.
+
+99
+00:05:35,839 --> 00:05:39,759
+If you don't see a column that you need over on the right -hand side, you can also
+
+100
+00:05:39,759 --> 00:05:44,439
+Click on this plus icon and you can add additional fields to this table. And in fact, you
+
+101
+00:05:44,439 --> 00:05:46,980
+Could even add a completely new field down here at the bottom.
+
+102
+00:05:47,300 --> 00:05:48,620
+Let's scroll back over to the left.
+
+103
+00:05:48,980 --> 00:05:52,259
+You can also click into a task to add even more context.
+
+104
+00:05:52,600 --> 00:05:56,680
+Right over here, let's click on the key for Design Packaging. Here, we can add things like a
+
+105
+00:05:56,680 --> 00:05:58,600
+Description. You could add sub -tasks.
+
+106
+00:05:58,899 --> 00:06:00,399
+You could even link to other work items.
+
+107
+00:06:00,740 --> 00:06:03,519
+And down at the bottom, you could leave comments related to this task.
+
+108
+00:06:03,939 --> 00:06:05,959
+Let's start by adding a quick description.
+
+109
+00:06:06,220 --> 00:06:07,180
+Now, I'll click into this box.
+
+110
+00:06:07,579 --> 00:06:09,019
+And here, I could type things in.
+
+111
+00:06:09,459 --> 00:06:12,620
+But, to be honest, I've never been that good at writing descriptions.
+
+112
+00:06:13,139 --> 00:06:15,779
+So, instead, let's use something called Rovo.
+
+113
+00:06:16,300 --> 00:06:18,000
+This is Jira's built -in AI.
+
+114
+00:06:18,379 --> 00:06:20,199
+Right over here, I'll click on this icon.
+
+115
+00:06:20,639 --> 00:06:22,170
+And this opens up a writing assistant.
+
+116
+00:06:23,120 --> 00:06:26,439
+Down below, I can now type in my prompt. So, let's type in,
+
+117
+00:06:26,759 --> 00:06:29,319
+I'm designing packaging for the Kevin Cookie Company Cookies.
+
+118
+00:06:29,600 --> 00:06:32,019
+Can you help write a description for this task?
+
+119
+00:06:32,639 --> 00:06:33,920
+Then, let's press Enter.
+
+120
+00:06:34,319 --> 00:06:39,759
+Right down below, Rovo generates a nice polished description that I could tweak, or we could just use
+
+121
+00:06:39,759 --> 00:06:40,439
+It as is.
+
+122
+00:06:41,060 --> 00:06:42,740
+Let's go ahead and just use it as it is.
+
+123
+00:06:43,079 --> 00:06:44,420
+Down below, I'll click on Insert.
+
+124
+00:06:44,860 --> 00:06:47,040
+And here, we have a very nicely written description.
+
+125
+00:06:47,439 --> 00:06:48,560
+Down below, let's click on Save.
+
+126
+00:06:49,000 --> 00:06:50,220
+Now that we've added the description,
+
+127
+00:06:50,740 --> 00:06:54,759
+Let's go ahead and add a few sub -tasks. I'll scroll down and right here, I'll click on
+
+128
+00:06:54,759 --> 00:06:55,439
+Subtasks.
+
+129
+00:06:56,220 --> 00:07:00,899
+And we can also use Rovo here to suggest some based on the title and also the description.
+
+130
+00:07:01,519 --> 00:07:04,560
+Right up on top, you'll see it says Create Suggested Work Items.
+
+131
+00:07:04,860 --> 00:07:06,980
+And here, let's look at the six suggestions.
+
+132
+00:07:07,439 --> 00:07:09,519
+Right down below, we could see some of the suggestions.
+
+133
+00:07:09,920 --> 00:07:11,779
+First off, we need to develop some concepts,
+
+134
+00:07:12,420 --> 00:07:16,360
+Select materials, design the visual elements, and then we also have a few other items.
+
+135
+00:07:16,939 --> 00:07:20,339
+Now, I think this looks perfect. Of course, I could even go in and add my own, but
+
+136
+00:07:20,339 --> 00:07:21,660
+For now, I think this works great.
+
+137
+00:07:22,180 --> 00:07:24,360
+Right down below, let's click on Create All.
+
+138
+00:07:24,699 --> 00:07:27,519
+Right up above, you can see all of our different sub -tasks.
+
+139
+00:07:27,839 --> 00:07:32,279
+And here, too, just like we saw with tasks, you could also adjust the various fields or details
+
+140
+00:07:32,279 --> 00:07:34,439
+Related to those sub -tasks.
+
+141
+00:07:34,959 --> 00:07:38,740
+Over on the right -hand side, we also have all of the high -level task details.
+
+142
+00:07:39,139 --> 00:07:43,279
+And just like we saw on the list view, you can also completely customize this.
+
+143
+00:07:43,660 --> 00:07:45,500
+Right up on top, now click on the Settings gear.
+
+144
+00:07:45,819 --> 00:07:48,120
+And here, you can modify all of the different fields.
+
+145
+00:07:48,839 --> 00:07:51,279
+I'm now all done configuring this task.
+
+146
+00:07:51,600 --> 00:07:54,060
+So in the top right -hand corner, let's go back to the main list view.
+
+147
+00:07:54,339 --> 00:07:55,339
+Now, click on this X icon.
+
+148
+00:07:55,740 --> 00:07:59,699
+Back within the main list view, right over here, I see the Design Packaging task.
+
+149
+00:08:00,019 --> 00:08:02,019
+And over on the left -hand side, we see this carrot icon.
+
+150
+00:08:02,439 --> 00:08:08,079
+I can expand the task, and here we see all of the associated sub -tasks all neatly organized.
+
+151
+00:08:08,500 --> 00:08:12,300
+Let's go ahead and collapse it. We have a few different tasks coming together here, but I really
+
+152
+00:08:12,300 --> 00:08:14,480
+Just want to see the highest priority tasks.
+
+153
+00:08:14,980 --> 00:08:18,160
+Right up on top, similar to a spreadsheet, you can filter the view.
+
+154
+00:08:18,500 --> 00:08:21,259
+Now, click on this dropdown, and you could filter by just about anything.
+
+155
+00:08:21,540 --> 00:08:24,660
+Assign to what's due this week, or anything that's been completed.
+
+156
+00:08:25,120 --> 00:08:28,699
+If I scroll down a little bit more, here you can see that we could also filter by
+
+157
+00:08:28,699 --> 00:08:29,300
+The priority.
+
+158
+00:08:29,680 --> 00:08:32,500
+And again, I just want to see the highest priority tasks.
+
+159
+00:08:33,139 --> 00:08:34,899
+Now, click on this, and that filters the view.
+
+160
+00:08:35,340 --> 00:08:36,659
+There's that Design Packaging.
+
+161
+00:08:37,100 --> 00:08:38,059
+It's a very high priority.
+
+162
+00:08:38,559 --> 00:08:42,059
+Right up on top, I can also turn off this filter. When I click on this, here we
+
+163
+00:08:42,059 --> 00:08:45,539
+Can clear the filter. And now, I see all the different tasks again.
+
+164
+00:08:45,899 --> 00:08:49,460
+Similar to a spreadsheet, you could also sort by all these different column headers.
+
+165
+00:08:50,059 --> 00:08:53,919
+Currently, I can see all the oldest tasks to the newest tasks, but over here, if I click
+
+166
+00:08:53,919 --> 00:08:54,440
+On this icon,
+
+167
+00:08:55,019 --> 00:08:58,299
+That switches the order, and here I see the newest to the oldest. And again, I can click
+
+168
+00:08:58,299 --> 00:09:00,259
+On that again, and that changes the sorting.
+
+169
+00:09:00,639 --> 00:09:03,879
+Along with filtering and sorting, I could also adjust this view.
+
+170
+00:09:04,220 --> 00:09:08,159
+Now, I actually prefer to see the priority ahead of the due date. So over here, I can
+
+171
+00:09:08,159 --> 00:09:11,919
+Press and hold on this column, and drag it over, and here I can place it before the
+
+172
+00:09:11,919 --> 00:09:15,139
+Due date. That way, I can keep an eye on what matters the most to me.
+
+173
+00:09:15,440 --> 00:09:21,259
+I honestly feel so much better now that we're tracking these tasks, and they're not just floating around
+
+174
+00:09:21,259 --> 00:09:22,179
+In my mind.
+
+175
+00:09:23,139 --> 00:09:29,240
+So far, we've been looking at everything in the list view, which is great for organizing tasks like
+
+176
+00:09:29,240 --> 00:09:30,460
+You would in a spreadsheet.
+
+177
+00:09:30,899 --> 00:09:36,700
+But one of the best things about JIRA is that you can switch between different views depending on
+
+178
+00:09:36,700 --> 00:09:41,000
+How your team likes to work. Let's now shift to the board view. Right up on top, I'll
+
+179
+00:09:41,000 --> 00:09:41,679
+Click on board.
+
+180
+00:09:42,279 --> 00:09:47,519
+This gives us a Kanban style board where we can move the different tasks through all the different
+
+181
+00:09:47,519 --> 00:09:47,940
+Stages.
+
+182
+00:09:48,519 --> 00:09:51,899
+There's that design packaging task, and it's high priority.
+
+183
+00:09:52,620 --> 00:09:56,179
+Now, I've started putting in a description, and I also thought about some of the sub tasks.
+
+184
+00:09:56,659 --> 00:09:59,259
+So I personally think that qualifies as in progress.
+
+185
+00:09:59,639 --> 00:10:02,960
+So I could simply press and hold on this task, and here I could drag it over to
+
+186
+00:10:02,960 --> 00:10:08,659
+In progress, and look at that, starting to get things done. Up on top, we can also shift
+
+187
+00:10:08,659 --> 00:10:13,399
+Into the calendar view. Now, way we can see all the different upcoming tasks by date.
+
+188
+00:10:14,039 --> 00:10:17,059
+Right over here, we can visualize all of that on a calendar.
+
+189
+00:10:17,399 --> 00:10:19,159
+This is perfect for keeping track of deadlines.
+
+190
+00:10:19,799 --> 00:10:22,220
+And up on top, there's also a timeline view.
+
+191
+00:10:22,740 --> 00:10:28,159
+This gives a Gantt chart style layout that's really great for visualizing how different tasks overlap,
+
+192
+00:10:28,519 --> 00:10:30,179
+And also depend on one another.
+
+193
+00:10:30,440 --> 00:10:35,720
+We've got a great project plan coming together, but I can't do all this work on my own.
+
+194
+00:10:35,720 --> 00:10:39,700
+So, let's get some reinforcements by inviting some teammates.
+
+195
+00:10:40,200 --> 00:10:43,820
+To add people in the top right hand corner, click on the settings gear,
+
+196
+00:10:44,419 --> 00:10:47,000
+And then at the bottom of this menu, click into user management.
+
+197
+00:10:47,480 --> 00:10:50,419
+In the top right hand corner, let's click on invite users,
+
+198
+00:10:50,820 --> 00:10:53,840
+And at the very top, you can simply type in their email address.
+
+199
+00:10:54,220 --> 00:10:55,940
+Here, I'll type in Nestor's email address,
+
+200
+00:10:56,480 --> 00:10:59,820
+Insert a comma, and let's also enter in Paddy's email address.
+
+201
+00:11:00,659 --> 00:11:05,720
+Now, down at the bottom, I'll click on send invite. Now that I've added a few teammates, I
+
+202
+00:11:05,720 --> 00:11:07,659
+Can now assign tasks to them.
+
+203
+00:11:08,080 --> 00:11:09,639
+Let's go back to the JIRA list view.
+
+204
+00:11:09,919 --> 00:11:11,899
+Up on top, I'll switch back to my other tab.
+
+205
+00:11:12,720 --> 00:11:14,460
+Right here, let's go back to the list view.
+
+206
+00:11:14,840 --> 00:11:17,460
+I think Nestor would really handle this task well.
+
+207
+00:11:17,860 --> 00:11:20,039
+He has a really good relationship with the legal team.
+
+208
+00:11:20,500 --> 00:11:24,779
+Over here, I'll click on a signy, and here I see the two people that I just added.
+
+209
+00:11:25,080 --> 00:11:26,340
+I'll select Nestor right there.
+
+210
+00:11:26,879 --> 00:11:30,720
+Now, Nestor tends to work really fast, so let's have a quick look at the details of this
+
+211
+00:11:30,720 --> 00:11:34,460
+Task. Now, I'll click into it. Within the task, down at the bottom, I can see all of
+
+212
+00:11:34,460 --> 00:11:39,419
+The activity, and it looks like Nestor really does work fast. He already has a question for me.
+
+213
+00:11:39,799 --> 00:11:44,179
+Can you confirm if legal needs to review both the ad copy and the social post or just
+
+214
+00:11:44,179 --> 00:11:44,860
+The ad copy?
+
+215
+00:11:45,159 --> 00:11:46,879
+Well, we just need the ad copy reviewed.
+
+216
+00:11:47,259 --> 00:11:48,899
+So right down below, I'll click on reply.
+
+217
+00:11:49,519 --> 00:11:52,139
+And here, it says at Nestor, and let me type in my message,
+
+218
+00:11:52,539 --> 00:11:53,240
+Just the ad copy.
+
+219
+00:11:53,500 --> 00:11:53,740
+Thanks.
+
+220
+00:11:54,179 --> 00:11:58,059
+Right down below, I'll click on save, and there, that'll send the response to Nestor. In the top
+
+221
+00:11:58,059 --> 00:12:01,080
+Right hand corner, let's now close out of this view. Now, I'll click on the X right up
+
+222
+00:12:01,080 --> 00:12:01,240
+Here.
+
+223
+00:12:01,539 --> 00:12:05,600
+Back within the list view, here I can see all of the latest activity related to this task.
+
+224
+00:12:06,100 --> 00:12:11,299
+And here I see that there are two comments related to this task. Now that our campaign is
+
+225
+00:12:11,299 --> 00:12:11,860
+Underway,
+
+226
+00:12:12,580 --> 00:12:15,379
+Other teams are starting to send in marketing requests.
+
+227
+00:12:16,039 --> 00:12:19,340
+You could think of things like new graphics or product photos.
+
+228
+00:12:20,279 --> 00:12:26,480
+Instead of managing all of that through email, I can create a simple form that sends everything straight
+
+229
+00:12:26,480 --> 00:12:31,419
+Into JIRA. Let's click on forms right up on top, and then right down below, let's click on
+
+230
+00:12:31,419 --> 00:12:32,440
+Create form.
+
+231
+00:12:33,019 --> 00:12:37,279
+I'll base this on a task, since each request will become its own task.
+
+232
+00:12:37,799 --> 00:12:40,240
+Let's click here. At the top, let's give this form a name.
+
+233
+00:12:40,580 --> 00:12:44,100
+I'll highlight this, and let's call it the marketing content request form.
+
+234
+00:12:44,580 --> 00:12:48,120
+Down below, I can also add various fields. We have a summary, description,
+
+235
+00:12:48,500 --> 00:12:52,039
+Attachment, those all look good, but I'd also like to include a due date.
+
+236
+00:12:52,340 --> 00:12:55,960
+That way, I know when we have to get this work done. Over here, I can drag this
+
+237
+00:12:55,960 --> 00:12:58,159
+Field and put it right there on my form.
+
+238
+00:12:58,580 --> 00:12:59,220
+That's perfect.
+
+239
+00:12:59,820 --> 00:13:05,539
+Now when someone fills this out, JIRA will automatically create a new task directly within our space.
+
+240
+00:13:06,080 --> 00:13:07,179
+I don't make things a lot easier.
+
+241
+00:13:07,899 --> 00:13:11,659
+Now, up on top, I can share this form with others, but that way they can start filling
+
+242
+00:13:11,659 --> 00:13:15,159
+It out. And right over here, we can also preview what the form looks like in a new
+
+243
+00:13:15,159 --> 00:13:15,419
+Tab.
+
+244
+00:13:15,840 --> 00:13:18,120
+Let's go ahead and preview it to see what it looks like.
+
+245
+00:13:18,419 --> 00:13:22,360
+And here we can see a preview of what this form looks like. Let's try filling it out.
+
+246
+00:13:22,460 --> 00:13:26,259
+Right up on top, I'll type in a summary of a new work item that I have. And
+
+247
+00:13:26,259 --> 00:13:28,639
+Down below, I can also type in a description for it.
+
+248
+00:13:28,919 --> 00:13:32,600
+Now I can also add an attachment, and let's select a due date. Now I'll place it for
+
+249
+00:13:32,600 --> 00:13:33,279
+The 21st.
+
+250
+00:13:33,580 --> 00:13:34,759
+Down below, let's submit this.
+
+251
+00:13:35,100 --> 00:13:37,740
+Now that we've submitted the form, let's go back to the main list view.
+
+252
+00:13:38,059 --> 00:13:41,480
+And look at that. We now have a new task added to the bottom of this list.
+
+253
+00:13:41,879 --> 00:13:43,419
+And here's another really neat thing.
+
+254
+00:13:43,960 --> 00:13:50,159
+If I scroll over in this table, you'll notice that it also added two labels or tags, letting
+
+255
+00:13:50,159 --> 00:13:52,379
+Us know where this item came from.
+
+256
+00:13:52,720 --> 00:13:56,759
+That way we could easily filter or sort all the requests created this way.
+
+257
+00:13:57,220 --> 00:14:01,960
+Now this is such a cool way to keep everything organized and to intake additional information.
+
+258
+00:14:02,659 --> 00:14:05,279
+Up, looks like I just received an email from my manager.
+
+259
+00:14:05,559 --> 00:14:06,159
+Hope you're doing well.
+
+260
+00:14:06,460 --> 00:14:12,019
+I wanted to check in on the cookie box launch campaign and see how things are progressing.
+
+261
+00:14:12,379 --> 00:14:13,820
+And looks like she wants an update.
+
+262
+00:14:14,580 --> 00:14:17,779
+You know, sometimes it feels like it's more work just to get work done.
+
+263
+00:14:18,700 --> 00:14:23,659
+Now I could write her a response. But let's actually see if maybe JIRA can just help me
+
+264
+00:14:23,659 --> 00:14:24,240
+With this.
+
+265
+00:14:24,759 --> 00:14:30,759
+In the top right hand corner, let's click on the Ask Robo. Again, this is JIRA's AI Assistant.
+
+266
+00:14:31,059 --> 00:14:34,480
+Down below, it says, how can I help you? Well, I could certainly use some help.
+
+267
+00:14:35,000 --> 00:14:36,120
+Let's type in a prompt.
+
+268
+00:14:36,440 --> 00:14:39,879
+Write a quick project update on the cookie box launch campaign.
+
+269
+00:14:40,419 --> 00:14:44,259
+We've added all of these details into JIRA. Let's see if it could come up with a quick
+
+270
+00:14:44,259 --> 00:14:49,000
+Summary that I could send back to my manager. Over here, let's send it. Robo now looks at
+
+271
+00:14:49,000 --> 00:14:50,519
+All the tasks in the project.
+
+272
+00:14:50,980 --> 00:14:53,620
+What's been done, what's in progress, and what's coming up.
+
+273
+00:14:54,039 --> 00:14:57,940
+And over here, it generates a short summary that I can now share with my manager.
+
+274
+00:14:58,460 --> 00:15:02,080
+And here provides the update on the latest activity between me and Nestor.
+
+275
+00:15:02,379 --> 00:15:03,139
+That's pretty helpful.
+
+276
+00:15:03,720 --> 00:15:07,299
+Now, beyond writing updates or descriptions, Robo can do so much more.
+
+277
+00:15:07,779 --> 00:15:14,019
+In fact, in a moment, we'll automate some repetitive tasks just by using plain language. And beyond that,
+
+278
+00:15:14,220 --> 00:15:16,320
+JIRA includes something called Robo Skills.
+
+279
+00:15:16,940 --> 00:15:18,460
+Now, you might be wondering, what is that?
+
+280
+00:15:18,919 --> 00:15:22,259
+Well, these are specialized AI helpers trained for specific tasks.
+
+281
+00:15:22,860 --> 00:15:29,059
+As an example, analyzing project themes or maybe checking content that you've created against brand guidelines.
+
+282
+00:15:29,480 --> 00:15:33,279
+Kind of like having dedicated mini -assistance built right into your workspace.
+
+283
+00:15:33,700 --> 00:15:38,019
+I just noticed that a lot of these different tasks in the list view don't have an owner.
+
+284
+00:15:38,379 --> 00:15:42,879
+And you know what that means? If there's no owner, it's not getting done. Of course, I could
+
+285
+00:15:42,879 --> 00:15:47,039
+Click through and I could assign someone manually, but we could also automate this.
+
+286
+00:15:47,580 --> 00:15:50,860
+We could set up a simple role so every time a new task is created.
+
+287
+00:15:51,139 --> 00:15:54,519
+Like say, for example, someone fills out our marketing or quest form.
+
+288
+00:15:54,919 --> 00:15:56,879
+JIRA can automatically assign it to me.
+
+289
+00:15:57,559 --> 00:16:01,059
+To set up an automation, right up on top, let's click on this icon.
+
+290
+00:16:01,440 --> 00:16:03,320
+Right down below, let's click on explore templates.
+
+291
+00:16:03,759 --> 00:16:05,600
+Let's try using Robo to build this automation.
+
+292
+00:16:06,379 --> 00:16:11,279
+Right over here, I could tell Robo what I'm trying to automate. When a new task is created,
+
+293
+00:16:11,519 --> 00:16:15,500
+Assign it to me, Kevin Stratford, and notify me on Slack.
+
+294
+00:16:16,039 --> 00:16:16,840
+Let's preview the rule.
+
+295
+00:16:17,120 --> 00:16:19,299
+And look at that. Robo builds the automation automatically.
+
+296
+00:16:20,179 --> 00:16:21,399
+Right up on top, we have the trigger.
+
+297
+00:16:21,919 --> 00:16:23,480
+A new work item is created.
+
+298
+00:16:23,820 --> 00:16:24,980
+And then there are two different actions.
+
+299
+00:16:25,340 --> 00:16:26,779
+It assigns the work item to me.
+
+300
+00:16:27,320 --> 00:16:31,659
+And it also sends me a Slack notification to let me know that there's now a new work
+
+301
+00:16:31,659 --> 00:16:32,000
+Item.
+
+302
+00:16:32,539 --> 00:16:35,159
+Here, I could review all the details, make any quick edits.
+
+303
+00:16:35,500 --> 00:16:39,299
+And if I'm satisfied with everything, right up on top, I can now turn on the rule.
+
+304
+00:16:39,720 --> 00:16:42,259
+And there I can see that the new rule has been turned on.
+
+305
+00:16:42,580 --> 00:16:48,580
+Now, anytime someone creates a new task, even from our form, JIRA will assign it to me automatically
+
+306
+00:16:48,580 --> 00:16:50,000
+And send me a Slack notification.
+
+307
+00:16:50,379 --> 00:16:53,379
+That way, I can stay on top of any new requests right away.
+
+308
+00:16:53,639 --> 00:16:56,340
+Now that we've added tasks, forms, and automation,
+
+309
+00:16:57,039 --> 00:17:03,259
+Let's look at how we can track progress and connect JIRA with the other tools we use. To
+
+310
+00:17:03,259 --> 00:17:08,059
+Track the overall progress of our project, right up on top, let's switch into the summary view.
+
+311
+00:17:08,759 --> 00:17:11,539
+And here we get a quick snapshot of how things are going.
+
+312
+00:17:11,799 --> 00:17:15,500
+Right up on top, I can see a status overview. We have 10 total items and one is
+
+313
+00:17:15,500 --> 00:17:15,940
+In progress.
+
+314
+00:17:16,680 --> 00:17:19,539
+We're lagging a little bit. We'll have to get more of these items in progress.
+
+315
+00:17:20,140 --> 00:17:22,240
+Right over here, I can see all the recent activity.
+
+316
+00:17:22,759 --> 00:17:26,099
+I can see it breakdown of all the different priorities, the types of work.
+
+317
+00:17:26,460 --> 00:17:31,359
+And I can also see how many different items are assigned to members on the team. It looks
+
+318
+00:17:31,359 --> 00:17:33,579
+Like Nesters currently carrying all the load.
+
+319
+00:17:34,119 --> 00:17:35,900
+I guess I'll probably have to pick something up.
+
+320
+00:17:36,380 --> 00:17:39,359
+This is a great way to get a quick read on how things are going.
+
+321
+00:17:39,619 --> 00:17:42,799
+In the top left -hand corner, let's now open up the sidebar.
+
+322
+00:17:43,140 --> 00:17:45,420
+And then right down at the bottom, let's click on more.
+
+323
+00:17:45,779 --> 00:17:47,460
+Then let's shift into the apps view.
+
+324
+00:17:47,880 --> 00:17:51,299
+Here, JIRA integrates with over 3,000 different apps.
+
+325
+00:17:51,680 --> 00:17:55,299
+That way, if your team works in tools like Slack, Teams, or Power BI,
+
+326
+00:17:55,680 --> 00:17:59,259
+You can connect all of them here. What that means is that updates,
+
+327
+00:17:59,700 --> 00:18:06,400
+Analytics, and reports can flow automatically between JIRA and all the other tools that you already use. There's
+
+328
+00:18:06,400 --> 00:18:09,140
+One final thing I want to do before we wrap up.
+
+329
+00:18:09,440 --> 00:18:13,079
+In the top left -hand corner, let's open up the sidebar again and let's go back to the
+
+330
+00:18:13,079 --> 00:18:15,220
+Cookie box launch campaign space.
+
+331
+00:18:15,700 --> 00:18:17,799
+It really feels like something's missing here.
+
+332
+00:18:18,099 --> 00:18:20,859
+I think we could personalize this a little bit more.
+
+333
+00:18:21,380 --> 00:18:24,500
+Right down on top, let's click on the three dot menu for more actions.
+
+334
+00:18:24,940 --> 00:18:29,240
+And this is one of my favorites. Right down here, we have the option to set a space
+
+335
+00:18:29,240 --> 00:18:30,000
+Background.
+
+336
+00:18:30,579 --> 00:18:34,140
+Let's click on that and here we see all these different photos that we could choose from.
+
+337
+00:18:34,400 --> 00:18:37,200
+We have different colors and you can even upload custom images.
+
+338
+00:18:37,480 --> 00:18:41,619
+But let's try searching to see if maybe they have an image of some cookies.
+
+339
+00:18:42,720 --> 00:18:43,599
+And they do.
+
+340
+00:18:43,920 --> 00:18:44,839
+Of course they do.
+
+341
+00:18:45,220 --> 00:18:47,700
+Then I think I like this one. I'll select that.
+
+342
+00:18:48,299 --> 00:18:51,960
+Then let's close out of this view right here and check out this space.
+
+343
+00:18:52,839 --> 00:18:57,700
+This is looking really nice now. It's a small touch, but it makes the workspace feel a lot
+
+344
+00:18:57,700 --> 00:18:59,900
+More personal and personally I think fun.
+
+345
+00:19:00,200 --> 00:19:03,880
+And that's a quick look at how you can use JIRA for project management.
+
+346
+00:19:04,480 --> 00:19:08,680
+What's great about JIRA is that it brings all your teams together.
+
+347
+00:19:09,180 --> 00:19:13,539
+Marketing, operations, design, even legal, all in one place.
+
+348
+00:19:14,000 --> 00:19:17,559
+Now many other tools handle just one side of project management.
+
+349
+00:19:17,880 --> 00:19:24,579
+But JIRA scales across the entire organization and it even adds built in AI to keep everything connected.
+
+350
+00:19:25,160 --> 00:19:29,099
+Again, you could try JIRA for free and the link is right down below.
+
+351
+00:19:29,539 --> 00:19:30,420
+And stay tuned.
+
+352
+00:19:30,839 --> 00:19:33,759
+Let's see how that cookie box launch campaign turns out.
