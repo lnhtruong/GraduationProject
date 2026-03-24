@@ -110,6 +110,13 @@ export class WebhookService {
             throw error;
         }
 
+        this.websocketService.notifyUploadCompleted(userId, {
+            id: created.id,
+            url: created.url,
+            type: created.type,
+            duration: duration ?? undefined,
+        });
+
         this.logger.log(
             `Created video from Cloudinary webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
         );
@@ -155,35 +162,35 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const createPayload: Record<string, unknown> = {
-            user_id: userId,
-            type,
-            url,
-            duration: typeof duration === 'number' ? duration : null,
-        };
-        if (display_name) createPayload.name = display_name;
+        // const createPayload: Record<string, unknown> = {
+        //     user_id: userId,
+        //     type,
+        //     url,
+        //     duration: typeof duration === 'number' ? duration : null,
+        // };
+        // if (display_name) createPayload.name = display_name;
 
-        let created: Video;
-        try {
-            created = await this.videoModel.create(createPayload as any);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`AI webhook create video failed: ${message}`);
-            throw error;
-        }
+        // let created: Video;
+        // try {
+        //     created = await this.videoModel.create(createPayload as any);
+        // } catch (error) {
+        //     const message = error instanceof Error ? error.message : String(error);
+        //     this.logger.error(`AI webhook create video failed: ${message}`);
+        //     throw error;
+        // }
 
-        this.logger.log(
-            `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
-        );
+        // this.logger.log(
+        //     `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
+        // );
 
         // Gửi thông báo tới client qua WebSocket
         this.websocketService.notifyVideoCompleted(userId, {
-            id: created.id,
-            url: created.url,
-            type: created.type,
-            duration: created.duration ?? undefined,
+            // id: created.id,
+            url: url,
+            type: type,
+            duration: duration ?? undefined,
         });
 
-        return { success: true, id: created.id };
+        return { success: true };
     }
 }
