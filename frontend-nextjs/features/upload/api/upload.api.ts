@@ -19,6 +19,8 @@ export interface HighlightReelParams {
   topic?: string;
   includeKeywords?: string;
   excludeKeywords?: string;
+  /** Called with 0–100 as file bytes are sent to the server */
+  onUploadProgress?: (percent: number) => void;
 }
 
 export interface UploadResult {
@@ -78,7 +80,7 @@ async function parseClipsFromUrl(downloadUrl: string): Promise<Clip[]> {
 // API OBJECT
 // ============================================================================
 
-export const UPLOAD_ENDPOINT = "/highlight-reel";
+export const UPLOAD_ENDPOINT = "/mascot_colab/highlight-reel";
 
 export const uploadApi = createApi({
   startJob: async (params: HighlightReelParams) => {
@@ -94,12 +96,26 @@ export const uploadApi = createApi({
     const { data } = await apiClient.post<JobIdResponse>(
       UPLOAD_ENDPOINT,
       formData,
+      {
+        headers: {
+          // Remove default "application/json" so browser sets correct
+          // "multipart/form-data; boundary=..." for the FormData upload
+          "Content-Type": undefined,
+        },
+        timeout: 0, // Disable timeout for file uploads (large files need more time)
+        onUploadProgress: (event) => {
+          if (event.total && params.onUploadProgress) {
+            const percent = Math.round((event.loaded * 100) / event.total);
+            params.onUploadProgress(percent);
+          }
+        },
+      },
     );
     return data.job_id;
   },
   getStatus: async (jobId: string) => {
     const { data } = await apiClient.get<JobStatusResponse>(
-      `/jobs/status/${jobId}`,
+      `/mascot_colab/jobs/status/${jobId}`,
     );
     return data;
   },

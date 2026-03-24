@@ -47,12 +47,17 @@ router.use(
             // NẾU LÀ MULTIPART (Upload file): KHÔNG LÀM GÌ CẢ. 
             // http-proxy-middleware sẽ tự động pipe stream dữ liệu gốc sang NestJS.
         },
-        onProxyRes: (proxyRes, req: Request, res: Response) => {
+        onProxyRes: (proxyRes, req: Request, _res: Response) => {
+            // Xoá CORS headers từ upstream để gateway's CORS middleware kiểm soát
+            delete proxyRes.headers['access-control-allow-origin'];
+            delete proxyRes.headers['access-control-allow-credentials'];
+            delete proxyRes.headers['access-control-allow-methods'];
+            delete proxyRes.headers['access-control-allow-headers'];
             console.log(
                 `[Mascot Colab Service] ${req.method} ${req.originalUrl} -> ${proxyRes.statusCode}`,
             );
         },
-        onError: (err, req: Request, res: Response) => {
+        onError: (err, _req: Request, res: Response) => {
             console.error('[Mascot Colab Service Proxy Error]', err && err.message);
             res.status(503).json({
                 success: false,

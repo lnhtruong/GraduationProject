@@ -197,7 +197,7 @@ export class AppService {
       const outputUrl = (data as any)?.result?.download_url as string | '';
 
       const userId = userIdFromHeader;
-      const isHighlight = (data as any)?.type.includes('highlight-reel');
+      const isHighlight = (data as any)?.type?.includes('highlight-reel');
 
       if (outputUrl && userId && !Number.isNaN(userId)) {
         await this.videoModel.create({
