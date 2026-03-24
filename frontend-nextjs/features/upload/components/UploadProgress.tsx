@@ -44,7 +44,11 @@ export default function UploadProgress({
         <div className="flex items-center gap-3">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
           <div className="flex-1">
-            <p className="text-sm font-medium">Đang tải lên video...</p>
+            <p className="text-sm font-medium">
+              {(progress ?? 0) >= 99
+                ? "Đang chuẩn bị xử lý..."
+                : "Đang tải lên video..."}
+            </p>
             <p className="text-xs text-muted-foreground">
               Vui lòng không đóng trang này
             </p>

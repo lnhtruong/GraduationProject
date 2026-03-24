@@ -26,12 +26,14 @@ const baseHooks = createHooks<
  * Complete workflow: Start → Poll → Process result
  */
 export function useProcessHighlight(options?: {
+  onJobStarted?: (jobId: string) => void;
   onProgress?: (stage: string, progress?: number) => void;
   onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error) => void;
   pollInterval?: number;
 }) {
   const {
+    onJobStarted,
     onProgress,
     onSuccess,
     onError,
@@ -43,6 +45,7 @@ export function useProcessHighlight(options?: {
     mutationFn: async (params: HighlightReelParams) => {
       // Step 1: Start job
       const jobId = await uploadApi.startJob(params);
+      onJobStarted?.(jobId);
 
       // Step 2: Poll until complete
       const finalStatus = await poll<JobStatusResponse>({
@@ -60,7 +63,11 @@ export function useProcessHighlight(options?: {
 
       // Step 3: Check result
       if (finalStatus.status === "failed") {
-        throw new Error(finalStatus.error || "Job failed");
+        throw new Error(
+          finalStatus.error ||
+            (finalStatus.result?.error as string) ||
+            "Job failed",
+        );
       }
 
       // Step 4: Process result
