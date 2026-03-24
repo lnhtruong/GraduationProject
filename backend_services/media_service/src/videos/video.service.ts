@@ -33,14 +33,26 @@ export class VideoService {
         });
     }
 
-    async findAll(user_id: number | undefined) {
+    async findAll(user_id: number | undefined, type: string) {
 
         if (!user_id) {
             throw new BadRequestException('userId does not exist');
         }
 
+        if (typeof type !== 'string' || type.trim().length === 0) {
+            throw new BadRequestException('type does not exist');
+        }
+
+        const normalizedType = type.trim().toLowerCase();
+        const allowedTypes = Object.values(VideoType);
+        if (!allowedTypes.includes(normalizedType as VideoType)) {
+            throw new BadRequestException(
+                `Invalid type. Allowed: ${allowedTypes.join(', ')}`,
+            );
+        }
+
         return this.videoModel.findAll({
-            where: { user_id, type: VideoType.MASCOT },
+            where: { user_id, type: normalizedType as VideoType },
             include: [MascotImage],
             order: [['created_at', 'DESC']],
         });

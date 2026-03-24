@@ -13,9 +13,11 @@ import { API_URL } from "@/lib/env";
 export const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
+    "ngrok-skip-browser-warning": "true",
   },
 });
 

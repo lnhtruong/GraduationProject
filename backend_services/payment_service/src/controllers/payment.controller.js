@@ -4,8 +4,8 @@ const paymentService = require("../services/payment.service");
 const createPaymentLink = async (req, res) => {
     console.log("CHECK createPaymentLink: ", req.body);
     try {
-        const { amount } = req.body;
-        const result = await paymentService.createPaymentLink(amount || 2222);
+        const { amount, user_id, course_id } = req.body;
+        const result = await paymentService.createPaymentLink(amount || 2222, user_id, course_id);
         res.json(result);
     } catch (err) {
         console.error("Lỗi khi tạo đơn hàng: ", err.response?.data || err.message);

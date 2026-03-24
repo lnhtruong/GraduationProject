@@ -29,12 +29,6 @@ router.use(
                 proxyReq.setHeader('Authorization', req.headers.authorization);
             }
 
-            if (req.body && Object.keys(req.body).length) {
-                const bodyData = JSON.stringify(req.body);
-                proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-                proxyReq.write(bodyData);
-            }
-
             if (req.user) {
                 if (req.user.userId !== undefined) {
                     proxyReq.setHeader('X-User-Id', req.user.userId.toString());
@@ -42,6 +36,12 @@ router.use(
                 if (req.user.email) {
                     proxyReq.setHeader('X-User-Email', req.user.email);
                 }
+            }
+
+            if (req.body && Object.keys(req.body).length) {
+                const bodyData = JSON.stringify(req.body);
+                proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+                proxyReq.write(bodyData);
             }
         },
         onProxyRes: (proxyRes, req: Request, res: Response) => {

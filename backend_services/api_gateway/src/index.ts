@@ -70,16 +70,25 @@ const mediaWebSocketProxy = createProxyMiddleware({
 
 // Middleware
 app.use(cors({
-  credentials: true, // ⭐ Cho phép gửi cookies
+
+  origin: function (origin, callback) {
+
+    callback(null, true);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'ngrok-skip-browser-warning'
+  ],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(loggingMiddleware);
 app.use(requestLogger);
 
-// ⭐ Parse cookies - BẮT BUỘC để đọc cookies
+//  Parse cookies
 app.use(cookieParser());
 
 // Socket.IO handshake + polling/websocket transport forwarding to media service.
@@ -106,20 +115,20 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/check-otp',
   '/api/media/webhooks/cloudinary/upload',
-  '/api/media/cloudinary/sign',
+  // '/api/media/cloudinary/sign',
   '/api/media/webhooks/ai-model/result'
 ];
 
-app.use((req, res, next) => {
-  if (req.path.includes('webhooks')) {
-    console.log('==== WEBHOOK HIT ====');
-    console.log('URL:', req.originalUrl);
-    console.log('METHOD:', req.method);
-    console.log('HEADERS:', req.headers);
-    console.log('BODY:', req.body);
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (req.path.includes('media')) {
+//     console.log('==== WEBHOOK HIT ====');
+//     console.log('URL:', req.originalUrl);
+//     console.log('METHOD:', req.method);
+//     console.log('HEADERS:', req.headers);
+//     console.log('BODY:', req.body);
+//   }
+//   next();
+// });
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -148,7 +157,6 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Error handler
 app.use((err: Error, req: Request, res: Response, next: any) => {
   console.error('Error:', err);
   res.status(500).json({
@@ -157,7 +165,6 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
   });
 });
 
-// Start server
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` API Gateway is running on port ${config.port}`);
   console.log(` Auth Service: ${config.services.auth.url}`);
@@ -167,7 +174,6 @@ const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
 
-// Handle WebSocket upgrades and proxy to media service
 server.on('upgrade', (req, socket, head) => {
   console.log('[📡 WebSocket Upgrade]', {
     url: req.url,
@@ -178,7 +184,6 @@ server.on('upgrade', (req, socket, head) => {
     },
   });
 
-  // Handle socket errors
   socket.on('error', (err) => {
     console.error('[❌ WebSocket Socket Error]', {
       message: err.message,
@@ -186,7 +191,6 @@ server.on('upgrade', (req, socket, head) => {
     });
   });
 
-  // Proxy the upgrade
   wsProxy.ws(req, socket, head);
 });
 

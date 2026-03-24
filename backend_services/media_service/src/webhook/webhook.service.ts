@@ -12,6 +12,7 @@ interface CloudinaryContextCustom {
 interface CloudinaryPayload {
     secure_url?: string;
     url?: string;
+    public_id?: string;
     duration?: number;
     resource_type?: string;
     context?: {
@@ -40,7 +41,9 @@ export class WebhookService {
     ) { }
 
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, duration, resource_type, context, display_name } = payload;
+        const { secure_url, url, public_id, duration, resource_type, context, display_name } = payload;
+
+        // console.log('check information: ', secure_url, url, duration, context, display_name);
 
         if (resource_type !== 'video') {
             this.logger.debug(`Ignoring non-video resource_type=${resource_type}`);
@@ -72,10 +75,20 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const type: VideoType =
+        let type: VideoType = VideoType.HIGHLIGHT;
+        type =
             custom?.type?.toLowerCase() === VideoType.MASCOT
                 ? VideoType.MASCOT
                 : VideoType.HIGHLIGHT;
+
+        const cloudName = process.env.CLOUD_NAME?.trim();
+        const publicId = typeof public_id === 'string' ? public_id.trim() : undefined;
+        // const publicIdWithoutExt = publicId?.replace(/\.[a-z0-9]+$/i, '');
+
+        const thumbnailUrl =
+            cloudName && publicId
+                ? `https://res.cloudinary.com/${cloudName}/video/upload/so_1/${publicId}.jpg`
+                : undefined;
 
         const createPayload: Record<string, unknown> = {
             user_id: userId,
@@ -84,6 +97,9 @@ export class WebhookService {
             duration: typeof duration === 'number' ? duration : null,
         };
         if (display_name) createPayload.name = display_name;
+        if (thumbnailUrl) createPayload.thumbnail = thumbnailUrl;
+
+        // console.log('payload create: ', createPayload);
 
         let created: Video;
         try {

@@ -26,7 +26,17 @@ export class CloudinaryController {
   // Ký chữ ký cho frontend upload trực tiếp lên Cloudinary (Client-side signed upload)
   @Post('sign')
   @HttpCode(200)
-  getSignature(@Body() body: any) {
+  getSignature(@Body() body: any, @Headers('x-user-id') userIdHeader?: string) {
+
+    const userId =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+
+    if (userId === undefined) {
+      throw new BadRequestException('Missing user_id');
+    }
+
     const timestamp = Math.round(Date.now() / 1000);
 
     const folder =
@@ -46,7 +56,7 @@ export class CloudinaryController {
       );
     }
 
-    const paramsToSign = { timestamp, folder };
+    const paramsToSign = { timestamp, folder, context: `userId=${userId}` };
     const signature = cloudinary.utils.api_sign_request(paramsToSign, apiSecret);
 
     return {
