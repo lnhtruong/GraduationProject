@@ -64,11 +64,35 @@ async function parseClipsFromUrl(downloadUrl: string): Promise<Clip[]> {
     }
 
     return data.clips.map(
-      (clip: string | { name?: string; url: string }, index: number) => ({
-        name: typeof clip === "object" ? clip.name : `clip-${index + 1}`,
-        url: typeof clip === "object" ? clip.url : clip,
-        videoUrl: typeof clip === "object" ? clip.url : clip,
-      }),
+      (
+        clip:
+          | string
+          | {
+              name?: string;
+              url: string;
+              video_id?: number | string;
+              videoId?: number | string;
+            },
+        index: number,
+      ) => {
+        const clipObj =
+          typeof clip === "object"
+            ? clip
+            : { name: `clip-${index + 1}`, url: clip };
+        const rawVideoId = clipObj.videoId ?? clipObj.video_id;
+        const parsedVideoId =
+          typeof rawVideoId === "string" ? Number(rawVideoId) : rawVideoId;
+
+        return {
+          name: clipObj.name || `clip-${index + 1}`,
+          url: clipObj.url,
+          videoUrl: clipObj.url,
+          videoId:
+            typeof parsedVideoId === "number" && Number.isFinite(parsedVideoId)
+              ? parsedVideoId
+              : undefined,
+        };
+      },
     );
   } catch (error) {
     console.error("Failed to parse clips from URL:", error);

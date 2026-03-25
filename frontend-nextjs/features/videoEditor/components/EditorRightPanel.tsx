@@ -11,7 +11,8 @@ import type {
   MascotOption,
   VoiceOption,
   TextOption,
-  EffectOption, LayerItem,
+  EffectOption,
+  LayerItem,
 } from "@/features/videoEditor/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -32,6 +33,8 @@ interface Props {
   onTextRemove: (id: string) => void;
   selectedTextId?: string | null;
   onTextSelect?: (id: string | null) => void;
+  activeOption?: OptionType;
+  onActiveOptionChange?: (option: OptionType) => void;
 }
 
 export default function EditorRightPanel({
@@ -51,13 +54,24 @@ export default function EditorRightPanel({
   onTextRemove,
   selectedTextId,
   onTextSelect,
+  activeOption: controlledActiveOption,
+  onActiveOptionChange,
 }: Props) {
-    const textOverlays = layers
-        .filter((l) => l.type === "text")
-        .map((l) => l.data as TextOption);
+  const textOverlays = layers
+    .filter((l) => l.type === "text")
+    .map((l) => l.data as TextOption);
 
-    // ===== Option selection
-  const [activeOption, setActiveOption] = useState<OptionType>("effect");
+  // ===== Option selection
+  const [uncontrolledActiveOption, setUncontrolledActiveOption] =
+    useState<OptionType>("effect");
+  const activeOption = controlledActiveOption ?? uncontrolledActiveOption;
+  const setActiveOption = (option: OptionType) => {
+    if (onActiveOptionChange) {
+      onActiveOptionChange(option);
+      return;
+    }
+    setUncontrolledActiveOption(option);
+  };
 
   // ===== Text editor
   // Auto-select first text when switching to text tab
@@ -65,7 +79,7 @@ export default function EditorRightPanel({
     if (activeOption === "text" && textOverlays.length > 0 && !selectedTextId) {
       onTextSelect?.(textOverlays[0].id);
     }
-  }, [activeOption, textOverlays.length, selectedTextId, onTextSelect]);
+  }, [activeOption, textOverlays, selectedTextId, onTextSelect]);
 
   // Reset selectedTextId nếu text bị xóa
   useEffect(() => {
@@ -126,8 +140,8 @@ export default function EditorRightPanel({
   };
 
   return (
-    <aside className="col-span-3 bg-card rounded-md shadow-sm flex flex-col max-h-full border overflow-hidden">
-      <div className="p-4 border-b flex-shrink-0">
+    <aside className="h-full bg-card rounded-xl shadow-sm flex flex-col border border-border/70 overflow-hidden">
+      <div className="p-4 border-b shrink-0">
         <EditorOptions
           activeOption={activeOption}
           onOptionChange={setActiveOption}
@@ -140,17 +154,16 @@ export default function EditorRightPanel({
             <EffectOptions value={effect} onChange={onEffectChange} />
           )}
 
-            {activeOption === "text" && (
-                <>
-                    <TextOptions
-                        value={currentText}
-                        onChange={handleTextChange}
-                        onAdd={handleTextAdd}
-                        onRemove={selectedTextId ? handleTextRemove : undefined}
-                    />
-                </>
-            )}
-
+          {activeOption === "text" && (
+            <>
+              <TextOptions
+                value={currentText}
+                onChange={handleTextChange}
+                onAdd={handleTextAdd}
+                onRemove={selectedTextId ? handleTextRemove : undefined}
+              />
+            </>
+          )}
 
           {activeOption === "mascot" && onMascotChange && (
             <MascotOptions

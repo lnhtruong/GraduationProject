@@ -27,7 +27,12 @@ export interface JobStatusResponse {
   result?: {
     download_url?: string;
     output_filename?: string;
-    clips?: Array<{ name: string; url: string }>;
+    clips?: Array<{
+      name: string;
+      url: string;
+      video_id?: number | string;
+      videoId?: number | string;
+    }>;
     [key: string]: unknown;
   };
 }
@@ -45,6 +50,7 @@ export interface Clip {
   name: string;
   url: string;
   videoUrl?: string;
+  videoId?: number;
 }
 
 // ============================================================================

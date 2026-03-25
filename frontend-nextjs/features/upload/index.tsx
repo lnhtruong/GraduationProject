@@ -74,7 +74,13 @@ export default function Upload() {
   const handleViewResults = () => {
     // Navigate to editor with first clip
     if (clips && clips.length > 0 && clips[0].url) {
-      const url = `/editor?src=${encodeURIComponent(clips[0].url)}`;
+      const params = new URLSearchParams({
+        src: clips[0].url,
+      });
+      if (clips[0].videoId) {
+        params.set("videoId", String(clips[0].videoId));
+      }
+      const url = `/editor?${params.toString()}`;
       router.push(url);
       return;
     }

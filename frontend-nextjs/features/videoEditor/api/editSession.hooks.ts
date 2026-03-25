@@ -1,0 +1,152 @@
+/**
+ * Edit Session Hooks
+ * TanStack Query hooks for project and layer management
+ */
+
+import { createCrudHooks } from "@/features/_shared/crud-hooks";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createKeyFactory } from "@/lib/queryKeys";
+import {
+  projectApi,
+  mascotOverlayApi,
+  userVideoApi,
+  cloudinaryApi,
+} from "./editSession.api";
+import { toast } from "sonner";
+
+// ============================================================================
+// PROJECT CRUD HOOKS
+// ============================================================================
+
+export const projectCrud = createCrudHooks(
+  "projects",
+  {
+    listByParent: projectApi.listByParent,
+    getOne: projectApi.getOne,
+    create: projectApi.create,
+    update: projectApi.update,
+    delete: projectApi.delete,
+  },
+  {
+    idField: "edit_id",
+  },
+);
+
+// Re-export main project hooks
+export const {
+  useListByParent: useUserProjects,
+  useDetail: useProject,
+  useCreate: useCreateProject,
+  useUpdate: useUpdateProject,
+  useDelete: useDeleteProject,
+} = projectCrud;
+
+// ============================================================================
+// MASCOT OVERLAY CRUD HOOKS
+// ============================================================================
+
+export const layerCrud = createCrudHooks(
+  "mascot-layers",
+  {
+    listByParent: mascotOverlayApi.listByEdit,
+    getOne: mascotOverlayApi.getOne,
+    create: mascotOverlayApi.create,
+    update: mascotOverlayApi.update,
+    delete: mascotOverlayApi.delete,
+  },
+  {
+    idField: "mascot_overlay_id",
+  },
+);
+
+// Re-export main layer hooks
+export const {
+  useListByParent: useProjectLayers,
+  useDetail: useLayer,
+  useCreate: useCreateLayer,
+  useUpdate: useUpdateLayer,
+  useDelete: useDeleteLayer,
+} = layerCrud;
+
+// ============================================================================
+// USER HIGHLIGHT VIDEOS QUERY
+// ============================================================================
+
+const userVideosKeys = createKeyFactory("user-videos");
+
+export function useUserHighlightVideos(userId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: userVideosKeys.custom("highlight", userId),
+    queryFn: async () => {
+      return userVideoApi.listByUser("highlight");
+    },
+    enabled: enabled && userId !== null && userId !== undefined,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUserMascotVideos(userId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: userVideosKeys.custom("mascot", userId),
+    queryFn: async () => {
+      return userVideoApi.listByUser("mascot");
+    },
+    enabled: enabled && userId !== null && userId !== undefined,
+    staleTime: 60 * 1000,
+  });
+}
+
+// ============================================================================
+// CLOUDINARY DIRECT UPLOAD MUTATION (Client-side to Cloudinary API)
+// ============================================================================
+
+export function useCloudinaryDirectUpload(
+  onProgress?: (percent: number) => void,
+  onSuccess?: (url: string) => void,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      file,
+      folderName = "editor-uploads",
+    }: {
+      file: File;
+      folderName?: string;
+    }) => {
+      // Step 1: Get signature from backend
+      const signature = await cloudinaryApi.getSignature(folderName);
+
+      // Step 2: Upload directly to Cloudinary
+      const secureUrl = await cloudinaryApi.uploadDirectToCloudinary(
+        file,
+        signature,
+        onProgress,
+      );
+
+      return { success: true, secure_url: secureUrl };
+    },
+    onSuccess: (response) => {
+      toast.success("Video uploaded successfully!");
+
+      // Invalidate highlight videos query to refresh the list
+      queryClient.invalidateQueries({
+        queryKey: userVideosKeys.custom("highlight"),
+      });
+
+      onSuccess?.(response.secure_url);
+    },
+    onError: (error: unknown) => {
+      let message = "Failed to upload video";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        const errObj = error as Record<string, unknown>;
+        if (typeof errObj.message === "string") {
+          message = errObj.message;
+        }
+      }
+      toast.error(message);
+    },
+  });
+}
