@@ -4,6 +4,8 @@
 
 export type ProjectStatus =
 	| "draft"
+	| "saved"
+	| "finalized"
 	| "processing"
 	| "completed"
 	| "failed"
@@ -12,7 +14,7 @@ export type ProjectStatus =
 export interface Project {
 	id: number;
 	user_id: number;
-	video_id: number;
+	video_id: number | null;
 	session_name: string;
 	status: ProjectStatus;
 	created_at?: string;
@@ -20,8 +22,7 @@ export interface Project {
 }
 
 export interface CreateProjectRequest {
-	user_id: number;
-	video_id: number;
+	video_id?: number | null;
 	session_name: string;
 }
 
