@@ -2,23 +2,32 @@
  * Video Feature Types
  */
 
-export type VideoType = "highlight" | "full" | (string & {});
+export type VideoType = "highlight" | "mascot" | "full" | (string & {});
+
+export interface VideoImage {
+	id?: number;
+	thumbnail?: string | null;
+	url?: string;
+	[key: string]: unknown;
+}
 
 export interface Video {
 	id: number;
 	user_id?: number;
-	image_id: number;
+	image_id: number | null;
 	url: string;
-	duration: number;
+	duration: number | null;
 	type: VideoType;
+	thumbnail?: string | null;
+	image?: VideoImage | null;
 	created_at?: string;
 	updated_at?: string;
 }
 
 export interface CreateVideoRequest {
-	image_id: number;
+	image_id?: number | null;
 	url: string;
-	duration: number;
+	duration?: number | null;
 	type: VideoType;
 }
 
