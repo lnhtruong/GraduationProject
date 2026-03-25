@@ -25,6 +25,7 @@ export type UploadStatus =
 export interface Clip {
   name: string;
   url: string;
+  videoId?: number;
 }
 
 /**
