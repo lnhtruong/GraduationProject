@@ -14,8 +14,8 @@ export default function Workspace() {
     projectCount,
     isProjectLoading,
     isLoadingThumbnails,
-    isCreatingProject,
     deletingProjectId,
+    renamingProjectId,
     error,
     searchValue,
     statusFilter,
@@ -24,27 +24,22 @@ export default function Workspace() {
     setStatusFilter,
     setSortBy,
     refetchProjects,
-    createNewProject,
     removeProject,
+    renameProject,
   } = useWorkspace();
 
-  const handleCreateProject = async () => {
-    const created = await createNewProject();
-    const params = new URLSearchParams();
-    params.set("project_id", String(created.id));
-    params.set("projectId", String(created.id));
-    router.push(`/editor?${params.toString()}`);
+  const handleCreateProject = () => {
+    router.push("/editor");
   };
 
   const handleOpenProject = (projectId: number) => {
     const params = new URLSearchParams();
-    params.set("project_id", String(projectId));
-    params.set("projectId", String(projectId));
+    params.set("edit_id", String(projectId));
     router.push(`/editor?${params.toString()}`);
   };
 
   const handleDeleteProject = async (projectId: number) => {
-    const target = projects.find((item) => item.project.id === projectId);
+    const target = projects.find((item) => item.project.edit_id === projectId);
     if (!target) {
       return;
     }
@@ -60,15 +55,23 @@ export default function Workspace() {
     await removeProject(target.project);
   };
 
+  const handleRenameProject = async (projectId: number, sessionName: string) => {
+    const target = projects.find((item) => item.project.edit_id === projectId);
+    if (!target) {
+      return false;
+    }
+
+    return renameProject(target.project, sessionName);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <section className="container mx-auto flex h-[calc(100vh-8rem)] flex-col gap-4 px-4 py-6">
-        <div className="sticky top-16 z-20 space-y-3">
+    <div className="bg-background">
+      <section className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-6xl flex-col gap-3 px-4 py-4">
+        <div className="z-10 shrink-0 space-y-3 bg-background pb-1">
           <WorkspaceHeader
             projectCount={projectCount}
-            isCreatingProject={isCreatingProject}
             onCreateProject={() => {
-              void handleCreateProject();
+              handleCreateProject();
             }}
           />
           <WorkspaceFilters
@@ -81,13 +84,14 @@ export default function Workspace() {
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-4">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card p-2 shadow-sm">
           <ScrollArea className="h-full pr-2">
             <ProjectGrid
               items={projects}
               isLoading={isProjectLoading}
               isLoadingThumbnails={isLoadingThumbnails}
               deletingProjectId={deletingProjectId}
+              renamingProjectId={renamingProjectId}
               error={error}
               onRetry={() => {
                 void refetchProjects();
@@ -96,6 +100,7 @@ export default function Workspace() {
               onDeleteProject={(projectId) => {
                 void handleDeleteProject(projectId);
               }}
+              onRenameProject={handleRenameProject}
             />
           </ScrollArea>
         </div>

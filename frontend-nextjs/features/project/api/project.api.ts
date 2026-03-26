@@ -15,7 +15,6 @@ import type {
 const PROJECT_ENDPOINT = "/media/projects";
 
 type ProjectApiResponse = {
-	id?: number;
 	edit_id?: number;
 	user_id?: number;
 	video_id?: number | null;
@@ -27,7 +26,7 @@ type ProjectApiResponse = {
 
 function mapProject(raw: ProjectApiResponse): Project {
 	return {
-		id: raw.id ?? raw.edit_id ?? 0,
+		edit_id: raw.edit_id ?? 0,
 		user_id: raw.user_id ?? 0,
 		video_id: raw.video_id ?? null,
 		session_name: raw.session_name ?? "Untitled project",

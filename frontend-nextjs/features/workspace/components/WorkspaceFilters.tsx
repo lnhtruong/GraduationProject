@@ -27,13 +27,13 @@ export function WorkspaceFilters({
   onSortChange,
 }: WorkspaceFiltersProps) {
   return (
-    <div className="grid gap-3 rounded-xl border border-border/70 bg-card/80 p-4 md:grid-cols-12">
+    <div className="grid gap-2.5 rounded-xl border border-border/80 bg-muted/30 p-3 shadow-sm md:grid-cols-12">
       <div className="relative md:col-span-6">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="pl-9"
+          className="h-8 pl-8 text-xs"
           placeholder="Tìm theo tên dự án hoặc ID..."
         />
       </div>
@@ -43,7 +43,7 @@ export function WorkspaceFilters({
           value={statusFilter}
           onValueChange={(value) => onStatusChange(value as WorkspaceStatusFilter)}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="h-8 w-full text-xs">
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
           <SelectContent>
@@ -63,7 +63,7 @@ export function WorkspaceFilters({
           value={sortBy}
           onValueChange={(value) => onSortChange(value as WorkspaceSortBy)}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="h-8 w-full text-xs">
             <SelectValue placeholder="Sắp xếp" />
           </SelectTrigger>
           <SelectContent>

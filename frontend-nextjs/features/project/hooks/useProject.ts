@@ -27,13 +27,13 @@ export function useProject(initialProjectId?: number | null) {
 
 	const createProject = async (payload: CreateProjectRequest) => {
 		const created = await createProjectMutation.mutateAsync(payload);
-		setSelectedProjectId(created.id);
+		setSelectedProjectId(created.edit_id);
 		return created;
 	};
 
 	const updateProject = async (id: number, payload: UpdateProjectRequest) => {
 		const updated = await updateProjectMutation.mutateAsync({ id, data: payload });
-		setSelectedProjectId(updated.id);
+		setSelectedProjectId(updated.edit_id);
 		return updated;
 	};
 

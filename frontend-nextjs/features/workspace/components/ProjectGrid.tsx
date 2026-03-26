@@ -9,10 +9,12 @@ interface ProjectGridProps {
   isLoading: boolean;
   isLoadingThumbnails: boolean;
   deletingProjectId: number | null;
+  renamingProjectId: number | null;
   error: unknown;
   onRetry: () => void;
   onOpenProject: (projectId: number) => void;
   onDeleteProject: (projectId: number) => void;
+  onRenameProject: (projectId: number, sessionName: string) => Promise<boolean>;
 }
 
 export function ProjectGrid({
@@ -20,10 +22,12 @@ export function ProjectGrid({
   isLoading,
   isLoadingThumbnails,
   deletingProjectId,
+  renamingProjectId,
   error,
   onRetry,
   onOpenProject,
   onDeleteProject,
+  onRenameProject,
 }: ProjectGridProps) {
   if (isLoading) {
     return <ProjectGridSkeleton />;
@@ -55,18 +59,20 @@ export function ProjectGrid({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs text-muted-foreground">
+    <div className="space-y-2.5">
+      <div className="text-[11px] text-muted-foreground">
         {isLoadingThumbnails ? "Đang tải thumbnail..." : `Hiển thị ${items.length} dự án`}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {items.map((item) => (
           <ProjectCard
-            key={item.project.id}
+            key={item.project.edit_id}
             item={item}
-            isDeleting={deletingProjectId === item.project.id}
+            isDeleting={deletingProjectId === item.project.edit_id}
+            isRenaming={renamingProjectId === item.project.edit_id}
             onOpen={onOpenProject}
             onDelete={onDeleteProject}
+            onRename={onRenameProject}
           />
         ))}
       </div>
@@ -76,14 +82,14 @@ export function ProjectGrid({
 
 function ProjectGridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-2xl border border-border/70">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {Array.from({ length: 16 }).map((_, index) => (
+        <div key={index} className="overflow-hidden rounded-lg border border-border/70">
           <Skeleton className="aspect-video rounded-none" />
-          <div className="space-y-3 p-4">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-5 w-4/5" />
-            <Skeleton className="h-4 w-3/5" />
+          <div className="space-y-1.5 p-2.5">
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-3 w-3/5" />
           </div>
         </div>
       ))}

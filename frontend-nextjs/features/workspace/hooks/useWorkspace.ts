@@ -5,6 +5,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useProject } from "@/features/project";
 import { videoApi } from "@/features/video";
 import { videoKeys } from "@/features/video";
+import { toast } from "sonner";
 import type { Project } from "@/features/project";
 import type {
   WorkspaceProjectItem,
@@ -18,7 +19,7 @@ export function useWorkspace() {
     isLoading: isProjectLoading,
     error,
     refetchProjects,
-    createProject,
+    updateProject,
     deleteProject,
   } = useProject();
 
@@ -26,8 +27,8 @@ export function useWorkspace() {
   const [statusFilter, setStatusFilter] =
     useState<WorkspaceStatusFilter>("all");
   const [sortBy, setSortBy] = useState<WorkspaceSortBy>("updated_desc");
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
+  const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null);
 
   const videoQueries = useQueries({
     queries: projects.map((project) => ({
@@ -66,7 +67,7 @@ export function useWorkspace() {
 
       return (
         project.session_name.toLowerCase().includes(keyword) ||
-        String(project.id).includes(keyword)
+        String(project.edit_id).includes(keyword)
       );
     });
 
@@ -87,24 +88,42 @@ export function useWorkspace() {
 
   const isLoadingThumbnails = videoQueries.some((query) => query.isLoading);
 
-  const createNewProject = async () => {
+  const removeProject = async (project: Project) => {
     try {
-      setIsCreatingProject(true);
-      const created = await createProject({
-        session_name: buildDefaultSessionName(),
-      });
-      return created;
+      setDeletingProjectId(project.edit_id);
+      await deleteProject(project.edit_id);
     } finally {
-      setIsCreatingProject(false);
+      setDeletingProjectId(null);
     }
   };
 
-  const removeProject = async (project: Project) => {
+  const renameProject = async (project: Project, sessionName: string) => {
+    const trimmedName = sessionName.trim();
+
+    if (!trimmedName) {
+      toast.error("Tên dự án không được để trống");
+      return false;
+    }
+
+    if (trimmedName === project.session_name) {
+      return true;
+    }
+
     try {
-      setDeletingProjectId(project.id);
-      await deleteProject(project.id);
+      setRenamingProjectId(project.edit_id);
+      await updateProject(project.edit_id, { session_name: trimmedName });
+      toast.success("Đã cập nhật tên dự án");
+      return true;
+    } catch (renameError) {
+      toast.error("Không thể đổi tên dự án", {
+        description:
+          renameError instanceof Error
+            ? renameError.message
+            : "Vui lòng thử lại sau",
+      });
+      return false;
     } finally {
-      setDeletingProjectId(null);
+      setRenamingProjectId(null);
     }
   };
 
@@ -113,8 +132,8 @@ export function useWorkspace() {
     projectCount: projects.length,
     isProjectLoading,
     isLoadingThumbnails,
-    isCreatingProject,
     deletingProjectId,
+    renamingProjectId,
     error,
     searchValue,
     statusFilter,
@@ -123,19 +142,9 @@ export function useWorkspace() {
     setStatusFilter,
     setSortBy,
     refetchProjects,
-    createNewProject,
     removeProject,
+    renameProject,
   } as const;
-}
-
-function buildDefaultSessionName() {
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2, "0");
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-
-  return `Project mới - ${dd}/${mm} ${hh}:${min}`;
 }
 
 function toTime(value?: string) {

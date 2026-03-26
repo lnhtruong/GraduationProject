@@ -12,7 +12,7 @@ export type ProjectStatus =
 	| (string & {});
 
 export interface Project {
-	id: number;
+	edit_id: number;
 	user_id: number;
 	video_id: number | null;
 	session_name: string;

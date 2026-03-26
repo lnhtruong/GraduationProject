@@ -58,7 +58,10 @@ const useUpdateProjectBase = createMutationHooks<
 >("project", "update", ({ id, data }) => projectApi.updateById(id, data), {
 	onSuccess: (updatedProject, _variables, queryClient) => {
 		queryClient.invalidateQueries({ queryKey: keys.root });
-		queryClient.setQueryData(keys.detail(updatedProject.id), updatedProject);
+		queryClient.setQueryData(
+			keys.detail(updatedProject.edit_id),
+			updatedProject,
+		);
 	},
 });
 
