@@ -55,8 +55,6 @@ FROM
     JOIN `mascot_images` mi ON mi.`image_id` = mv.`image_id`
 WHERE
     mi.`user_id` IS NOT NULL;
-
-);
-
+    
 -- DROP TABLE IF EXISTS `Highlight_Videos`;
 -- DROP TABLE IF EXISTS `mascot_videos`;
