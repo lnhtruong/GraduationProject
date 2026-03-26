@@ -24,6 +24,7 @@ interface Props {
   onMascotApply?: () => void;
   isApplyingMascot?: boolean;
   videoFile?: File | null;
+  videoSourceUrl?: string;
   mascotProgress?: string;
   voice: VoiceOption;
   onVoiceChange?: (voice: VoiceOption) => void;
@@ -46,6 +47,7 @@ export default function EditorRightPanel({
   isApplyingMascot,
   mascotProgress,
   videoFile,
+  videoSourceUrl,
   voice,
   onVoiceChange,
   layers,
@@ -172,7 +174,7 @@ export default function EditorRightPanel({
               onApply={onMascotApply}
               isApplying={isApplyingMascot}
               mascotProgress={mascotProgress}
-              videoFile={videoFile}
+              hasVideo={Boolean(videoFile || videoSourceUrl)}
             />
           )}
 
