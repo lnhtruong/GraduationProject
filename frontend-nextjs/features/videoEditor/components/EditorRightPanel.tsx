@@ -127,6 +127,10 @@ export default function EditorRightPanel({
       fontStyle: "normal",
       textDecoration: "none",
       textAlign: "center",
+      startTime: 0,
+      duration: 0,
+      width: 300,
+      height: 100,
     };
     onTextAdd(newText);
     onTextSelect?.(newText.id);

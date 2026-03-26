@@ -10,14 +10,12 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { DragOverlay } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Download, Save } from "lucide-react";
 import EditorToolbar from "@/features/videoEditor/components/EditorToolbar";
 import VideoPreview from "@/features/videoEditor/components/VideoPreview";
 import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
-import LayersPanel from "@/features/videoEditor/components/LayersPanel";
-import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
+import TimelinePanel from "@/features/videoEditor/components/TimelinePanel";
 import EditorMediaDropzone, {
   VideoDropData,
 } from "@/features/videoEditor/components/EditorMediaDropzone";
@@ -93,68 +91,60 @@ export default function CoreVideoEditor({
   } = editor;
 
   const [activeItem, setActiveItem] = useState<LayerItem | null>(null);
-  const [isDraggingLayer, setIsDraggingLayer] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
 
+  // ── Timeline state ──────────────────────────────────────────────────────────
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+  const [videoDurationMs, setVideoDurationMs] = useState(30_000);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onTime = () => setCurrentTimeMs(video.currentTime * 1000);
+    const onMeta = () => setVideoDurationMs((video.duration || 30) * 1000);
+    video.addEventListener("timeupdate", onTime);
+    video.addEventListener("loadedmetadata", onMeta);
+    return () => {
+      video.removeEventListener("timeupdate", onTime);
+      video.removeEventListener("loadedmetadata", onMeta);
+    };
+  }, [videoRef]);
+
+  // ── DnD sensors ─────────────────────────────────────────────────────────────
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
+      activationConstraint: { distance: 5 },
     }),
   );
 
-  const handlePanelDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const source = active.data.current?.source;
-    if (source !== "panel") return;
-
-    const oldIndex = layers.findIndex((l) => l.id === active.id);
-    const newIndex = layers.findIndex((l) => l.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newOrder = arrayMove(layers, oldIndex, newIndex);
-    handleReorderText(newOrder);
-  };
-
+  // ── Preview drag (for DragOverlay label only) ────────────────────────────────
   const handlePreviewDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id);
     const item = layers.find((l) => l.id === id);
-    if (!item) return;
-
-    setActiveItem(item);
-    setIsDraggingLayer(true);
+    if (item) setActiveItem(item);
   };
 
-  const handlePreviewDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (active.data.current?.source === "preview" && over?.id === "trash") {
-      handleRemoveText(String(active.id));
-    }
-
+  const handlePreviewDragEnd = () => {
     setActiveItem(null);
-    setIsDraggingLayer(false);
   };
 
+  // ── Download ─────────────────────────────────────────────────────────────────
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
       await download();
-    } catch (error) {
-      console.error("Download error:", error);
+    } catch (err) {
+      console.error("Download error:", err);
     } finally {
       setIsDownloading(false);
     }
   };
 
+  // ── Mascot apply ─────────────────────────────────────────────────────────────
   const handleMascotApply = useCallback(async () => {
     const hasSelectedVideo =
       Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
-
     if (
       !hasSelectedVideo ||
       (disableUpload && !originalVideoFile && !hasSelectedVideo)
@@ -162,26 +152,14 @@ export default function CoreVideoEditor({
       alert("Không có video để áp dụng mascot.");
       return;
     }
-
     await applyMascot(mascot, videoSrc, (blobUrl) => {
       setVideoSrc(blobUrl);
     });
-  }, [
-    videoSrc,
-    disableUpload,
-    originalVideoFile,
-    applyMascot,
-    mascot,
-    setVideoSrc,
-  ]);
+  }, [videoSrc, disableUpload, originalVideoFile, applyMascot, mascot, setVideoSrc]);
 
-  const hasSelectedVideo =
-    Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
-  const needsVideoSelection = !originalVideoFile && !hasSelectedVideo;
-
+  // ── Queued text template ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!queuedTextTemplate) return;
-
     const newText: TextOption = {
       id: crypto.randomUUID(),
       text: queuedTextTemplate,
@@ -193,13 +171,17 @@ export default function CoreVideoEditor({
       fontStyle: "normal",
       textDecoration: "none",
       textAlign: "center",
+      startTime: 0,
+      duration: 0,
+      width: 300,
+      height: 100,
     };
-
     handleAddText(newText);
     setSelectedTextId(newText.id);
     onQueuedTextTemplateConsumed?.();
   }, [queuedTextTemplate, handleAddText, onQueuedTextTemplateConsumed]);
 
+  // ── External panel bindings ───────────────────────────────────────────────────
   useEffect(() => {
     onPanelBindingsChange?.({
       effect,
@@ -238,6 +220,20 @@ export default function CoreVideoEditor({
     handleMascotApply,
   ]);
 
+  // ── Visibility filter: chỉ hiện layer trong khoảng thời gian ─────────────────
+  const visibleLayers = layers.filter((layer) => {
+    if (layer.type !== "text") return true;
+    const start = layer.data.startTime ?? 0;
+    const dur = layer.data.duration && layer.data.duration > 0
+      ? layer.data.duration
+      : Infinity;
+    return currentTimeMs >= start && currentTimeMs <= start + dur;
+  });
+
+  // ── Early return: upload screen ───────────────────────────────────────────────
+  const hasSelectedVideo = Boolean(videoSrc);
+  const needsVideoSelection = !originalVideoFile && !hasSelectedVideo;
+
   if (needsVideoSelection && !disableUpload) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -261,10 +257,16 @@ export default function CoreVideoEditor({
     );
   }
 
+  // ── Grid layout helpers ───────────────────────────────────────────────────────
+  const previewColSpan = hideLeftToolbar
+    ? hideRightPanel ? "lg:col-span-12" : "lg:col-span-9"
+    : hideRightPanel ? "lg:col-span-11" : "lg:col-span-8";
+
   return (
     <div
       className={`${hideTopBar ? "h-full" : "min-h-screen"} bg-background flex flex-col min-h-0`}
     >
+      {/* ── Top bar ── */}
       {!hideTopBar && (
         <div className="bg-card border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -290,6 +292,7 @@ export default function CoreVideoEditor({
       )}
 
       <div className="w-full px-2 sm:px-4 lg:px-6 py-2 sm:py-4 overflow-hidden flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
+        {/* ── Preview row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 min-h-0 auto-rows-max">
           {!hideLeftToolbar && (
             <aside className="col-span-1 overflow-y-auto hidden lg:block">
@@ -309,18 +312,13 @@ export default function CoreVideoEditor({
             onDragEnd={handlePreviewDragEnd}
           >
             <section
-              className={`bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 ${hideLeftToolbar ? (hideRightPanel ? "lg:col-span-12" : "lg:col-span-9") : hideRightPanel ? "lg:col-span-11" : "lg:col-span-8"} col-span-1`}
+              className={`bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 ${previewColSpan} col-span-1`}
             >
               {needsVideoSelection && disableUpload ? (
                 <EditorMediaDropzone
                   onMediaSelect={(url, file, videoId) => {
                     setVideoSrc(url);
-                    if (file) {
-                      setOriginalVideoFile(file);
-                    } else {
-                      // For Cloudinary URLs, clear the local file
-                      setOriginalVideoFile(null);
-                    }
+                    setOriginalVideoFile(file ?? null);
                     void onFirstVideoAdded?.({ file, url, videoId });
                   }}
                   onVideoDrop={onVideoDrop}
@@ -332,14 +330,15 @@ export default function CoreVideoEditor({
                   videoRef={videoRef}
                   src={videoSrc}
                   filter={cssFilter()}
-                  layers={layers}
+                  layers={visibleLayers}
                   selectedTextId={selectedTextId}
                   onTextSelect={setSelectedTextId}
+                  onTextUpdate={handleUpdateText}
                 />
               )}
             </section>
-            {isDraggingLayer && <TrashDropZone />}
 
+            {/* DragOverlay: ghost label khi kéo layer từ preview */}
             <DragOverlay dropAnimation={null}>
               {activeItem && activeItem.type === "text" && (
                 <div
@@ -388,22 +387,23 @@ export default function CoreVideoEditor({
           )}
         </div>
 
+        {/* ── Timeline row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4">
           {!hideLeftToolbar && <div className="col-span-1 hidden lg:block" />}
 
-          <div
-            className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}
-          >
-            <DndContext sensors={sensors} onDragEnd={handlePanelDragEnd}>
-              <section className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-sm h-20 sm:h-28 overflow-auto">
-                <LayersPanel
-                  layers={layers}
-                  selectedId={selectedTextId}
-                  onSelect={setSelectedTextId}
-                  orientation="horizontal"
-                />
-              </section>
-            </DndContext>
+          <div className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}>
+            <section className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-sm h-52 sm:h-60 overflow-hidden">
+              <TimelinePanel
+                layers={layers}
+                selectedId={selectedTextId}
+                onSelect={setSelectedTextId}
+                onReorder={handleReorderText}
+                onUpdate={handleUpdateText}
+                onRemove={handleRemoveText}
+                videoDurationMs={videoDurationMs}
+                currentTimeMs={currentTimeMs}
+              />
+            </section>
           </div>
         </div>
       </div>

@@ -140,6 +140,56 @@ export default function TextOptions({
         </div>
       </div>
 
+      {/* Timeline Settings */}
+      <div className="space-y-2 border-t pt-4">
+        <Label className="text-sm font-semibold">Thời lượng</Label>
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Start Time */}
+          <div className="space-y-2">
+            <Label htmlFor="start-time" className="text-xs text-muted-foreground">
+              Bắt đầu (ms)
+            </Label>
+            <Input
+              id="start-time"
+              type="number"
+              value={value.startTime ?? 0}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  startTime: Math.max(0, Number(e.target.value)),
+                })
+              }
+              min={0}
+              step={100}
+              className="font-mono text-sm"
+            />
+          </div>
+
+          {/* Duration */}
+          <div className="space-y-2">
+            <Label htmlFor="duration" className="text-xs text-muted-foreground">
+              Thời lượng (ms)
+            </Label>
+            <Input
+              id="duration"
+              type="number"
+              value={value.duration ?? 0}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  duration: Math.max(0, Number(e.target.value)),
+                })
+              }
+              min={0}
+              step={100}
+              className="font-mono text-sm"
+              placeholder="0 = toàn bộ"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Font Settings */}
       <div className="space-y-2 border-t pt-4">
         <Label className="text-sm font-semibold">Kích thước và Phông chữ</Label>
