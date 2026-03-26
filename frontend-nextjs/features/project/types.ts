@@ -2,6 +2,8 @@
  * Project Feature Types
  */
 
+import type { Video } from "@/features/video";
+
 export type ProjectStatus =
 	| "draft"
 	| "saved"
@@ -15,6 +17,7 @@ export interface Project {
 	edit_id: number;
 	user_id: number;
 	video_id: number | null;
+	video?: Video | null;
 	session_name: string;
 	status: ProjectStatus;
 	created_at?: string;
