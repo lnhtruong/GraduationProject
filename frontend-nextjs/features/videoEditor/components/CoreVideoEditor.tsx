@@ -157,6 +157,13 @@ export default function CoreVideoEditor({
     });
   }, [videoSrc, disableUpload, originalVideoFile, applyMascot, mascot, setVideoSrc]);
 
+  const handleSeek = useCallback((ms: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = ms / 1000;
+    // Cập nhật state ngay lập tức để playhead không lag
+    setCurrentTimeMs(ms);
+  }, [videoRef]);
   // ── Queued text template ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!queuedTextTemplate) return;
@@ -401,6 +408,7 @@ export default function CoreVideoEditor({
                 onRemove={handleRemoveText}
                 videoDurationMs={videoDurationMs}
                 currentTimeMs={currentTimeMs}
+                onSeek={handleSeek}      
               />
             </section>
           </div>

@@ -1,16 +1,8 @@
 "use client";
 
-// VideoPreview.tsx
-// THAY ĐỔI CHÍNH:
-// - Text layer KHÔNG dùng useDraggable nữa → dùng onMouseDown thuần
-//   → fix position không update, fix bóng thừa khi kéo
-// - Resize giữ nguyên logic mouse event
-// - Vẫn export interface Props như cũ để CoreVideoEditor không cần sửa
-
 import type { TextOption, LayerItem } from "@/features/videoEditor/types";
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 
-// ─── Resize handle ─────────────────────────────────────────────────────────────
 type HandlePos = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 
 function ResizeHandle({
@@ -38,8 +30,7 @@ function ResizeHandle({
   );
 }
 
-// ─── Text layer (thuần mouse — không dùng dnd-kit) ────────────────────────────
-interface TextLayer {
+interface TextLayerDef {
   id: string;
   type: "text";
   data: TextOption;
@@ -53,7 +44,7 @@ function DraggableResizableTextLayer({
   onUpdate,
   containerRef,
 }: {
-  layer: TextLayer;
+  layer: TextLayerDef;
   zIndex: number;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -63,20 +54,18 @@ function DraggableResizableTextLayer({
   const width  = layer.data.width  ?? 200;
   const height = layer.data.height ?? 60;
 
-  // ─── Drag (thuần mouse) ──────────────────────────────────────────────────────
+  // ─── Drag ────────────────────────────────────────────────────────────────────
   const dragRef = useRef<{
     startMouseX: number;
     startMouseY: number;
-    startPosX: number; // % 
-    startPosY: number; // %
+    startPosX: number;
+    startPosY: number;
   } | null>(null);
 
   const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Chỉ drag bằng button trái, và không phải đang resize
     if (e.button !== 0) return;
     e.stopPropagation();
     onSelect(layer.id);
-
     const container = containerRef.current;
     if (!container) return;
 
@@ -92,84 +81,93 @@ function DraggableResizableTextLayer({
       const rect = containerRef.current.getBoundingClientRect();
       const dx = ((ev.clientX - dragRef.current.startMouseX) / rect.width)  * 100;
       const dy = ((ev.clientY - dragRef.current.startMouseY) / rect.height) * 100;
-      const newX = Math.min(100, Math.max(0, dragRef.current.startPosX + dx));
-      const newY = Math.min(100, Math.max(0, dragRef.current.startPosY + dy));
-      onUpdate(layer.id, { position: { x: newX, y: newY } });
+      onUpdate(layer.id, {
+        position: {
+          x: Math.min(100, Math.max(0, dragRef.current.startPosX + dx)),
+          y: Math.min(100, Math.max(0, dragRef.current.startPosY + dy)),
+        },
+      });
     };
-
     const onMouseUp = () => {
       dragRef.current = null;
       window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup",  onMouseUp);
+      window.removeEventListener("mouseup", onMouseUp);
     };
-
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup",   onMouseUp);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
-  // ─── Resize ──────────────────────────────────────────────────────────────────
+  // ─── Resize (scale font theo min ratio W/H) ───────────────────────────────
   const resizeRef = useRef<{
     handle: HandlePos;
     startMouseX: number;
     startMouseY: number;
     startWidth: number;
     startHeight: number;
+    startFontSize: number;
   } | null>(null);
 
   const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>, handle: HandlePos) => {
     e.preventDefault();
     e.stopPropagation();
-
     resizeRef.current = {
       handle,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startWidth:  width,
-      startHeight: height,
+      startMouseX:  e.clientX,
+      startMouseY:  e.clientY,
+      startWidth:   width,
+      startHeight:  height,
+      startFontSize: layer.data.fontSize,
     };
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!resizeRef.current) return;
-      const { handle: h, startMouseX, startMouseY, startWidth, startHeight } = resizeRef.current;
+      const { handle: h, startMouseX, startMouseY,
+              startWidth, startHeight, startFontSize } = resizeRef.current;
       const dx = ev.clientX - startMouseX;
       const dy = ev.clientY - startMouseY;
-      let nw = startWidth, nh = startHeight;
-      if (h.includes("r")) nw = Math.max(60, startWidth  + dx);
-      if (h.includes("l")) nw = Math.max(60, startWidth  - dx);
-      if (h.includes("b")) nh = Math.max(30, startHeight + dy);
-      if (h.includes("t")) nh = Math.max(30, startHeight - dy);
-      onUpdate(layer.id, { width: nw, height: nh });
-    };
 
+      let nw = startWidth;
+      let nh = startHeight;
+      if (h.includes("r")) nw = Math.max(60,  startWidth  + dx);
+      if (h.includes("l")) nw = Math.max(60,  startWidth  - dx);
+      if (h.includes("b")) nh = Math.max(30,  startHeight + dy);
+      if (h.includes("t")) nh = Math.max(30,  startHeight - dy);
+
+      // Scale font theo min(ratioW, ratioH) — không để chữ tràn theo cả 2 chiều
+      const ratioW = nw / startWidth;
+      const ratioH = nh / startHeight;
+      const ratio  = Math.min(ratioW, ratioH);
+      const newFontSize = Math.min(96, Math.max(8, Math.round(startFontSize * ratio)));
+
+      onUpdate(layer.id, { width: nw, height: nh, fontSize: newFontSize });
+    };
     const onMouseUp = () => {
       resizeRef.current = null;
       window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup",   onMouseUp);
+      window.removeEventListener("mouseup", onMouseUp);
     };
-
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup",   onMouseUp);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   return (
     <div
       style={{
-        position: "absolute",
-        left:   `${layer.data.position.x}%`,
-        top:    `${layer.data.position.y}%`,
+        position:  "absolute",
+        left:      `${layer.data.position.x}%`,
+        top:       `${layer.data.position.y}%`,
         width,
         height,
         transform: "translate(-50%, -50%)",
         zIndex,
-        cursor: "grab",
-        border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+        cursor:    "grab",
+        border:    isSelected ? "2px solid #3b82f6" : "2px solid transparent",
         boxSizing: "border-box",
         userSelect: "none",
       }}
       onMouseDown={handleDragMouseDown}
       onClick={(e) => { e.stopPropagation(); onSelect(layer.id); }}
     >
-      {/* Text content */}
       <p
         style={{
           fontSize:       layer.data.fontSize,
@@ -185,13 +183,12 @@ function DraggableResizableTextLayer({
           width:          "100%",
           height:         "100%",
           overflow:       "hidden",
-          pointerEvents:  "none", // tránh cản mouse event của wrapper
+          pointerEvents:  "none",
         }}
       >
         {layer.data.text}
       </p>
 
-      {/* Resize handles — chỉ hiện khi selected */}
       {isSelected && (
         <>
           {(["tl","tr","bl","br","t","b","l","r"] as HandlePos[]).map((pos) => (
@@ -214,31 +211,21 @@ interface Props {
   filter: string;
   layers?: LayerItem[];
   selectedTextId?: string | null;
-  onTextSelect?: (id: string) => void;
+  onTextSelect?: (id: string | null) => void;
   onTextUpdate?: (id: string, updates: Partial<TextOption>) => void;
 }
 
 export default function VideoPreview({
-  videoRef,
-  src,
-  filter,
-  layers = [],
-  selectedTextId,
-  onTextSelect,
-  onTextUpdate,
+  videoRef, src, filter,
+  layers = [], selectedTextId, onTextSelect, onTextUpdate,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Click vùng trống → deselect
-  const handleContainerClick = () => {
-    onTextSelect?.(null as unknown as string);
-  };
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center"
-      onClick={handleContainerClick}
+      onClick={() => onTextSelect?.(null)}
     >
       <video
         ref={videoRef}
@@ -246,7 +233,6 @@ export default function VideoPreview({
         controls
         className="h-full w-full object-contain"
         style={{ filter }}
-        // Ngăn click video bubble lên container (tránh deselect khi click controls)
         onClick={(e) => e.stopPropagation()}
       >
         Your browser does not support video.
@@ -257,7 +243,7 @@ export default function VideoPreview({
         return (
           <DraggableResizableTextLayer
             key={layer.id}
-            layer={layer as TextLayer}
+            layer={layer as TextLayerDef}
             zIndex={layers.length - index + 1}
             isSelected={selectedTextId === layer.id}
             onSelect={(id) => onTextSelect?.(id)}
