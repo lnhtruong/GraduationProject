@@ -5,7 +5,6 @@ import FormData from 'form-data';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { InjectModel } from '@nestjs/sequelize';
-import { Video, VideoType } from './database/video.model';
 import type { Response } from 'express';
 import type { Readable } from 'stream';
 
@@ -26,8 +25,6 @@ export class AppService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    @InjectModel(Video)
-    private readonly videoModel: typeof Video,
   ) {
     this.colabUrl = this.configService.getOrThrow<string>('COLAB_API_URL');
   }
@@ -197,15 +194,7 @@ export class AppService {
       const outputUrl = (data as any)?.result?.download_url as string | '';
 
       const userId = userIdFromHeader;
-      const isHighlight = (data as any)?.type.includes('highlight-reel');
-
-      if (outputUrl && userId && !Number.isNaN(userId)) {
-        await this.videoModel.create({
-          user_id: userId,
-          type: isHighlight ? VideoType.HIGHLIGHT : VideoType.MASCOT,
-          url: outputUrl,
-        });
-      }
+      const isHighlight = (data as any)?.type?.includes('highlight-reel');
 
       return response.data;
     } catch (error: unknown) {

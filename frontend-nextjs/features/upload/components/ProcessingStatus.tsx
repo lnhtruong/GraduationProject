@@ -1,8 +1,51 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
 import type { UploadStatus } from "@/features/upload/types";
+
+// ============================================================================
+// ANIMATED PROGRESS HOOK
+// Smoothly crawls toward the target milestone instead of jumping.
+//
+// Behaviour per stage (4-step pipeline, each segment = 25%):
+//   - When target increases (new stage), instantly jump to the *previous* milestone
+//     (e.g. target 25→50 means we're starting segment 2, so reset to 25%)
+//   - Then crawl at ~1% per second toward (target - 1%), slowing down near the ceiling
+//   - At target === 100 (final stage), allow reaching 100%
+// ============================================================================
+
+function useAnimatedProgress(target: number, segmentSize = 25): number {
+  const [displayed, setDisplayed] = useState(0);
+
+  // Jump to segment start when a new stage arrives
+  useEffect(() => {
+    setDisplayed((prev) => {
+      if (target > prev) return Math.max(0, target - segmentSize);
+      return prev;
+    });
+  }, [target, segmentSize]);
+
+  // Crawl toward ceiling (target-1% for intermediate, 100% for last)
+  useEffect(() => {
+    const ceiling = target === 100 ? 100 : target - 1;
+    const interval = setInterval(() => {
+      setDisplayed((prev) => {
+        if (prev >= ceiling) return prev;
+        const remaining = ceiling - prev;
+        // Ease-out: covers ~24% in ~24s, slows near ceiling
+        const step = Math.max(0.02, remaining * 0.008);
+        return Math.min(prev + step, ceiling);
+      });
+    }, 30);
+    return () => clearInterval(interval);
+  }, [target]);
+
+  return Math.round(displayed);
+}
 
 // ============================================================================
 // TYPES
@@ -75,6 +118,59 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
 };
 
 // ============================================================================
+// PROCESSING STEPS
+// Labels match what Colab backend sends in the "stage" field ("X/Y: ...")
+// ============================================================================
+
+const COLAB_STEPS = [
+  "Phiên âm nội dung video",
+  "Chọn highlight bằng AI",
+  "Cắt & ghép video",
+  "Tải lên & hoàn tất",
+];
+
+function ProcessingSteps({ stage }: { stage?: string }) {
+  // Parse current step from "X/Y: Label" format, e.g. "2/4: Selecting Highlights with AI"
+  const currentStep = stage ? parseInt(stage.split("/")[0]) : 0;
+
+  return (
+    <div className="space-y-2 pt-2 border-t">
+      <h4 className="text-sm font-medium">Các bước xử lý:</h4>
+      <div className="space-y-1 text-xs">
+        {COLAB_STEPS.map((label, index) => {
+          const stepNum = index + 1;
+          const isDone = stepNum < currentStep;
+          const isActive = stepNum === currentStep;
+
+          return (
+            <div key={stepNum} className="flex items-center gap-2">
+              {isDone ? (
+                <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+              ) : isActive ? (
+                <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
+              ) : (
+                <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+              )}
+              <span
+                className={
+                  isDone
+                    ? "text-green-600 line-through"
+                    : isActive
+                      ? "text-blue-600 font-medium"
+                      : "text-muted-foreground"
+                }
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -91,9 +187,21 @@ export default function ProcessingStatus({
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
 
-  // Use backend stage if available, but use config progress (backend not ready yet)
+  // Use backend stage/progress when available, fall back to config defaults
   const displayStage = stage || config.description;
-  const displayProgress = config.progress; // Use hardcoded progress until backend implements it
+
+  // Derive milestone from "X/Y: ..." stage string (Colab doesn't send numeric progress)
+  // e.g. "2/4: Selecting Highlights" → 50%
+  const stageMatch = stage?.match(/^(\d+)\/(\d+)/);
+  const stageProgress = stageMatch
+    ? Math.round((parseInt(stageMatch[1]) / parseInt(stageMatch[2])) * 100)
+    : undefined;
+
+  // Target for the animated bar: explicit WS progress > stage milestone > config default
+  const targetProgress = progressPercent ?? stageProgress ?? config.progress;
+
+  // Smoothly crawl toward targetProgress instead of jumping to it
+  const displayProgress = useAnimatedProgress(targetProgress);
 
   // Icon color based on status
   const iconColor =
@@ -162,25 +270,9 @@ export default function ProcessingStatus({
         </div>
       </div>
 
-      {/* Processing Steps */}
+      {/* Processing Steps — driven by stage string "X/Y: Label" from Colab polling */}
       {status === "processing" && (
-        <div className="space-y-2 pt-2 border-t">
-          <h4 className="text-sm font-medium">Các bước xử lý:</h4>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-3 h-3 text-green-500" />
-              <span>Phân tích nội dung video</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-              <span>Tạo highlight clips tự động</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-3 h-3 text-gray-400" />
-              <span>Xuất video và tạo file tải về</span>
-            </div>
-          </div>
-        </div>
+        <ProcessingSteps stage={stage} />
       )}
 
       {/* Pending Steps */}

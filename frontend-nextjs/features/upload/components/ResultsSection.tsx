@@ -55,6 +55,10 @@ function ClipCard({ clip, index }: ClipCardProps) {
   const isVideo =
     !isZip &&
     (clip.url.startsWith("blob:") || /\.(mp4|mov|avi|webm)$/i.test(clip.url));
+  const editorParams = new URLSearchParams({ src: clip.url });
+  if (clip.videoId) {
+    editorParams.set("videoId", String(clip.videoId));
+  }
 
   return (
     <div className="bg-card border rounded-lg overflow-hidden">
@@ -108,7 +112,7 @@ function ClipCard({ clip, index }: ClipCardProps) {
                 );
               }}
             >
-              <Link href={`/editor?src=${encodeURIComponent(clip.url)}`}>
+              <Link href={`/editor?${editorParams.toString()}`}>
                 <Edit className="w-4 h-4 mr-2" />
                 Chỉnh sửa
               </Link>

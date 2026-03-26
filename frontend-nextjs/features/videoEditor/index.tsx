@@ -1,282 +1,126 @@
 "use client";
 
-import { useState } from "react";
-import EditorToolbar from "@/features/videoEditor/components/EditorToolbar";
-import VideoPreview from "@/features/videoEditor/components/VideoPreview";
-import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
-import UploadDropzone from "@/features/upload/components/UploadDropzone";
-import useVideoEditor from "@/features/videoEditor/hooks/useVideoEditor";
-import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
-import { arrayMove } from "@dnd-kit/sortable";
-import { Button } from "@/components/ui/button";
-import { Save, Download } from "lucide-react";
-import {DragStartEvent} from "@dnd-kit/core";
-import { DragOverlay } from "@dnd-kit/core";
-
-import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { restrictToParentElement } from "@dnd-kit/modifiers";
-import LayersPanel from "@/features/videoEditor/components/LayersPanel";
-import { LayerItem } from "./types";
+import { useCallback, useState } from "react";
+import CoreVideoEditor from "@/features/videoEditor/components/CoreVideoEditor";
+import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
+import { useStudioSession } from "@/features/videoEditor/hooks/useStudioSession";
+import { StudioHeader } from "@/features/videoEditor/components/studio/StudioHeader";
+import { StudioSidebar } from "@/features/videoEditor/components/studio/StudioSidebar";
 
 export default function VideoEditor() {
-  const editor = useVideoEditor();
-  const {
-    videoRef,
-    videoSrc,
-    setVideoSrc,
-    originalVideoFile,
-    setOriginalVideoFile,
-    loadVideoFile,
-    isPlaying,
-    play,
-    pause,
-    toggle,
-    effect,
-    setEffect,
-    cssFilter,
-    layers,
-      handleAddText,
-      handleUpdateText,
-      handleRemoveText,
-      handleReorderText,
-    mascot,
-    setMascot,
-    applyMascot,
-    isApplyingMascot,
-    mascotProgress,
-    voice,
-    setVoice,
-    download,
-  } = editor;
-    const [activeItem, setActiveItem] = useState<LayerItem | null>(null);
+  const [panelBindings, setPanelBindings] =
+    useState<ExternalEditorPanelBindings | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    // ===== DnD Setup (Core Infrastructure)
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // Phải kéo 5px mới bắt đầu drag
-      },
-    }),
+  const handlePanelBindingsChange = useCallback(
+    (next: ExternalEditorPanelBindings) => {
+      setPanelBindings((prev) => {
+        if (!prev) return next;
+
+        const sameState =
+          prev.effect === next.effect &&
+          prev.mascot === next.mascot &&
+          prev.voice === next.voice &&
+          prev.layers === next.layers &&
+          prev.selectedTextId === next.selectedTextId &&
+          prev.videoFile === next.videoFile &&
+          prev.isApplyingMascot === next.isApplyingMascot &&
+          prev.mascotProgress === next.mascotProgress;
+
+        if (sameState) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          effect: next.effect,
+          mascot: next.mascot,
+          voice: next.voice,
+          layers: next.layers,
+          selectedTextId: next.selectedTextId,
+          videoFile: next.videoFile,
+          isApplyingMascot: next.isApplyingMascot,
+          mascotProgress: next.mascotProgress,
+          onEffectChange: next.onEffectChange,
+          onMascotChange: next.onMascotChange,
+          onMascotApply: next.onMascotApply,
+          onVoiceChange: next.onVoiceChange,
+          onTextAdd: next.onTextAdd,
+          onTextUpdate: next.onTextUpdate,
+          onTextRemove: next.onTextRemove,
+          onTextSelect: next.onTextSelect,
+        };
+      });
+    },
+    [],
   );
 
-    // =========================
-    // PANEL SORT HANDLER
-    // =========================
-    const handlePanelDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-        const source = active.data.current?.source;
-        if (source === "panel") {
-            if (active.id === over.id) return;
+  const {
+    activeEditId,
+    activeSessionName,
+    isLoading,
+    highlightVideos,
+    highlightVideosLoading,
+    mascotVideos,
+    mascotVideosLoading,
+    handleStartEmptyProject,
+    handleCreateProjectOnFirstVideo,
+    handleStartFromHighlight,
+    handleSaveSession,
+  } = useStudioSession();
 
-            const oldIndex = layers.findIndex(
-                (l) => l.id === active.id
-            );
-            const newIndex = layers.findIndex(
-                (l) => l.id === over.id
-            );
+  return (
+    <div className="relative flex min-h-screen w-full bg-background text-foreground">
+      {!isSidebarCollapsed && (
+        <div
+          className="fixed inset-y-0 left-14 right-0 z-40 bg-black/45 backdrop-blur-[1px] transition-opacity lg:hidden"
+          onClick={() => setIsSidebarCollapsed(true)}
+        />
+      )}
 
-            if (oldIndex === -1 || newIndex === -1) return;
+      <StudioSidebar
+        highlightVideos={highlightVideos}
+        highlightVideosLoading={highlightVideosLoading}
+        mascotVideos={mascotVideos}
+        mascotVideosLoading={mascotVideosLoading}
+        onSelectVideo={(video) => {
+          void handleStartFromHighlight(video);
+        }}
+        panelBindings={panelBindings}
+        collapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
+      />
 
-            const newOrder = arrayMove(layers, oldIndex, newIndex);
-            handleReorderText(newOrder);
-        }
-    };
+      <div
+        className={`ml-14 w-full flex-1 motion-safe:transition-[margin] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? "lg:ml-18" : "lg:ml-90"}`}
+      >
+        <StudioHeader
+          activeSessionName={activeSessionName}
+          activeEditId={activeEditId}
+          isLoading={isLoading}
+          onStartEmptyProject={handleStartEmptyProject}
+          onSaveSession={handleSaveSession}
+        />
 
-    // =========================
-    // PREVIEW DRAG HANDLER
-    // =========================
-    const handlePreviewDragStart = (event: DragStartEvent) => {
-        const id = String(event.active.id);
-        const item = layers.find((l) => l.id === id);
-        if (item) setActiveItem(item);
-    };
-
-    const handlePreviewDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (active.data.current?.source === "preview" && over?.id === "trash") {
-            handleRemoveText(String(active.id));
-        }
-
-        setActiveItem(null);
-    };
-
-
-
-
-
-    // ===== Quản lý tải video
-  const [isDownloading, setIsDownloading] = useState(false);
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      await download();
-    } catch (error) {
-      console.error("Download error:", error);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  // ===== Quản lý chọn text overlay
-  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-
-  // ===== Quản lý áp dụng mascot
-  const handleMascotApply = async () => {
-    if (!videoSrc) {
-      alert("Không có video để áp dụng mascot.");
-      return;
-    }
-
-    await applyMascot(mascot, videoSrc, (blobUrl) => {
-      setVideoSrc(blobUrl);
-    });
-  };
-
-  // ===== Hiển thị Upload nếu chưa có video
-  if (!originalVideoFile && !videoSrc.includes("cloudinary.com")) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full">
-          <div className="mb-6 text-center">
-            <h1 className="text-3xl font-bold mb-2">Trình chỉnh sửa video</h1>
-            <p className="text-muted-foreground">
-              Tải lên video của bạn để bắt đầu chỉnh sửa
-            </p>
+        <main className="min-h-[calc(100vh-56px)] bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-2 sm:p-3 lg:p-4">
+          <div className="h-full rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
+            <CoreVideoEditor
+              onFirstVideoAdded={handleCreateProjectOnFirstVideo}
+              onVideoDrop={(video) => {
+                void handleStartFromHighlight({
+                  url: video.url,
+                  id: undefined,
+                });
+              }}
+              disableUpload
+              hideLeftToolbar
+              hideTopBar
+              hideRightPanel
+              onPanelBindingsChange={handlePanelBindingsChange}
+            />
           </div>
-          <UploadDropzone
-            onFileSelect={(file) => {
-              const url = URL.createObjectURL(file);
-              setVideoSrc(url);
-              setOriginalVideoFile(file);
-            }}
-          />
-        </div>
+        </main>
       </div>
-    );
-  }
-
-    return (
-        <div className="min-h-screen bg-background">
-            {/* Top bar */}
-            <div className="bg-card border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-14">
-                        <h2 className="text-lg font-semibold">Trình chỉnh sửa video</h2>
-                        <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                                <Save className="w-4 h-4 mr-2" /> Lưu
-                            </Button>
-                            <Button
-                                variant="default"
-                                size="sm"
-                                onClick={handleDownload}
-                                disabled={isDownloading}
-                            >
-                                <Download className="w-4 h-4 mr-2" />
-                                {isDownloading ? "Đang tải..." : "Xuất"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-12 gap-6 h-[calc(100vh-7rem)] overflow-hidden">
-
-                {/* LEFT TOOLBAR */}
-                <aside className="col-span-1 overflow-y-auto">
-                    <EditorToolbar
-                        isPlaying={isPlaying}
-                        onPlay={play}
-                        onPause={pause}
-                        onToggle={toggle}
-                        onDownload={download}
-                    />
-                </aside>
-
-                {/* ================= PANEL DND CONTEXT ================= */}
-                <DndContext sensors={sensors} onDragEnd={handlePanelDragEnd}>
-                    <aside className="col-span-2 bg-card rounded-md shadow-sm p-3 overflow-auto">
-                        <LayersPanel
-                            layers={layers}
-                            selectedId={selectedTextId}
-                            onSelect={setSelectedTextId}
-                        />
-                    </aside>
-                </DndContext>
-
-                {/* ================= PREVIEW DND CONTEXT ================= */}
-                <DndContext
-                    sensors={sensors}
-                    onDragStart={handlePreviewDragStart}
-                    onDragEnd={(event) => {
-                        handlePreviewDragEnd(event);
-                        setActiveItem(null);
-                    }}
-                >
-                    <section className="col-span-6 bg-card rounded-md shadow-sm p-4 flex flex-col">
-                        <VideoPreview
-                            videoRef={videoRef}
-                            src={videoSrc}
-                            filter={cssFilter()}
-                            layers={layers}
-                            selectedTextId={selectedTextId}
-                            onTextSelect={setSelectedTextId}
-                        />
-                    </section>
-
-                    <TrashDropZone />
-
-                    <DragOverlay dropAnimation={null}>
-                        {activeItem && activeItem.type === "text" && (
-                            <div
-                                className="pointer-events-none"
-                                style={{
-                                    padding: "4px 8px",
-                                    fontSize: activeItem.data.fontSize,
-                                    fontWeight: activeItem.data.fontWeight,
-                                    color: activeItem.data.color,
-                                    background: "rgba(0,0,0,0.4)",
-                                    borderRadius: 6,
-                                    boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
-                                    transform: "scale(1.05)",
-                                    backdropFilter: "blur(4px)",
-                                }}
-                            >
-                                {activeItem.data.text}
-                            </div>
-                        )}
-                    </DragOverlay>
-
-                </DndContext>
-
-                {/* RIGHT PANEL */}
-                <EditorRightPanel
-                    effect={effect}
-                    onEffectChange={setEffect}
-                    mascot={mascot}
-                    onMascotChange={setMascot}
-                    onMascotApply={handleMascotApply}
-                    isApplyingMascot={isApplyingMascot}
-                    mascotProgress={mascotProgress}
-                    videoFile={originalVideoFile}
-                    voice={voice}
-                    onVoiceChange={setVoice}
-                    layers={layers}
-                    onTextAdd={handleAddText}
-                    onTextUpdate={handleUpdateText}
-                    onTextRemove={handleRemoveText}
-                    selectedTextId={selectedTextId}
-                    onTextSelect={setSelectedTextId}
-                />
-            </div>
-        </div>
-    );
+    </div>
+  );
 }

@@ -6,16 +6,25 @@ export class WebsocketService {
     private readonly logger = new Logger(WebsocketService.name);
     private server?: Server | Namespace;
 
+    private isRoomMap(value: unknown): value is Map<string, Set<string>> {
+        return value instanceof Map;
+    }
+
     private getRoomsMap(): Map<string, Set<string>> | undefined {
         if (!this.server) return undefined;
 
-        // Namespace (when @WebSocketGateway uses namespace)
-        const namespaceRooms = (this.server as Namespace).adapter?.rooms;
-        if (namespaceRooms) return namespaceRooms;
+        try {
+            // Namespace (when @WebSocketGateway uses namespace)
+            const namespaceRooms = (this.server as Namespace).adapter?.rooms;
+            if (this.isRoomMap(namespaceRooms)) return namespaceRooms;
 
-        // Root Server fallback
-        const serverRooms = (this.server as Server).sockets?.adapter?.rooms;
-        if (serverRooms) return serverRooms;
+            // Root Server fallback
+            const serverRooms = (this.server as Server).sockets?.adapter?.rooms;
+            if (this.isRoomMap(serverRooms)) return serverRooms;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Cannot access socket rooms map: ${message}`);
+        }
 
         return undefined;
     }
@@ -32,7 +41,7 @@ export class WebsocketService {
      * Gửi thông báo video hoàn thành cho user cụ thể
      */
     notifyVideoCompleted(userId: number, videoData: {
-        id: number;
+        // id: number;
         url: string;
         type: string;
         duration?: number;
@@ -54,7 +63,34 @@ export class WebsocketService {
         });
 
         this.logger.log(
-            `Notified user ${userId} about completed video ${videoData.id}`,
+            `Notified user ${userId} about completed video with url ${videoData.url}`,
+        );
+    }
+
+    notifyUploadCompleted(userId: number, videoData: {
+        id: number;
+        url: string;
+        type: string;
+        duration?: number;
+    }) {
+        if (!this.server) {
+            this.logger.warn('WebSocket server not initialized');
+            return;
+        }
+
+        const room = `user:${userId}`;
+        const roomSize = this.getRoomSize(room);
+        this.logger.log(`Emitting upload-video:completed to ${room} (clients=${roomSize})`);
+
+        // Gửi tới user cụ thể
+        this.server.to(room).emit('upload-video :completed', {
+            success: true,
+            data: videoData,
+            timestamp: new Date().toISOString(),
+        });
+
+        this.logger.log(
+            `Notified user ${userId} about completed upload with url ${videoData.url}`,
         );
     }
 

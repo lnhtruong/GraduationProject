@@ -12,6 +12,7 @@ interface CloudinaryContextCustom {
 interface CloudinaryPayload {
     secure_url?: string;
     url?: string;
+    public_id?: string;
     duration?: number;
     resource_type?: string;
     context?: {
@@ -40,7 +41,7 @@ export class WebhookService {
     ) { }
 
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, duration, resource_type, context, display_name } = payload;
+        const { secure_url, url, public_id, duration, resource_type, context, display_name } = payload;
 
         // console.log('check information: ', secure_url, url, duration, context, display_name);
 
@@ -80,6 +81,15 @@ export class WebhookService {
                 ? VideoType.MASCOT
                 : VideoType.HIGHLIGHT;
 
+        const cloudName = process.env.CLOUD_NAME?.trim();
+        const publicId = typeof public_id === 'string' ? public_id.trim() : undefined;
+        // const publicIdWithoutExt = publicId?.replace(/\.[a-z0-9]+$/i, '');
+
+        const thumbnailUrl =
+            cloudName && publicId
+                ? `https://res.cloudinary.com/${cloudName}/video/upload/so_1/${publicId}.jpg`
+                : undefined;
+
         const createPayload: Record<string, unknown> = {
             user_id: userId,
             type,
@@ -87,6 +97,7 @@ export class WebhookService {
             duration: typeof duration === 'number' ? duration : null,
         };
         if (display_name) createPayload.name = display_name;
+        if (thumbnailUrl) createPayload.thumbnail = thumbnailUrl;
 
         // console.log('payload create: ', createPayload);
 
@@ -98,6 +109,13 @@ export class WebhookService {
             this.logger.error(`Cloudinary webhook create video failed: ${message}`);
             throw error;
         }
+
+        this.websocketService.notifyUploadCompleted(userId, {
+            id: created.id,
+            url: created.url,
+            type: created.type,
+            duration: duration ?? undefined,
+        });
 
         this.logger.log(
             `Created video from Cloudinary webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
@@ -144,35 +162,35 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        const createPayload: Record<string, unknown> = {
-            user_id: userId,
-            type,
-            url,
-            duration: typeof duration === 'number' ? duration : null,
-        };
-        if (display_name) createPayload.name = display_name;
+        // const createPayload: Record<string, unknown> = {
+        //     user_id: userId,
+        //     type,
+        //     url,
+        //     duration: typeof duration === 'number' ? duration : null,
+        // };
+        // if (display_name) createPayload.name = display_name;
 
-        let created: Video;
-        try {
-            created = await this.videoModel.create(createPayload as any);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`AI webhook create video failed: ${message}`);
-            throw error;
-        }
+        // let created: Video;
+        // try {
+        //     created = await this.videoModel.create(createPayload as any);
+        // } catch (error) {
+        //     const message = error instanceof Error ? error.message : String(error);
+        //     this.logger.error(`AI webhook create video failed: ${message}`);
+        //     throw error;
+        // }
 
-        this.logger.log(
-            `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
-        );
+        // this.logger.log(
+        //     `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
+        // );
 
         // Gửi thông báo tới client qua WebSocket
         this.websocketService.notifyVideoCompleted(userId, {
-            id: created.id,
-            url: created.url,
-            type: created.type,
-            duration: created.duration ?? undefined,
+            // id: created.id,
+            url: url,
+            type: type,
+            duration: duration ?? undefined,
         });
 
-        return { success: true, id: created.id };
+        return { success: true };
     }
 }

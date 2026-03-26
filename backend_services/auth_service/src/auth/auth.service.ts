@@ -83,12 +83,12 @@ export class AuthService {
         // console.log('check user: ', user);
 
         if (!user) {
-            throw new UnauthorizedException('Invalid credentials');
+            throw new UnauthorizedException('Invalid account or password!');
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            throw new UnauthorizedException('Invalid credentials');
+            throw new UnauthorizedException('Invalid account or password!');
         }
 
         const tokenPair = await this.jwtTokenService.generateTokenPair({
