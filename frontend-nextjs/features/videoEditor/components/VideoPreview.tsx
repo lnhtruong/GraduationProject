@@ -1,180 +1,205 @@
+"use client";
+
 // VideoPreview.tsx
 // THAY ĐỔI CHÍNH:
-// 1. Drag xong → tính lại position % và gọi onTextUpdate để persist
-// 2. Resize vẫn giữ nguyên logic cũ
-// 3. Truyền containerRef để tính toán chính xác
+// - Text layer KHÔNG dùng useDraggable nữa → dùng onMouseDown thuần
+//   → fix position không update, fix bóng thừa khi kéo
+// - Resize giữ nguyên logic mouse event
+// - Vẫn export interface Props như cũ để CoreVideoEditor không cần sửa
 
-import type { TextLayer, TextOption, LayerItem } from "@/features/videoEditor/types";
-import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
+import type { TextOption, LayerItem } from "@/features/videoEditor/types";
 import { useRef, useState, useEffect } from "react";
+
+// ─── Resize handle ─────────────────────────────────────────────────────────────
+type HandlePos = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 
 function ResizeHandle({
   position,
   onMouseDown,
 }: {
-  position: "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
+  position: HandlePos;
   onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
-  const positionClasses = {
+  const cls: Record<HandlePos, string> = {
     tl: "top-0 left-0 cursor-nwse-resize",
     tr: "top-0 right-0 cursor-nesw-resize",
     bl: "bottom-0 left-0 cursor-nesw-resize",
     br: "bottom-0 right-0 cursor-nwse-resize",
-    t: "top-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
-    b: "bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
-    l: "top-1/2 left-0 -translate-y-1/2 cursor-ew-resize",
-    r: "top-1/2 right-0 -translate-y-1/2 cursor-ew-resize",
+    t:  "top-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    b:  "bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    l:  "top-1/2 left-0 -translate-y-1/2 cursor-ew-resize",
+    r:  "top-1/2 right-0 -translate-y-1/2 cursor-ew-resize",
   };
   return (
     <div
       onMouseDown={onMouseDown}
-      className={`absolute w-2 h-2 bg-blue-500 border border-white rounded-full ${positionClasses[position]} hover:w-3 hover:h-3`}
-      style={{ zIndex: 50 }}
+      className={`absolute w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full z-50 ${cls[position]} hover:scale-125 transition-transform`}
     />
   );
 }
 
+// ─── Text layer (thuần mouse — không dùng dnd-kit) ────────────────────────────
+interface TextLayer {
+  id: string;
+  type: "text";
+  data: TextOption;
+}
+
 function DraggableResizableTextLayer({
   layer,
-  index,
-  total,
-  selectedTextId,
-  onTextSelect,
-  onTextUpdate,
+  zIndex,
+  isSelected,
+  onSelect,
+  onUpdate,
   containerRef,
 }: {
   layer: TextLayer;
-  index: number;
-  total: number;
-  selectedTextId?: string | null;
-  onTextSelect?: (id: string) => void;
-  onTextUpdate?: (id: string, updates: Partial<TextOption>) => void;
+  zIndex: number;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<TextOption>) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: layer.id,
-      data: { source: "preview", layerId: layer.id },
-    });
-
-  // ─── persist position khi drag kết thúc ───────────────────────────────────
-  // dnd-kit chỉ cho visual transform; ta dùng useEffect theo dõi isDragging
-  // Khi isDragging chuyển false → transform vừa được reset → tính delta
-  const prevTransformRef = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (isDragging && transform) {
-      prevTransformRef.current = { x: transform.x, y: transform.y };
-    }
-    if (!isDragging && prevTransformRef.current) {
-      const { x: dx, y: dy } = prevTransformRef.current;
-      prevTransformRef.current = null;
-      if (!containerRef.current || (dx === 0 && dy === 0)) return;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const newX = layer.data.position.x + (dx / rect.width) * 100;
-      const newY = layer.data.position.y + (dy / rect.height) * 100;
-
-      onTextUpdate?.(layer.id, {
-        position: {
-          x: Math.min(100, Math.max(0, newX)),
-          y: Math.min(100, Math.max(0, newY)),
-        },
-      });
-    }
-  }, [isDragging]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── resize ───────────────────────────────────────────────────────────────
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartRef = useRef<{
-    startX: number; startY: number;
-    startWidth: number; startHeight: number;
-    handle: string;
-  } | null>(null);
-
-  const isSelected = selectedTextId === layer.id;
-  const width = layer.data.width ?? 200;
+  const width  = layer.data.width  ?? 200;
   const height = layer.data.height ?? 60;
 
-  const style: React.CSSProperties = {
-    left: `${layer.data.position.x}%`,
-    top: `${layer.data.position.y}%`,
-    width,
-    height,
-    transform: isDragging
-      ? `${CSS.Translate.toString(transform)} translate(-50%, -50%)`
-      : "translate(-50%, -50%)",
-    zIndex: total - index + 1,
-    opacity: isDragging ? 0.5 : 1,
-    position: "absolute",
-    cursor: isDragging ? "grabbing" : "grab",
-    border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
-    boxSizing: "border-box",
+  // ─── Drag (thuần mouse) ──────────────────────────────────────────────────────
+  const dragRef = useRef<{
+    startMouseX: number;
+    startMouseY: number;
+    startPosX: number; // % 
+    startPosY: number; // %
+  } | null>(null);
+
+  const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Chỉ drag bằng button trái, và không phải đang resize
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onSelect(layer.id);
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    dragRef.current = {
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPosX: layer.data.position.x,
+      startPosY: layer.data.position.y,
+    };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = ((ev.clientX - dragRef.current.startMouseX) / rect.width)  * 100;
+      const dy = ((ev.clientY - dragRef.current.startMouseY) / rect.height) * 100;
+      const newX = Math.min(100, Math.max(0, dragRef.current.startPosX + dx));
+      const newY = Math.min(100, Math.max(0, dragRef.current.startPosY + dy));
+      onUpdate(layer.id, { position: { x: newX, y: newY } });
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup",  onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup",   onMouseUp);
   };
 
-  const handleResizeStart = (e: React.MouseEvent<HTMLDivElement>, handle: string) => {
+  // ─── Resize ──────────────────────────────────────────────────────────────────
+  const resizeRef = useRef<{
+    handle: HandlePos;
+    startMouseX: number;
+    startMouseY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null>(null);
+
+  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>, handle: HandlePos) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsResizing(true);
-    resizeStartRef.current = {
-      startX: e.clientX, startY: e.clientY,
-      startWidth: width, startHeight: height, handle,
-    };
-  };
 
-  useEffect(() => {
-    if (!isResizing) return;
-    const onMove = (e: MouseEvent) => {
-      if (!resizeStartRef.current) return;
-      const { startX, startY, startWidth, startHeight, handle } = resizeStartRef.current;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
-      let nw = startWidth, nh = startHeight;
-      if (handle.includes("r")) nw = Math.max(60, startWidth + dx);
-      if (handle.includes("l")) nw = Math.max(60, startWidth - dx);
-      if (handle.includes("b")) nh = Math.max(30, startHeight + dy);
-      if (handle.includes("t")) nh = Math.max(30, startHeight - dy);
-      onTextUpdate?.(layer.id, { width: nw, height: nh });
+    resizeRef.current = {
+      handle,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startWidth:  width,
+      startHeight: height,
     };
-    const onUp = () => { setIsResizing(false); resizeStartRef.current = null; };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [isResizing, layer.id, onTextUpdate]);
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const { handle: h, startMouseX, startMouseY, startWidth, startHeight } = resizeRef.current;
+      const dx = ev.clientX - startMouseX;
+      const dy = ev.clientY - startMouseY;
+      let nw = startWidth, nh = startHeight;
+      if (h.includes("r")) nw = Math.max(60, startWidth  + dx);
+      if (h.includes("l")) nw = Math.max(60, startWidth  - dx);
+      if (h.includes("b")) nh = Math.max(30, startHeight + dy);
+      if (h.includes("t")) nh = Math.max(30, startHeight - dy);
+      onUpdate(layer.id, { width: nw, height: nh });
+    };
+
+    const onMouseUp = () => {
+      resizeRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup",   onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup",   onMouseUp);
+  };
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      onClick={() => onTextSelect?.(layer.id)}
-      className="relative group"
+      style={{
+        position: "absolute",
+        left:   `${layer.data.position.x}%`,
+        top:    `${layer.data.position.y}%`,
+        width,
+        height,
+        transform: "translate(-50%, -50%)",
+        zIndex,
+        cursor: "grab",
+        border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+        boxSizing: "border-box",
+        userSelect: "none",
+      }}
+      onMouseDown={handleDragMouseDown}
+      onClick={(e) => { e.stopPropagation(); onSelect(layer.id); }}
     >
+      {/* Text content */}
       <p
         style={{
-          fontSize: layer.data.fontSize,
-          color: layer.data.color,
-          fontWeight: layer.data.fontWeight,
-          fontStyle: layer.data.fontStyle,
+          fontSize:       layer.data.fontSize,
+          color:          layer.data.color,
+          fontWeight:     layer.data.fontWeight,
+          fontStyle:      layer.data.fontStyle,
           textDecoration: layer.data.textDecoration,
-          textAlign: layer.data.textAlign,
-          fontFamily: layer.data.fontFamily,
-          padding: "4px 8px",
-          userSelect: "none",
-          whiteSpace: "normal",
-          wordBreak: "break-word",
-          width: "100%",
-          height: "100%",
-          overflow: "hidden",
+          textAlign:      layer.data.textAlign,
+          fontFamily:     layer.data.fontFamily,
+          padding:        "4px 8px",
+          whiteSpace:     "normal",
+          wordBreak:      "break-word",
+          width:          "100%",
+          height:         "100%",
+          overflow:       "hidden",
+          pointerEvents:  "none", // tránh cản mouse event của wrapper
         }}
       >
         {layer.data.text}
       </p>
-      {isSelected && !isDragging && (
+
+      {/* Resize handles — chỉ hiện khi selected */}
+      {isSelected && (
         <>
-          {(["tl","tr","bl","br","t","b","l","r"] as const).map((pos) => (
-            <ResizeHandle key={pos} position={pos} onMouseDown={(e) => handleResizeStart(e, pos)} />
+          {(["tl","tr","bl","br","t","b","l","r"] as HandlePos[]).map((pos) => (
+            <ResizeHandle
+              key={pos}
+              position={pos}
+              onMouseDown={(e) => handleResizeMouseDown(e, pos)}
+            />
           ))}
         </>
       )}
@@ -182,6 +207,7 @@ function DraggableResizableTextLayer({
   );
 }
 
+// ─── VideoPreview ─────────────────────────────────────────────────────────────
 interface Props {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   src?: string;
@@ -193,29 +219,49 @@ interface Props {
 }
 
 export default function VideoPreview({
-  videoRef, src, filter, layers = [], selectedTextId, onTextSelect, onTextUpdate,
+  videoRef,
+  src,
+  filter,
+  layers = [],
+  selectedTextId,
+  onTextSelect,
+  onTextUpdate,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Click vùng trống → deselect
+  const handleContainerClick = () => {
+    onTextSelect?.(null as unknown as string);
+  };
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center"
+      onClick={handleContainerClick}
     >
-      <video ref={videoRef} src={src} controls className="h-full w-full object-contain" style={{ filter }}>
+      <video
+        ref={videoRef}
+        src={src}
+        controls
+        className="h-full w-full object-contain"
+        style={{ filter }}
+        // Ngăn click video bubble lên container (tránh deselect khi click controls)
+        onClick={(e) => e.stopPropagation()}
+      >
         Your browser does not support video.
       </video>
+
       {layers.map((layer, index) => {
         if (layer.type !== "text") return null;
         return (
           <DraggableResizableTextLayer
             key={layer.id}
-            layer={layer}
-            index={index}
-            total={layers.length}
-            selectedTextId={selectedTextId}
-            onTextSelect={onTextSelect}
-            onTextUpdate={onTextUpdate}
+            layer={layer as TextLayer}
+            zIndex={layers.length - index + 1}
+            isSelected={selectedTextId === layer.id}
+            onSelect={(id) => onTextSelect?.(id)}
+            onUpdate={(id, updates) => onTextUpdate?.(id, updates)}
             containerRef={containerRef}
           />
         );

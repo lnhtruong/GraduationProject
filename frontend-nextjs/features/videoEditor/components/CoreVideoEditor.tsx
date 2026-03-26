@@ -172,7 +172,7 @@ export default function CoreVideoEditor({
       textDecoration: "none",
       textAlign: "center",
       startTime: 0,
-      duration: 0,
+      duration: 5000, // ← đổi từ 0 thành 5000
       width: 300,
       height: 100,
     };
@@ -180,7 +180,6 @@ export default function CoreVideoEditor({
     setSelectedTextId(newText.id);
     onQueuedTextTemplateConsumed?.();
   }, [queuedTextTemplate, handleAddText, onQueuedTextTemplateConsumed]);
-
   // ── External panel bindings ───────────────────────────────────────────────────
   useEffect(() => {
     onPanelBindingsChange?.({

@@ -128,7 +128,7 @@ export default function EditorRightPanel({
       textDecoration: "none",
       textAlign: "center",
       startTime: 0,
-      duration: 0,
+      duration: 5000, // ← đổi từ 0 thành 5000
       width: 300,
       height: 100,
     };
