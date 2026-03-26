@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "topic": "JIRA Project Management",
+    "generated_at": "2026-03-24T15:21:34.733Z",
+    "num_questions": 10,
+    "source_segments": 6,
+    "highlight_duration_sec": 294.5
+  },
+  "questions": [
+    {
+      "id": 1,
+      "question": "What is JIRA primarily used for?",
+      "options": [
+        "Project management",
+        "Email communication",
+        "Spreadsheet analysis",
+        "Chat organization"
+      ],
+      "correct_index": 0,
+      "explanation": "JIRA is specifically designed as a project management tool, helping teams plan, organize, and automate their work. The other options are common tools but do not encompass JIRA's primary function.",
+      "evidence": {
+        "start": "00:00:08,400",
+        "end": "00:00:10,019"
+      }
+    },
+    {
+      "id": 2,
+      "question": "What is the first step in setting up a new project in JIRA?",
+      "options": [
+        "Choose a project name",
+        "Select a project type",
+        "Add team members",
+        "Define project goals"
+      ],
+      "correct_index": 0,
+      "explanation": "The first step in setting up a new project in JIRA is to choose a project name. The other options are steps that may come later in the process.",
+      "evidence": {
+        "start": "00:00:40,219",
+        "end": "00:00:42,300"
+      }
+    },
+    {
+      "id": 3,
+      "question": "Which of the following is NOT a default stage provided by JIRA for tracking work?",
+      "options": [
+        "To Do",
+        "In Progress",
+        "Completed",
+        "Done"
+      ],
+      "correct_index": 2,
+      "explanation": "JIRA provides 'To Do', 'In Progress', and 'Done' as default stages, but 'Completed' is not one of them. This is a common misconception about project management stages.",
+      "evidence": {
+        "start": "00:01:08,099",
+        "end": "00:01:12,920"
+      }
+    },
+    {
+      "id": 4,
+      "question": "What view in JIRA is described as working like a spreadsheet?",
+      "options": [
+        "Board view",
+        "List view",
+        "Calendar view",
+        "Timeline view"
+      ],
+      "correct_index": 1,
+      "explanation": "The List view in JIRA is specifically mentioned as working a lot like a spreadsheet, making it suitable for adding and organizing tasks. The other views serve different purposes.",
+      "evidence": {
+        "start": "00:01:35,500",
+        "end": "00:01:37,460"
+      }
+    },
+    {
+      "id": 5,
+      "question": "How can you quickly add a task in JIRA?",
+      "options": [
+        "Click on Create",
+        "Press the Enter key",
+        "Use the plus icon",
+        "Drag and drop"
+      ],
+      "correct_index": 1,
+      "explanation": "You can quickly add a task by pressing the Enter key after typing it in. While clicking on Create is also valid, the Enter key method is highlighted as a preferred shortcut.",
+      "evidence": {
+        "start": "00:02:10,340",
+        "end": "00:02:12,319"
+      }
+    },
+    {
+      "id": 6,
+      "question": "What feature allows you to visualize upcoming tasks by date in JIRA?",
+      "options": [
+        "Board view",
+        "List view",
+        "Calendar view",
+        "Timeline view"
+      ],
+      "correct_index": 2,
+      "explanation": "The Calendar view in JIRA is specifically designed to visualize upcoming tasks by date, while the other views serve different functions.",
+      "evidence": {
+        "start": "00:04:12,560",
+        "end": "00:04:17,940"
+      }
+    },
+    {
+      "id": 7,
+      "question": "What is a key benefit of using JIRA mentioned in the video?",
+      "options": [
+        "It only supports developers",
+        "It integrates with email",
+        "It brings all teams together",
+        "It is only for marketing teams"
+      ],
+      "correct_index": 2,
+      "explanation": "A key benefit of JIRA is that it brings all teams together, including marketing, operations, design, and legal, which is a significant advantage over tools that only handle one aspect of project management.",
+      "evidence": {
+        "start": "00:04:25,240",
+        "end": "00:04:34,299"
+      }
+    },
+    {
+      "id": 8,
+      "question": "What can you do if you don't see a column you need in JIRA?",
+      "options": [
+        "Ignore it",
+        "Contact support",
+        "Add additional fields",
+        "Change the project type"
+      ],
+      "correct_index": 2,
+      "explanation": "If you don't see a column you need, you can add additional fields to the table, which allows for customization. The other options do not address the issue effectively.",
+      "evidence": {
+        "start": "00:03:25,939",
+        "end": "00:03:30,619"
+      }
+    },
+    {
+      "id": 9,
+      "question": "What does JIRA use to enhance project management across teams?",
+      "options": [
+        "Manual tracking",
+        "Built-in AI",
+        "Email notifications",
+        "Third-party integrations"
+      ],
+      "correct_index": 1,
+      "explanation": "JIRA incorporates built-in AI to enhance project management across teams, making it more efficient. The other options are common features but do not specifically enhance connectivity like AI does.",
+      "evidence": {
+        "start": "00:04:38,640",
+        "end": "00:04:45,339"
+      }
+    },
+    {
+      "id": 10,
+      "question": "What should you do after naming your project in JIRA?",
+      "options": [
+        "Click on finish",
+        "Select a project type",
+        "Add team members",
+        "Click on get started"
+      ],
+      "correct_index": 3,
+      "explanation": "After naming your project, the next step is to click on 'get started' to proceed with the setup. The other options are steps that come later in the process.",
+      "evidence": {
+        "start": "00:00:42,300",
+        "end": "00:00:45,460"
+      }
+    }
+  ]
+}

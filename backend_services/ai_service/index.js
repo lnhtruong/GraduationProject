@@ -3,7 +3,7 @@ import OpenAI from "openai"
 
 /*
 ========================
-CONFIG — edit this only
+CONFIG
 ========================
 */
 const CFG = {
@@ -17,32 +17,26 @@ const CFG = {
     TARGET_MIN: 100,  // seconds
     TARGET_MAX: 300,  // seconds
 
-    // Step 1 optimization: sample 1 subtitle every N seconds for outline call
-    // Higher = fewer tokens, less detail. Recommended: 15–30s for long videos.
-    OUTLINE_SAMPLE_EVERY: 30,
+    // Step 1: sample 1 subtitle every N seconds for outline call
+    OUTLINE_SAMPLE_EVERY: 20,
+
+    // Step 2: max chars per topic SRT slice sent to LLM (trim long topics)
+    SELECT_CHARS_PER_TOPIC: 3000,
 
     MODEL: "gpt-4o-mini",
-    OPENAI_KEY: process.env.OPENAI_KEY ?? "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"
+    MAX_RETRIES: 2,
 }
 
-const ai = new OpenAI({ apiKey: CFG.OPENAI_KEY })
-let outlineToken = 0
-let selectToken = 0
+const ai = new OpenAI({ apiKey: process.env.OPENAI_KEY })
 
 /*
 ========================
 TIME UTILS
 ========================
 */
-function sec(t) {
-    const [h, m, rest] = t.split(":")
-    const [s, ms] = rest.split(",")
-    return +h * 3600 + +m * 60 + +s + +ms / 1000
-}
-
-function dur(a, b) { return sec(b) - sec(a) }
-function sumDur(list) { return list.reduce((t, s) => t + dur(s.start, s.end), 0) }
-
+const sec = t => { const [h, m, r] = t.split(":"); const [s, ms] = r.split(","); return +h * 3600 + +m * 60 + +s + +ms / 1000 }
+const dur = (a, b) => sec(b) - sec(a)
+const sumDur = list => list.reduce((t, s) => t + dur(s.start, s.end), 0)
 
 /*
 ========================
@@ -57,12 +51,7 @@ function parseSRT(raw) {
     })
 }
 
-function fmtSRT(segs) {
-    return segs.map(s => `${s.index}\n${s.start} --> ${s.end}\n${s.text}`).join("\n\n")
-}
-
-// Step 1 only: downsample + drop timestamps to minimize tokens.
-// Keeps 1 subtitle every OUTLINE_SAMPLE_EVERY seconds, format: "[index] text"
+// Step 1: downsample, drop timestamps → "[index] text"
 function fmtOutlineInput(segs) {
     const out = []
     let nextAt = 0
@@ -76,44 +65,48 @@ function fmtOutlineInput(segs) {
     return out.join("\n")
 }
 
+// Step 2: compact format without timestamps to save tokens
+function fmtCompact(segs) {
+    return segs.map(s => `[${s.index}] ${s.text}`).join("\n")
+}
 
 /*
 ========================
-LLM CALL — generic
+LLM CALL — with retry
 ========================
 */
-async function llmJSON(systemMsg, userMsg, label) {
-    console.log(`\n→ LLM call: ${label}`)
+const tokens = { outline: 0, select: 0 }
 
-    const r = await ai.chat.completions.create({
-        model: CFG.MODEL,
-        messages: [
-            { role: "system", content: systemMsg },
-            { role: "user", content: userMsg }
-        ],
-        temperature: 0
-    })
+async function llmJSON(systemMsg, userMsg, label, retries = CFG.MAX_RETRIES) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            console.log(`\n→ LLM [${label}]${attempt ? ` retry ${attempt}` : ""}`)
+            const r = await ai.chat.completions.create({
+                model: CFG.MODEL,
+                messages: [
+                    { role: "system", content: systemMsg },
+                    { role: "user", content: userMsg }
+                ],
+                temperature: 0,
+                response_format: { type: "json_object" },
+            })
 
-    const raw = r.choices[0].message.content.trim()
-    const usage = r.usage
-    if (label === "outline") {
-        outlineToken += usage.total_tokens
-    }
-    if (label === "select") {
-        selectToken += usage.total_tokens
-    }
-    console.log(`  tokens — prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens}, total: ${usage.total_tokens}`)
-    console.log(`\n--- ${label} response ---\n${raw}\n---\n`)
+            const raw = r.choices[0].message.content.trim()
+            const usage = r.usage
+            if (label in tokens) tokens[label] += usage.total_tokens
+            console.log(`  tokens — prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens}`)
 
-    try {
-        return JSON.parse(raw)
-    } catch {
-        const match = raw.match(/[\[{][\s\S]*[\]}]/)
-        if (match) return JSON.parse(match[0])
-        throw new Error(`${label}: failed to parse JSON`)
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) return parsed
+            const first = Object.values(parsed)[0]
+            if (Array.isArray(first)) return first
+            return parsed
+        } catch (err) {
+            if (attempt === retries) throw new Error(`[${label}] failed after ${retries + 1} attempts: ${err.message}`)
+            console.warn(`  [${label}] parse error, retrying…`)
+        }
     }
 }
-
 
 /*
 ========================
@@ -129,17 +122,20 @@ async function getOutline(segs) {
     const sampled = fmtOutlineInput(segs)
     console.log(`  outline input: ${segs.length} subtitles → ${sampled.split("\n").length} sampled lines`)
 
-    return llmJSON(
-        "You are an expert video analyst. Output only valid JSON.",
+    const result = await llmJSON(
+        'You are an expert video analyst. Output only valid JSON with key "topics" containing an array.',
         `${prompt}\n\n## Transcript\n\n${sampled}`,
         "outline"
     )
-}
 
+    const topics = Array.isArray(result) ? result : (result.topics ?? [])
+    if (!topics.length) throw new Error("Outline returned empty topics array")
+    return topics
+}
 
 /*
 ========================
-STEP 2 — SELECT INDICES PER TOPIC
+STEP 2 — SELECT (single call, all topics)
 ========================
 */
 async function selectIndices(outline, segs) {
@@ -147,34 +143,53 @@ async function selectIndices(outline, segs) {
         .replace(/\{\{TARGET_MIN\}\}/g, CFG.TARGET_MIN)
         .replace(/\{\{TARGET_MAX\}\}/g, CFG.TARGET_MAX)
 
-    // Slice raw SRT per topic using index ranges from outline
     const topicBlocks = outline.map(topic => {
         const slice = segs.filter(s => s.index >= topic.start_index && s.index <= topic.end_index)
-        return {
-            topic_id: topic.topic_id,
-            title: topic.title,
-            description: topic.description,
-            srt: fmtSRT(slice)
+        let transcript = fmtCompact(slice)
+        if (transcript.length > CFG.SELECT_CHARS_PER_TOPIC) {
+            const keep = CFG.SELECT_CHARS_PER_TOPIC
+            transcript = transcript.slice(0, keep * 0.6) + "\n…\n" + transcript.slice(-keep * 0.4)
         }
+        return { topic_id: topic.topic_id, title: topic.title, description: topic.description, transcript }
     })
 
     const userMsg = [
         prompt,
-        "## Topics with transcript slices",
+        "## Topics with transcript",
         JSON.stringify(topicBlocks, null, 2)
     ].join("\n\n")
 
-    return llmJSON(
-        "You are an expert video editor. Output only a JSON array of integers.",
+    const result = await llmJSON(
+        'You are an expert video editor. Output only valid JSON with key "indices" containing an array of integers.',
         userMsg,
         "select"
     )
+
+    const indices = Array.isArray(result) ? result : (result.indices ?? [])
+    if (!indices.length) throw new Error("Select returned empty indices array")
+    return indices
 }
 
+/*
+========================
+VALIDATE — filter stale/out-of-range indices
+========================
+*/
+function validateIndices(rawIndices, segs) {
+    const valid = new Set(segs.map(s => s.index))
+    const filtered = [...new Set(rawIndices)]
+        .filter(i => Number.isInteger(i) && valid.has(i))
+        .sort((a, b) => a - b)
+    const dropped = rawIndices.length - filtered.length
+    if (dropped) console.warn(`  dropped ${dropped} invalid indices`)
+    return filtered
+}
 
 /*
 ========================
 ENFORCE DURATION BOUNDS
+- Trim từ giữa (subtitle ngắn nhất ở giữa), bảo vệ đầu và đuôi
+- Expand từ ngoài vào nếu dưới min
 ========================
 */
 function enforceBounds(indices, segs) {
@@ -184,27 +199,59 @@ function enforceBounds(indices, segs) {
 
     const total = () => sumDur([...set].map(i => byIndex[i]).filter(Boolean))
 
-    // Trim from end if over max
+    // Trim nếu vượt TARGET_MAX
     while (total() > CFG.TARGET_MAX && set.size > 1) {
-        set.delete(Math.max(...set))
+        const sorted = [...set].sort((a, b) => a - b)
+
+        // Chỉ xét các index ở giữa — bảo vệ sorted[0] và sorted[sorted.length - 1]
+        const removable = sorted.slice(1, -1)
+        if (!removable.length) {
+            // Chỉ còn 2 index, không thể trim thêm mà không mất đầu/đuôi
+            console.warn("  enforceBounds: cannot trim further without removing entry/exit — stopping")
+            break
+        }
+
+        // Xóa subtitle có duration ngắn nhất trong phần giữa
+        // (ít nội dung nhất, mất đi ít nhất)
+        let minDur = Infinity
+        let removeCandidate = null
+        for (const i of removable) {
+            const s = byIndex[i]
+            if (!s) continue
+            const d = dur(s.start, s.end)
+            if (d < minDur) {
+                minDur = d
+                removeCandidate = i
+            }
+        }
+
+        if (removeCandidate === null) break
+        set.delete(removeCandidate)
     }
 
-    // Expand neighbors if under min
+    // Expand nếu dưới TARGET_MIN
     while (total() < CFG.TARGET_MIN) {
         const sorted = [...set].sort((a, b) => a - b)
-        const left = allSorted[allSorted.indexOf(sorted[0]) - 1]
-        const right = allSorted[allSorted.indexOf(sorted[sorted.length - 1]) + 1]
+        const leftIdx = allSorted.indexOf(sorted[0]) - 1
+        const rightIdx = allSorted.indexOf(sorted[sorted.length - 1]) + 1
         let added = false
-
-        if (left !== undefined && !set.has(left)) { set.add(left); added = true }
+        if (leftIdx >= 0) { set.add(allSorted[leftIdx]); added = true }
         if (total() >= CFG.TARGET_MIN) break
-        if (right !== undefined && !set.has(right)) { set.add(right); added = true }
+        if (rightIdx < allSorted.length) { set.add(allSorted[rightIdx]); added = true }
         if (!added) break
     }
 
-    return [...set].sort((a, b) => a - b)
-}
+    const result = [...set].sort((a, b) => a - b)
 
+    // Log để debug
+    const before = indices.length
+    const after = result.length
+    if (before !== after) {
+        console.log(`  enforceBounds: ${before} → ${after} indices (total: ${total().toFixed(1)}s)`)
+    }
+
+    return result
+}
 
 /*
 ========================
@@ -212,8 +259,7 @@ GROUP CONTIGUOUS INDICES → SEGMENTS
 ========================
 */
 function groupSegments(indices, segs) {
-    if (indices.length === 0) return []
-
+    if (!indices.length) return []
     const byIndex = Object.fromEntries(segs.map(s => [s.index, s]))
     const groups = []
     let group = [indices[0]]
@@ -232,10 +278,9 @@ function groupSegments(indices, segs) {
         start: byIndex[g[0]].start,
         end: byIndex[g[g.length - 1]].end,
         subtitles: g,
-        duration: dur(byIndex[g[0]].start, byIndex[g[g.length - 1]].end).toFixed(1)
+        duration: +dur(byIndex[g[0]].start, byIndex[g[g.length - 1]].end).toFixed(1)
     }))
 }
-
 
 /*
 ========================
@@ -245,24 +290,25 @@ ANALYSIS
 function analyze(selected, allSegs) {
     const total = sumDur(selected)
     const coverage = total / sumDur(allSegs)
-
     const gaps = []
     for (let i = 0; i < selected.length - 1; i++)
         gaps.push(sec(selected[i + 1].start) - sec(selected[i].end))
 
+    const totalTokens = tokens.outline + tokens.select
+    const estimatedCost = (totalTokens / 1_000_000 * 0.15).toFixed(4)
+
     console.log("\n===== ANALYSIS =====")
     console.log(`subtitles selected : ${selected.length}`)
-    console.log(`total duration     : ${total.toFixed(1)}s`)
-    console.log(`avg subtitle       : ${(total / selected.length).toFixed(1)}s`)
+    console.log(`total duration     : ${total.toFixed(1)}s  (target: ${CFG.TARGET_MIN}–${CFG.TARGET_MAX}s)`)
+    console.log(`avg subtitle dur   : ${(total / selected.length).toFixed(1)}s`)
     console.log(`coverage           : ${(coverage * 100).toFixed(1)}%`)
     console.log(`gaps > 60s         : ${gaps.filter(g => g > 60).length}`)
-    //Tokens used
-    console.log(`Outline tokens     : ${outlineToken}`)
-    console.log(`Select tokens      : ${selectToken}`)
-    console.log(`Total tokens       : ${outlineToken + selectToken}`)
+    console.log(`outline tokens     : ${tokens.outline}`)
+    console.log(`select  tokens     : ${tokens.select}`)
+    console.log(`total tokens       : ${totalTokens}`)
+    console.log(`est. cost (mini)   : ~$${estimatedCost}`)
     console.log("====================\n")
 }
-
 
 /*
 ========================
@@ -280,38 +326,36 @@ async function main() {
     const segs = parseSRT(raw)
     console.log(`subtitles: ${segs.length}`)
 
-    // Step 1: understand structure → outline with index ranges
+    // Step 1: outline
     const outline = await getOutline(segs)
     console.log(`outline topics: ${outline.length}`)
+    outline.forEach(t => console.log(`  [${t.start_index}–${t.end_index}] ${t.title}`))
 
-    // Step 2: select subtitle indices using per-topic SRT slices
+    // Step 2: select
     const rawIndices = await selectIndices(outline, segs)
-    const finalIndices = enforceBounds(rawIndices, segs)
+    const validIndices = validateIndices(rawIndices, segs)
+    const finalIndices = enforceBounds(validIndices, segs)
 
-    // Build final segments
+    console.log(`indices: raw=${rawIndices.length} → valid=${validIndices.length} → after bounds=${finalIndices.length}`)
+
+    // Build outputs
     const byIndex = Object.fromEntries(segs.map(s => [s.index, s]))
     const selected = finalIndices.map(i => byIndex[i]).filter(Boolean)
-
-    // Group contiguous indices → clean segments
     const segments = groupSegments(finalIndices, segs)
 
-    // Save outputs
+    // Save JSON
     fs.writeFileSync(CFG.OUTPUT, JSON.stringify(segments, null, 2))
-    console.log(`saved: ${CFG.OUTPUT}`)
-    console.log(`segments: ${segments.length} (from ${finalIndices.length} subtitles)`)
+    console.log(`saved: ${CFG.OUTPUT} (${segments.length} segments from ${finalIndices.length} subtitles)`)
 
-    const srtOut = segments
-        .map((seg, i) => {
-            const text = seg.subtitles
-                .map(idx => byIndex[idx].text)
-                .join(" ")
-            return `${i + 1}\n${seg.start} --> ${seg.end}\n${text}`
-        })
-        .join("\n\n")
+    // Save highlight SRT
+    const srtOut = segments.map((seg, i) => {
+        const text = seg.subtitles.map(idx => byIndex[idx].text).join(" ")
+        return `${i + 1}\n${seg.start} --> ${seg.end}\n${text}`
+    }).join("\n\n")
     fs.writeFileSync("highlight.srt", srtOut)
     console.log("saved: highlight.srt")
 
     analyze(selected, segs)
 }
 
-main()
+main().catch(err => { console.error(err); process.exit(1) })
