@@ -9,11 +9,12 @@ import { UpdateLessonActivityDto } from './dto/update-lesson-activities.dto';
 
 @Controller('lesson-activities')
 export class LessonActivitiesController {
-  constructor(private readonly lessonActivitiesService: LessonActivitiesService) {}
+  constructor(private readonly lessonActivitiesService: LessonActivitiesService) { }
 
   @Post()
-  create(@Body() createLessonActivityDto: CreateLessonActivityDto) {
-    return this.lessonActivitiesService.create(createLessonActivityDto);
+  create(@Body() body: CreateLessonActivityDto) {
+    console.log('check body: ', body);
+    return this.lessonActivitiesService.create(body);
   }
 
   @Get()
@@ -27,9 +28,9 @@ export class LessonActivitiesController {
   @Get('user')
   findAllByUserId(@Headers('x-user-id') userIdHeader?: string) {
     const user_id =
-            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
-                ? Number(userIdHeader)
-                : undefined;
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
     if (user_id) {
       return this.lessonActivitiesService.findAllByUserId(user_id);
     }

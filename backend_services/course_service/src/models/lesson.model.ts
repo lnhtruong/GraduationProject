@@ -13,7 +13,6 @@ export enum LessonStatus {
 export enum ContentType {
   VIDEO = 'video',
   TEXT = 'text',
-  QUIZ = 'quiz', // Thêm bớt tuỳ theo yêu cầu hệ thống của bạn
 }
 
 @Table({
@@ -28,7 +27,7 @@ export class Lesson extends Model {
     primaryKey: true,
     autoIncrement: true,
   })
-  id: number;
+  declare id: number;
 
   @Index('idx_lessons_course_id')
   @Column({

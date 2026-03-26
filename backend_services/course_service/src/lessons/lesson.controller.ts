@@ -5,7 +5,7 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 
 @Controller('lessons')
 export class LessonsController {
-  constructor(private readonly lessonsService: LessonsService) {}
+  constructor(private readonly lessonsService: LessonsService) { }
 
   @Post()
   create(@Body() createLessonDto: CreateLessonDto) {
@@ -13,18 +13,18 @@ export class LessonsController {
   }
 
   @Get('course')
-  findAllByCourseId(@Query('courseId') courseId?: number) {
+  findAllByCourseId(@Query('courseId') courseId?: number | null) {
     return this.lessonsService.findAllByCourseId(courseId);
   }
 
-  @Get('user')
-  findAllByUserId(@Headers('x-user-id') userIdHeader?: string) {
-    const user_id =
-            typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
-                ? Number(userIdHeader)
-                : undefined;
-    return this.lessonsService.findAllByUserId(user_id);
-  }
+  // @Get('user')
+  // findAllByUserId(@Headers('x-user-id') userIdHeader?: string) {
+  //   const user_id =
+  //           typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+  //               ? Number(userIdHeader)
+  //               : undefined;
+  //   return this.lessonsService.findAllByUserId(user_id);
+  // }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

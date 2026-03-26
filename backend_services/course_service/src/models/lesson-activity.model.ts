@@ -26,7 +26,7 @@ export class LessonActivity extends Model {
     primaryKey: true,
     autoIncrement: true,
   })
-  id: number;
+  declare id: number;
 
   @Index('idx_lesson_activities_lesson_id')
   @Column({

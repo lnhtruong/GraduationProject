@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
+import courseRoutes from './routes/course.routes';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import httpProxy from 'http-proxy';
 import { IncomingMessage, ServerResponse } from 'http';
@@ -119,16 +120,16 @@ const PUBLIC_ROUTES = [
   '/api/media/webhooks/ai-model/result'
 ];
 
-// app.use((req, res, next) => {
-//   if (req.path.includes('media')) {
-//     console.log('==== WEBHOOK HIT ====');
-//     console.log('URL:', req.originalUrl);
-//     console.log('METHOD:', req.method);
-//     console.log('HEADERS:', req.headers);
-//     console.log('BODY:', req.body);
-//   }
-//   next();
-// });
+app.use((req, res, next) => {
+  if (req.path.includes('course')) {
+    console.log('==== WEBHOOK HIT ====');
+    console.log('URL:', req.originalUrl);
+    console.log('METHOD:', req.method);
+    console.log('HEADERS:', req.headers);
+    console.log('BODY:', req.body);
+  }
+  next();
+});
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -146,6 +147,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/course', courseRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
 
@@ -169,8 +171,9 @@ const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` API Gateway is running on port ${config.port}`);
   console.log(` Auth Service: ${config.services.auth.url}`);
   console.log(` User Service: ${config.services.user.url}`);
+  console.log(` Course Service: ${config.services.course.url}`);
   console.log(` Media Service: ${config.services.media.url}`);
-  console.log(` Edit Session Service: ${config.services.edit.url}`);
+  // console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });
 

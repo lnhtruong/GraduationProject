@@ -15,9 +15,10 @@ export class LessonActivitiesService {
   constructor(
     @InjectModel(LessonActivity)
     private readonly lessonActivityModel: typeof LessonActivity,
-  ) {}
+  ) { }
 
   async create(createLessonActivityDto: CreateLessonActivityDto): Promise<LessonActivity> {
+    console.log('check dto: ', CreateLessonActivityDto);
     return await this.lessonActivityModel.create({ ...createLessonActivityDto });
   }
 
@@ -35,7 +36,7 @@ export class LessonActivitiesService {
   async findAllByUserId(userId: number): Promise<LessonActivity[]> {
     return await this.lessonActivityModel.findAll({
       where: {
-        userId,
+        createdBy: userId,
         status: { [Op.ne]: ActivityStatus.REMOVED },
       },
       order: [['orderIndex', 'ASC']],

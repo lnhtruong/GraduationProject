@@ -12,12 +12,11 @@ export const config = {
     user: {
       url: process.env.USER_SERVICE_URL || 'http://localhost:8002',
     },
+    course: {
+      url: process.env.COURSE_SERVICE_URL || 'http://localhost:8008',
+    },
     media: {
       url: process.env.MEDIA_SERVICE_URL || 'http://localhost:8003',
-    },
-    edit: {
-      // edit_session_service (projects, mascot_overlays)
-      url: process.env.EDIT_SESSION_SERVICE_URL || 'http://localhost:8004',
     },
     mascot_colab: { url: process.env.MASCOT_COLAB_SERVICE_URL || 'http://localhost:3005' },
   },

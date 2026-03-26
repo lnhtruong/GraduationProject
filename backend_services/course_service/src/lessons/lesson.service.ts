@@ -12,35 +12,35 @@ export class LessonsService {
   constructor(
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
-  ) {}
+  ) { }
 
   async create(createLessonDto: CreateLessonDto): Promise<Lesson> {
     return await this.lessonModel.create({ ...createLessonDto });
   }
 
-  async findAllByCourseId(courseId?: number): Promise<Lesson[]> {
+  async findAllByCourseId(courseId?: number | null): Promise<Lesson[]> {
     const whereCondition: any = {
       status: { [Op.ne]: LessonStatus.REMOVED }, // Bỏ qua các lesson đã bị xoá mềm
     };
 
-    if (courseId) {
+    if (courseId || courseId == null) {
       whereCondition.courseId = courseId;
     }
 
     return await this.lessonModel.findAll({ where: whereCondition });
   }
 
-  async findAllByUserId(userId?: number): Promise<Lesson[]> {
-    const whereCondition: any = {
-      status: { [Op.ne]: LessonStatus.REMOVED }, // Bỏ qua các lesson đã bị xoá mềm
-    };
+  // async findAllByUserId(userId?: number): Promise<Lesson[]> {
+  //   const whereCondition: any = {
+  //     status: { [Op.ne]: LessonStatus.REMOVED }, // Bỏ qua các lesson đã bị xoá mềm
+  //   };
 
-    if (userId) {
-      whereCondition.userId = userId;
-    }
+  //   if (userId) {
+  //     whereCondition.userId = userId;
+  //   }
 
-    return await this.lessonModel.findAll({ where: whereCondition });
-  }
+  //   return await this.lessonModel.findAll({ where: whereCondition });
+  // }
 
   async findOne(id: number): Promise<Lesson> {
     const lesson = await this.lessonModel.findByPk(id);

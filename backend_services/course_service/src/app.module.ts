@@ -9,6 +9,7 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { LessonsModule } from './lessons/lesson.module';
 import { LessonActivitiesModule } from './lessonActivities/lesson.activities.module';
+import { QuizzesModule } from './quizzes/quizzes.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { LessonActivitiesModule } from './lessonActivities/lesson.activities.mod
     UsersModule,
     LessonsModule,
     LessonActivitiesModule,
+    QuizzesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
