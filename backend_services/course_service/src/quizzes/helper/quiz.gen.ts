@@ -17,11 +17,12 @@ export interface QuizQuestion {
   point: number
   correctExplanation?: string
   orderIndex: number
-  options: QuizOption[]
+  options: QuizOption[],
+  evidence: string
 }
 
 export interface QuizPayload {
-  lessonActivityId: number
+//   lessonActivityId: number
   name: string
   shuffleQuestion: boolean
   shuffleOption: boolean
@@ -31,7 +32,7 @@ export interface QuizPayload {
 }
 
 export interface CreateQuizInput {
-  lessonActivityId: number
+//   lessonActivityId: number
   name: string
   shuffleQuestion: boolean
   shuffleOption: boolean
@@ -52,7 +53,7 @@ interface RawQuestion {
   options: string[]
   correct_index: number
   explanation: string
-  evidence: { start: string; end: string }
+  evidence: string,
   type?: "mcq" | "short_text" | "true_false"
 }
 
@@ -216,8 +217,9 @@ Topic: ${cfg.TOPIC}
 - For mcq: all 4 options must be plausible. Wrong answers = common misconceptions.
 - correct_index is 0-based. For true_false: 0 = True, 1 = False.
 - explanation: 1-2 sentences explaining the correct answer.
-- evidence: pick the EXACT timestamp range from the transcript. Format "HH:MM:SS,mmm".
+- evidence: pick the "start" timestamp from the transcript. Format "HH:MM:SS,mmm".
 - Distribute questions evenly across the transcript.
+- Use language suitable for transcript content and target audience.
 
 ## Output format
 {
@@ -287,7 +289,7 @@ function validateQuiz(questions: RawQuestion[]): void {
     if (typeof q.correct_index !== "number" || q.correct_index < 0)
       issues.push(`Q${q.id}: invalid correct_index`)
     if (!q.explanation) issues.push(`Q${q.id}: missing explanation`)
-    if (!q.evidence?.start || !q.evidence?.end)
+    if (!q.evidence)
       issues.push(`Q${q.id}: missing evidence timestamps`)
   }
   if (issues.length) {
@@ -335,6 +337,7 @@ function mapToApiFormat(rawQuestions: RawQuestion[], cfg: Config): QuizQuestion[
       correctExplanation: q.explanation,
       orderIndex: i + 1,
       options,
+      evidence: q.evidence,
     }
   })
 }
@@ -365,7 +368,7 @@ export async function createQuiz(
   const transcript = buildTranscript(segs)
   console.log(`transcript: ${segs.length} lines\n`)
 
-  const ai = new OpenAI({ apiKey: process.env.OPENAI_KEY || "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" })
+  const ai = new OpenAI({ apiKey: process.env.OPENAI_KEY })
   const rawQuestions = await generateQuiz(ai, transcript, numQuestions, config)
 
   console.log(`\ngenerated: ${rawQuestions.length} questions`)
@@ -374,7 +377,7 @@ export async function createQuiz(
   const questions = mapToApiFormat(rawQuestions, config)
 
   return {
-    lessonActivityId: input.lessonActivityId,
+    // lessonActivityId: input.lessonActivityId,
     name: input.name,
     shuffleQuestion: input.shuffleQuestion,
     shuffleOption: input.shuffleOption,

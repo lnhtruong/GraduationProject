@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { QuizzesService } from './quizzes.service';
+import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -10,6 +11,11 @@ export class QuizzesController {
   // Single endpoint supports both: object and array payloads.
   @Post()
   async create(@Body() body: CreateQuizDto | CreateQuizDto[]) {
+    if (Array.isArray(body)) return await this.quizzesService.createMany(body);
+    return await this.quizzesService.createOne(body);
+  }
+  @Post('ai')
+  async createAI(@Body() body: CreateQuizAIDto | CreateQuizAIDto[]) {
     if (Array.isArray(body)) return await this.quizzesService.createMany(body);
     return await this.quizzesService.createOne(body);
   }

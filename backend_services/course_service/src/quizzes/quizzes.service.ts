@@ -6,6 +6,7 @@ import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
 
 @Injectable()
 export class QuizzesService {
@@ -63,6 +64,20 @@ export class QuizzesService {
   }
 
   async createMany(payload: CreateQuizDto[]): Promise<Quiz[]> {
+    return await this.sequelize.transaction(async (transaction) => {
+      const created: Quiz[] = [];
+      for (const item of payload) {
+        const quiz = await this.createOneWithTransaction(item, transaction);
+        created.push(quiz);
+      }
+      return created;
+    });
+  }
+
+  async createManyByAI(payload: CreateQuizAIDto[]): Promise<Quiz[]> {
+    //srt from db
+    //config
+    // const payload = generateQuizPayload()
     return await this.sequelize.transaction(async (transaction) => {
       const created: Quiz[] = [];
       for (const item of payload) {
