@@ -24,6 +24,8 @@ export default function VideoEditor() {
           prev.layers === next.layers &&
           prev.selectedTextId === next.selectedTextId &&
           prev.videoFile === next.videoFile &&
+          prev.videoSourceUrl === next.videoSourceUrl &&
+          prev.mascotFrameSize === next.mascotFrameSize &&
           prev.isApplyingMascot === next.isApplyingMascot &&
           prev.mascotProgress === next.mascotProgress;
 
@@ -39,6 +41,8 @@ export default function VideoEditor() {
           layers: next.layers,
           selectedTextId: next.selectedTextId,
           videoFile: next.videoFile,
+          videoSourceUrl: next.videoSourceUrl,
+          mascotFrameSize: next.mascotFrameSize,
           isApplyingMascot: next.isApplyingMascot,
           mascotProgress: next.mascotProgress,
           onEffectChange: next.onEffectChange,

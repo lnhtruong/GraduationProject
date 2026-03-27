@@ -28,7 +28,15 @@ import type {
   LayerItem,
   OptionType,
   TextOption,
+  VideoFrameSize,
 } from "@/features/videoEditor/types";
+import {
+  applyCornerSnap,
+  clampPreviewPlacement,
+  deriveScaleFromDisplayWidth,
+  deriveBackendMascotFromPreview,
+  getMascotDisplaySize,
+} from "@/features/videoEditor/utils/mascotPlacement";
 
 export interface CoreVideoEditorProps {
   onFirstVideoAdded?: (payload: {
@@ -96,6 +104,9 @@ export default function CoreVideoEditor({
   const [isDraggingLayer, setIsDraggingLayer] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [mascotFrameSize, setMascotFrameSize] = useState<VideoFrameSize | null>(
+    null,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -131,9 +142,79 @@ export default function CoreVideoEditor({
 
   const handlePreviewDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    const source = active.data.current?.source;
 
-    if (active.data.current?.source === "preview" && over?.id === "trash") {
+    if (source === "preview" && over?.id === "trash") {
       handleRemoveText(String(active.id));
+    }
+
+    if (
+      source === "mascot-preview" &&
+      over?.id === "video-preview-dropzone" &&
+      mascotFrameSize &&
+      mascot.previewPlacement
+    ) {
+      const movedPlacement = clampPreviewPlacement(
+        {
+          ...mascot.previewPlacement,
+          xPct:
+            mascot.previewPlacement.xPct +
+            (event.delta.x / mascotFrameSize.width) * 100,
+          yPct:
+            mascot.previewPlacement.yPct +
+            (event.delta.y / mascotFrameSize.height) * 100,
+          hasPlaced: true,
+        },
+        mascotFrameSize,
+        mascot.scale,
+      );
+
+      const { snappedPlacement, snappedCorner } = applyCornerSnap(
+        movedPlacement,
+        mascotFrameSize,
+        mascot.scale,
+      );
+
+      setMascot({
+        ...mascot,
+        position: snappedCorner ?? mascot.position,
+        previewPlacement: {
+          ...snappedPlacement,
+          hasPlaced: true,
+        },
+      });
+    }
+
+    if (
+      source === "mascot-resize" &&
+      over?.id === "video-preview-dropzone" &&
+      mascotFrameSize &&
+      mascot.previewPlacement
+    ) {
+      const size = getMascotDisplaySize(
+        mascotFrameSize,
+        mascot.scale,
+        mascot.previewPlacement.aspectRatio,
+      );
+      const nextDisplayWidth = Math.max(20, size.width + event.delta.x);
+      const nextScale = deriveScaleFromDisplayWidth(
+        mascotFrameSize,
+        nextDisplayWidth,
+      );
+      const nextPlacement = clampPreviewPlacement(
+        mascot.previewPlacement,
+        mascotFrameSize,
+        nextScale,
+      );
+
+      setMascot({
+        ...mascot,
+        scale: nextScale,
+        previewPlacement: {
+          ...nextPlacement,
+          hasPlaced: true,
+        },
+      });
     }
 
     setActiveItem(null);
@@ -163,7 +244,24 @@ export default function CoreVideoEditor({
       return;
     }
 
-    await applyMascot(mascot, videoSrc, (blobUrl) => {
+    if (mascot.type !== "none" && mascot.position !== "replace") {
+      if (!mascot.previewPlacement?.hasPlaced) {
+        alert("Hãy kéo mascot lên video trước khi áp dụng.");
+        return;
+      }
+
+      if (!mascotFrameSize) {
+        alert("Không thể xác định kích thước khung video để áp dụng mascot.");
+        return;
+      }
+    }
+
+    const computedMascot =
+      mascot.type !== "none" && mascot.position !== "replace" && mascotFrameSize
+        ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
+        : mascot;
+
+    await applyMascot(computedMascot, videoSrc, (blobUrl) => {
       setVideoSrc(blobUrl);
     });
   }, [
@@ -172,6 +270,7 @@ export default function CoreVideoEditor({
     originalVideoFile,
     applyMascot,
     mascot,
+    mascotFrameSize,
     setVideoSrc,
   ]);
 
@@ -210,6 +309,8 @@ export default function CoreVideoEditor({
       isApplyingMascot,
       mascotProgress,
       videoFile: originalVideoFile,
+      videoSourceUrl: hasSelectedVideo ? videoSrc : undefined,
+      mascotFrameSize,
       voice,
       onVoiceChange: setVoice,
       layers,
@@ -225,6 +326,9 @@ export default function CoreVideoEditor({
     isApplyingMascot,
     mascotProgress,
     originalVideoFile,
+    videoSrc,
+    hasSelectedVideo,
+    mascotFrameSize,
     voice,
     layers,
     selectedTextId,
@@ -335,6 +439,9 @@ export default function CoreVideoEditor({
                   layers={layers}
                   selectedTextId={selectedTextId}
                   onTextSelect={setSelectedTextId}
+                  mascot={mascot}
+                  onMascotChange={setMascot}
+                  onMascotFrameChange={setMascotFrameSize}
                 />
               )}
             </section>
@@ -373,6 +480,7 @@ export default function CoreVideoEditor({
                 isApplyingMascot={isApplyingMascot}
                 mascotProgress={mascotProgress}
                 videoFile={originalVideoFile}
+                videoSourceUrl={hasSelectedVideo ? videoSrc : undefined}
                 voice={voice}
                 onVoiceChange={setVoice}
                 layers={layers}

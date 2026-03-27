@@ -449,7 +449,9 @@ export function StudioSidebar({
                           onApply={panelBindings.onMascotApply}
                           isApplying={panelBindings.isApplyingMascot}
                           mascotProgress={panelBindings.mascotProgress}
-                          videoFile={panelBindings.videoFile}
+                          hasVideo={Boolean(
+                            panelBindings.videoFile || panelBindings.videoSourceUrl,
+                          )}
                         />
                       </div>
                     ) : null}
