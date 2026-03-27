@@ -1,10 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
 import { useProject } from "@/features/project";
-import { videoApi } from "@/features/video";
-import { videoKeys } from "@/features/video";
 import { toast } from "sonner";
 import type { Project } from "@/features/project";
 import type {
@@ -30,25 +27,16 @@ export function useWorkspace() {
   const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null);
 
-  const videoQueries = useQueries({
-    queries: projects.map((project) => ({
-      queryKey: videoKeys.detail(project.video_id ?? -1),
-      queryFn: () => videoApi.findById(project.video_id ?? 0),
-      enabled: !!project.video_id,
-      staleTime: 60_000,
-    })),
-  });
-
   const rawItems = useMemo<WorkspaceProjectItem[]>(() => {
-    return projects.map((project, index) => {
-      const videoData = videoQueries[index]?.data ?? null;
+    return projects.map((project) => {
+      const videoData = project.video ?? null;
       return {
         project,
         video: videoData,
         thumbnail: videoData?.thumbnail ?? null,
       };
     });
-  }, [projects, videoQueries]);
+  }, [projects]);
 
   const filteredItems = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -86,7 +74,7 @@ export function useWorkspace() {
     return sorted;
   }, [rawItems, searchValue, sortBy, statusFilter]);
 
-  const isLoadingThumbnails = videoQueries.some((query) => query.isLoading);
+  const isLoadingThumbnails = false;
 
   const removeProject = async (project: Project) => {
     try {
