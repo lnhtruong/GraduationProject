@@ -8,6 +8,10 @@ export class CreateLessonDto {
   @IsOptional()
   courseId: number;
 
+  @IsInt()
+  @IsOptional()
+  videoId?: number | null;
+
   @IsString()
   @MaxLength(255)
   title: string;

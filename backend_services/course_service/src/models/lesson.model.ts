@@ -37,6 +37,14 @@ export class Lesson extends Model {
   })
   courseId: number;
 
+  @Index('idx_lessons_video_id')
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    field: 'video_id',
+  })
+  videoId: number | null;
+
   @Column({
     type: DataType.STRING(255),
     allowNull: false,

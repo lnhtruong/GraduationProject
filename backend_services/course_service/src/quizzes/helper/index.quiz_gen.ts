@@ -1,13 +1,13 @@
 import { createQuiz, QuizPayload } from "./quiz.gen"
 
-export async function generateQuizPayload(srtRaw: string, shuffQues, shuffOps, passScore, timeLimit): Promise<QuizPayload> {
+export async function generateQuizPayload(srtRaw: string, quizName: string, shuffQues: boolean, shuffOps: boolean, passScore: number, timeLimit: number): Promise<QuizPayload> {
   return createQuiz(srtRaw, {
-    name: "Quiz 1",
+    name: quizName || "Quiz 1",
     shuffleQuestion: shuffQues,
     shuffleOption: shuffOps,
     passingScore: passScore,
     timeLimitMinutes: timeLimit,
-  }, { TOPIC: "DSA", PCT_MCQ: 60, PCT_TRUE_FALSE: 20, PCT_SHORT_TEXT: 20 })
+  }, { TOPIC: quizName || "DSA", PCT_MCQ: 60, PCT_TRUE_FALSE: 20, PCT_SHORT_TEXT: 20 })
 }
 
 
@@ -441,4 +441,3 @@ export async function generateQuizPayload(srtRaw: string, shuffQues, shuffOps, p
 // }
 
 // test()
-  

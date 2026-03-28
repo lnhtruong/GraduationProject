@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
+import { Video } from 'src/models/video.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
+import { generateQuizPayload } from './helper/index.quiz_gen';
+import { toPersistableQuestionRow } from './quiz-payload.mapper';
 
 @Injectable()
 export class QuizzesService {
@@ -14,6 +17,7 @@ export class QuizzesService {
     @InjectModel(Quiz) private readonly quizModel: typeof Quiz,
     @InjectModel(QuizQuestion) private readonly quizQuestionModel: typeof QuizQuestion,
     @InjectModel(QuizOption) private readonly quizOptionModel: typeof QuizOption,
+    @InjectModel(Video) private readonly videoModel: typeof Video,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) { }
 
@@ -63,21 +67,81 @@ export class QuizzesService {
     });
   }
 
-  async createMany(payload: CreateQuizDto[]): Promise<Quiz[]> {
+  async createOneByAI(payload: CreateQuizAIDto): Promise<Quiz> {
+    const video = await this.videoModel.findByPk(payload.videoId, {
+      attributes: ['id', 'srt_highlight'],
+    });
+    if (!video) {
+      throw new NotFoundException(`Video with ID ${payload.videoId} not found`);
+    }
+    const srtRaw = video.srt_highlight?.trim();
+    if (!srtRaw) {
+      throw new BadRequestException(
+        'Video has no srt_highlight. Upload highlight transcript or wait for webhook to populate it.',
+      );
+    }
+
+    const generated = await generateQuizPayload(
+      srtRaw,
+      payload.name,
+      payload.shuffleQuestion ?? false,
+      payload.shuffleOption ?? false,
+      payload.passingScore ?? 0,
+      payload.timeLimitMinutes ?? 0,
+    );
+
     return await this.sequelize.transaction(async (transaction) => {
-      const created: Quiz[] = [];
-      for (const item of payload) {
-        const quiz = await this.createOneWithTransaction(item, transaction);
-        created.push(quiz);
+      const quiz = await this.quizModel.create(
+        {
+          lessonActivityId: payload.lessonActivityId,
+          name: generated.name,
+          shuffleQuestion: generated.shuffleQuestion,
+          shuffleOption: generated.shuffleOption,
+          passingScore: generated.passingScore,
+          timeLimitMinutes: generated.timeLimitMinutes,
+        },
+        { transaction },
+      );
+
+      for (const q of generated.questions) {
+        const row = toPersistableQuestionRow(q);
+        const question = await this.quizQuestionModel.create(
+          {
+            quizId: quiz.id,
+            quesType: row.quesType,
+            quesText: row.quesText,
+            point: row.point,
+            correctAns: row.correctAns,
+            orderIndex: row.orderIndex,
+          },
+          { transaction },
+        );
+        if (row.options?.length) {
+          await this.quizOptionModel.bulkCreate(
+            row.options.map((o) => ({
+              questionId: question.id,
+              optionText: o.optionText,
+              isCorrect: o.isCorrect ?? false,
+              orderIndex: o.orderIndex,
+            })),
+            { transaction },
+          );
+        }
       }
-      return created;
+
+      return await this.findOne(quiz.id, { transaction });
     });
   }
 
-  async createManyByAI(payload: CreateQuizAIDto[]): Promise<Quiz[]> {
-    //srt from db
-    //config
-    // const payload = generateQuizPayload()
+  async createManyByAI(payloads: CreateQuizAIDto[]): Promise<Quiz[]> {
+    const out: Quiz[] = [];
+    for (const p of payloads) {
+      out.push(await this.createOneByAI(p));
+    }
+    return out;
+  }
+
+  async createMany(payload: CreateQuizDto[]): Promise<Quiz[]> {
     return await this.sequelize.transaction(async (transaction) => {
       const created: Quiz[] = [];
       for (const item of payload) {

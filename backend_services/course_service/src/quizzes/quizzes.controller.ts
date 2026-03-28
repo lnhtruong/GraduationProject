@@ -16,8 +16,8 @@ export class QuizzesController {
   }
   @Post('ai')
   async createAI(@Body() body: CreateQuizAIDto | CreateQuizAIDto[]) {
-    if (Array.isArray(body)) return await this.quizzesService.createMany(body);
-    return await this.quizzesService.createOne(body);
+    if (Array.isArray(body)) return await this.quizzesService.createManyByAI(body);
+    return await this.quizzesService.createOneByAI(body);
   }
 
   @Get()

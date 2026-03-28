@@ -12,4 +12,8 @@ export class UpdateVideoDto {
     @IsOptional()
     @IsNumber()
     duration?: number;
+
+    @IsOptional()
+    @IsString()
+    srt_highlight?: string;
 }

@@ -16,6 +16,10 @@ export class CreateQuizAIDto {
   @IsInt()
   lessonActivityId: number;
 
+  /** Source video row in `videos` — used to load `srt_highlight` for generation. */
+  @IsInt()
+  videoId: number;
+
   @IsString()
   @MaxLength(255)
   name: string;

@@ -22,10 +22,10 @@ export enum VideoType {
   updatedAt: 'updated_at',
 })
 export class Video extends Model {
-  // @PrimaryKey
-  // @AutoIncrement
-  // @Column(DataType.INTEGER)
-  // id: number;
+  @PrimaryKey
+  @AutoIncrement
+  @Column(DataType.INTEGER)
+  declare id: number;
 
   @Column({
     type: DataType.INTEGER,
@@ -65,6 +65,13 @@ export class Video extends Model {
     allowNull: true,
   })
   declare duration: number | null;
+
+  @Column({
+    type: DataType.TEXT('long'),
+    allowNull: true,
+    field: 'srt_highlight',
+  })
+  declare srt_highlight: string | null;
 
   @BelongsTo(() => MascotImage)
   image?: MascotImage;

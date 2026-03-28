@@ -30,6 +30,7 @@ export class VideoService {
             type: dto.type ?? VideoType.MASCOT,
             url: dto.url,
             duration: dto.duration,
+            srt_highlight: dto.srt_highlight ?? null,
         });
     }
 
@@ -84,6 +85,7 @@ export class VideoService {
             url: dto.url ?? video.url,
             duration: dto.duration ?? video.duration,
             image_id: dto.image_id ?? video.image_id,
+            srt_highlight: dto.srt_highlight ?? video.srt_highlight,
         });
 
         return video;

@@ -7,6 +7,9 @@ interface CloudinaryContextCustom {
     userId?: string;
     user_id?: string;
     type?: string;
+    /** Highlight SRT / transcript (may be very long). */
+    srt_highlight?: string;
+    srtHighlight?: string;
 }
 
 interface CloudinaryPayload {
@@ -98,6 +101,16 @@ export class WebhookService {
         };
         if (display_name) createPayload.name = display_name;
         if (thumbnailUrl) createPayload.thumbnail = thumbnailUrl;
+
+        const srtHighlight =
+            typeof custom?.srt_highlight === 'string' && custom.srt_highlight.trim().length > 0
+                ? custom.srt_highlight
+                : typeof custom?.srtHighlight === 'string' && custom.srtHighlight.trim().length > 0
+                    ? custom.srtHighlight
+                    : undefined;
+        if (srtHighlight !== undefined) {
+            createPayload.srt_highlight = srtHighlight;
+        }
 
         // console.log('payload create: ', createPayload);
 
