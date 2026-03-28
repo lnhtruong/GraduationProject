@@ -1,5 +1,6 @@
 import OpenAI from "openai"
-
+import dotenv from "dotenv"
+dotenv.config()
 /*
 ========================
 TYPES
@@ -111,12 +112,22 @@ PARSE SRT
 function parseSRT(raw: string): SRTSegment[] {
   return raw
     .trim()
-    .split("\n\n")
-    .map((b, i) => {
-      const l = b.split("\n")
-      const [start, end] = l[1].split(" --> ")
-      return { index: i + 1, start, end, text: l.slice(2).join(" ") }
+    .split(/\n\s*\n/)
+    .map((b) => {
+      const lines = b.trim().split("\n").map(l => l.trim())
+      if (lines.length < 3) return null
+      
+      const index = parseInt(lines[0], 10)
+      // Supports "00:01:27,440 --> 00:01:31,440" or "00:01:27.440->00:01:31.440"
+      const timeStr = lines[1]
+      const parts = timeStr.includes(" --> ") ? timeStr.split(" --> ") : timeStr.split("->")
+      const start = parts[0]?.trim()
+      const end = parts[1]?.trim()
+      const text = lines.slice(2).join(" ")
+      
+      return { index, start, end, text }
     })
+    .filter((s): s is SRTSegment => s !== null)
 }
 
 /*
@@ -127,7 +138,7 @@ Since srtRaw is already the highlight version, no remapping needed.
 ========================
 */
 function buildTranscript(segs: SRTSegment[]): string {
-  return segs.map((s) => `[${s.start} --> ${s.end}] ${s.text}`).join("\n")
+  return segs.map((s) => `[${s.start}->${s.end}] ${s.text}`).join("\n")
 }
 
 /*
@@ -368,7 +379,7 @@ export async function createQuiz(
   const transcript = buildTranscript(segs)
   console.log(`transcript: ${segs.length} lines\n`)
 
-  const ai = new OpenAI({ apiKey: process.env.OPENAI_KEY })
+  const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const rawQuestions = await generateQuiz(ai, transcript, numQuestions, config)
 
   console.log(`\ngenerated: ${rawQuestions.length} questions`)
