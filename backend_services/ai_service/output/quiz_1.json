@@ -1,0 +1,191 @@
+{
+  "meta": {
+    "topic": "So sánh Bắc cực và Nam cực",
+    "generated_at": "2026-03-26T14:05:21.947Z",
+    "num_questions": 10,
+    "source_segments": 38,
+    "highlight_duration_sec": 300.5
+  },
+  "questions": [
+    {
+      "id": 1,
+      "question": "Điều nào sau đây là một khác biệt giữa Bắc Cực và Nam Cực?",
+      "options": [
+        "Bắc Cực là vùng biển",
+        "Nam Cực có nhiều loài chim cánh cụt",
+        "Bắc Cực có nhiệt độ thấp hơn Nam Cực",
+        "Nam Cực có lớp băng dày hơn Bắc Cực"
+      ],
+      "correct_index": 0,
+      "explanation": "Bắc Cực thực sự là một vùng biển, trong khi Nam Cực chủ yếu là đất liền với lớp băng dày. Các lựa chọn khác đều sai vì chúng không phản ánh đúng sự thật về hai khu vực này.",
+      "evidence": {
+        "original_start": "00:00:08,340",
+        "original_end": "00:00:12,260",
+        "start": "00:00:00,000",
+        "end": "00:00:03,920"
+      }
+    },
+    {
+      "id": 2,
+      "question": "Nhiệt độ thấp nhất được ghi nhận ở Nam Cực là bao nhiêu?",
+      "options": [
+        "Âm 68 độ C",
+        "Âm 49 độ C",
+        "Âm 89 độ C",
+        "Âm 30 độ C"
+      ],
+      "correct_index": 2,
+      "explanation": "Nhiệt độ thấp nhất được ghi nhận ở Nam Cực là âm 89 độ C, trong khi các lựa chọn khác không chính xác với thông tin từ video.",
+      "evidence": {
+        "original_start": "00:07:13,140",
+        "original_end": "00:07:19,860",
+        "start": "00:03:51,840",
+        "end": "00:03:58,560"
+      }
+    },
+    {
+      "id": 3,
+      "question": "Tại sao Bắc Cực có nhiệt độ cao hơn Nam Cực?",
+      "options": [
+        "Bắc Cực là vùng biển",
+        "Nam Cực có độ cao hơn",
+        "Bắc Cực có nhiều băng hơn",
+        "Nam Cực không có nước"
+      ],
+      "correct_index": 0,
+      "explanation": "Bắc Cực là một vùng biển, do đó nước có khả năng giữ nhiệt tốt hơn so với đất liền ở Nam Cực, nơi có độ cao hơn. Các lựa chọn khác đều sai vì không phản ánh đúng nguyên nhân.",
+      "evidence": {
+        "original_start": "00:03:31,540",
+        "original_end": "00:03:41,580",
+        "start": "00:01:58,640",
+        "end": "00:02:08,680"
+      }
+    },
+    {
+      "id": 4,
+      "question": "Loài chim nào đã tuyệt chủng ở Bắc Cực vào thế kỷ 19?",
+      "options": [
+        "Chim cánh cụt",
+        "Chim hải âu",
+        "Chim bồ câu",
+        "Chim sẻ"
+      ],
+      "correct_index": 0,
+      "explanation": "Chim cánh cụt là loài chim đã tuyệt chủng ở Bắc Cực vào thế kỷ 19, trong khi các loài chim khác không liên quan đến thông tin này.",
+      "evidence": {
+        "original_start": "00:01:18,420",
+        "original_end": "00:01:24,820",
+        "start": "00:00:35,280",
+        "end": "00:00:41,680"
+      }
+    },
+    {
+      "id": 5,
+      "question": "Diện tích của Nam Cực là bao nhiêu?",
+      "options": [
+        "14 triệu km²",
+        "7 triệu km²",
+        "28 triệu km²",
+        "10 triệu km²"
+      ],
+      "correct_index": 0,
+      "explanation": "Nam Cực có diện tích khoảng 14 triệu km², trong khi các lựa chọn khác không chính xác với thông tin từ video.",
+      "evidence": {
+        "original_start": "00:02:20,380",
+        "original_end": "00:02:25,900",
+        "start": "00:00:54,040",
+        "end": "00:00:59,560"
+      }
+    },
+    {
+      "id": 6,
+      "question": "Mục đích của Hiệp ước Nam Cực là gì?",
+      "options": [
+        "Bảo vệ môi trường",
+        "Khai thác tài nguyên",
+        "Tăng cường quân sự",
+        "Phát triển du lịch"
+      ],
+      "correct_index": 0,
+      "explanation": "Mục đích của Hiệp ước Nam Cực là nhằm bảo vệ môi trường và duy trì hòa bình tại khu vực này. Các lựa chọn khác không phản ánh đúng mục đích của hiệp ước.",
+      "evidence": {
+        "original_start": "00:06:23,180",
+        "original_end": "00:06:28,700",
+        "start": "00:03:12,080",
+        "end": "00:03:17,600"
+      }
+    },
+    {
+      "id": 7,
+      "question": "Tại sao Nam Cực lại lạnh hơn Bắc Cực?",
+      "options": [
+        "Nam Cực có độ cao hơn",
+        "Bắc Cực có nhiều nước",
+        "Nam Cực có ít băng hơn",
+        "Bắc Cực gần mặt trời hơn"
+      ],
+      "correct_index": 0,
+      "explanation": "Nam Cực có độ cao trung bình cao hơn mực nước biển, dẫn đến nhiệt độ thấp hơn. Các lựa chọn khác không đúng vì không phản ánh chính xác nguyên nhân.",
+      "evidence": {
+        "original_start": "00:03:22,940",
+        "original_end": "00:03:31,540",
+        "start": "00:01:51,920",
+        "end": "00:01:58,640"
+      }
+    },
+    {
+      "id": 8,
+      "question": "Loài nào không sống ở Bắc Cực?",
+      "options": [
+        "Chim cánh cụt",
+        "Gấu Bắc Cực",
+        "Cá hồi",
+        "Hải cẩu"
+      ],
+      "correct_index": 0,
+      "explanation": "Chim cánh cụt không sống ở Bắc Cực mà chỉ có ở Nam Cực. Các loài khác đều có thể sống ở Bắc Cực.",
+      "evidence": {
+        "original_start": "00:01:30,460",
+        "original_end": "00:01:36,180",
+        "start": "00:00:41,680",
+        "end": "00:00:47,400"
+      }
+    },
+    {
+      "id": 9,
+      "question": "Khi nào Nam Cực lạnh nhất?",
+      "options": [
+        "Tháng 1",
+        "Tháng 7",
+        "Tháng 6",
+        "Tháng 12"
+      ],
+      "correct_index": 1,
+      "explanation": "Nam Cực lạnh nhất vào tháng 7 khi trái đất xa mặt trời nhất, trong khi các tháng khác không phải là thời điểm lạnh nhất.",
+      "evidence": {
+        "original_start": "00:03:01,620",
+        "original_end": "00:03:05,140",
+        "start": "00:01:30,600",
+        "end": "00:01:34,120"
+      }
+    },
+    {
+      "id": 10,
+      "question": "Bắc Cực có nguồn tài nguyên nào phong phú?",
+      "options": [
+        "Dầu mỏ",
+        "Cá",
+        "Kim loại quý",
+        "Gỗ"
+      ],
+      "correct_index": 1,
+      "explanation": "Bắc Cực có nguồn tài nguyên cá phong phú, trong khi các lựa chọn khác không phải là nguồn tài nguyên chính ở khu vực này.",
+      "evidence": {
+        "original_start": "00:06:03,060",
+        "original_end": "00:06:08,940",
+        "start": "00:02:55,720",
+        "end": "00:03:01,600"
+      }
+    }
+  ]
+}

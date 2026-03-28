@@ -1,0 +1,1036 @@
+1
+00:00:00,000 --> 00:00:02,940
+Đó luôn, đáy ra cho người nước ngoài xảy ra với channel của mình
+
+2
+00:00:02,940 --> 00:00:04,640
+Đây là video tiếp theo được một series
+
+3
+00:00:04,640 --> 00:00:07,040
+Các thứ vị lựa vào tục tốt vào trong vòng này mình sẽ nói về
+
+4
+00:00:07,040 --> 00:00:10,680
+Binary Research 3 và mình sẽ phân tất 1 số cái phần xin lời tìm
+
+5
+00:00:10,680 --> 00:00:12,680
+Cơ bạng của 1 cái binary Research 3
+
+6
+00:00:18,850 --> 00:00:21,890
+Vào hôm nay là đại trở về với nhà tầy Tỷ Tỷ Mết Wayser
+
+7
+00:00:23,730 --> 00:00:28,170
+Mình đang nghĩ về việc rất là tất cả những cái video trên channel Omdap
+
+8
+00:00:28,170 --> 00:00:28,930
+Sau này
+
+9
+00:00:29,650 --> 00:00:32,010
+Mỗi video sẽ có 1 lông vi
+
+10
+00:00:32,010 --> 00:00:33,250
+Tìm cho nó...
+
+11
+00:00:33,250 --> 00:00:34,450
+Vui chút, hả?
+
+12
+00:00:43,900 --> 00:00:45,900
+Chắc thì đầu tiên mình sẽ bảo với việc rất là
+
+13
+00:00:46,740 --> 00:00:48,580
+1 cái binary Research 3 cái nghĩa là gì
+
+14
+00:00:49,140 --> 00:00:53,380
+Thì nó có chịu Binary rồi chịu 3 thì cứ nghĩa là 1 cái binary Research 3
+
+15
+00:00:53,380 --> 00:00:55,140
+Nhưng mà nó có thể cái Search
+
+16
+00:00:55,140 --> 00:00:55,900
+Vào
+
+17
+00:00:55,900 --> 00:01:00,260
+Cái chị Search người ta thêm bảo đó là để tạo ra 1 cái loại cấu tức diễn liệu
+
+18
+00:01:00,260 --> 00:01:01,860
+mà nó đặc biệt một chút
+
+19
+00:01:01,860 --> 00:01:05,820
+Và nó sẽ hỗ trợ hồ hết tất cả những cái tính năng của nó
+
+20
+00:01:05,820 --> 00:01:09,340
+Điều có cái độ phức tạy về tục tọn nó chính là Lâm Nơ
+
+21
+00:01:09,340 --> 00:01:13,340
+Đối với 1 cái binary Research 3 thì chúng ta đã có là cái Left for a cái Right
+
+22
+00:01:13,340 --> 00:01:13,860
+Đúng không?
+
+23
+00:01:13,860 --> 00:01:17,700
+Nhưng mà ở đây cái binary Research 3 thì cái Left Right như thế nào không được
+
+24
+00:01:18,020 --> 00:01:21,020
+Nó không có quan trọng về cái độ lớn, đội nhỏ của nó
+
+25
+00:01:21,020 --> 00:01:25,340
+Nhưng mà đối với lại 1 cái binary Research 3 thì mình là có cái vị ở cái bình trái cái bình phải
+
+26
+00:01:25,340 --> 00:01:26,620
+Thì luôn luôn
+
+27
+00:01:26,620 --> 00:01:28,820
+Là cái bình phải là cái lớn nhất
+
+28
+00:01:28,820 --> 00:01:30,820
+Và cái bình trái là cái nhỏ nhất
+
+29
+00:01:30,820 --> 00:01:32,980
+Cái vị ở là cái ở dưới
+
+30
+00:01:32,980 --> 00:01:38,560
+Hả?
+
+31
+00:01:38,560 --> 00:01:41,360
+Với dựa, chúng ta có 3 con số, 7 x 8 x 9
+
+32
+00:01:41,360 --> 00:01:44,040
+Thì cái Binary Research nó có thể là
+
+33
+00:01:44,040 --> 00:01:46,560
+Cái root là 7
+
+34
+00:01:46,560 --> 00:01:47,960
+Cái Left là 9
+
+35
+00:01:47,960 --> 00:01:50,200
+Còn cái Right là 8 trả hạ
+
+36
+00:01:50,200 --> 00:01:52,240
+Nhưng mà đối với Binary Research 3 thì chúng ta không có cái
+
+37
+00:01:52,280 --> 00:01:54,720
+Còn thể có như ngoại chúng ta sẽ phải có 1 cái nhỏ nhất
+
+38
+00:01:54,720 --> 00:01:55,520
+Đối với cái là
+
+39
+00:01:55,520 --> 00:01:56,720
+cái root
+
+40
+00:01:56,720 --> 00:01:57,600
+Đối với cái là 8
+
+41
+00:01:57,600 --> 00:01:59,400
+Đối trái là bà lì nó phải là 9
+
+42
+00:01:59,400 --> 00:02:01,680
+Còn cái là bình trái luôn luôn nhỏ hạ dưới
+
+43
+00:02:01,680 --> 00:02:02,400
+Và bình phải
+
+44
+00:02:02,400 --> 00:02:03,920
+Lung lung lướng hạ dưới
+
+45
+00:02:03,920 --> 00:02:06,280
+Chúng ta có 1 cái trường hợp nửa
+
+46
+00:02:06,280 --> 00:02:07,040
+Đó là
+
+47
+00:02:07,040 --> 00:02:10,000
+Nếu như 1 cái Binary Research 3 mà các bạn
+
+48
+00:02:10,000 --> 00:02:12,920
+Cho phép nó bị đức li két
+
+49
+00:02:12,920 --> 00:02:17,000
+Có nghĩa là cái root của nó có thể bị đức li két
+
+50
+00:02:17,000 --> 00:02:18,360
+Thì chúng ta có thể có 1 thử
+
+51
+00:02:18,360 --> 00:02:20,040
+Đây là 7
+
+52
+00:02:20,040 --> 00:02:21,280
+7 8 hạ
+
+53
+00:02:21,280 --> 00:02:22,840
+Nhưng nó vẫn là 1 cái Binary Research 3
+
+54
+00:02:22,840 --> 00:02:24,760
+Nhưng mà nó phụ thuộc vào cái Binary Research 3
+
+55
+00:02:24,760 --> 00:02:25,560
+Còn bạn các bạn
+
+56
+00:02:25,560 --> 00:02:27,520
+Cho phép nó đức li két gì không
+
+57
+00:02:27,520 --> 00:02:28,600
+Nếu như cho
+
+58
+00:02:28,600 --> 00:02:29,480
+Thì nó ok
+
+59
+00:02:29,480 --> 00:02:30,400
+Nếu hôm cho
+
+60
+00:02:30,400 --> 00:02:31,080
+Thì nó lỗi
+
+61
+00:02:31,080 --> 00:02:34,280
+Và nếu như mà 1 cái Binary Research 3 thì
+
+62
+00:02:34,280 --> 00:02:35,440
+Trước giờ mà nó về 3
+
+63
+00:02:35,440 --> 00:02:36,840
+Mình đều nó thấy xố đúng không
+
+64
+00:02:36,840 --> 00:02:39,360
+Nhưng mà nếu như 1 cái Binary Research 3
+
+65
+00:02:39,360 --> 00:02:40,760
+Mà nó chứ chữ thì sao
+
+66
+00:02:40,760 --> 00:02:42,120
+Ví dụ như là
+
+67
+00:02:42,120 --> 00:02:45,480
+A, B, C, F, D
+
+68
+00:02:45,880 --> 00:02:46,680
+Gờ
+
+69
+00:02:46,680 --> 00:02:47,480
+Thì sao
+
+70
+00:02:47,560 --> 00:02:48,480
+Nó vẫn được không
+
+71
+00:02:48,480 --> 00:02:50,800
+Và Binary Research 3 thì nó hỗ trợ
+
+72
+00:02:50,800 --> 00:02:53,000
+Cả cho những cái loại dữ liệu khác
+
+73
+00:02:53,000 --> 00:02:55,640
+Chứ nó không có phỏa nó nói chữ hỗ trợ cho xố không nhé
+
+74
+00:02:55,640 --> 00:02:58,000
+Các bạn chỉ cần có 1 thứ mà nó có thể so sáng được
+
+75
+00:02:58,000 --> 00:03:00,360
+Nó cũng có nghĩa là nó mấy cái dữ liệu comparable
+
+76
+00:03:00,360 --> 00:03:01,520
+Ví dụ như 1 cái cây như thế này
+
+77
+00:03:01,520 --> 00:03:03,640
+Thì nó không phải là 1 cái Binary Research 3
+
+78
+00:03:03,640 --> 00:03:04,280
+Thì vì
+
+79
+00:03:04,280 --> 00:03:05,640
+Tui là 7
+
+80
+00:03:05,640 --> 00:03:07,400
+Nó nhỏ hơn 8
+
+81
+00:03:07,400 --> 00:03:09,240
+Và chính là lớn hơn 7
+
+82
+00:03:09,240 --> 00:03:10,760
+Nhưng mà cái số 9
+
+83
+00:03:10,760 --> 00:03:13,680
+Nó lại là 5 cái nhắn bình trái của số 8
+
+84
+00:03:13,680 --> 00:03:15,280
+Thì thật ra nó lớn hơn số 8
+
+85
+00:03:15,280 --> 00:03:16,920
+Nên là nó không thể nào
+
+86
+00:03:16,920 --> 00:03:18,920
+Mà nó là Binary Research 3 được
+
+87
+00:03:18,920 --> 00:03:25,420
+Và cái Binary Research 3
+
+88
+00:03:25,420 --> 00:03:27,420
+Nó sẽ được sử dụng với những trường hợp nào
+
+89
+00:03:27,420 --> 00:03:31,820
+Đầu tiên nó là cái implementation cũng 1 số loại map và set
+
+90
+00:03:31,820 --> 00:03:35,420
+Map và set không phải lúc nào mà các bạn đồng tức thằng map và thằng set
+
+91
+00:03:35,420 --> 00:03:38,220
+Thì nó cũng là has map và has set nhé
+
+92
+00:03:38,220 --> 00:03:39,020
+Các bạn nhớ được đấy
+
+93
+00:03:39,020 --> 00:03:41,420
+Có nghĩa là 1 số loại map và set
+
+94
+00:03:41,420 --> 00:03:43,420
+Thì chúng ta có thể sử dụng Binary Research 3
+
+95
+00:03:43,420 --> 00:03:47,420
+Để mà chúng ta biết cái ADT của nó
+
+96
+00:03:47,420 --> 00:03:50,020
+Đồng thời là nó có 1 số cái loại cây khác
+
+97
+00:03:50,020 --> 00:03:52,420
+Để bây giờ là Brad Black 3
+
+98
+00:03:52,420 --> 00:03:54,020
+Rebalance 3
+
+99
+00:03:54,020 --> 00:03:56,620
+Nó có rất là linh dường có loại cây mà linh wang
+
+100
+00:03:56,620 --> 00:03:57,820
+Binary Research 3
+
+101
+00:03:57,820 --> 00:04:00,820
+Đồng thời thì các bạn cũng có thể sử dụng Binary Research 3
+
+102
+00:04:00,820 --> 00:04:04,820
+Trong cái việc đó là cái implementation của thằng Binary Hip
+
+103
+00:04:04,820 --> 00:04:07,820
+Và có thể 1 cái nữa đấy, cái là syntax 3
+
+104
+00:04:07,820 --> 00:04:09,620
+Nó được sử dụng ở trong compiler
+
+105
+00:04:09,620 --> 00:04:11,620
+Cộng như là trong những cái mấy tính
+
+106
+00:04:11,620 --> 00:04:13,020
+Mấy cái conculator
+
+107
+00:04:13,020 --> 00:04:16,020
+Thì nó cộng sử dụng Binary Research 3 ở trong đấy
+
+108
+00:04:16,020 --> 00:04:23,400
+Và bây giờ mình muốn sâu với các bạn một cái bản như thế này
+
+109
+00:04:23,600 --> 00:04:26,200
+Đó là cái complexity của Binary Research 3
+
+110
+00:04:26,200 --> 00:04:30,000
+Thì chúng ta sẽ tấn tóng tất cả việc là insert, delict, remove, and search
+
+111
+00:04:30,000 --> 00:04:31,400
+Thì cái trường hợp mà trong bình đấy
+
+112
+00:04:31,400 --> 00:04:35,400
+Nhưng mà nó nói Binary Research 3 nó tạo ra để được cái trường hợp trung bình
+
+113
+00:04:35,400 --> 00:04:36,800
+Đó cho nó lóc nở
+
+114
+00:04:36,800 --> 00:04:40,000
+Thì tất cả những cái functionality linh wang tử
+
+115
+00:04:40,000 --> 00:04:41,800
+Binary Research 3 mà cứ bạn
+
+116
+00:04:41,800 --> 00:04:45,200
+Đó là insert, delict, remove, and search
+
+117
+00:04:45,200 --> 00:04:47,400
+Thì nó đều là lóc nở cả
+
+118
+00:04:47,400 --> 00:04:50,600
+Nhưng mà cái trường hợp tể nhất của Binary Research 3
+
+119
+00:04:50,600 --> 00:04:53,800
+Thì nó là ôn nở cho tất cả những cái functionality đây này
+
+120
+00:04:53,800 --> 00:04:55,300
+Tại vì sao?
+
+121
+00:04:55,300 --> 00:04:59,000
+Các bạn cứ tưởng tượng 1 cái Binary Research 3 là nó sẽ 1 note trong rồi
+
+122
+00:04:59,000 --> 00:05:02,000
+2 note con, trong rồi 2 note con, 2 note con
+
+123
+00:05:02,000 --> 00:05:04,000
+Thì đó là sẽ là cái trường hợp
+
+124
+00:05:04,000 --> 00:05:05,000
+Cơ bản nhất
+
+125
+00:05:05,000 --> 00:05:06,200
+Thì nó sẽ là lóc nở
+
+126
+00:05:06,200 --> 00:05:07,400
+Nhưng mà nếu như cái mạng
+
+127
+00:05:07,400 --> 00:05:10,200
+Có 1 cái Binary Research 3 mà nó chạy vào tháng 1
+
+128
+00:05:10,200 --> 00:05:12,700
+Thẳng đục 1 đường từ tên chung dưới như thế này
+
+129
+00:05:12,700 --> 00:05:14,700
+Thì nó sẽ là worse case
+
+130
+00:05:14,700 --> 00:05:17,600
+Và khi đó là các bạn chạy phải traibers
+
+131
+00:05:17,600 --> 00:05:23,550
+ôn nở ha
+
+132
+00:05:23,550 --> 00:05:26,550
+Ok, khi mà các bạn búc insert 1 cái element và
+
+133
+00:05:26,550 --> 00:05:27,950
+Don't go by the research tree
+
+134
+00:05:27,950 --> 00:05:29,950
+Thì các bạn sẽ phải có nhiều một số bước sau
+
+135
+00:05:29,950 --> 00:05:31,550
+Đầu tiên với nhật là các bạn xao sánh bước lại
+
+136
+00:05:31,550 --> 00:05:32,550
+Cái tần root
+
+137
+00:05:32,550 --> 00:05:34,150
+Nếu như nó nhỏ nhanh on-kin-note
+
+138
+00:05:34,150 --> 00:05:36,150
+Thì các bạn sẽ đi qua cái nhắn phiên
+
+139
+00:05:36,150 --> 00:05:37,350
+Bình ta của nó
+
+140
+00:05:37,350 --> 00:05:39,350
+Và các bạn làm tích cái công việc đấy
+
+141
+00:05:39,350 --> 00:05:41,750
+Còn nếu như nó lớn hơn kinh-note
+
+142
+00:05:41,750 --> 00:05:44,350
+Thì các bạn sẽ qua phiên phải và các bạn làm tích cái công việc đấy
+
+143
+00:05:44,350 --> 00:05:45,350
+Và ký như vậy
+
+144
+00:05:45,350 --> 00:05:47,950
+Đấy khi nào mà các bạn có thể act được vào thì thôi
+
+145
+00:05:47,950 --> 00:05:48,950
+Có nghĩa là
+
+146
+00:05:49,550 --> 00:05:51,150
+Các bạn sẽ đi qua phiên trái
+
+147
+00:05:51,150 --> 00:05:52,350
+Sau đó các bạn xao sánh
+
+148
+00:05:52,350 --> 00:05:53,750
+Nếu như nhỏ hồi từ qua trái
+
+149
+00:05:53,750 --> 00:05:55,750
+Nếu lớn hồi phá các bạn xao sánh
+
+150
+00:05:55,750 --> 00:05:57,550
+Sau đó nếu nhỏ hồi phá hay lớn hồi phá hay
+
+151
+00:05:57,550 --> 00:05:59,950
+Nếu như khi mà cái element mình cục bạn
+
+152
+00:05:59,950 --> 00:06:02,350
+Mấy nhỏ hơn cái element mình mà các bạn cần phải act
+
+153
+00:06:02,350 --> 00:06:04,750
+Nhưng mà cái phiên trái của cái element này nó trống
+
+154
+00:06:04,750 --> 00:06:08,150
+Thì cái đó các bạn sẽ act cái đốt của bạn vào cái phiên trái đấy
+
+155
+00:06:08,150 --> 00:06:15,660
+Mấy nếu như nó lớn hơn thì ăn vào phiên phải
+
+156
+00:06:15,660 --> 00:06:17,660
+Và khi mà các bạn muốn remove
+
+157
+00:06:17,660 --> 00:06:20,660
+Một cái element khỏi cái binary research tree
+
+158
+00:06:20,660 --> 00:06:23,060
+Thì đầu tiên các bạn sẽ phải có cái belly của cái đấy đúng không
+
+159
+00:06:23,060 --> 00:06:24,860
+Sau các bạn check bởi vì thằng root
+
+160
+00:06:24,860 --> 00:06:26,860
+Mình sẽ check cái tường hợp dễ tức nha
+
+161
+00:06:26,860 --> 00:06:28,460
+Nó là nó không phải là hằng root
+
+162
+00:06:28,460 --> 00:06:31,260
+Các bạn sẽ check xem giữa là nó nhỏ hơn root
+
+163
+00:06:31,260 --> 00:06:33,060
+Hay là nó lớn hơn root
+
+164
+00:06:33,060 --> 00:06:35,060
+Nếu nhỏ hơn thì vào phiên trái
+
+165
+00:06:35,060 --> 00:06:38,060
+Khi nào mà các bạn gặp được cái nốt đấy thì thôi
+
+166
+00:06:38,060 --> 00:06:41,460
+Nhưng mà nếu như cái nốt đấy là cái lá
+
+167
+00:06:41,460 --> 00:06:42,860
+Thì mọi chuyện
+
+168
+00:06:42,860 --> 00:06:43,660
+Dễ đúng không?
+
+169
+00:06:43,660 --> 00:06:46,060
+Các bạn chỉ cần remove cái lá đấy thôi
+
+170
+00:06:46,060 --> 00:06:49,460
+Nhưng mà nếu như đó là parent của một hàng nào đấy
+
+171
+00:06:49,460 --> 00:06:51,460
+Khi đấy các bạn có thể là một cách
+
+172
+00:06:51,460 --> 00:06:54,460
+Nó là các bạn đi qua phía bên phải
+
+173
+00:06:54,460 --> 00:06:58,460
+Và các bạn tìm cái minh của cái cầu phía bên phải
+
+174
+00:06:58,460 --> 00:07:00,460
+Có nghĩa là các bạn đi qua phía nhóm phía bên phải
+
+175
+00:07:00,460 --> 00:07:03,460
+Xong các bạn đi hết cỡ của phía bên trái của phía bên phải
+
+176
+00:07:05,460 --> 00:07:08,460
+Các bạn đi qua phía bên phải không đi hết cỡ xuống phía bên trái
+
+177
+00:07:08,460 --> 00:07:13,460
+Thì các bạn xa lấy ra được cái minh của cái sức tree ở phía bên phải
+
+178
+00:07:13,460 --> 00:07:14,460
+Tại vì sao
+
+179
+00:07:14,460 --> 00:07:16,460
+Cái minh của cái sức tree phía bên phải
+
+180
+00:07:16,460 --> 00:07:18,460
+Thì nó luôn luôn nhỏ hơn tắc
+
+181
+00:07:18,460 --> 00:07:22,460
+Cái những cái element còn lại ở phía bên phải
+
+182
+00:07:22,460 --> 00:07:27,460
+Nhưng mà nó luôn luôn lớn hơn tắc chả những cái element còn lại phía bên phải
+
+183
+00:07:27,460 --> 00:07:30,460
+Nên thành ra nó sẽ là cái thằng mà tốt nhé
+
+184
+00:07:30,460 --> 00:07:34,460
+Để mà các bạn thấy thế cho các bạn vừa soa
+
+185
+00:07:35,460 --> 00:07:37,460
+Hoặc là các bạn có thể đi qua phía bên phải
+
+186
+00:07:37,460 --> 00:07:41,460
+Xong các bạn lấy cái max của cái nhóm phía bên trái
+
+187
+00:07:41,460 --> 00:07:43,460
+Đó chính là các bạn đi qua trái rồi
+
+188
+00:07:43,460 --> 00:07:44,460
+Đi hết
+
+189
+00:07:44,460 --> 00:07:46,460
+Bò phía bên phải
+
+190
+00:07:46,460 --> 00:07:48,460
+Thì khi các bạn động cái thằng dưới cầm phía bên phải
+
+191
+00:07:48,460 --> 00:07:50,460
+Thằng lá ở phía bên phải
+
+192
+00:07:50,460 --> 00:07:52,460
+Cô cái nhóm phía bên trái
+
+193
+00:07:52,460 --> 00:07:54,460
+Thì khi đó nó chính là cái max
+
+194
+00:07:54,460 --> 00:07:56,460
+Cô cái nhóm phía bên trái
+
+195
+00:07:56,460 --> 00:08:00,460
+Thì nó cũng là một cái nhăn bọc có thể thay thế được cái thằng cậu
+
+196
+00:08:00,460 --> 00:08:03,460
+Tại vì nó lớn hơn tắc chả những cái element ở phía bên trái
+
+197
+00:08:03,460 --> 00:08:07,460
+Nhưng mà nó nhỏ hơn tắc chả những element ở phía bên phải
+
+198
+00:08:07,460 --> 00:08:10,460
+Thì nó có thể thay thế được cái thằng đồ đầu
+
+199
+00:08:10,460 --> 00:08:13,460
+Thì đó là cái cách mà chúng ta có thể soa được một element
+
+200
+00:08:13,460 --> 00:08:15,460
+Nhưng mà nếu như từng hợp, nó chỉ có 2 cái nước
+
+201
+00:08:15,460 --> 00:08:18,460
+Left, right, right, left, right, left, right, left, right, left
+
+202
+00:08:18,460 --> 00:08:21,460
+Thì các bạn có thể bọc 1-2 cái đối cái bằng bỏ lấy
+
+203
+00:08:21,460 --> 00:08:23,460
+Trả cái vị thì sẽ ra cái
+
+204
+00:08:23,460 --> 00:08:25,460
+Và đó là cái cách mà còn địa các bạn có thể soa được một element
+
+205
+00:08:25,460 --> 00:08:27,460
+Coi cái binary search tree
+
+206
+00:08:27,460 --> 00:08:31,290
+Đợi đẹp mà người
+
+207
+00:08:31,290 --> 00:08:35,050
+Đẹp mà
+
+208
+00:08:35,050 --> 00:08:37,050
+Hôm nay trời không có đẹp lắm
+
+209
+00:08:37,050 --> 00:08:40,550
+Bình thường đấy, bình thường đấy
+
+210
+00:08:40,550 --> 00:08:42,550
+Là phía bên này này
+
+211
+00:08:42,550 --> 00:08:44,550
+Nó không có cái đóng mây tờ đồng này
+
+212
+00:08:44,550 --> 00:08:47,550
+Đây là nó chỉ có một cái màu đỏ lực
+
+213
+00:08:47,550 --> 00:08:49,550
+Mấy chạy từ phía bên đó này
+
+214
+00:08:49,550 --> 00:08:50,550
+Này, chạy quá, đi observer
+
+215
+00:08:50,550 --> 00:08:52,550
+Ahh, whigh, làm video pê hay
+
+216
+00:08:52,550 --> 00:08:56,550
+Ok đó là cái vị mà chúng ta soa element
+
+217
+00:08:56,550 --> 00:09:03,100
+Cái kh nav đó là chúng ta tính
+
+218
+00:09:03,100 --> 00:09:05,100
+Một cái elements đóng cái binary search tree
+
+219
+00:09:05,100 --> 00:09:07,100
+Soat 5. Tránh hạ
+
+220
+00:09:07,100 --> 00:09:09,100
+Thì đâu tiên cái bạn đi tìm
+
+221
+00:09:09,100 --> 00:09:11,100
+Vào cái thằng root
+
+222
+00:09:11,100 --> 00:09:13,100
+Nếu như root nuôi
+
+223
+00:09:13,100 --> 00:09:17,100
+Thì chắc chắn là cái element của các bạn không bọc vài rồi
+
+224
+00:09:17,100 --> 00:09:19,100
+Nhưng mà nếu như các bạn soa sans nuôi root
+
+225
+00:09:19,100 --> 00:09:21,100
+Nếu như các bạn không bằng thằng root
+
+226
+00:09:21,100 --> 00:09:26,340
+mà các bạn nhỏ hơn hơn rút thì các bạn sẽ đi qua phía phía biên trái của mình rút
+
+227
+00:09:26,340 --> 00:09:30,380
+và các bạn bắt đầu là các bạn sợt tiếp tục như vậy các bạn xo xắn là có thành trình cộng
+
+228
+00:09:30,380 --> 00:09:33,720
+nếu những nhỏ hơn thì qua phía biên trái lớt hình qua phía biên phải
+
+229
+00:09:33,720 --> 00:09:35,900
+đến khi nào mà các bạn tìm nó được thể thôi
+
+230
+00:09:35,900 --> 00:09:39,000
+nhưng mà nếu như các bạn chạy để với như vậy
+
+231
+00:09:39,000 --> 00:09:44,340
+mà các bạn không tìm được một cái element nào thì nó không tầm tạy trong cái tree của chúng ta
+
+232
+00:09:44,340 --> 00:09:48,020
+đừng có mắc không đừng có mắc cầm đi qua phía biên trái sầm được đi qua phía biên phải nha
+
+233
+00:09:48,020 --> 00:09:50,420
+không có đâu, không có cái chuyện nó sẽ đa nha
+
+234
+00:09:50,420 --> 00:09:52,420
+lúc các bạn đi mà chạy đi một lực hả
+
+235
+00:09:52,420 --> 00:09:54,220
+bởi vậy nó lúc gọi là lóc nở
+
+236
+00:09:54,220 --> 00:09:56,220
+cái video này ở đây thôi
+
+237
+00:09:56,220 --> 00:09:59,720
+mình sẽ chia ra ngắn gọn tại vì nếu như một nó nhiều quá
+
+238
+00:09:59,720 --> 00:10:01,720
+thì mình sẽ có ăn sẽ không có
+
+239
+00:10:01,720 --> 00:10:04,720
+theo dõi lũ những thứ mà mình nói
+
+240
+00:10:04,720 --> 00:10:06,720
+nên là mình sẽ chia nhỏ ra
+
+241
+00:10:06,720 --> 00:10:09,220
+trong video này mình nói về insert remove
+
+242
+00:10:09,220 --> 00:10:10,720
+quà fight
+
+243
+00:10:10,720 --> 00:10:13,720
+và những thông tin cơ bản của một cái bản racistery
+
+244
+00:10:13,720 --> 00:10:17,220
+trong vài tiếp theo thì mình sẽ nói về cái việc traivers
+
+245
+00:10:17,220 --> 00:10:20,220
+có nghĩa là cái việc nguyệt một cái cây như thế nào
+
+246
+00:10:20,320 --> 00:10:23,620
+thế nó sẽ gồm pre-order in order boss order
+
+247
+00:10:23,620 --> 00:10:24,620
+blah blah blah
+
+248
+00:10:24,620 --> 00:10:27,620
+nếu người thấy video này ở thế bấm large xa đâm đáp
+
+249
+00:10:27,620 --> 00:10:29,520
+nếu đây là là người mọi người nếu vô trình hồi của mình
+
+250
+00:10:29,520 --> 00:10:30,520
+hãy bấm no scryer
+
+251
+00:10:30,520 --> 00:10:33,020
+và bỏ cái chung đi nhận được những video mới nhắc nhắc
+
+252
+00:10:33,020 --> 00:10:35,020
+nếu các bạn các bạn kia có hóa dịch
+
+253
+00:10:35,020 --> 00:10:36,020
+thì hãy comment phía biên dưới
+
+254
+00:10:36,020 --> 00:10:37,020
+hoặc là những tình có phần phê
+
+255
+00:10:37,020 --> 00:10:39,520
+sau đều phương tính để mình trở lại một cái một cách nhắc nhắc nhắc
+
+256
+00:10:39,520 --> 00:10:41,220
+nồng thời thì mình cũng có một cái cây cây
+
+257
+00:10:41,220 --> 00:10:43,820
+gọi là cư này thì như thế này các bạn sẽ đặt nhìn cho con hóa
+
+258
+00:10:43,820 --> 00:10:46,320
+và mình sẽ tá lời cho con thể cây để biết
+
+259
+00:10:46,320 --> 00:10:47,320
+ok, tới bò
+
