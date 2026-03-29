@@ -8,14 +8,21 @@ import {
 	useVideosByUser,
 	useUpdateVideo,
 } from "../api/video.hooks";
-import type { CreateVideoRequest, UpdateVideoRequest } from "../types";
+import type {
+	CreateVideoRequest,
+	UpdateVideoRequest,
+	VideoListType,
+} from "../types";
 
-export function useVideo(initialVideoId?: number | null) {
+export function useVideo(
+	initialVideoId?: number | null,
+	listType?: VideoListType | null,
+) {
 	const [selectedVideoId, setSelectedVideoId] = useState<number | null>(
 		initialVideoId ?? null,
 	);
 
-	const videosQuery = useVideosByUser(true);
+	const videosQuery = useVideosByUser(listType, true);
 	const selectedVideoQuery = useVideoById(
 		selectedVideoId ?? 0,
 		selectedVideoId !== null,
