@@ -297,7 +297,7 @@ export default function CoreVideoEditor({
       textDecoration: "none",
       textAlign: "center",
       startTime: 0,
-      duration: 5000,
+      duration: Math.min(5000, videoDurationMs),
       width: 300,
       height: 100,
     };
@@ -350,6 +350,68 @@ export default function CoreVideoEditor({
     handleMascotApply,
   ]);
 
+  // ── Editor export payload ─────────────────────────────────────────────────────
+  const buildEditorPayload = () => {
+    const textLayers = layers
+      .filter((l): l is LayerItem & { type: "text" } => l.type === "text")
+      .map((l, idx, arr) => ({
+        id: l.data.id,
+        content: l.data.text,
+        position: { xPct: l.data.position.x, yPct: l.data.position.y },
+        timeline: {
+          startMs: l.data.startTime ?? 0,
+          durationMs: l.data.duration ?? 0, // 0 = hiện cả video
+        },
+        dimensions: {
+          widthPx: l.data.width ?? 200,
+          heightPx: l.data.height ?? 60,
+        },
+        style: {
+          fontSize: l.data.fontSize,
+          fontFamily: l.data.fontFamily,
+          fontWeight: l.data.fontWeight,
+          fontStyle: l.data.fontStyle,
+          textDecoration: l.data.textDecoration,
+          textAlign: l.data.textAlign,
+          color: l.data.color,
+        },
+        zIndex: arr.length - idx, // layer đầu mảng = hiển thị trên cùng
+      }));
+
+    return {
+      videoSourceUrl: hasSelectedVideo ? videoSrc : undefined,
+      videoDurationMs,
+      effects: { ...effect },
+      textLayers,
+      mascot: mascot.type !== "none"
+        ? {
+            type: mascot.type,
+            position: mascot.position,
+            presetId: mascot.presetId,
+            presetUrl: mascot.presetUrl,
+            scale: mascot.scale,
+            margin_x: mascot.margin_x,
+            margin_y: mascot.margin_y,
+          }
+        : null,
+      voice: voice.type !== "none"
+        ? {
+            type: voice.type,
+            presetId: voice.presetId,
+            speed: voice.speed,
+            volume: voice.volume,
+            pitch: voice.pitch,
+          }
+        : null,
+    };
+  };
+
+  const handleSave = () => {
+    const payload = buildEditorPayload();
+    console.log("[EditorExport] Payload sẵn sàng gửi backend:", payload);
+    console.log("[EditorExport] JSON:\n", JSON.stringify(payload, null, 2));
+  };
+
   // ── Visibility filter: chỉ hiện layer trong khoảng thời gian ─────────────────
   const visibleLayers = layers.filter((layer) => {
     if (layer.type !== "text") return true;
@@ -400,7 +462,7 @@ export default function CoreVideoEditor({
             <div className="flex items-center justify-between h-14">
               <h2 className="text-lg font-semibold">Trình chỉnh sửa video</h2>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" onClick={handleSave}>
                   <Save className="w-4 h-4 mr-2" /> Lưu
                 </Button>
                 <Button
@@ -513,6 +575,7 @@ export default function CoreVideoEditor({
                 onTextSelect={setSelectedTextId}
                 activeOption={rightPanelOption}
                 onActiveOptionChange={onRightPanelOptionChange}
+                videoDurationMs={videoDurationMs}
               />
             </aside>
           )}
