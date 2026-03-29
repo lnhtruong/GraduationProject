@@ -5,7 +5,10 @@ import {
     Table,
     PrimaryKey,
     AutoIncrement,
+    ForeignKey,
+    BelongsTo,
 } from 'sequelize-typescript';
+import { Video } from 'src/videos/video.model';
 
 export enum ProjectStatus {
     DRAFT = 'draft',
@@ -32,11 +35,15 @@ export class Project extends Model {
     user_id: number;
 
     // FK logic: videos.id where videos.type = 'highlight'
+    @ForeignKey(() => Video)
     @Column({
         type: DataType.INTEGER,
         allowNull: true,
     })
     video_id: number | null;
+
+    @BelongsTo(() => Video, { foreignKey: 'video_id', targetKey: 'id' })
+    video?: Video;
 
     @Column({
         type: DataType.ENUM(...Object.values(ProjectStatus)),
