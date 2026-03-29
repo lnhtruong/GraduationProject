@@ -147,6 +147,46 @@ export default function CoreVideoEditor({
     }
   }, [videoSrc, videoRef]);
 
+  // ── Keyboard shortcuts for selected layer ────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedTextId) return;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return; // let text inputs handle keys
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        handleRemoveText(selectedTextId);
+        setSelectedTextId(null);
+        return;
+      }
+
+      const STEP = e.shiftKey ? 5 : 1; // hold Shift for bigger step
+      const arrowMap: Record<string, { dx: number; dy: number }> = {
+        ArrowLeft:  { dx: -STEP, dy: 0 },
+        ArrowRight: { dx:  STEP, dy: 0 },
+        ArrowUp:    { dx: 0, dy: -STEP },
+        ArrowDown:  { dx: 0, dy:  STEP },
+      };
+      const delta = arrowMap[e.key];
+      if (!delta) return;
+      e.preventDefault();
+
+      const layer = layers.find((l) => l.id === selectedTextId);
+      if (layer?.type !== "text") return;
+      const { x, y } = layer.data.position;
+      handleUpdateText(selectedTextId, {
+        position: {
+          x: Math.min(100, Math.max(0, x + delta.dx)),
+          y: Math.min(100, Math.max(0, y + delta.dy)),
+        },
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTextId, layers, handleRemoveText, handleUpdateText]);
+
   // ── DnD sensors ─────────────────────────────────────────────────────────────
   const sensors = useSensors(
     useSensor(PointerSensor, {

@@ -67,6 +67,43 @@ function DraggableResizableTextLayer({
   const width  = layer.data.width  ?? 200;
   const height = layer.data.height ?? 60;
 
+  // ─── Inline edit ─────────────────────────────────────────────────────────────
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(layer.data.text);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const enterEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect(layer.id);
+    setEditText(layer.data.text);
+    setIsEditing(true);
+  };
+
+  const commitEdit = () => {
+    setIsEditing(false);
+    onUpdate(layer.id, { text: editText });
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditText(layer.data.text);
+    }
+    // Shift+Enter = newline, Enter alone = commit
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      commitEdit();
+    }
+  };
+
+  // Auto-focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [isEditing]);
+
   // ─── Drag ────────────────────────────────────────────────────────────────────
   const dragRef = useRef<{
     startMouseX: number;
@@ -77,6 +114,7 @@ function DraggableResizableTextLayer({
 
   const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    if (isEditing) return; // don't drag while editing
     e.stopPropagation();
     onSelect(layer.id);
     const container = containerRef.current;
@@ -163,6 +201,19 @@ function DraggableResizableTextLayer({
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  const textStyle: React.CSSProperties = {
+    fontSize:       layer.data.fontSize,
+    color:          layer.data.color,
+    fontWeight:     layer.data.fontWeight,
+    fontStyle:      layer.data.fontStyle,
+    textDecoration: layer.data.textDecoration,
+    textAlign:      layer.data.textAlign,
+    fontFamily:     layer.data.fontFamily,
+    padding:        "4px 8px",
+    width:          "100%",
+    height:         "100%",
+  };
+
   return (
     <div
       style={{
@@ -173,36 +224,52 @@ function DraggableResizableTextLayer({
         height,
         transform: "translate(-50%, -50%)",
         zIndex,
-        cursor:    "grab",
+        cursor:    isEditing ? "text" : "grab",
         border:    isSelected ? "2px solid #3b82f6" : "2px solid transparent",
         boxSizing: "border-box",
         userSelect: "none",
       }}
       onMouseDown={handleDragMouseDown}
       onClick={(e) => { e.stopPropagation(); onSelect(layer.id); }}
+      onDoubleClick={enterEdit}
     >
-      <p
-        style={{
-          fontSize:       layer.data.fontSize,
-          color:          layer.data.color,
-          fontWeight:     layer.data.fontWeight,
-          fontStyle:      layer.data.fontStyle,
-          textDecoration: layer.data.textDecoration,
-          textAlign:      layer.data.textAlign,
-          fontFamily:     layer.data.fontFamily,
-          padding:        "4px 8px",
-          whiteSpace:     "normal",
-          wordBreak:      "break-word",
-          width:          "100%",
-          height:         "100%",
-          overflow:       "hidden",
-          pointerEvents:  "none",
-        }}
-      >
-        {layer.data.text}
-      </p>
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={handleTextareaKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            ...textStyle,
+            background:  "rgba(0,0,0,0.55)",
+            border:      "none",
+            outline:     "none",
+            resize:      "none",
+            whiteSpace:  "pre-wrap",
+            wordBreak:   "break-word",
+            overflow:    "hidden",
+            cursor:      "text",
+            boxSizing:   "border-box",
+          }}
+        />
+      ) : (
+        <p
+          style={{
+            ...textStyle,
+            whiteSpace:    "normal",
+            wordBreak:     "break-word",
+            overflow:      "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          {layer.data.text}
+        </p>
+      )}
 
-      {isSelected && (
+      {isSelected && !isEditing && (
         <>
           {(["tl","tr","bl","br","t","b","l","r"] as HandlePos[]).map((pos) => (
             <ResizeHandle
