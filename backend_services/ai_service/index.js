@@ -1,21 +1,23 @@
 import fs from "fs"
 import OpenAI from "openai"
-
+import dotenv from "dotenv"
+dotenv.config()
 /*
 ========================
 CONFIG
 ========================
 */
 const CFG = {
-    INPUT: "input.srt",
-    OUTPUT: "output.json",
+    INPUT: "./input/input.srt",
+    OUTPUT: "./output/output.json",
 
     TOPIC: "JIRA Project Management",
     INCLUDE: "overview, setup, board view, tasks, AI Rovo",
-    EXCLUDE: "Kevin Cookie Co specific, outro, intro",
+    EXCLUDE: "Kevin Cookie Co specific, outro, intro, uh, um, you know, laughter, noise, welcome",
 
     TARGET_MIN: 100,  // seconds
     TARGET_MAX: 300,  // seconds
+    PERCENT_CHARS: 0.5,     // nếu 1 subtitle chiếm hơn X% chars → giữ (bảo vệ những subtitle dài quan trọng)
 
     // Step 1: sample 1 subtitle every N seconds for outline call
     OUTLINE_SAMPLE_EVERY: 20,
@@ -27,17 +29,31 @@ const CFG = {
     MAX_RETRIES: 2,
 }
 
-const ai = new OpenAI({ apiKey: process.env.OPENAI_KEY })
+const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 /*
 ========================
-TIME UTILS
+UTILS
 ========================
 */
 const sec = t => { const [h, m, r] = t.split(":"); const [s, ms] = r.split(","); return +h * 3600 + +m * 60 + +s + +ms / 1000 }
 const dur = (a, b) => sec(b) - sec(a)
 const sumDur = list => list.reduce((t, s) => t + dur(s.start, s.end), 0)
 
+
+function isValidSubtitle(s) {
+    const textLen = s.text.trim().length
+    const duration = dur(s.start, s.end)
+
+    // loại:
+    // - quá ít chữ
+    // - quá ngắn
+    // - toàn ký tự vô nghĩa
+    if (textLen / duration < CFG.PERCENT_CHARS ) return false
+    if (!/[a-zA-Z0-9]/.test(s.text)) return false
+
+    return true
+}
 /*
 ========================
 PARSE SRT
@@ -57,7 +73,7 @@ function fmtOutlineInput(segs) {
     let nextAt = 0
     for (const s of segs) {
         const t = sec(s.start)
-        if (t >= nextAt) {
+        if (t >= nextAt && isValidSubtitle(s)) {
             out.push(`[${s.index}] ${s.text}`)
             nextAt = t + CFG.OUTLINE_SAMPLE_EVERY
         }
@@ -67,7 +83,10 @@ function fmtOutlineInput(segs) {
 
 // Step 2: compact format without timestamps to save tokens
 function fmtCompact(segs) {
-    return segs.map(s => `[${s.index}] ${s.text}`).join("\n")
+    return segs
+        .filter(isValidSubtitle)
+        .map(s => `[${s.index}] ${s.text}`)
+        .join("\n")
 }
 
 /*
@@ -323,7 +342,7 @@ async function main() {
     console.log(`target  : ${CFG.TARGET_MIN}s – ${CFG.TARGET_MAX}s\n`)
 
     const raw = fs.readFileSync(CFG.INPUT, "utf8")
-    const segs = parseSRT(raw)
+    const segs = parseSRT(raw).filter(isValidSubtitle)
     console.log(`subtitles: ${segs.length}`)
 
     // Step 1: outline
@@ -341,17 +360,32 @@ async function main() {
     // Build outputs
     const byIndex = Object.fromEntries(segs.map(s => [s.index, s]))
     const selected = finalIndices.map(i => byIndex[i]).filter(Boolean)
-    const segments = groupSegments(finalIndices, segs)
+    // const segments = groupSegments(finalIndices, segs)
+    const segments = finalIndices.map(i => {
+        const s = byIndex[i]
+        return {
+            index: s.index,
+            start: s.start,
+            end: s.end,
+            text: s.text,
+            duration: +dur(s.start, s.end).toFixed(2)
+        }
+    })
 
     // Save JSON
     fs.writeFileSync(CFG.OUTPUT, JSON.stringify(segments, null, 2))
     console.log(`saved: ${CFG.OUTPUT} (${segments.length} segments from ${finalIndices.length} subtitles)`)
 
     // Save highlight SRT
+    // const srtOut = segments.map((seg, i) => {
+    //     const text = seg.subtitles.map(idx => byIndex[idx].text).join(" ")
+    //     return `${i + 1}\n${seg.start} --> ${seg.end}\n${text}`
+    // }).join("\n\n")
     const srtOut = segments.map((seg, i) => {
-        const text = seg.subtitles.map(idx => byIndex[idx].text).join(" ")
-        return `${i + 1}\n${seg.start} --> ${seg.end}\n${text}`
-    }).join("\n\n")
+        return `${seg.index}
+${seg.start} --> ${seg.end}
+${seg.text}`
+}).join("\n\n")
     fs.writeFileSync("highlight.srt", srtOut)
     console.log("saved: highlight.srt")
 
