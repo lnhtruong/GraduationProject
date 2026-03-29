@@ -113,14 +113,39 @@ export default function CoreVideoEditor({
     const video = videoRef.current;
     if (!video) return;
     const onTime = () => setCurrentTimeMs(video.currentTime * 1000);
-    const onMeta = () => setVideoDurationMs((video.duration || 30) * 1000);
+    const onMeta = () => {
+      if (video.duration && isFinite(video.duration)) {
+        setVideoDurationMs(video.duration * 1000);
+      }
+    };
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onMeta);
+    video.addEventListener("durationchange", onMeta);
+    // Catch already-loaded metadata (cached video fires before effect runs)
+    if (video.readyState >= 1) onMeta();
     return () => {
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("durationchange", onMeta);
     };
   }, [videoRef]);
+
+  // Re-check duration when videoSrc changes (new cached video won't re-fire loadedmetadata)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onMeta = () => {
+      if (video.duration && isFinite(video.duration)) {
+        setVideoDurationMs(video.duration * 1000);
+      }
+    };
+    if (video.readyState >= 1) {
+      onMeta();
+    } else {
+      video.addEventListener("loadedmetadata", onMeta, { once: true });
+      return () => video.removeEventListener("loadedmetadata", onMeta);
+    }
+  }, [videoSrc, videoRef]);
 
   // ── DnD sensors ─────────────────────────────────────────────────────────────
   const sensors = useSensors(
@@ -411,6 +436,15 @@ export default function CoreVideoEditor({
     console.log("[EditorExport] Payload sẵn sàng gửi backend:", payload);
     console.log("[EditorExport] JSON:\n", JSON.stringify(payload, null, 2));
   };
+
+  // ── Dev: expose payload builder lên window để gọi từ DevTools console ────────
+  // Dùng: window.__editorPayload() hoặc copy(window.__editorPayload())
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      (window as unknown as Record<string, unknown>).__editorPayload =
+        buildEditorPayload;
+    }
+  });
 
   // ── Visibility filter: chỉ hiện layer trong khoảng thời gian ─────────────────
   const visibleLayers = layers.filter((layer) => {
