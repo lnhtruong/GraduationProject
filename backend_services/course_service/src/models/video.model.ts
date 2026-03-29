@@ -1,8 +1,8 @@
-import { Column, DataType, Model, PrimaryKey, AutoIncrement, Table } from 'sequelize-typescript';
+import { Column, DataType, Model, PrimaryKey, AutoIncrement, Table, Index } from 'sequelize-typescript';
 
 /**
- * Maps to `videos` in shared DB (same as media_service).
- * Used by course_service to read `srt_highlight` for AI quiz generation.
+ * Shared `videos` table (same DB as media_service).
+ * `srt_raw` stores Cloudinary URL to the .srt file; quiz AI fetches text from that URL.
  */
 @Table({
   tableName: 'videos',
@@ -16,10 +16,18 @@ export class Video extends Model {
   @Column(DataType.INTEGER)
   declare id: number;
 
+  @Index('idx_videos_job_id')
   @Column({
-    type: DataType.TEXT('long'),
+    type: DataType.STRING(255),
     allowNull: true,
-    field: 'srt_highlight',
+    field: 'job_id',
   })
-  declare srt_highlight: string | null;
+  declare job_id: string | null;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    field: 'srt_raw',
+  })
+  declare srt_raw: string | null;
 }

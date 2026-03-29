@@ -16,7 +16,7 @@ export class CreateQuizAIDto {
   @IsInt()
   lessonActivityId: number;
 
-  /** Source video row in `videos` — used to load `srt_highlight` for generation. */
+  /** Source video row in `videos` — `srt_raw` (URL or inline) is used to generate questions. */
   @IsInt()
   videoId: number;
 

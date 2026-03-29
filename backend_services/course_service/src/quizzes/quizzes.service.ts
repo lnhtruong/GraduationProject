@@ -10,6 +10,7 @@ import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
 import { generateQuizPayload } from './helper/index.quiz_gen';
 import { toPersistableQuestionRow } from './quiz-payload.mapper';
+import { resolveSrtRawForQuiz } from './resolve-srt';
 
 @Injectable()
 export class QuizzesService {
@@ -69,20 +70,28 @@ export class QuizzesService {
 
   async createOneByAI(payload: CreateQuizAIDto): Promise<Quiz> {
     const video = await this.videoModel.findByPk(payload.videoId, {
-      attributes: ['id', 'srt_highlight'],
+      attributes: ['id', 'srt_raw'],
     });
     if (!video) {
       throw new NotFoundException(`Video with ID ${payload.videoId} not found`);
     }
-    const srtRaw = video.srt_highlight?.trim();
-    if (!srtRaw) {
+    const srtRawStored = video.srt_raw?.trim();
+    if (!srtRawStored) {
       throw new BadRequestException(
-        'Video has no srt_highlight. Upload highlight transcript or wait for webhook to populate it.',
+        'Video has no srt_raw. Upload the SRT to Cloudinary (raw) and wait for the webhook, or set srt_raw via API.',
       );
     }
 
+    let srtText: string;
+    try {
+      srtText = await resolveSrtRawForQuiz(srtRawStored);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new BadRequestException(`Could not load SRT content: ${msg}`);
+    }
+
     const generated = await generateQuizPayload(
-      srtRaw,
+      srtText,
       payload.name,
       payload.shuffleQuestion ?? false,
       payload.shuffleOption ?? false,

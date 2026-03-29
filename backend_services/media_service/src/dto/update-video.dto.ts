@@ -15,5 +15,5 @@ export class UpdateVideoDto {
 
     @IsOptional()
     @IsString()
-    srt_highlight?: string;
+    srt_raw?: string;
 }

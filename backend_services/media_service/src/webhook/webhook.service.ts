@@ -6,10 +6,10 @@ import { WebsocketService } from 'src/websocket/websocket.service';
 interface CloudinaryContextCustom {
     userId?: string;
     user_id?: string;
+    /** Same UUID for video upload + raw SRT upload in one Colab session. */
+    job_id?: string;
+    /** highlight | mascot (video). For raw SRT upload Colab may send type: srt — we do not persist that as VideoType. */
     type?: string;
-    /** Highlight SRT / transcript (may be very long). */
-    srt_highlight?: string;
-    srtHighlight?: string;
 }
 
 interface CloudinaryPayload {
@@ -18,6 +18,7 @@ interface CloudinaryPayload {
     public_id?: string;
     duration?: number;
     resource_type?: string;
+    format?: string;
     context?: {
         custom?: CloudinaryContextCustom;
     };
@@ -43,31 +44,32 @@ export class WebhookService {
         private readonly websocketService: WebsocketService,
     ) { }
 
+    /**
+     * Cloudinary notifications for `resource_type: video` (MP4) and `resource_type: raw` (.srt).
+     * Both must send the same `context.custom.job_id` (and `user_id`) so we upsert one row.
+     */
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, public_id, duration, resource_type, context, display_name } = payload;
+        const { secure_url, url, public_id, duration, resource_type, format, context, display_name } =
+            payload;
 
-        // console.log('check information: ', secure_url, url, duration, context, display_name);
-
-        if (resource_type !== 'video') {
-            this.logger.debug(`Ignoring non-video resource_type=${resource_type}`);
-            return { ignored: true };
-        }
-
-        const videoUrl = secure_url ?? url;
-        if (!videoUrl) {
+        const assetUrl = secure_url ?? url;
+        if (!assetUrl) {
             this.logger.warn('Cloudinary webhook missing secure_url/url');
             return { ignored: true };
         }
 
-        // Optional: enforce max 3 minutes
-        // if (typeof duration === 'number' && duration > 180) {
-        //     this.logger.warn(`Video duration exceeds limit: ${duration}s`);
-        //     return { ignored: true, reason: 'duration_exceeded' };
-        // }
-
         const custom = context?.custom;
-        const userIdStr = custom?.userId ?? custom?.user_id;
+        const jobId =
+            typeof custom?.job_id === 'string' && custom.job_id.trim().length > 0
+                ? custom.job_id.trim()
+                : undefined;
 
+        if (!jobId) {
+            this.logger.warn('Cloudinary webhook missing job_id in context.custom');
+            return { ignored: true, reason: 'missing_job_id' };
+        }
+
+        const userIdStr = custom?.userId ?? custom?.user_id;
         const userId =
             typeof userIdStr === 'string' && userIdStr.trim().length > 0
                 ? Number(userIdStr)
@@ -78,63 +80,139 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        let type: VideoType = VideoType.HIGHLIGHT;
-        type =
-            custom?.type?.toLowerCase() === VideoType.MASCOT
-                ? VideoType.MASCOT
-                : VideoType.HIGHLIGHT;
+        const rt = resource_type?.toLowerCase() ?? '';
+
+        if (rt === 'video') {
+            return this.handleCloudinaryVideo({
+                assetUrl,
+                public_id,
+                duration,
+                display_name,
+                custom,
+                userId,
+                jobId,
+            });
+        }
+
+        if (rt === 'raw') {
+            return this.handleCloudinaryRawSrt({
+                assetUrl,
+                format,
+                userId,
+                jobId,
+            });
+        }
+
+        this.logger.debug(`Ignoring Cloudinary resource_type=${resource_type}`);
+        return { ignored: true };
+    }
+
+    private resolveVideoType(custom: CloudinaryContextCustom | undefined): VideoType {
+        return custom?.type?.toLowerCase() === VideoType.MASCOT
+            ? VideoType.MASCOT
+            : VideoType.HIGHLIGHT;
+    }
+
+    private async handleCloudinaryVideo(params: {
+        assetUrl: string;
+        public_id?: string;
+        duration?: number;
+        display_name?: string;
+        custom?: CloudinaryContextCustom;
+        userId: number;
+        jobId: string;
+    }) {
+        const { assetUrl, public_id, duration, display_name, custom, userId, jobId } = params;
+
+        const type = this.resolveVideoType(custom);
 
         const cloudName = process.env.CLOUD_NAME?.trim();
         const publicId = typeof public_id === 'string' ? public_id.trim() : undefined;
-        // const publicIdWithoutExt = publicId?.replace(/\.[a-z0-9]+$/i, '');
-
         const thumbnailUrl =
             cloudName && publicId
                 ? `https://res.cloudinary.com/${cloudName}/video/upload/so_1/${publicId}.jpg`
                 : undefined;
 
-        const createPayload: Record<string, unknown> = {
-            user_id: userId,
-            type,
-            url: videoUrl,
-            duration: typeof duration === 'number' ? duration : null,
-        };
-        if (display_name) createPayload.name = display_name;
-        if (thumbnailUrl) createPayload.thumbnail = thumbnailUrl;
+        let row = await this.videoModel.findOne({ where: { job_id: jobId } });
 
-        const srtHighlight =
-            typeof custom?.srt_highlight === 'string' && custom.srt_highlight.trim().length > 0
-                ? custom.srt_highlight
-                : typeof custom?.srtHighlight === 'string' && custom.srtHighlight.trim().length > 0
-                    ? custom.srtHighlight
-                    : undefined;
-        if (srtHighlight !== undefined) {
-            createPayload.srt_highlight = srtHighlight;
+        if (!row) {
+            row = await this.videoModel.create({
+                job_id: jobId,
+                user_id: userId,
+                type,
+                url: assetUrl,
+                duration: typeof duration === 'number' ? duration : null,
+                name: display_name ?? null,
+                thumbnail:
+                    thumbnailUrl ?? 'https://placehold.co/320x180/png?text=thumbnail',
+            });
+            this.logger.log(
+                `Created video row id=${row.id} job_id=${jobId} user_id=${userId} type=${type}`,
+            );
+        } else {
+            await row.update({
+                user_id: userId,
+                type,
+                url: assetUrl,
+                duration: typeof duration === 'number' ? duration : row.duration,
+                ...(display_name ? { name: display_name } : {}),
+                ...(thumbnailUrl ? { thumbnail: thumbnailUrl } : {}),
+            });
+            this.logger.log(`Updated video row id=${row.id} job_id=${jobId} (video asset)`);
         }
 
-        // console.log('payload create: ', createPayload);
-
-        let created: Video;
-        try {
-            created = await this.videoModel.create(createPayload as any);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Cloudinary webhook create video failed: ${message}`);
-            throw error;
-        }
+        await row.reload();
 
         this.websocketService.notifyUploadCompleted(userId, {
-            id: created.id,
-            url: created.url,
-            type: created.type,
+            id: row.id,
+            url: row.url ?? '',
+            type: row.type,
             duration: duration ?? undefined,
         });
 
-        this.logger.log(
-            `Created video from Cloudinary webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
-        );
+        return { success: true, id: row.id };
+    }
 
-        return { success: true, id: created.id };
+    private isSrtRawUpload(format: string | undefined, assetUrl: string): boolean {
+        const fmt = format?.toLowerCase() ?? '';
+        if (fmt === 'srt') return true;
+        return /\.srt(\?|$)/i.test(assetUrl);
+    }
+
+    private async handleCloudinaryRawSrt(params: {
+        assetUrl: string;
+        format?: string;
+        userId: number;
+        jobId: string;
+    }) {
+        const { assetUrl, format, userId, jobId } = params;
+
+        if (!this.isSrtRawUpload(format, assetUrl)) {
+            this.logger.debug(`Ignoring raw upload format=${format} url=${assetUrl}`);
+            return { ignored: true, reason: 'not_srt' };
+        }
+
+        let row = await this.videoModel.findOne({ where: { job_id: jobId } });
+
+        if (!row) {
+            row = await this.videoModel.create({
+                job_id: jobId,
+                user_id: userId,
+                type: VideoType.HIGHLIGHT,
+                url: null,
+                duration: null,
+                thumbnail: 'https://placehold.co/320x180/png?text=thumbnail',
+                srt_raw: assetUrl,
+            });
+            this.logger.log(
+                `Created placeholder video id=${row.id} job_id=${jobId} (SRT first, video pending)`,
+            );
+        } else {
+            await row.update({ srt_raw: assetUrl });
+            this.logger.log(`Updated srt_raw for video id=${row.id} job_id=${jobId}`);
+        }
+
+        return { success: true, id: row.id };
     }
 
     async handleAIResult(payload: ai_model_result) {
@@ -175,30 +253,7 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        // const createPayload: Record<string, unknown> = {
-        //     user_id: userId,
-        //     type,
-        //     url,
-        //     duration: typeof duration === 'number' ? duration : null,
-        // };
-        // if (display_name) createPayload.name = display_name;
-
-        // let created: Video;
-        // try {
-        //     created = await this.videoModel.create(createPayload as any);
-        // } catch (error) {
-        //     const message = error instanceof Error ? error.message : String(error);
-        //     this.logger.error(`AI webhook create video failed: ${message}`);
-        //     throw error;
-        // }
-
-        // this.logger.log(
-        //     `Created video from AI model webhook id=${created.id} user_id=${created.user_id} type=${created.type}`,
-        // );
-
-        // Gửi thông báo tới client qua WebSocket
         this.websocketService.notifyVideoCompleted(userId, {
-            // id: created.id,
             url: url,
             type: type,
             duration: duration ?? undefined,
