@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Video } from 'src/videos/video.model';
 import { Project } from 'src/projects/project.model';
+import { MascotImage } from 'src/images_mascot/images.model';
 
 @Table({
     tableName: 'mascot_overlays',
@@ -29,6 +30,13 @@ export class MascotOverlay extends Model {
         allowNull: false,
     })
     edit_id: number;
+
+    @ForeignKey(() => MascotImage)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
+    image_id: number;
 
     // FK logic: videos.id where videos.type = 'mascot'
     // @ForeignKey(() => Video)
@@ -80,6 +88,9 @@ export class MascotOverlay extends Model {
 
     @BelongsTo(() => Project)
     edit: Project;
+
+    @BelongsTo(() => MascotImage)
+    declare mascotImage: MascotImage;
 }
 
 

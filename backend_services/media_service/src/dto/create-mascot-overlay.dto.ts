@@ -6,6 +6,10 @@ export class CreateMascotOverlayDto {
     @IsInt()
     edit_id: number;
 
+    @IsOptional()
+    @IsInt()
+    image_id: number;
+
     @IsNumber()
     position_x: number;
 

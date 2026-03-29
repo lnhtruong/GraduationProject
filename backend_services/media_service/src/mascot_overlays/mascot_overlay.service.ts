@@ -5,6 +5,7 @@ import { CreateMascotOverlayDto } from 'src/dto/create-mascot-overlay.dto';
 import { UpdateMascotOverlayDto } from 'src/dto/update-mascot-overlay.dto';
 // import { Video, VideoType } from 'src/videos/video.model';
 import { Project } from 'src/projects/project.model';
+import { MascotImage } from 'src/images_mascot/images.model';
 
 @Injectable()
 export class MascotOverlayService {
@@ -15,6 +16,8 @@ export class MascotOverlayService {
         // private readonly videoModel: typeof Video,
         @InjectModel(Project)
         private readonly projectModel: typeof Project,
+        @InjectModel(MascotImage)
+        private readonly mascotImageModel: typeof MascotImage,
 
     ) { }
 
@@ -44,7 +47,7 @@ export class MascotOverlayService {
 
     async findOne(id: number) {
         const overlay = await this.mascotOverlayModel.findByPk(id, {
-            include: [Project],
+            include: [Project, MascotImage],
         });
 
         if (!overlay) {

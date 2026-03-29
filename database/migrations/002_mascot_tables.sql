@@ -35,3 +35,8 @@ CREATE TABLE IF NOT EXISTS `mascot_overlays` (
     INDEX `idx_mascot_overlay_edit_id` (`edit_id`),
     CONSTRAINT `fk_mascot_overlay_project` FOREIGN KEY (`edit_id`) REFERENCES `projects` (`edit_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+ALTER TABLE `mascot_overlays`
+ADD COLUMN `image_id` INT(11) NULL AFTER `edit_id`,
+ADD INDEX `idx_mascot_overlay_image_id` (`image_id`),
+ADD CONSTRAINT `fk_mascot_overlay_image` FOREIGN KEY (`image_id`) REFERENCES `mascot_images` (`image_id`) ON DELETE SET NULL ON UPDATE CASCADE;

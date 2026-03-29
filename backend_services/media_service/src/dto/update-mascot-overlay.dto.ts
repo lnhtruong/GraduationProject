@@ -7,6 +7,10 @@ export class UpdateMascotOverlayDto {
     edit_id?: number;
 
     @IsOptional()
+    @IsInt()
+    image_id?: number;
+
+    @IsOptional()
     @IsNumber()
     position_x?: number;
 
