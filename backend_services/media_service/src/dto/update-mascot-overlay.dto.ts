@@ -4,7 +4,7 @@ import { IsAfter } from 'src/validators/is-ater.validator';
 export class UpdateMascotOverlayDto {
     @IsOptional()
     @IsInt()
-    mascot_video_id?: number;
+    edit_id?: number;
 
     @IsOptional()
     @IsNumber()

@@ -21,24 +21,23 @@ export class MascotOverlay extends Model {
     @PrimaryKey
     @AutoIncrement
     @Column(DataType.INTEGER)
-    mascot_overlay_id: number;
+    declare mascot_overlay_id: number;
 
     @ForeignKey(() => Project)
     @Column({
         type: DataType.INTEGER,
         allowNull: false,
-        unique: true,
     })
     edit_id: number;
 
     // FK logic: videos.id where videos.type = 'mascot'
-    @ForeignKey(() => Video)
-    @Column({
-        type: DataType.INTEGER,
-        allowNull: false,
-        unique: true,
-    })
-    mascot_video_id: number;
+    // @ForeignKey(() => Video)
+    // @Column({
+    //     type: DataType.INTEGER,
+    //     allowNull: false,
+    //     unique: true,
+    // })
+    // mascot_video_id: number;
 
     @Column({
         type: DataType.FLOAT,
@@ -76,8 +75,8 @@ export class MascotOverlay extends Model {
     })
     layer_index: number;
 
-    @BelongsTo(() => Video)
-    mascotVideo: Video;
+    // @BelongsTo(() => Video)
+    // mascotVideo: Video;
 
     @BelongsTo(() => Project)
     edit: Project;
