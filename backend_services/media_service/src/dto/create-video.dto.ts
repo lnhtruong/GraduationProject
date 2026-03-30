@@ -20,5 +20,5 @@ export class CreateVideoDto {
 
     @IsOptional()
     @IsString()
-    srt_raw?: string;
+    srt_raw_url?: string;
 }

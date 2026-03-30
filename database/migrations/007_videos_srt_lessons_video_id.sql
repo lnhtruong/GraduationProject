@@ -1,5 +1,5 @@
 -- Cloudinary URL tới file .srt (hoặc tạm thời text; production dùng URL)
-ALTER TABLE `videos` ADD COLUMN `srt_raw` TEXT NULL;
+ALTER TABLE `videos` ADD COLUMN `srt_raw_url` TEXT NULL;
 
 -- Link lesson to source video (nullable)
 ALTER TABLE `lessons`

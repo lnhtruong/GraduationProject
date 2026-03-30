@@ -7,4 +7,4 @@ CREATE INDEX `idx_videos_job_id` ON `videos` (`job_id`);
 ALTER TABLE `videos` MODIFY COLUMN `url` TEXT NULL;
 
 -- --- Legacy: nếu DB cũ vẫn còn cột `srt_highlight` (trước khi đổi tên trong 007), chạy tay:
--- ALTER TABLE `videos` CHANGE COLUMN `srt_highlight` `srt_raw` TEXT NULL;
+-- ALTER TABLE `videos` CHANGE COLUMN `srt_highlight` `srt_raw_url` TEXT NULL;

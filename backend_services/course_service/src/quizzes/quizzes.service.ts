@@ -70,15 +70,15 @@ export class QuizzesService {
 
   async createOneByAI(payload: CreateQuizAIDto): Promise<Quiz> {
     const video = await this.videoModel.findByPk(payload.videoId, {
-      attributes: ['id', 'srt_raw'],
+      attributes: ['id', 'srt_raw_url'],
     });
     if (!video) {
       throw new NotFoundException(`Video with ID ${payload.videoId} not found`);
     }
-    const srtRawStored = video.srt_raw?.trim();
+    const srtRawStored = video.srt_raw_url?.trim();
     if (!srtRawStored) {
       throw new BadRequestException(
-        'Video has no srt_raw. Upload the SRT to Cloudinary (raw) and wait for the webhook, or set srt_raw via API.',
+        'Video has no srt_raw_url. Upload the SRT to Cloudinary (raw) and wait for the webhook, or set srt_raw_url via API.',
       );
     }
 
@@ -98,6 +98,8 @@ export class QuizzesService {
       payload.passingScore ?? 0,
       payload.timeLimitMinutes ?? 0,
     );
+
+    // console.log('check generated: ', generated);
 
     return await this.sequelize.transaction(async (transaction) => {
       const quiz = await this.quizModel.create(
@@ -126,6 +128,7 @@ export class QuizzesService {
           { transaction },
         );
         if (row.options?.length) {
+          // console.log('check options: ', row.options);
           await this.quizOptionModel.bulkCreate(
             row.options.map((o) => ({
               questionId: question.id,

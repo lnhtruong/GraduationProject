@@ -202,14 +202,14 @@ export class WebhookService {
                 url: null,
                 duration: null,
                 thumbnail: 'https://placehold.co/320x180/png?text=thumbnail',
-                srt_raw: assetUrl,
+                srt_raw_url: assetUrl,
             });
             this.logger.log(
                 `Created placeholder video id=${row.id} job_id=${jobId} (SRT first, video pending)`,
             );
         } else {
-            await row.update({ srt_raw: assetUrl });
-            this.logger.log(`Updated srt_raw for video id=${row.id} job_id=${jobId}`);
+            await row.update({ srt_raw_url: assetUrl });
+            this.logger.log(`Updated srt_raw_url for video id=${row.id} job_id=${jobId}`);
         }
 
         return { success: true, id: row.id };

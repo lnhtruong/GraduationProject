@@ -2,7 +2,7 @@ import { Column, DataType, Model, PrimaryKey, AutoIncrement, Table, Index } from
 
 /**
  * Shared `videos` table (same DB as media_service).
- * `srt_raw` stores Cloudinary URL to the .srt file; quiz AI fetches text from that URL.
+ * `srt_raw_url` stores Cloudinary URL to the .srt file; quiz AI fetches text from that URL.
  */
 @Table({
   tableName: 'videos',
@@ -27,7 +27,7 @@ export class Video extends Model {
   @Column({
     type: DataType.TEXT,
     allowNull: true,
-    field: 'srt_raw',
+    field: 'srt_raw_url',
   })
-  declare srt_raw: string | null;
+  declare srt_raw_url: string | null;
 }

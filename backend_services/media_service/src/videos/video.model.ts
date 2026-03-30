@@ -87,9 +87,9 @@ export class Video extends Model {
   @Column({
     type: DataType.TEXT,
     allowNull: true,
-    field: 'srt_raw',
+    field: 'srt_raw_url',
   })
-  declare srt_raw: string | null;
+  declare srt_raw_url: string | null;
 
   @BelongsTo(() => MascotImage)
   image?: MascotImage;

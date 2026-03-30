@@ -1,11 +1,11 @@
 /**
- * `srt_raw` in DB is normally a Cloudinary HTTPS URL to the .srt file.
+ * `srt_raw_url` in DB is normally a Cloudinary HTTPS URL to the .srt file.
  * This helper loads plain-text SRT for the quiz generator. Inline text is still supported.
  */
 export async function resolveSrtRawForQuiz(srtRaw: string): Promise<string> {
   const t = srtRaw.trim();
   if (!t) {
-    throw new Error('Empty srt_raw');
+    throw new Error('Empty srt_raw_url');
   }
   if (/^https?:\/\//i.test(t)) {
     const controller = new AbortController();

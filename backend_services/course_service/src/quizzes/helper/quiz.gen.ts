@@ -23,7 +23,7 @@ export interface QuizQuestion {
 }
 
 export interface QuizPayload {
-//   lessonActivityId: number
+  //   lessonActivityId: number
   name: string
   shuffleQuestion: boolean
   shuffleOption: boolean
@@ -33,7 +33,7 @@ export interface QuizPayload {
 }
 
 export interface CreateQuizInput {
-//   lessonActivityId: number
+  //   lessonActivityId: number
   name: string
   shuffleQuestion: boolean
   shuffleOption: boolean
@@ -116,7 +116,7 @@ function parseSRT(raw: string): SRTSegment[] {
     .map((b) => {
       const lines = b.trim().split("\n").map(l => l.trim())
       if (lines.length < 3) return null
-      
+
       const index = parseInt(lines[0], 10)
       // Supports "00:01:27,440 --> 00:01:31,440" or "00:01:27.440->00:01:31.440"
       const timeStr = lines[1]
@@ -124,7 +124,7 @@ function parseSRT(raw: string): SRTSegment[] {
       const start = parts[0]?.trim()
       const end = parts[1]?.trim()
       const text = lines.slice(2).join(" ")
-      
+
       return { index, start, end, text }
     })
     .filter((s): s is SRTSegment => s !== null)
@@ -328,11 +328,17 @@ function mapToApiFormat(rawQuestions: RawQuestion[], cfg: Config): QuizQuestion[
 
     let options: QuizOption[] = []
     if (type === "mcq") {
-      options = q.options.map((opt, idx) => ({
-        optionText: opt,
-        isCorrect: idx === q.correct_index,
-        orderIndex: idx + 1,
-      }))
+      options = q.options.map((opt: any, idx) => {
+        const real = typeof opt.optionText === "object"
+          ? opt.optionText
+          : opt
+
+        return {
+          optionText: real.optionText ?? real,
+          isCorrect: real.isCorrect ?? opt.isCorrect ?? idx === q.correct_index,
+          orderIndex: real.orderIndex ?? opt.orderIndex ?? idx + 1,
+        }
+      })
     } else if (type === "true_false") {
       options = [
         { optionText: "True", isCorrect: q.correct_index === 0, orderIndex: 1 },
