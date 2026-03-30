@@ -10,6 +10,7 @@ import type {
 	DeleteVideoResponse,
 	UpdateVideoRequest,
 	Video,
+	VideoListType,
 } from "../types";
 
 const VIDEO_ENDPOINT = "/media/videos";
@@ -63,9 +64,12 @@ export const videoApi = createSimpleApi({
 		return mapVideo(response);
 	},
 
-	getAllByUser: async () => {
+	getAllByUser: async (type?: VideoListType | null) => {
+		const endpoint = type
+			? `${VIDEO_ENDPOINT}/user/${type}`
+			: `${VIDEO_ENDPOINT}/user`;
 		const { data: response } = await apiClient.get<VideoApiResponse[]>(
-			`${VIDEO_ENDPOINT}/user`,
+			endpoint,
 		);
 		return response.map(mapVideo);
 	},

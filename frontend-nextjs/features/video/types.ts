@@ -3,6 +3,7 @@
  */
 
 export type VideoType = "highlight" | "mascot" | "full" | (string & {});
+export type VideoListType = "highlight" | "mascot";
 
 export interface VideoImage {
 	id?: number;

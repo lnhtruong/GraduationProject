@@ -12,6 +12,7 @@ import type {
 	DeleteVideoResponse,
 	UpdateVideoMutationVariables,
 	Video,
+	VideoListType,
 } from "../types";
 
 const keys = createKeyFactory("video");
@@ -26,10 +27,10 @@ export function useVideoById(id: number, enabled = true) {
 	});
 }
 
-export function useVideosByUser(enabled = true) {
+export function useVideosByUser(type?: VideoListType | null, enabled = true) {
 	return useQuery({
-		queryKey: keys.custom("user", "list"),
-		queryFn: () => videoApi.getAllByUser(),
+		queryKey: keys.custom("user", "list", type ?? "all"),
+		queryFn: () => videoApi.getAllByUser(type),
 		enabled,
 	});
 }
