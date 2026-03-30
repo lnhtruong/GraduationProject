@@ -19,7 +19,7 @@ export class MascotImage extends Model {
     @PrimaryKey
     @AutoIncrement
     @Column(DataType.INTEGER)
-    image_id: number;
+    declare image_id: number;
 
     @Column({
         type: DataType.INTEGER,

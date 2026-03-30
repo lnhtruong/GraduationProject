@@ -15,6 +15,19 @@ export interface MascotOption {
   margin_x: number;
   margin_y: number;
   scale: number;
+  previewPlacement?: MascotPreviewPlacement;
+}
+
+export interface MascotPreviewPlacement {
+  xPct: number;
+  yPct: number;
+  aspectRatio: number;
+  hasPlaced: boolean;
+}
+
+export interface VideoFrameSize {
+  width: number;
+  height: number;
 }
 
 export interface VoiceOption {
@@ -91,6 +104,8 @@ export interface ExternalEditorPanelBindings {
   isApplyingMascot: boolean;
   mascotProgress?: string;
   videoFile: File | null;
+  videoSourceUrl?: string;
+  mascotFrameSize: VideoFrameSize | null;
   voice: VoiceOption;
   onVoiceChange: (voice: VoiceOption) => void;
   layers: LayerItem[];

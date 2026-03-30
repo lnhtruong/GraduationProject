@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, Move, Maximize2 } from "lucide-react";
 import type { MascotOption } from "@/features/videoEditor/types";
-import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  validateMascotParams,
-  calculateMaxMargins,
-} from "@/features/_shared/utils/validation";
 
 interface Props {
   value: MascotOption;
   onChange: (value: MascotOption) => void;
   onApply?: () => void;
   isApplying?: boolean;
-  videoFile?: File | null;
+  hasVideo?: boolean;
   mascotProgress?: string;
 }
 
@@ -56,134 +50,71 @@ const presetMascots = [
   },
 ];
 
+function shortenMiddle(text: string, head = 12, tail = 10) {
+  if (!text) return text;
+  if (text.length <= head + tail + 3) return text;
+  return `${text.slice(0, head)}...${text.slice(-tail)}`;
+}
+
 export default function MascotOptions({
   value,
   onChange,
   onApply,
   isApplying,
-  videoFile,
+  hasVideo = false,
   mascotProgress,
 }: Props) {
-  const [maxMargins, setMaxMargins] = useState<{
-    maxMarginX: number;
-    maxMarginY: number;
-  } | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const selectedMascotName =
+    value.type === "preset"
+      ? presetMascots.find((m) => m.id === value.presetId)?.name
+      : value.type === "custom"
+        ? shortenMiddle(value.customFile?.name || "")
+        : undefined;
 
-  // Calculate max margins when mascot file or scale changes
-  useEffect(() => {
-    const calculateMargins = async () => {
-      if (!videoFile || value.position === "replace" || value.type === "none") {
-        setMaxMargins(null);
-        return;
-      }
-
-      setIsCalculating(true);
-      try {
-        let mascotFile: File;
-
-        // Nếu chọn preset thì load ảnh từ public folder
-        if (value.type === "preset" && value.presetUrl) {
-          const response = await fetch(value.presetUrl);
-          const blob = await response.blob();
-          mascotFile = new File([blob], `${value.presetId}.png`, {
-            type: "image/png",
-          });
-        }
-        // Nếu custom thì dùng file user upload
-        else if (value.type === "custom" && value.customFile) {
-          mascotFile = value.customFile;
-        } else {
-          setIsCalculating(false);
-          return;
-        }
-
-        const margins = await calculateMaxMargins(
-          videoFile,
-          mascotFile,
-          value.scale,
-        );
-        setMaxMargins(margins);
-
-        // Auto-adjust margins if they exceed limits
-        const newMarginX = Math.min(value.margin_x, margins.maxMarginX);
-        const newMarginY = Math.min(value.margin_y, margins.maxMarginY);
-
-        if (newMarginX !== value.margin_x || newMarginY !== value.margin_y) {
-          onChange({
-            ...value,
-            margin_x: newMarginX,
-            margin_y: newMarginY,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to calculate margins:", error);
-      } finally {
-        setIsCalculating(false);
-      }
-    };
-
-    calculateMargins();
-  }, [
-    value.customFile,
-    value.presetUrl,
-    value.scale,
-    videoFile,
-    value.position,
-    value.type,
-    onChange,
-  ]);
-
-  // Validate parameters
-  useEffect(() => {
-    if (value.type === "none") {
-      setValidationError(null);
-      return;
-    }
-
-    if (!maxMargins) {
-      setValidationError(null);
-      return;
-    }
-
-    const validation = validateMascotParams(
-      value.position,
-      value.margin_x,
-      value.margin_y,
-      maxMargins.maxMarginX,
-      maxMargins.maxMarginY,
-    );
-
-    setValidationError(
-      validation.isValid ? null : validation.errors[0] || null,
-    );
-  }, [value, maxMargins]);
+  const hasSelectedMascot =
+    value.type !== "none" && Boolean(value.presetUrl || value.customFile);
+  const hasPlacedMascot =
+    value.position === "replace" || Boolean(value.previewPlacement?.hasPlaced);
+  const hasValidScale = value.scale >= 0.1 && value.scale <= 2;
 
   const canApply =
-    value.type !== "none" &&
-    (value.presetUrl || value.customFile) &&
-    !validationError &&
-    !isApplying &&
-    !isCalculating;
+    hasSelectedMascot &&
+    hasVideo &&
+    hasPlacedMascot &&
+    hasValidScale &&
+    !isApplying;
+
+  const setNoMascot = () =>
+    onChange({
+      type: "none",
+      position: "replace",
+      margin_x: 0,
+      margin_y: 0,
+      scale: 1,
+      previewPlacement: undefined,
+    });
+
+  const setPresetMascot = (mascot: (typeof presetMascots)[number]) => {
+    onChange({
+      type: "preset",
+      presetId: mascot.id,
+      presetUrl: mascot.filePath,
+      customFile: undefined,
+      position: "bottom-right",
+      margin_x: 40,
+      margin_y: 40,
+      scale: 1,
+      previewPlacement: undefined,
+    });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Chọn Mascot */}
       <div>
         <label className="block text-sm font-medium mb-2">Chọn Mascot</label>
 
-        {/* Option: Không dùng mascot */}
         <div
-          onClick={() =>
-            onChange({
-              type: "none",
-              position: "replace",
-              margin_x: 0,
-              margin_y: 0,
-              scale: 0.5,
-            })
-          }
+          onClick={setNoMascot}
           className={`p-3 rounded-lg border-2 cursor-pointer mb-2 transition-colors ${
             value.type === "none"
               ? "border-primary bg-primary/10"
@@ -194,7 +125,6 @@ export default function MascotOptions({
           <p className="text-xs text-muted-foreground">Giữ nguyên video gốc</p>
         </div>
 
-        {/* Preset Mascots */}
         <div className="mb-2">
           <details className="group" open={value.type === "preset"}>
             <summary className="p-3 rounded-lg border-2 border-border hover:border-primary/50 cursor-pointer list-none transition-colors">
@@ -230,19 +160,7 @@ export default function MascotOptions({
               {presetMascots.map((mascot) => (
                 <div
                   key={mascot.id}
-                  onClick={() => {
-                    console.log("Selected preset mascot:", mascot);
-                    onChange({
-                      type: "preset",
-                      presetId: mascot.id,
-                      presetUrl: mascot.filePath,
-                      customFile: undefined,
-                      position: "bottom-right",
-                      margin_x: 40,
-                      margin_y: 40,
-                      scale: 1,
-                    });
-                  }}
+                  onClick={() => setPresetMascot(mascot)}
                   className={`p-1.5 rounded-md border cursor-pointer transition-all hover:scale-105 ${
                     value.type === "preset" && value.presetId === mascot.id
                       ? "border-primary bg-primary/10 ring-2 ring-primary"
@@ -267,7 +185,6 @@ export default function MascotOptions({
           </details>
         </div>
 
-        {/* Custom Mascot - Chỉ hiện khi KHÔNG chọn preset */}
         <div
           className={`p-3 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
             value.type === "custom"
@@ -282,7 +199,7 @@ export default function MascotOptions({
                 <p className="text-sm font-medium">Mascot tự tạo</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {value.type === "custom" && value.customFile
-                    ? `${value.customFile.name}`
+                    ? shortenMiddle(value.customFile.name)
                     : "Tải lên file hình ảnh (.png, .jpg)"}
                 </p>
               </div>
@@ -294,16 +211,16 @@ export default function MascotOptions({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  console.log("Selected custom file:", file);
                   onChange({
                     type: "custom",
                     customFile: file,
-                    presetUrl: undefined, // Clear preset URL
-                    presetId: undefined, // Clear preset ID
+                    presetUrl: undefined,
+                    presetId: undefined,
                     position: "bottom-right",
-                    margin_x: 10,
-                    margin_y: 10,
-                    scale: 0.3,
+                    margin_x: 40,
+                    margin_y: 40,
+                    scale: 1,
+                    previewPlacement: undefined,
                   });
                 }
               }}
@@ -312,11 +229,9 @@ export default function MascotOptions({
         </div>
       </div>
 
-      {/* Position + Parameters (only if mascot selected) */}
       {value.type !== "none" && (
         <>
-          {/* Current Selection Info */}
-          <div className="bg-linear-to-r from-primary/20 via-primary/10 to-primary/20 border-2 border-primary rounded-lg p-3 shadow-sm">
+          <div className="bg-linear-to-r from-primary/20 via-primary/10 to-primary/20 border-2 border-primary rounded-lg p-3">
             <div className="flex items-center gap-2">
               <div className="shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <svg
@@ -335,208 +250,68 @@ export default function MascotOptions({
               </div>
               <div className="flex-1">
                 <p className="text-xs font-semibold text-primary mb-0.5">
-                  Đã chọn Mascot
+                  Mascot đã sẵn sàng
                 </p>
-                <p className="text-xs text-foreground">
-                  {value.type === "preset" && (
-                    <>
-                      <strong className="font-bold">
-                        {
-                          presetMascots.find((m) => m.id === value.presetId)
-                            ?.name
-                        }
-                      </strong>
-                      <span className="text-muted-foreground ml-1">
-                        (Có sẵn)
-                      </span>
-                    </>
-                  )}
-                  {value.type === "custom" && value.customFile && (
-                    <>
-                      <strong className="font-bold">
-                        {value.customFile.name}
-                      </strong>
-                      <span className="text-muted-foreground ml-1">
-                        (Tự tạo)
-                      </span>
-                    </>
-                  )}
+                <p className="text-xs text-foreground min-w-0">
+                  <strong className="font-bold inline-block max-w-full truncate align-bottom">
+                    {selectedMascotName}
+                  </strong>
+                  <span className="ml-1 text-muted-foreground">
+                    {value.type === "preset" ? "(Có sẵn)" : "(Tự tải lên)"}
+                  </span>
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Position Selection */}
-          <div className="space-y-2 border-t pt-4">
-            <Label className="text-sm font-semibold">Vị trí Mascot</Label>
+          <Alert>
+            <Move className="h-4 w-4" />
+            <AlertDescription className="text-xs leading-relaxed">
+              {hasVideo
+                ? "Kéo mascot trực tiếp trên khung video để chọn vị trí mong muốn."
+                : "Chọn hoặc kéo thả video vào preview trước, sau đó mới kéo mascot lên video được."}
+            </AlertDescription>
+          </Alert>
 
-            {/* Replace option */}
-            <div
-              onClick={() =>
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Kích thước mascot</p>
+              <Badge variant="secondary" className="text-xs font-mono">
+                {value.scale.toFixed(2)}x
+              </Badge>
+            </div>
+            <Slider
+              value={[value.scale * 100]}
+              onValueChange={([nextValue]) => {
                 onChange({
                   ...value,
-                  position: "replace",
-                  margin_x: 0,
-                  margin_y: 0,
-                })
-              }
-              className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                value.position === "replace"
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/50"
-              }`}
-            >
-              <p className="text-sm font-medium">Thay thế video</p>
-              <p className="text-xs text-muted-foreground">
-                Mascot sẽ thay thế toàn bộ video gốc
-              </p>
-            </div>
+                  scale: nextValue / 100,
+                });
+              }}
+              min={10}
+              max={200}
+              step={5}
+              disabled={isApplying || !hasVideo}
+            />
+            <p className="text-[10px] text-muted-foreground text-center">
+              0.10x đến 2.00x
+            </p>
+          </div>
 
-            {/* Corner positions */}
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: "top-left", label: "Trên trái" },
-                { value: "top-right", label: "Trên phải" },
-                { value: "bottom-left", label: "Dưới trái" },
-                { value: "bottom-right", label: "Dưới phải" },
-              ].map((pos) => (
-                <div
-                  key={pos.value}
-                  onClick={() =>
-                    onChange({
-                      ...value,
-                      position: pos.value as MascotOption["position"],
-                    })
-                  }
-                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors ${
-                    value.position === pos.value
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <p className="text-xs font-medium text-center">{pos.label}</p>
-                </div>
-              ))}
+          <div className="bg-muted/50 rounded-lg border p-3">
+            <div className="flex items-start gap-2">
+              <Maximize2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                <p>
+                  Trạng thái kéo thả: {hasPlacedMascot ? "Đã đặt" : "Chưa đặt"}
+                </p>
+                <p>
+                  Scale hiện tại: <span className="font-semibold">{value.scale.toFixed(2)}x</span>
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Margin & Scale controls (only for corner positions) */}
-          {value.position !== "replace" && (
-            <>
-              {/* Scale Slider */}
-              <div className="space-y-2 border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    Kích thước (Scale)
-                  </Label>
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {value.scale.toFixed(1)}x
-                  </Badge>
-                </div>
-                <Slider
-                  value={[value.scale * 10]}
-                  onValueChange={([val]) =>
-                    onChange({ ...value, scale: val / 10 })
-                  }
-                  min={1}
-                  max={20}
-                  step={1}
-                  disabled={isApplying}
-                />
-                <p className="text-[10px] text-muted-foreground text-center">
-                  0.1x (nhỏ nhất) ← → 2.0x (lớn nhất)
-                </p>
-              </div>
-
-              {/* Calculating margins indicator */}
-              {isCalculating && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    Đang tính toán giới hạn lề...
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Margin X Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    Lề ngang (Margin X)
-                  </Label>
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {value.margin_x}px
-                    {maxMargins && ` / ${Math.round(maxMargins.maxMarginX)}px`}
-                  </Badge>
-                </div>
-                <Slider
-                  value={[value.margin_x]}
-                  onValueChange={([margin_x]) =>
-                    onChange({ ...value, margin_x })
-                  }
-                  min={0}
-                  max={maxMargins?.maxMarginX || 500}
-                  step={5}
-                  disabled={isApplying || isCalculating}
-                />
-              </div>
-
-              {/* Margin Y Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    Lề dọc (Margin Y)
-                  </Label>
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {value.margin_y}px
-                    {maxMargins && ` / ${Math.round(maxMargins.maxMarginY)}px`}
-                  </Badge>
-                </div>
-                <Slider
-                  value={[value.margin_y]}
-                  onValueChange={([margin_y]) =>
-                    onChange({ ...value, margin_y })
-                  }
-                  min={0}
-                  max={maxMargins?.maxMarginY || 500}
-                  step={5}
-                  disabled={isApplying || isCalculating}
-                />
-              </div>
-
-              {/* Visual hint */}
-              <div className="bg-muted/50 rounded-lg p-3 border">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Lề được tính từ góc{" "}
-                    <span className="font-semibold text-foreground">
-                      {value.position === "top-left"
-                        ? "trên trái"
-                        : value.position === "top-right"
-                          ? "trên phải"
-                          : value.position === "bottom-left"
-                            ? "dưới trái"
-                            : "dưới phải"}
-                    </span>{" "}
-                    của ảnh mascot
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Validation Error */}
-          {validationError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                {validationError}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Apply Button */}
           <div className="border-t pt-4">
             <Button
               onClick={onApply}
@@ -568,23 +343,26 @@ export default function MascotOptions({
                   </svg>
                   Đang áp dụng...
                 </>
-              ) : isCalculating ? (
-                "Đang tính toán..."
               ) : (
                 "Áp dụng Mascot"
               )}
             </Button>
 
-            {!canApply && !isApplying && !isCalculating && (
+            {!canApply && !isApplying && (
               <p className="text-xs text-destructive mt-2 text-center">
-                {!value.customFile && !value.presetUrl
+                {!hasSelectedMascot
                   ? "Vui lòng chọn mascot trước"
-                  : validationError || "Đang kiểm tra..."}
+                  : !hasVideo
+                    ? "Vui lòng chọn video trước khi kéo mascot"
+                    : !hasPlacedMascot
+                      ? "Hãy kéo mascot lên video trước khi áp dụng"
+                      : !hasValidScale
+                        ? "Scale phải nằm trong khoảng 0.1 - 2.0"
+                        : "Dữ liệu mascot chưa sẵn sàng"}
               </p>
             )}
           </div>
 
-          {/* Progress Display - Show below button */}
           {isApplying && mascotProgress && (
             <Alert className="animate-pulse">
               <div className="flex items-center gap-2">

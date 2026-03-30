@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Project, ProjectStatus } from './project.model';
 import { CreateProjectDto } from 'src/dto/create-project.dto';
 import { UpdateProjectDto } from 'src/dto/update-project.dto';
+import { Video } from 'src/videos/video.model';
 
 @Injectable()
 export class ProjectService {
@@ -34,11 +35,14 @@ export class ProjectService {
         return this.projectModel.findAll({
             where: { user_id },
             order: [['updated_at', 'DESC']],
+            include: [{ model: Video, required: false }],
         });
     }
 
     async findOne(edit_id: number) {
-        const project = await this.projectModel.findByPk(edit_id);
+        const project = await this.projectModel.findByPk(edit_id, {
+            include: [{ model: Video, required: false }],
+        });
 
         if (!project) {
             throw new NotFoundException('Project not found');
