@@ -8,9 +8,6 @@ export type ProjectStatus =
 	| "draft"
 	| "saved"
 	| "finalized"
-	| "processing"
-	| "completed"
-	| "failed"
 	| (string & {});
 
 export interface Project {

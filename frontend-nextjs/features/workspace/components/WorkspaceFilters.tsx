@@ -48,12 +48,9 @@ export function WorkspaceFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="saved">Saved</SelectItem>
-            <SelectItem value="finalized">Finalized</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="draft">Bản nháp</SelectItem>
+            <SelectItem value="saved">Đã lưu</SelectItem>
+            <SelectItem value="finalized">Đã xong</SelectItem>
           </SelectContent>
         </Select>
       </div>
