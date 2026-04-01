@@ -30,6 +30,7 @@ export class VideoService {
             type: dto.type ?? VideoType.MASCOT,
             url: dto.url,
             duration: dto.duration,
+            srt_raw_url: dto.srt_raw_url ?? null,
         });
     }
 
@@ -84,6 +85,7 @@ export class VideoService {
             url: dto.url ?? video.url,
             duration: dto.duration ?? video.duration,
             image_id: dto.image_id ?? video.image_id,
+            srt_raw_url: dto.srt_raw_url ?? video.srt_raw_url,
         });
 
         return video;
@@ -96,5 +98,9 @@ export class VideoService {
         return {
             message: 'Mascot video deleted successfully',
         };
+    }
+
+    async findByJobId(jobId: string) {
+        return this.videoModel.findOne({ where: { job_id: jobId } });
     }
 }

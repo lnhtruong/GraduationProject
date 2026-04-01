@@ -17,4 +17,8 @@ export class CreateVideoDto {
     @IsNotEmpty()
     @IsIn(Object.values(VideoType))
     type: VideoType;
+
+    @IsOptional()
+    @IsString()
+    srt_raw_url?: string;
 }

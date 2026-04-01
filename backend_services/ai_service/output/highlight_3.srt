@@ -1,0 +1,15 @@
+1
+00:00:00,000 --> 00:00:28,170
+Đó luôn, đáy ra cho người nước ngoài xảy ra với channel của mình Đây là video tiếp theo được một series Các thứ vị lựa vào tục tốt vào trong vòng này mình sẽ nói về Binary Research 3 và mình sẽ phân tất 1 số cái phần xin lời tìm Cơ bạng của 1 cái binary Research 3 Vào hôm nay là đại trở về với nhà tầy Tỷ Tỷ Mết Wayser Mình đang nghĩ về việc rất là tất cả những cái video trên channel Omdap
+
+2
+00:03:56,620 --> 00:04:04,820
+Binary Research 3 Đồng thời thì các bạn cũng có thể sử dụng Binary Research 3 Trong cái việc đó là cái implementation của thằng Binary Hip
+
+3
+00:04:23,600 --> 00:04:55,300
+Đó là cái complexity của Binary Research 3 Thì chúng ta sẽ tấn tóng tất cả việc là insert, delict, remove, and search Thì cái trường hợp mà trong bình đấy Nhưng mà nó nói Binary Research 3 nó tạo ra để được cái trường hợp trung bình Đó cho nó lóc nở Thì tất cả những cái functionality linh wang tử Binary Research 3 mà cứ bạn Đó là insert, delict, remove, and search Thì nó đều là lóc nở cả Nhưng mà cái trường hợp tể nhất của Binary Research 3 Thì nó là ôn nở cho tất cả những cái functionality đây này Tại vì sao?
+
+4
+00:06:08,150 --> 00:07:37,460
+Mấy nếu như nó lớn hơn thì ăn vào phiên phải Và khi mà các bạn muốn remove Một cái element khỏi cái binary research tree Thì đầu tiên các bạn sẽ phải có cái belly của cái đấy đúng không Sau các bạn check bởi vì thằng root Mình sẽ check cái tường hợp dễ tức nha Nó là nó không phải là hằng root Các bạn sẽ check xem giữa là nó nhỏ hơn root Hay là nó lớn hơn root Nếu nhỏ hơn thì vào phiên trái Khi nào mà các bạn gặp được cái nốt đấy thì thôi Nhưng mà nếu như cái nốt đấy là cái lá Thì mọi chuyện Dễ đúng không? Các bạn chỉ cần remove cái lá đấy thôi Nhưng mà nếu như đó là parent của một hàng nào đấy Khi đấy các bạn có thể là một cách Nó là các bạn đi qua phía bên phải Và các bạn tìm cái minh của cái cầu phía bên phải Có nghĩa là các bạn đi qua phía nhóm phía bên phải Xong các bạn đi hết cỡ của phía bên trái của phía bên phải Các bạn đi qua phía bên phải không đi hết cỡ xuống phía bên trái Thì các bạn xa lấy ra được cái minh của cái sức tree ở phía bên phải Tại vì sao Cái minh của cái sức tree phía bên phải Thì nó luôn luôn nhỏ hơn tắc Cái những cái element còn lại ở phía bên phải Nhưng mà nó luôn luôn lớn hơn tắc chả những cái element còn lại phía bên phải Nên thành ra nó sẽ là cái thằng mà tốt nhé Để mà các bạn thấy thế cho các bạn vừa soa Hoặc là các bạn có thể đi qua phía bên phải

@@ -7,6 +7,7 @@ import {
   BelongsTo,
   PrimaryKey,
   AutoIncrement,
+  Index,
 } from 'sequelize-typescript';
 import { MascotImage } from 'src/images_mascot/images.model';
 
@@ -26,6 +27,15 @@ export class Video extends Model {
   @AutoIncrement
   @Column(DataType.INTEGER)
   declare id: number;
+
+  /** Correlates Cloudinary webhooks (video + raw SRT) from one Colab run. */
+  @Index('idx_videos_job_id')
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    field: 'job_id',
+  })
+  declare job_id: string | null;
 
   @Column({
     type: DataType.INTEGER,
@@ -48,10 +58,17 @@ export class Video extends Model {
   declare type: VideoType;
 
   @Column({
-    type: DataType.TEXT,
-    allowNull: false,
+    type: DataType.STRING(255),
+    allowNull: true,
   })
-  declare url: string;
+  declare name: string | null;
+
+  /** Video playback URL; may be null until the `video` webhook arrives. */
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+  })
+  declare url: string | null;
 
   @Column({
     type: DataType.TEXT,
@@ -66,8 +83,14 @@ export class Video extends Model {
   })
   declare duration: number | null;
 
+  /** URL to the .srt file on Cloudinary (raw upload), not inline transcript text. */
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    field: 'srt_raw_url',
+  })
+  declare srt_raw_url: string | null;
+
   @BelongsTo(() => MascotImage)
   image?: MascotImage;
 }
-
-
