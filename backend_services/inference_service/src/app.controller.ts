@@ -6,14 +6,12 @@ import {
   Param,
   UseInterceptors,
   UploadedFile,
-  UploadedFiles,
   Res,
   BadRequestException,
   Headers,
 } from '@nestjs/common';
 import {
   FileInterceptor,
-  FileFieldsInterceptor,
   NoFilesInterceptor,
 } from '@nestjs/platform-express';
 import { AppService } from './app.service';
@@ -46,26 +44,23 @@ export class AppController {
 
   // Map với /mascot
   @Post('mascot')
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'mascot_image', maxCount: 1 },
-      { name: 'audio', maxCount: 1 },
-    ]),
-  )
+  @UseInterceptors(FileInterceptor('audio'))
   async createMascotJob(
-    @UploadedFiles()
-    files: {
-      mascot_image?: Express.Multer.File[];
-      audio?: Express.Multer.File[];
-    },
+    @UploadedFile() audio: Express.Multer.File,
     @Body() body: unknown,
     @Headers('x-user-id') userIdHeader?: string,
   ): Promise<unknown> {
-    if (!files || !files.mascot_image) {
-      throw new BadRequestException('mascot_image is required');
+    const mascotImageUrl =
+      typeof body === 'object' &&
+        body !== null &&
+        'mascot_image_url' in body &&
+        typeof (body as Record<string, unknown>).mascot_image_url === 'string'
+        ? (body as Record<string, string>).mascot_image_url
+        : undefined;
+
+    if (!mascotImageUrl || mascotImageUrl.trim().length === 0) {
+      throw new BadRequestException('mascot_image_url is required');
     }
-    const mascotImage = files.mascot_image[0];
-    const audio = files.audio ? files.audio[0] : undefined;
 
     const userId =
       typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
@@ -74,7 +69,7 @@ export class AppController {
 
     console.log('check userid: ', userId);
 
-    return this.appService.createMascot(mascotImage, audio, body, userId);
+    return this.appService.createMascot(mascotImageUrl, audio, body, userId);
   }
 
   // Map với /generate-quiz
