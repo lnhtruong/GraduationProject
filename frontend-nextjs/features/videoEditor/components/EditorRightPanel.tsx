@@ -36,6 +36,7 @@ interface Props {
   onTextSelect?: (id: string | null) => void;
   activeOption?: OptionType;
   onActiveOptionChange?: (option: OptionType) => void;
+  videoDurationMs?: number;
 }
 
 export default function EditorRightPanel({
@@ -58,6 +59,7 @@ export default function EditorRightPanel({
   onTextSelect,
   activeOption: controlledActiveOption,
   onActiveOptionChange,
+  videoDurationMs,
 }: Props) {
   const textOverlays = layers
     .filter((l) => l.type === "text")
@@ -91,7 +93,12 @@ export default function EditorRightPanel({
     }
   }, [selectedTextId, textOverlays, onTextSelect]);
 
+  // Default duration: 5s hoặc nhỏ hơn nếu video ngắn hơn 5s
+  const defaultDuration = Math.min(5000, videoDurationMs ?? 5000);
+
   // Get current text or create new default
+  // BUG FIX: fallback phải có đầy đủ startTime/duration/width/height
+  // để handleTextChange không tạo layer thiếu metadata timeline
   const currentText = textOverlays.find((t) => t.id === selectedTextId) || {
     id: crypto.randomUUID(),
     text: "",
@@ -103,6 +110,10 @@ export default function EditorRightPanel({
     fontStyle: "normal" as const,
     textDecoration: "none" as const,
     textAlign: "center" as const,
+    startTime: 0,
+    duration: defaultDuration,
+    width: 300,
+    height: 100,
   };
 
   // Handle text changes
@@ -129,6 +140,10 @@ export default function EditorRightPanel({
       fontStyle: "normal",
       textDecoration: "none",
       textAlign: "center",
+      startTime: 0,
+      duration: defaultDuration,
+      width: 300,
+      height: 100,
     };
     onTextAdd(newText);
     onTextSelect?.(newText.id);

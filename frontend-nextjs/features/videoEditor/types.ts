@@ -50,6 +50,11 @@ export interface TextOption {
   fontStyle: "normal" | "italic";
   textDecoration: "none" | "underline";
   textAlign: "left" | "center" | "right";
+  // Timeline & Dimension
+  startTime?: number;  // ms, default 0
+  duration?: number;   // ms, default 0 (whole video)
+  width?: number;      // px or %, default auto
+  height?: number;     // px or %, default auto
 }
 
 export interface EffectOption {

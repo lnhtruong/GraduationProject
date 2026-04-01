@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type RefObject } from "react";
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   LayerItem,
   MascotOption,
-  TextLayer,
+  TextOption,
   VideoFrameSize,
 } from "@/features/videoEditor/types";
 import { useDndMonitor, useDraggable, useDroppable } from "@dnd-kit/core";
@@ -14,71 +16,275 @@ import {
   getMascotDisplaySize,
 } from "@/features/videoEditor/utils/mascotPlacement";
 
-// Component hiển thị text layer trên video preview,
-// xử lý drag bằng dnd-kit và áp dụng style theo trạng thái dragging / selected
-function DraggableTextLayer({
-  layer,
-  index,
-  total,
-  selectedTextId,
-  onTextSelect,
-}: {
-  layer: TextLayer;
-  index: number;
-  total: number;
-  selectedTextId?: string | null;
-  onTextSelect?: (id: string) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: `${layer.id}`,
-      data: {
-        source: "preview",
-        layerId: layer.id,
-      },
-    });
+type HandlePos = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 
-  const style = {
-    left: `${layer.data.position.x}%`,
-    top: `${layer.data.position.y}%`,
-    transform: isDragging
-      ? `${CSS.Translate.toString(transform)} translate(-50%, -50%)`
-      : "translate(-50%, -50%)",
-    zIndex: total - index + 1,
-    opacity: isDragging ? 0.5 : 1,
-    position: "absolute" as const,
-    cursor: "grab",
-    border:
-      selectedTextId === layer.id
-        ? "2px solid #3b82f6"
-        : "2px solid transparent",
+function ResizeHandle({
+  position,
+  onMouseDown,
+}: {
+  position: HandlePos;
+  onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) {
+  const cls: Record<HandlePos, string> = {
+    tl: "top-0 left-0 cursor-nwse-resize",
+    tr: "top-0 right-0 cursor-nesw-resize",
+    bl: "bottom-0 left-0 cursor-nesw-resize",
+    br: "bottom-0 right-0 cursor-nwse-resize",
+    t:  "top-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    b:  "bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    l:  "top-1/2 left-0 -translate-y-1/2 cursor-ew-resize",
+    r:  "top-1/2 right-0 -translate-y-1/2 cursor-ew-resize",
+  };
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className={`absolute w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full z-50 ${cls[position]} hover:scale-125 transition-transform`}
+    />
+  );
+}
+
+interface TextLayerDef {
+  id: string;
+  type: "text";
+  data: TextOption;
+}
+
+function DraggableResizableTextLayer({
+  layer,
+  zIndex,
+  isSelected,
+  onSelect,
+  onUpdate,
+  containerRef,
+}: {
+  layer: TextLayerDef;
+  zIndex: number;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<TextOption>) => void;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const width  = layer.data.width  ?? 200;
+  const height = layer.data.height ?? 60;
+
+  // ─── Inline edit ─────────────────────────────────────────────────────────────
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(layer.data.text);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const enterEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect(layer.id);
+    setEditText(layer.data.text);
+    setIsEditing(true);
+  };
+
+  const commitEdit = () => {
+    setIsEditing(false);
+    onUpdate(layer.id, { text: editText });
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditText(layer.data.text);
+    }
+    // Shift+Enter = newline, Enter alone = commit
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      commitEdit();
+    }
+  };
+
+  // Auto-focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [isEditing]);
+
+  // ─── Drag ────────────────────────────────────────────────────────────────────
+  const dragRef = useRef<{
+    startMouseX: number;
+    startMouseY: number;
+    startPosX: number;
+    startPosY: number;
+  } | null>(null);
+
+  const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if (isEditing) return; // don't drag while editing
+    e.stopPropagation();
+    onSelect(layer.id);
+    const container = containerRef.current;
+    if (!container) return;
+
+    dragRef.current = {
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPosX: layer.data.position.x,
+      startPosY: layer.data.position.y,
+    };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = ((ev.clientX - dragRef.current.startMouseX) / rect.width)  * 100;
+      const dy = ((ev.clientY - dragRef.current.startMouseY) / rect.height) * 100;
+      onUpdate(layer.id, {
+        position: {
+          x: Math.min(100, Math.max(0, dragRef.current.startPosX + dx)),
+          y: Math.min(100, Math.max(0, dragRef.current.startPosY + dy)),
+        },
+      });
+    };
+    const onMouseUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // ─── Resize (scale font theo min ratio W/H) ───────────────────────────────
+  const resizeRef = useRef<{
+    handle: HandlePos;
+    startMouseX: number;
+    startMouseY: number;
+    startWidth: number;
+    startHeight: number;
+    startFontSize: number;
+  } | null>(null);
+
+  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>, handle: HandlePos) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = {
+      handle,
+      startMouseX:  e.clientX,
+      startMouseY:  e.clientY,
+      startWidth:   width,
+      startHeight:  height,
+      startFontSize: layer.data.fontSize,
+    };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const { handle: h, startMouseX, startMouseY,
+              startWidth, startHeight, startFontSize } = resizeRef.current;
+      const dx = ev.clientX - startMouseX;
+      const dy = ev.clientY - startMouseY;
+
+      let nw = startWidth;
+      let nh = startHeight;
+      if (h.includes("r")) nw = Math.max(60,  startWidth  + dx);
+      if (h.includes("l")) nw = Math.max(60,  startWidth  - dx);
+      if (h.includes("b")) nh = Math.max(30,  startHeight + dy);
+      if (h.includes("t")) nh = Math.max(30,  startHeight - dy);
+
+      // Scale font theo min(ratioW, ratioH) — không để chữ tràn theo cả 2 chiều
+      const ratioW = nw / startWidth;
+      const ratioH = nh / startHeight;
+      const ratio  = Math.min(ratioW, ratioH);
+      const newFontSize = Math.min(96, Math.max(8, Math.round(startFontSize * ratio)));
+
+      onUpdate(layer.id, { width: nw, height: nh, fontSize: newFontSize });
+    };
+    const onMouseUp = () => {
+      resizeRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  const textStyle: React.CSSProperties = {
+    fontSize:       layer.data.fontSize,
+    color:          layer.data.color,
+    fontWeight:     layer.data.fontWeight,
+    fontStyle:      layer.data.fontStyle,
+    textDecoration: layer.data.textDecoration,
+    textAlign:      layer.data.textAlign,
+    fontFamily:     layer.data.fontFamily,
+    padding:        "4px 8px",
+    width:          "100%",
+    height:         "100%",
   };
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      onClick={() => onTextSelect?.(layer.id)}
+      style={{
+        position:  "absolute",
+        left:      `${layer.data.position.x}%`,
+        top:       `${layer.data.position.y}%`,
+        width,
+        height,
+        transform: "translate(-50%, -50%)",
+        zIndex,
+        cursor:    isEditing ? "text" : "grab",
+        border:    isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+        boxSizing: "border-box",
+        userSelect: "none",
+      }}
+      onMouseDown={handleDragMouseDown}
+      onClick={(e) => { e.stopPropagation(); onSelect(layer.id); }}
+      onDoubleClick={enterEdit}
     >
-      <p
-        style={{
-          fontSize: `${layer.data.fontSize}px`,
-          color: layer.data.color,
-          fontWeight: layer.data.fontWeight,
-          padding: "4px 8px",
-          borderRadius: "4px",
-          userSelect: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {layer.data.text}
-      </p>
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={handleTextareaKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            ...textStyle,
+            background:  "rgba(0,0,0,0.55)",
+            border:      "none",
+            outline:     "none",
+            resize:      "none",
+            whiteSpace:  "pre-wrap",
+            wordBreak:   "break-word",
+            overflow:    "hidden",
+            cursor:      "text",
+            boxSizing:   "border-box",
+          }}
+        />
+      ) : (
+        <p
+          style={{
+            ...textStyle,
+            whiteSpace:    "normal",
+            wordBreak:     "break-word",
+            overflow:      "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          {layer.data.text}
+        </p>
+      )}
+
+      {isSelected && !isEditing && (
+        <>
+          {(["tl","tr","bl","br","t","b","l","r"] as HandlePos[]).map((pos) => (
+            <ResizeHandle
+              key={pos}
+              position={pos}
+              onMouseDown={(e) => handleResizeMouseDown(e, pos)}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
+// ─── DraggableMascotLayer ─────────────────────────────────────────────────────
 function DraggableMascotLayer({
   mascot,
   mascotSrc,
@@ -98,9 +304,7 @@ function DraggableMascotLayer({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: "mascot-preview",
-      data: {
-        source: "mascot-preview",
-      },
+      data: { source: "mascot-preview" },
     });
 
   const {
@@ -110,12 +314,11 @@ function DraggableMascotLayer({
     isDragging: isResizing,
   } = useDraggable({
     id: "mascot-resize-handle",
-    data: {
-      source: "mascot-resize",
-    },
+    data: { source: "mascot-resize" },
   });
 
   const size = getMascotDisplaySize(frame, mascot.scale, placement.aspectRatio);
+
   const containerStyle = {
     left: `${placement.xPct}%`,
     top: `${placement.yPct}%`,
@@ -193,13 +396,15 @@ function DraggableMascotLayer({
   );
 }
 
+// ─── VideoPreview ─────────────────────────────────────────────────────────────
 interface Props {
-  videoRef: RefObject<HTMLVideoElement | null>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   src?: string;
   filter: string;
   layers?: LayerItem[];
   selectedTextId?: string | null;
-  onTextSelect?: (id: string) => void;
+  onTextSelect?: (id: string | null) => void;
+  onTextUpdate?: (id: string, updates: Partial<TextOption>) => void;
   mascot?: MascotOption;
   onMascotChange?: (mascot: MascotOption) => void;
   onMascotFrameChange?: (frame: VideoFrameSize | null) => void;
@@ -212,10 +417,12 @@ export default function VideoPreview({
   layers = [],
   selectedTextId,
   onTextSelect,
+  onTextUpdate,
   mascot,
   onMascotChange,
   onMascotFrameChange,
 }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [frame, setFrame] = useState<VideoFrameSize | null>(null);
   const [frameOffset, setFrameOffset] = useState({ left: 0, top: 0 });
   const [guideState, setGuideState] = useState({
@@ -234,17 +441,13 @@ export default function VideoPreview({
   const hasMascot = Boolean(mascot && mascot.type !== "none");
 
   const customMascotUrl = useMemo(() => {
-    if (!mascot || mascot.type !== "custom" || !mascot.customFile) {
-      return null;
-    }
+    if (!mascot || mascot.type !== "custom" || !mascot.customFile) return null;
     return URL.createObjectURL(mascot.customFile);
   }, [mascot]);
 
   useEffect(() => {
     return () => {
-      if (customMascotUrl) {
-        URL.revokeObjectURL(customMascotUrl);
-      }
+      if (customMascotUrl) URL.revokeObjectURL(customMascotUrl);
     };
   }, [customMascotUrl]);
 
@@ -258,9 +461,7 @@ export default function VideoPreview({
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: "video-preview-dropzone",
     disabled: !hasMascot,
-    data: {
-      source: "video-preview-dropzone",
-    },
+    data: { source: "video-preview-dropzone" },
   });
 
   useEffect(() => {
@@ -288,14 +489,9 @@ export default function VideoPreview({
       const left = (elementWidth - width) / 2;
       const top = (elementHeight - height) / 2;
 
-      const nextFrame = {
-        width,
-        height,
-      };
-
-      setFrame(nextFrame);
+      setFrame({ width, height });
       setFrameOffset({ left, top });
-      onMascotFrameChange?.(nextFrame);
+      onMascotFrameChange?.({ width, height });
     };
 
     updateFrame();
@@ -309,36 +505,19 @@ export default function VideoPreview({
   }, [videoRef, src, onMascotFrameChange]);
 
   useEffect(() => {
-    if (!mascot || mascot.type === "none" || !onMascotChange || !frame) {
-      return;
-    }
-
+    if (!mascot || mascot.type === "none" || !onMascotChange || !frame) return;
     const hasAspectRatio = Boolean(mascot.previewPlacement?.aspectRatio);
-
-    if (hasAspectRatio) {
-      return;
-    }
-
-    if (!mascotSrc) {
-      return;
-    }
+    if (hasAspectRatio) return;
+    if (!mascotSrc) return;
 
     const image = new window.Image();
     image.onload = () => {
       const aspectRatio = image.naturalWidth / image.naturalHeight || 1;
-      const fallbackPlacement = createDefaultPreviewPlacement(
-        mascot,
-        frame,
-        aspectRatio,
-      );
-
+      const fallbackPlacement = createDefaultPreviewPlacement(mascot, frame, aspectRatio);
       onMascotChange({
         ...mascot,
         previewPlacement: mascot.previewPlacement
-          ? {
-              ...mascot.previewPlacement,
-              aspectRatio,
-            }
+          ? { ...mascot.previewPlacement, aspectRatio }
           : fallbackPlacement,
       });
     };
@@ -346,60 +525,36 @@ export default function VideoPreview({
   }, [frame, mascot, mascotSrc, onMascotChange]);
 
   useEffect(() => {
-    if (!mascot || mascot.type === "none" || !onMascotChange || !frame) {
-      return;
-    }
+    if (!mascot || mascot.type === "none" || !onMascotChange || !frame) return;
 
     const placement = mascot.previewPlacement;
     if (!placement) {
-      const defaultPlacement = createDefaultPreviewPlacement(mascot, frame, 1);
-      onMascotChange({
-        ...mascot,
-        previewPlacement: defaultPlacement,
-      });
+      onMascotChange({ ...mascot, previewPlacement: createDefaultPreviewPlacement(mascot, frame, 1) });
       return;
     }
 
     const clampedPlacement = clampPreviewPlacement(placement, frame, mascot.scale);
-    if (
-      clampedPlacement.xPct !== placement.xPct ||
-      clampedPlacement.yPct !== placement.yPct
-    ) {
-      onMascotChange({
-        ...mascot,
-        previewPlacement: clampedPlacement,
-      });
+    if (clampedPlacement.xPct !== placement.xPct || clampedPlacement.yPct !== placement.yPct) {
+      onMascotChange({ ...mascot, previewPlacement: clampedPlacement });
     }
   }, [frame, mascot, onMascotChange]);
 
   useDndMonitor({
     onDragMove: (event) => {
-      if (event.active.data.current?.source !== "mascot-preview") {
-        return;
-      }
-
-      if (!frame || !mascot?.previewPlacement) {
-        return;
-      }
+      if (event.active.data.current?.source !== "mascot-preview") return;
+      if (!frame || !mascot?.previewPlacement) return;
 
       const movedPlacement = clampPreviewPlacement(
         {
           ...mascot.previewPlacement,
-          xPct:
-            mascot.previewPlacement.xPct + (event.delta.x / frame.width) * 100,
-          yPct:
-            mascot.previewPlacement.yPct + (event.delta.y / frame.height) * 100,
+          xPct: mascot.previewPlacement.xPct + (event.delta.x / frame.width) * 100,
+          yPct: mascot.previewPlacement.yPct + (event.delta.y / frame.height) * 100,
         },
         frame,
         mascot.scale,
       );
 
-      const { guides, snappedCorner } = applyCornerSnap(
-        movedPlacement,
-        frame,
-        mascot.scale,
-      );
-
+      const { guides, snappedCorner } = applyCornerSnap(movedPlacement, frame, mascot.scale);
       setGuideState({
         nearLeft: guides.nearLeft,
         nearRight: guides.nearRight,
@@ -409,49 +564,36 @@ export default function VideoPreview({
       });
     },
     onDragEnd: () => {
-      setGuideState({
-        nearLeft: false,
-        nearRight: false,
-        nearTop: false,
-        nearBottom: false,
-        corner: null,
-      });
+      setGuideState({ nearLeft: false, nearRight: false, nearTop: false, nearBottom: false, corner: null });
     },
     onDragCancel: () => {
-      setGuideState({
-        nearLeft: false,
-        nearRight: false,
-        nearTop: false,
-        nearBottom: false,
-        corner: null,
-      });
+      setGuideState({ nearLeft: false, nearRight: false, nearTop: false, nearBottom: false, corner: null });
     },
   });
 
   const mascotPlacementReady = useMemo(
-    () =>
-      Boolean(
-        mascot &&
-          mascot.type !== "none" &&
-          mascot.previewPlacement &&
-          mascotSrc &&
-          frame,
-      ),
+    () => Boolean(mascot && mascot.type !== "none" && mascot.previewPlacement && mascotSrc && frame),
     [frame, mascot, mascotSrc],
   );
 
   return (
-    <div className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center">
+    <div
+      ref={containerRef}
+      className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center"
+      onClick={() => onTextSelect?.(null)}
+    >
       <video
         ref={videoRef}
         src={src}
         controls
         className="h-full w-full object-contain"
         style={{ filter }}
+        onClick={(e) => e.stopPropagation()}
       >
         Your browser does not support video.
       </video>
 
+      {/* Mascot overlay with drag-and-drop */}
       {frame && (
         <div
           ref={setDroppableRef}
@@ -486,28 +628,24 @@ export default function VideoPreview({
 
           {mascotPlacementReady && mascot && mascotSrc ? (
             <div className="pointer-events-auto">
-              <DraggableMascotLayer
-                mascot={mascot}
-                mascotSrc={mascotSrc}
-                frame={frame}
-              />
+              <DraggableMascotLayer mascot={mascot} mascotSrc={mascotSrc} frame={frame} />
             </div>
           ) : null}
         </div>
       )}
 
       {/* Text overlays */}
-      {layers?.map((layer, index) => {
+      {layers.map((layer, index) => {
         if (layer.type !== "text") return null;
-        //TODO: bổ sung thêm cho trường hợp không phải là text (vd: mascot)
         return (
-          <DraggableTextLayer
+          <DraggableResizableTextLayer
             key={layer.id}
-            layer={layer}
-            index={index}
-            total={layers.length}
-            selectedTextId={selectedTextId}
-            onTextSelect={onTextSelect}
+            layer={layer as TextLayerDef}
+            zIndex={layers.length - index + 1}
+            isSelected={selectedTextId === layer.id}
+            onSelect={(id) => onTextSelect?.(id)}
+            onUpdate={(id, updates) => onTextUpdate?.(id, updates)}
+            containerRef={containerRef}
           />
         );
       })}

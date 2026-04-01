@@ -55,12 +55,11 @@ export default function TextOptions({
 
   return (
     <div className="space-y-4">
-      {/* Text Content */}
+      {/* 1. Text Content */}
       <div className="space-y-2">
         <Label htmlFor="text-content" className="text-sm font-semibold">
           Nội dung văn bản
         </Label>
-
         <Textarea
           id="text-content"
           value={value.text}
@@ -79,9 +78,9 @@ export default function TextOptions({
         />
       </div>
 
-      {/* Actions */}
+      {/* 2. Actions */}
       {(onAdd || onRemove) && (
-        <div className="flex gap-2 pt-4">
+        <div className="flex gap-2">
           {onAdd && (
             <Button onClick={onAdd} className="flex-1" size="sm">
               <Plus className="w-4 h-4 mr-1" />
@@ -97,10 +96,169 @@ export default function TextOptions({
         </div>
       )}
 
-      {/* Position */}
+      {/* 3. Font Size & Family */}
+      <div className="space-y-2 border-t pt-4">
+        <Label className="text-sm font-semibold">Kích thước và Phông chữ</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Kích thước</Label>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onChange({ ...value, fontSize: Math.max(12, value.fontSize - 2) })}
+                className="px-2"
+              >
+                -
+              </Button>
+              <Input
+                type="number"
+                value={value.fontSize}
+                onChange={(e) =>
+                  onChange({ ...value, fontSize: Math.min(96, Math.max(12, Number(e.target.value))) })
+                }
+                min={12}
+                max={96}
+                step={2}
+                className="text-center font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onChange({ ...value, fontSize: Math.min(96, value.fontSize + 2) })}
+                className="px-2"
+              >
+                +
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="font-family" className="text-xs text-muted-foreground">
+              Phông chữ
+            </Label>
+            <Select
+              value={value.fontFamily}
+              onValueChange={(fontFamily) => onChange({ ...value, fontFamily })}
+            >
+              <SelectTrigger id="font-family">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {fontFamilies.map((font) => (
+                  <SelectItem key={font.id} value={font.id}>
+                    <span style={{ fontFamily: font.id }}>{font.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Style & Alignment */}
+      <div className="space-y-3 border-t pt-4">
+        <Label className="text-sm font-semibold">Định dạng văn bản</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Kiểu chữ</Label>
+            <div className="flex gap-1">
+              <Button
+                variant={value.fontWeight === "bold" ? "default" : "outline"}
+                size="sm"
+                onClick={() =>
+                  onChange({ ...value, fontWeight: value.fontWeight === "bold" ? "normal" : "bold" })
+                }
+                className="flex-1 font-bold"
+              >
+                B
+              </Button>
+              <Button
+                variant={value.fontStyle === "italic" ? "default" : "outline"}
+                size="sm"
+                onClick={() =>
+                  onChange({ ...value, fontStyle: value.fontStyle === "italic" ? "normal" : "italic" })
+                }
+                className="flex-1 italic"
+              >
+                I
+              </Button>
+              <Button
+                variant={value.textDecoration === "underline" ? "default" : "outline"}
+                size="sm"
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    textDecoration: value.textDecoration === "underline" ? "none" : "underline",
+                  })
+                }
+                className="flex-1 underline"
+              >
+                U
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Căn chỉnh</Label>
+            <div className="flex gap-1">
+              {(["left", "center", "right"] as const).map((align) => (
+                <Button
+                  key={align}
+                  variant={value.textAlign === align ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onChange({ ...value, textAlign: align })}
+                  className="flex-1"
+                >
+                  {align === "left" ? "⫷" : align === "center" ? "☰" : "⫸"}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Color */}
+      <div className="space-y-3 border-t pt-4">
+        <Label className="text-sm font-semibold">Màu chữ</Label>
+        <div className="grid grid-cols-8 gap-1.5">
+          {presetColors.map((color) => (
+            <button
+              key={color.value}
+              onClick={() => onChange({ ...value, color: color.value })}
+              className={`h-8 rounded border-2 transition-all ${
+                value.color === color.value
+                  ? "border-primary ring-2 ring-primary/20"
+                  : "border-border hover:border-primary/50"
+              }`}
+              style={{ backgroundColor: color.value }}
+              title={color.name}
+            />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="color"
+            value={customColor}
+            onChange={(e) => {
+              setCustomColor(e.target.value);
+              onChange({ ...value, color: e.target.value });
+            }}
+            className="w-12 h-8 cursor-pointer"
+          />
+          <Input
+            type="text"
+            value={value.color}
+            onChange={(e) => onChange({ ...value, color: e.target.value })}
+            placeholder="#FFFFFF"
+            className="flex-1 font-mono text-sm"
+          />
+        </div>
+      </div>
+
+      {/* 6. Position */}
       <div className="space-y-3 border-t pt-4">
         <Label className="text-sm font-semibold">Vị trí</Label>
-
         <div className="space-y-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -140,201 +298,43 @@ export default function TextOptions({
         </div>
       </div>
 
-      {/* Font Settings */}
+      {/* 7. Timeline */}
       <div className="space-y-2 border-t pt-4">
-        <Label className="text-sm font-semibold">Kích thước và Phông chữ</Label>
-
+        <Label className="text-sm font-semibold">Thời lượng</Label>
         <div className="grid grid-cols-2 gap-3">
-          {/* Font Size */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Kích thước</Label>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    fontSize: Math.max(12, value.fontSize - 2),
-                  })
-                }
-                className="px-2"
-              >
-                -
-              </Button>
-              <Input
-                type="number"
-                value={value.fontSize}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    fontSize: Math.min(
-                      96,
-                      Math.max(12, Number(e.target.value))
-                    ),
-                  })
-                }
-                min={12}
-                max={96}
-                step={2}
-                className="text-center font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    fontSize: Math.min(96, value.fontSize + 2),
-                  })
-                }
-                className="px-2"
-              >
-                +
-              </Button>
-            </div>
-          </div>
-
-          {/* Font Family */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="font-family"
-              className="text-xs text-muted-foreground"
-            >
-              Phông chữ
+            <Label htmlFor="start-time" className="text-xs text-muted-foreground">
+              Bắt đầu (ms)
             </Label>
-            <Select
-              value={value.fontFamily}
-              onValueChange={(fontFamily) => onChange({ ...value, fontFamily })}
-            >
-              <SelectTrigger id="font-family">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {fontFamilies.map((font) => (
-                  <SelectItem key={font.id} value={font.id}>
-                    <span style={{ fontFamily: font.id }}>{font.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Font Style & Text Align */}
-      <div className="space-y-3 border-t pt-4">
-        <Label className="text-sm font-semibold">Định dạng văn bản</Label>
-
-        <div className="grid grid-cols-2 gap-3">
-          {/* Font Styles */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Kiểu chữ</Label>
-            <div className="flex gap-1">
-              <Button
-                variant={value.fontWeight === "bold" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    fontWeight: value.fontWeight === "bold" ? "normal" : "bold",
-                  })
-                }
-                className="flex-1 font-bold"
-              >
-                B
-              </Button>
-              <Button
-                variant={value.fontStyle === "italic" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    fontStyle:
-                      value.fontStyle === "italic" ? "normal" : "italic",
-                  })
-                }
-                className="flex-1 italic"
-              >
-                I
-              </Button>
-              <Button
-                variant={
-                  value.textDecoration === "underline" ? "default" : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    textDecoration:
-                      value.textDecoration === "underline"
-                        ? "none"
-                        : "underline",
-                  })
-                }
-                className="flex-1 underline"
-              >
-                U
-              </Button>
-            </div>
-          </div>
-
-          {/* Text Align */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Căn chỉnh</Label>
-            <div className="flex gap-1">
-              {(["left", "center", "right"] as const).map((align) => (
-                <Button
-                  key={align}
-                  variant={value.textAlign === align ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onChange({ ...value, textAlign: align })}
-                  className="flex-1"
-                >
-                  {align === "left" ? "⫷" : align === "center" ? "☰" : "⫸"}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Color */}
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold">Màu chữ</Label>
-        <div className="grid grid-cols-8 gap-1.5">
-          {presetColors.map((color) => (
-            <button
-              key={color.value}
-              onClick={() => onChange({ ...value, color: color.value })}
-              className={`h-8 rounded border-2 transition-all ${
-                value.color === color.value
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-primary/50"
-              }`}
-              style={{ backgroundColor: color.value }}
-              title={color.name}
+            <Input
+              id="start-time"
+              type="number"
+              value={value.startTime ?? 0}
+              onChange={(e) =>
+                onChange({ ...value, startTime: Math.max(0, Number(e.target.value)) })
+              }
+              min={0}
+              step={100}
+              className="font-mono text-sm"
             />
-          ))}
-        </div>
-
-        <div className="flex gap-2">
-          <Input
-            type="color"
-            value={customColor}
-            onChange={(e) => {
-              setCustomColor(e.target.value);
-              onChange({ ...value, color: e.target.value });
-            }}
-            className="w-12 h-8 cursor-pointer"
-          />
-          <Input
-            type="text"
-            value={value.color}
-            onChange={(e) => onChange({ ...value, color: e.target.value })}
-            placeholder="#FFFFFF"
-            className="flex-1 font-mono text-sm"
-          />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="duration" className="text-xs text-muted-foreground">
+              Thời lượng (ms)
+            </Label>
+            <Input
+              id="duration"
+              type="number"
+              value={value.duration ?? 0}
+              onChange={(e) =>
+                onChange({ ...value, duration: Math.max(0, Number(e.target.value)) })
+              }
+              min={0}
+              step={100}
+              className="font-mono text-sm"
+              placeholder="0 = toàn bộ"
+            />
+          </div>
         </div>
       </div>
     </div>

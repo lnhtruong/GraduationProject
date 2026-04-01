@@ -156,6 +156,10 @@ export function StudioSidebar({
       fontStyle: "normal",
       textDecoration: "none",
       textAlign: "center",
+      startTime: 0,
+      duration: 5000, // ← đổi từ 0 thành 5000
+      width: 300,
+      height: 100,
     };
     panelBindings.onTextAdd(newText);
     panelBindings.onTextSelect(newText.id);
