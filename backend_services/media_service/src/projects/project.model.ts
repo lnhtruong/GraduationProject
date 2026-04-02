@@ -26,7 +26,7 @@ export class Project extends Model {
     @PrimaryKey
     @AutoIncrement
     @Column(DataType.INTEGER)
-    edit_id: number;
+    declare edit_id: number;
 
     @Column({
         type: DataType.INTEGER,
