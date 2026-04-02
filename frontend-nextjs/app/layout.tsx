@@ -5,6 +5,7 @@ import { ThemeProvider } from "../components/providers/ThemeProvider";
 import { QueryProvider } from "../components/providers/QueryProvider";
 import { AuthProvider } from "../components/providers/AuthProvider";
 import { LayoutWrapper } from "../components/LayoutWrapper";
+import { Toaster } from "../components/ui/sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,6 +29,7 @@ export default function RootLayout({
           <ThemeProvider defaultTheme="system" storageKey="datn-theme">
             <AuthProvider>
               <LayoutWrapper>{children}</LayoutWrapper>
+              <Toaster richColors closeButton position="top-right" />
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>
