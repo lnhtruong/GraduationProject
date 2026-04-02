@@ -25,17 +25,11 @@ export interface RegisterRequest {
 export interface LoginResponse {
   user: User;
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface RegisterResponse {
   user: User;
   accessToken?: string;
-  refreshToken?: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
 }
 
 export interface RefreshTokenResponse {
