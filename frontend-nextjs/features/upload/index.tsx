@@ -21,12 +21,14 @@ export default function Upload() {
     progress,
     status,
     jobId,
+    createdProjectId,
     clips,
     isDownloading,
     error,
     stage,
     progressPercent,
     startUpload,
+    ensureProjectForClip,
     cancel,
   } = useUpload();
 
@@ -71,17 +73,25 @@ export default function Upload() {
     setShowForm(false);
   };
 
-  const handleViewResults = () => {
-    // Navigate to editor with first clip
+  const handleEditClip = async (clip: (typeof clips)[number]) => {
+    const ensured = await ensureProjectForClip(clip);
+    const params = new URLSearchParams({
+      src: clip.url,
+    });
+
+    if (ensured?.projectId) {
+      params.set("edit_id", String(ensured.projectId));
+      params.set("video_id", String(ensured.videoId));
+    } else if (clip.videoId) {
+      params.set("video_id", String(clip.videoId));
+    }
+
+    router.push(`/editor?${params.toString()}`);
+  };
+
+  const handleViewResults = async () => {
     if (clips && clips.length > 0 && clips[0].url) {
-      const params = new URLSearchParams({
-        src: clips[0].url,
-      });
-      if (clips[0].videoId) {
-        params.set("videoId", String(clips[0].videoId));
-      }
-      const url = `/editor?${params.toString()}`;
-      router.push(url);
+      await handleEditClip(clips[0]);
       return;
     }
 
@@ -175,7 +185,12 @@ export default function Upload() {
 
         {/* Step 6: Results Section */}
         <div data-results-section>
-          <ResultsSection clips={clips} isVisible={showResults} />
+          <ResultsSection
+            clips={clips}
+            isVisible={showResults}
+            createdProjectId={createdProjectId}
+            onEditClip={handleEditClip}
+          />
         </div>
       </div>
     </div>

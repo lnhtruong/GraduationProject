@@ -1,16 +1,12 @@
-/**
- * Auth API
- * Authentication endpoints using shared patterns
- */
-
-import { apiClient, tokenManager } from "@/lib/http";
 import { createSimpleApi } from "@/features/_shared/api";
+import { authClient } from "./auth-client";
+import { initializeAuth } from "./auth-bootstrap";
+import { clearAuthSession, syncAuthSession } from "@/lib/auth-session";
 import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
-  RefreshTokenRequest,
   RefreshTokenResponse,
   ForgotPasswordRequest,
   ForgotPasswordResponse,
@@ -24,52 +20,83 @@ import type {
 
 export const authApi = createSimpleApi({
   login: async (data: LoginRequest) => {
-    const { data: response } = await apiClient.post<LoginResponse>(
-      "/auth/login",
+    const { data: response } = await authClient.post<LoginResponse>(
+      "/login",
       data,
     );
+
+    syncAuthSession({
+      accessToken: response.accessToken,
+      user: response.user,
+    });
+
     return response;
   },
 
   register: async (data: RegisterRequest) => {
-    const { data: response } = await apiClient.post<RegisterResponse>(
-      "/auth/register",
+    const { data: response } = await authClient.post<RegisterResponse>(
+      "/register",
       data,
     );
+
+    if (response.accessToken) {
+      syncAuthSession({
+        accessToken: response.accessToken,
+        user: response.user,
+      });
+    }
+
     return response;
   },
 
-  refreshToken: async (data: RefreshTokenRequest) => {
-    const { data: response } = await apiClient.post<RefreshTokenResponse>(
-      "/auth/refresh",
-      data,
+  refreshToken: async () => {
+    const { data: response } = await authClient.post<RefreshTokenResponse>(
+      "/refresh",
+      undefined,
     );
+
+    syncAuthSession({ accessToken: response.accessToken });
+
     return response;
   },
 
   logout: async () => {
-    const { data: response } = await apiClient.post<{ message: string }>(
-      "/auth/logout",
-    );
-    return response;
+    try {
+      const { data: response } = await authClient.post<{ message: string }>(
+        "/logout",
+        undefined,
+      );
+      return response;
+    } finally {
+      clearAuthSession();
+    }
   },
 
   forgotPassword: async (data: ForgotPasswordRequest) => {
-    const { data: response } = await apiClient.post<ForgotPasswordResponse>(
-      "/auth/forgot-password",
+    const { data: response } = await authClient.post<ForgotPasswordResponse>(
+      "/forgot-password",
       data,
     );
     return response;
   },
 
   resetPassword: async (data: ResetPasswordRequest) => {
-    const { data: response } = await apiClient.post<ResetPasswordResponse>(
-      "/auth/check-otp",
+    const { data: response } = await authClient.post<ResetPasswordResponse>(
+      "/check-otp",
       data,
     );
     return response;
   },
-});
 
-// Re-export tokenManager for convenience
-export { tokenManager };
+  validateToken: async (token: string) => {
+    const { data: response } = await authClient.post<{
+      valid: boolean;
+      payload?: { userId: number; email: string; role: number };
+      reason?: string;
+    }>("/validate", { token });
+
+    return response;
+  },
+
+  initializeAuth,
+});

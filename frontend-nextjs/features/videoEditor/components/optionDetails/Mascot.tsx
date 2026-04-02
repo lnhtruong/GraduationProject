@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { Upload, Move, Maximize2 } from "lucide-react";
+import { useUploadMascotImage } from "@/features/videoEditor/api/editSession.hooks";
 import type { MascotOption } from "@/features/videoEditor/types";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +14,12 @@ interface Props {
   value: MascotOption;
   onChange: (value: MascotOption) => void;
   onApply?: () => void;
+  onCreateVideo?: () => void;
   isApplying?: boolean;
+  isCreatingVideo?: boolean;
   hasVideo?: boolean;
   mascotProgress?: string;
+  onMascotImageIdChange?: (imageId: number | null) => void;
 }
 
 const presetMascots = [
@@ -50,55 +55,72 @@ const presetMascots = [
   },
 ];
 
-function shortenMiddle(text: string, head = 12, tail = 10) {
-  if (!text) return text;
-  if (text.length <= head + tail + 3) return text;
-  return `${text.slice(0, head)}...${text.slice(-tail)}`;
-}
-
 export default function MascotOptions({
   value,
   onChange,
-  onApply,
+  onCreateVideo,
   isApplying,
+  isCreatingVideo,
   hasVideo = false,
-  mascotProgress,
+  onMascotImageIdChange,
 }: Props) {
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const cloudUploadRef = useRef<HTMLInputElement>(null);
+  const { mutateAsync: uploadMascotImage, isPending: isUploadingMascot } =
+    useUploadMascotImage(
+      (progress) => setUploadProgress(progress),
+      ({ imageId }) => {
+        onMascotImageIdChange?.(imageId);
+      },
+    );
+
   const selectedMascotName =
     value.type === "preset"
       ? presetMascots.find((m) => m.id === value.presetId)?.name
       : value.type === "custom"
-        ? shortenMiddle(value.customFile?.name || "")
+        ? "Mascot tùy chỉnh"
         : undefined;
 
   const hasSelectedMascot =
     value.type !== "none" && Boolean(value.presetUrl || value.customFile);
-  const hasPlacedMascot =
-    value.position === "replace" || Boolean(value.previewPlacement?.hasPlaced);
+  // const hasPlacedMascot =
+  //   value.position === "replace" || Boolean(value.previewPlacement?.hasPlaced);
   const hasValidScale = value.scale >= 0.1 && value.scale <= 2;
 
   const canApply =
     hasSelectedMascot &&
     hasVideo &&
-    hasPlacedMascot &&
+    // hasPlacedMascot && // Can create video without placing on preview
     hasValidScale &&
-    !isApplying;
+    !isApplying &&
+    !isUploadingMascot;
+
+  const canCreateVideo =
+    canApply && !isCreatingVideo && typeof onCreateVideo === "function";
 
   const setNoMascot = () =>
     onChange({
       type: "none",
       position: "replace",
+      imageId: undefined,
       margin_x: 0,
       margin_y: 0,
       scale: 1,
       previewPlacement: undefined,
     });
 
+  const handleSetNoMascot = () => {
+    onMascotImageIdChange?.(null);
+    setNoMascot();
+  };
+
   const setPresetMascot = (mascot: (typeof presetMascots)[number]) => {
+    onMascotImageIdChange?.(null);
     onChange({
       type: "preset",
       presetId: mascot.id,
       presetUrl: mascot.filePath,
+      imageId: undefined,
       customFile: undefined,
       position: "bottom-right",
       margin_x: 40,
@@ -108,13 +130,49 @@ export default function MascotOptions({
     });
   };
 
+  const handleCustomMascotUpload = async (file: File) => {
+    onChange({
+      type: "custom",
+      customFile: file,
+      imageId: undefined,
+      presetUrl: undefined,
+      presetId: undefined,
+      position: "bottom-right",
+      margin_x: 40,
+      margin_y: 40,
+      scale: 1,
+      previewPlacement: undefined,
+    });
+
+    try {
+      const uploaded = await uploadMascotImage({
+        file,
+      });
+
+      onChange({
+        type: "custom",
+        customFile: undefined,
+        imageId: uploaded.imageId,
+        presetUrl: uploaded.url,
+        presetId: undefined,
+        position: "bottom-right",
+        margin_x: 40,
+        margin_y: 40,
+        scale: 1,
+        previewPlacement: undefined,
+      });
+    } catch {
+      // Error toast is handled by mutation onError.
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium mb-2">Chọn Mascot</label>
 
         <div
-          onClick={setNoMascot}
+          onClick={handleSetNoMascot}
           className={`p-3 rounded-lg border-2 cursor-pointer mb-2 transition-colors ${
             value.type === "none"
               ? "border-primary bg-primary/10"
@@ -192,40 +250,55 @@ export default function MascotOptions({
               : "border-border hover:border-primary/50"
           }`}
         >
-          <label className="cursor-pointer block">
+          <label className="cursor-pointer block mb-3">
             <div className="flex items-center gap-2">
               <Upload className="w-4 h-4 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">Mascot tự tạo</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {value.type === "custom" && value.customFile
-                    ? shortenMiddle(value.customFile.name)
+                  {value.type === "custom" &&
+                  (value.customFile || value.presetUrl)
+                    ? "Đã chọn ảnh mascot"
                     : "Tải lên file hình ảnh (.png, .jpg)"}
                 </p>
               </div>
             </div>
             <input
+              ref={cloudUploadRef}
               type="file"
               accept="image/png,image/jpeg,image/jpg"
               className="hidden"
+              disabled={isUploadingMascot}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  onChange({
-                    type: "custom",
-                    customFile: file,
-                    presetUrl: undefined,
-                    presetId: undefined,
-                    position: "bottom-right",
-                    margin_x: 40,
-                    margin_y: 40,
-                    scale: 1,
-                    previewPlacement: undefined,
-                  });
+                  void handleCustomMascotUpload(file);
                 }
               }}
             />
           </label>
+
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              disabled={isUploadingMascot}
+              onClick={() => cloudUploadRef.current?.click()}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isUploadingMascot
+                ? "Đang upload..."
+                : "Upload lên Cloud (bắt buộc)"}
+            </Button>
+          </div>
+
+          {isUploadingMascot ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Đang upload mascot image: {uploadProgress}%
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -302,11 +375,14 @@ export default function MascotOptions({
             <div className="flex items-start gap-2">
               <Maximize2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
               <div className="text-xs text-muted-foreground leading-relaxed">
-                <p>
+                {/* <p>
                   Trạng thái kéo thả: {hasPlacedMascot ? "Đã đặt" : "Chưa đặt"}
-                </p>
+                </p> */}
                 <p>
-                  Scale hiện tại: <span className="font-semibold">{value.scale.toFixed(2)}x</span>
+                  Scale hiện tại:{" "}
+                  <span className="font-semibold">
+                    {value.scale.toFixed(2)}x
+                  </span>
                 </p>
               </div>
             </div>
@@ -314,84 +390,17 @@ export default function MascotOptions({
 
           <div className="border-t pt-4">
             <Button
-              onClick={onApply}
-              disabled={!canApply}
+              onClick={onCreateVideo}
+              disabled={!canCreateVideo}
               className="w-full"
               size="lg"
+              variant="secondary"
             >
-              {isApplying ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Đang áp dụng...
-                </>
-              ) : (
-                "Áp dụng Mascot"
-              )}
+              {isCreatingVideo
+                ? "Đang tạo mascot video..."
+                : "Tạo video mascot"}
             </Button>
-
-            {!canApply && !isApplying && (
-              <p className="text-xs text-destructive mt-2 text-center">
-                {!hasSelectedMascot
-                  ? "Vui lòng chọn mascot trước"
-                  : !hasVideo
-                    ? "Vui lòng chọn video trước khi kéo mascot"
-                    : !hasPlacedMascot
-                      ? "Hãy kéo mascot lên video trước khi áp dụng"
-                      : !hasValidScale
-                        ? "Scale phải nằm trong khoảng 0.1 - 2.0"
-                        : "Dữ liệu mascot chưa sẵn sàng"}
-              </p>
-            )}
           </div>
-
-          {isApplying && mascotProgress && (
-            <Alert className="animate-pulse">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="animate-spin h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <AlertDescription className="text-xs font-medium">
-                  {mascotProgress}
-                </AlertDescription>
-              </div>
-            </Alert>
-          )}
         </>
       )}
     </div>

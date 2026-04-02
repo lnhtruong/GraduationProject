@@ -1,117 +1,71 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  useLogin,
-  useRegister,
-  useLogout,
-} from "@/features/auth/api//auth.hooks";
-import { tokenManager } from "@/lib/http";
-import type {
-  User,
-  LoginRequest,
-  RegisterRequest,
-} from "@/features/auth/types";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { authApi } from "@/features/auth/api/auth.api";
+import { PUBLIC_AUTH_ROUTES } from "@/lib/auth-routes";
+import { useAuthStore } from "@/store/auth";
 
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
-  logout: () => void;
-  refreshUser: () => void;
+interface AuthProviderProps {
+  children: React.ReactNode;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+/**
+ * Auth Provider - Handles authentication on app startup
+ * - Restores persisted auth user from Zustand store
+ * - Validates and refreshes tokens if needed
+ * - Handles redirects based on auth status
+ */
+export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
-  // TanStack Query mutations
-  const loginMutation = useLogin({
-    onSuccess: (data) => {
-      setUser(data.user);
-
-      // Check if there's a return URL
-      const params = new URLSearchParams(window.location.search);
-      const returnUrl = params.get("returnUrl");
-      router.push(returnUrl || "/");
-    },
-    onError: (error) => {
-      // Don't redirect on error, let form handle it
-      console.error("Login failed:", error.message);
-    },
-  });
-
-  const registerMutation = useRegister({});
-
-  const logoutMutation = useLogout({
-    onSuccess: () => {
-      setUser(null);
-      router.push("/signin");
-    },
-    onError: () => {
-      // Clear local state even if API fails
-      tokenManager.clearAll();
-      setUser(null);
-      router.push("/signin");
-    },
-  });
-
-  // Load user from localStorage on mount
+  // Initialize auth on app startup
   useEffect(() => {
-    const loadUser = () => {
-      const storedUser = tokenManager.getUser();
-      const token = tokenManager.getAccessToken();
-
-      if (storedUser && token) {
-        setUser(storedUser);
-        // Token refresh handled automatically by axios interceptor
+    const initAuth = async () => {
+      try {
+        // Restore session using refresh-cookie flow when needed
+        await authApi.initializeAuth();
+      } catch (error) {
+        console.error("Auth initialization failed:", error);
+      } finally {
+        setIsInitialized(true);
       }
-      setIsLoading(false);
     };
 
-    loadUser();
+    initAuth();
   }, []);
 
-  const login = async (data: LoginRequest) => {
-    await loginMutation.mutateAsync(data);
-  };
-
-  const register = async (data: RegisterRequest) => {
-    await registerMutation.mutateAsync(data);
-  };
-
-  const logout = () => {
-    logoutMutation.mutate();
-  };
-
-  const refreshUser = () => {
-    const storedUser = tokenManager.getUser();
-    setUser(storedUser);
-  };
-
-  const value = {
-    user,
-    isAuthenticated: !!user,
-    isLoading,
-    login,
-    register,
-    logout,
-    refreshUser,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  // Show loading while initializing
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang khôi phục phiên...</p>
+        </div>
+      </div>
+    );
   }
-  return context;
+
+  // Redirect logic after initialization
+  const isPublicRoute = PUBLIC_AUTH_ROUTES.includes(
+    pathname as (typeof PUBLIC_AUTH_ROUTES)[number],
+  );
+
+  if (!isAuthenticated && !isPublicRoute) {
+    // Not authenticated, redirect to login
+    router.replace(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
+    return null;
+  }
+
+  if (isAuthenticated && isPublicRoute) {
+    // Already authenticated, redirect home
+    router.replace("/");
+    return null;
+  }
+
+  return children;
 }

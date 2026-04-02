@@ -4,7 +4,8 @@
  */
 
 import { createMutationHooks } from "@/features/_shared/hooks";
-import { authApi, tokenManager } from "./auth.api";
+import { authApi } from "./auth.api";
+import { authStorageHelper } from "@/store/auth";
 import type {
   LoginRequest,
   LoginResponse,
@@ -29,10 +30,7 @@ const useLoginBase = createMutationHooks<LoginResponse, LoginRequest>(
   authApi.login,
   {
     retry: false,
-    onSuccess: (data, _variables, queryClient) => {
-      // Save tokens and user
-      tokenManager.setTokens(data.accessToken, data.refreshToken);
-      tokenManager.setUser(data.user);
+    onSuccess: (_data, _variables, queryClient) => {
       // Invalidate auth queries
       queryClient.invalidateQueries({ queryKey: keys.root });
     },
@@ -56,13 +54,8 @@ const useRegisterBase = createMutationHooks<RegisterResponse, RegisterRequest>(
   authApi.register,
   {
     retry: false,
-    onSuccess: (data, _variables, queryClient) => {
-      // Only save tokens if backend returns them (current backend doesn't)
-      if (data.accessToken && data.refreshToken) {
-        tokenManager.setTokens(data.accessToken, data.refreshToken);
-        tokenManager.setUser(data.user);
-        queryClient.invalidateQueries({ queryKey: keys.root });
-      }
+    onSuccess: (_data, _variables, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: keys.root });
     },
   },
 );
@@ -85,8 +78,6 @@ const useLogoutBase = createMutationHooks<{ message: string }, void>(
   {
     retry: false,
     onSuccess: (_data, _variables, queryClient) => {
-      // Clear tokens and user
-      tokenManager.clearAll();
       // Clear all queries
       queryClient.clear();
     },
@@ -129,7 +120,7 @@ const useResetPasswordBase = createMutationHooks<
   retry: false,
   onSuccess: (_data, _variables, queryClient) => {
     // Clear tokens in case user was logged in
-    tokenManager.clearAll();
+    authStorageHelper.clearAll();
     // Clear all queries
     queryClient.clear();
   },

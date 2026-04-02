@@ -2,8 +2,8 @@
  * Video Editor Feature API
  */
 
-import { apiClient } from "@/lib/http";
-import { createApi } from "@/features/_shared/api";
+import { apiClient, inferenceClient } from "@/lib/http";
+import { createApi, createSimpleApi } from "@/features/_shared/api";
 import type { JobStatusResponse } from "@/features/_shared/types";
 
 // ============================================================================
@@ -12,7 +12,7 @@ import type { JobStatusResponse } from "@/features/_shared/types";
 
 export interface MascotParams {
   videoOrUrl: File | string;
-  mascotImage: File;
+  mascotImageUrl: string;
   position:
     | "top-left"
     | "top-right"
@@ -28,6 +28,12 @@ export interface MascotParams {
 export interface MascotResult {
   jobId: string;
   downloadUrl?: string;
+}
+
+export interface CreateMascotVideoPayload {
+  url: string;
+  image_id?: number;
+  duration?: number;
 }
 
 export interface HighlightParams {
@@ -46,8 +52,8 @@ export interface HighlightResult {
 // API OBJECTS
 // ============================================================================
 
-export const MASCOT_ENDPOINT = "/mascot";
-export const HIGHLIGHT_ENDPOINT = "/highlight-reel";
+export const MASCOT_ENDPOINT = "/mascot_colab/mascot";
+export const HIGHLIGHT_ENDPOINT = "/mascot_colab/highlight-reel";
 
 export const mascotApi = createApi({
   startJob: async (params: MascotParams) => {
@@ -62,33 +68,67 @@ export const mascotApi = createApi({
       );
     }
 
-    formData.append("mascot_image", params.mascotImage);
+    formData.append("mascot_image_url", params.mascotImageUrl);
     formData.append("position", params.position);
-    formData.append("margin_x", (params.margin_x ?? 40).toString());
-    formData.append("margin_y", (params.margin_y ?? 40).toString());
-    formData.append("scale", (params.scale ?? 1).toString());
+    formData.append("margin_x", String(params.margin_x ?? 40));
+    formData.append("margin_y", String(params.margin_y ?? 40));
+    formData.append("scale", String(params.scale ?? 1));
 
     if (params.audio) {
       formData.append("audio", params.audio);
     }
 
-    const { data } = await apiClient.post<{ job_id: string }>(
+    console.log("[mascotApi.startJob] posting to:", MASCOT_ENDPOINT);
+    console.log(
+      "[mascotApi.startJob] formData entries:",
+      Array.from(formData.entries()).map(([key, value]) => {
+        if (value instanceof File) {
+          return [
+            key,
+            `File(name=${value.name}, size=${value.size}, type=${value.type})`,
+          ];
+        }
+        return [key, value];
+      }),
+    );
+
+    const { data } = await inferenceClient.post<{ job_id: string }>(
       MASCOT_ENDPOINT,
       formData,
     );
     return data.job_id;
   },
   getStatus: async (jobId: string) => {
-    const { data } = await apiClient.get<JobStatusResponse>(
-      `/jobs/status/${jobId}`,
+    // Token is auto-added by interceptor
+    const { data } = await inferenceClient.get<JobStatusResponse>(
+      `/mascot_colab/jobs/status/${jobId}`,
     );
     return data;
   },
-  processResult: async (jobResult: JobStatusResponse) =>
-    ({
-      jobId: (jobResult as { jobId?: string }).jobId || "",
+  processResult: async (jobResult: JobStatusResponse) => {
+    // Extract jobId from job result response
+    const jobId =
+      (jobResult as { job_id?: string }).job_id ||
+      (jobResult as { jobId?: string }).jobId ||
+      "";
+
+    return {
+      jobId,
       downloadUrl: jobResult.result?.download_url,
-    }) as MascotResult,
+    } as MascotResult;
+  },
+});
+
+export const mascotVideoApi = createSimpleApi({
+  createVideoRecord: async (payload: CreateMascotVideoPayload) => {
+    const { data } = await apiClient.post("/media/videos", {
+      url: payload.url,
+      image_id: payload.image_id,
+      duration: payload.duration ?? 0,
+      type: "mascot",
+    });
+    return data;
+  },
 });
 
 export const highlightApi = createApi({
@@ -102,15 +142,29 @@ export const highlightApi = createApi({
     if (params.excludeKeywords)
       formData.append("exclude_keywords", params.excludeKeywords);
 
-    const { data } = await apiClient.post<{ job_id: string }>(
+    console.log(
+      "[highlightApi.startJob] formData entries:",
+      Array.from(formData.entries()).map(([key, value]) => {
+        if (value instanceof File) {
+          return [
+            key,
+            `File(name=${value.name}, size=${value.size}, type=${value.type})`,
+          ];
+        }
+        return [key, value];
+      }),
+    );
+
+    const { data } = await inferenceClient.post<{ job_id: string }>(
       HIGHLIGHT_ENDPOINT,
       formData,
     );
     return data.job_id;
   },
   getStatus: async (jobId: string) => {
-    const { data } = await apiClient.get<JobStatusResponse>(
-      `/jobs/status/${jobId}`,
+    // Token is auto-added by interceptor
+    const { data } = await inferenceClient.get<JobStatusResponse>(
+      `/mascot_colab/jobs/status/${jobId}`,
     );
     return data;
   },

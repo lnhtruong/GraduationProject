@@ -30,10 +30,10 @@ function ResizeHandle({
     tr: "top-0 right-0 cursor-nesw-resize",
     bl: "bottom-0 left-0 cursor-nesw-resize",
     br: "bottom-0 right-0 cursor-nwse-resize",
-    t:  "top-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
-    b:  "bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
-    l:  "top-1/2 left-0 -translate-y-1/2 cursor-ew-resize",
-    r:  "top-1/2 right-0 -translate-y-1/2 cursor-ew-resize",
+    t: "top-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    b: "bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize",
+    l: "top-1/2 left-0 -translate-y-1/2 cursor-ew-resize",
+    r: "top-1/2 right-0 -translate-y-1/2 cursor-ew-resize",
   };
   return (
     <div
@@ -64,7 +64,7 @@ function DraggableResizableTextLayer({
   onUpdate: (id: string, updates: Partial<TextOption>) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const width  = layer.data.width  ?? 200;
+  const width = layer.data.width ?? 200;
   const height = layer.data.height ?? 60;
 
   // ─── Inline edit ─────────────────────────────────────────────────────────────
@@ -84,7 +84,9 @@ function DraggableResizableTextLayer({
     onUpdate(layer.id, { text: editText });
   };
 
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleTextareaKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
     if (e.key === "Escape") {
       setIsEditing(false);
       setEditText(layer.data.text);
@@ -130,8 +132,10 @@ function DraggableResizableTextLayer({
     const onMouseMove = (ev: MouseEvent) => {
       if (!dragRef.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const dx = ((ev.clientX - dragRef.current.startMouseX) / rect.width)  * 100;
-      const dy = ((ev.clientY - dragRef.current.startMouseY) / rect.height) * 100;
+      const dx =
+        ((ev.clientX - dragRef.current.startMouseX) / rect.width) * 100;
+      const dy =
+        ((ev.clientY - dragRef.current.startMouseY) / rect.height) * 100;
       onUpdate(layer.id, {
         position: {
           x: Math.min(100, Math.max(0, dragRef.current.startPosX + dx)),
@@ -158,37 +162,49 @@ function DraggableResizableTextLayer({
     startFontSize: number;
   } | null>(null);
 
-  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>, handle: HandlePos) => {
+  const handleResizeMouseDown = (
+    e: React.MouseEvent<HTMLDivElement>,
+    handle: HandlePos,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     resizeRef.current = {
       handle,
-      startMouseX:  e.clientX,
-      startMouseY:  e.clientY,
-      startWidth:   width,
-      startHeight:  height,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startWidth: width,
+      startHeight: height,
       startFontSize: layer.data.fontSize,
     };
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!resizeRef.current) return;
-      const { handle: h, startMouseX, startMouseY,
-              startWidth, startHeight, startFontSize } = resizeRef.current;
+      const {
+        handle: h,
+        startMouseX,
+        startMouseY,
+        startWidth,
+        startHeight,
+        startFontSize,
+      } = resizeRef.current;
       const dx = ev.clientX - startMouseX;
       const dy = ev.clientY - startMouseY;
 
       let nw = startWidth;
       let nh = startHeight;
-      if (h.includes("r")) nw = Math.max(60,  startWidth  + dx);
-      if (h.includes("l")) nw = Math.max(60,  startWidth  - dx);
-      if (h.includes("b")) nh = Math.max(30,  startHeight + dy);
-      if (h.includes("t")) nh = Math.max(30,  startHeight - dy);
+      if (h.includes("r")) nw = Math.max(60, startWidth + dx);
+      if (h.includes("l")) nw = Math.max(60, startWidth - dx);
+      if (h.includes("b")) nh = Math.max(30, startHeight + dy);
+      if (h.includes("t")) nh = Math.max(30, startHeight - dy);
 
       // Scale font theo min(ratioW, ratioH) — không để chữ tràn theo cả 2 chiều
       const ratioW = nw / startWidth;
       const ratioH = nh / startHeight;
-      const ratio  = Math.min(ratioW, ratioH);
-      const newFontSize = Math.min(96, Math.max(8, Math.round(startFontSize * ratio)));
+      const ratio = Math.min(ratioW, ratioH);
+      const newFontSize = Math.min(
+        96,
+        Math.max(8, Math.round(startFontSize * ratio)),
+      );
 
       onUpdate(layer.id, { width: nw, height: nh, fontSize: newFontSize });
     };
@@ -202,35 +218,38 @@ function DraggableResizableTextLayer({
   };
 
   const textStyle: React.CSSProperties = {
-    fontSize:       layer.data.fontSize,
-    color:          layer.data.color,
-    fontWeight:     layer.data.fontWeight,
-    fontStyle:      layer.data.fontStyle,
+    fontSize: layer.data.fontSize,
+    color: layer.data.color,
+    fontWeight: layer.data.fontWeight,
+    fontStyle: layer.data.fontStyle,
     textDecoration: layer.data.textDecoration,
-    textAlign:      layer.data.textAlign,
-    fontFamily:     layer.data.fontFamily,
-    padding:        "4px 8px",
-    width:          "100%",
-    height:         "100%",
+    textAlign: layer.data.textAlign,
+    fontFamily: layer.data.fontFamily,
+    padding: "4px 8px",
+    width: "100%",
+    height: "100%",
   };
 
   return (
     <div
       style={{
-        position:  "absolute",
-        left:      `${layer.data.position.x}%`,
-        top:       `${layer.data.position.y}%`,
+        position: "absolute",
+        left: `${layer.data.position.x}%`,
+        top: `${layer.data.position.y}%`,
         width,
         height,
         transform: "translate(-50%, -50%)",
         zIndex,
-        cursor:    isEditing ? "text" : "grab",
-        border:    isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+        cursor: isEditing ? "text" : "grab",
+        border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
         boxSizing: "border-box",
         userSelect: "none",
       }}
       onMouseDown={handleDragMouseDown}
-      onClick={(e) => { e.stopPropagation(); onSelect(layer.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(layer.id);
+      }}
       onDoubleClick={enterEdit}
     >
       {isEditing ? (
@@ -244,24 +263,24 @@ function DraggableResizableTextLayer({
           onMouseDown={(e) => e.stopPropagation()}
           style={{
             ...textStyle,
-            background:  "rgba(0,0,0,0.55)",
-            border:      "none",
-            outline:     "none",
-            resize:      "none",
-            whiteSpace:  "pre-wrap",
-            wordBreak:   "break-word",
-            overflow:    "hidden",
-            cursor:      "text",
-            boxSizing:   "border-box",
+            background: "rgba(0,0,0,0.55)",
+            border: "none",
+            outline: "none",
+            resize: "none",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            overflow: "hidden",
+            cursor: "text",
+            boxSizing: "border-box",
           }}
         />
       ) : (
         <p
           style={{
             ...textStyle,
-            whiteSpace:    "normal",
-            wordBreak:     "break-word",
-            overflow:      "hidden",
+            whiteSpace: "normal",
+            wordBreak: "break-word",
+            overflow: "hidden",
             pointerEvents: "none",
           }}
         >
@@ -271,13 +290,15 @@ function DraggableResizableTextLayer({
 
       {isSelected && !isEditing && (
         <>
-          {(["tl","tr","bl","br","t","b","l","r"] as HandlePos[]).map((pos) => (
-            <ResizeHandle
-              key={pos}
-              position={pos}
-              onMouseDown={(e) => handleResizeMouseDown(e, pos)}
-            />
-          ))}
+          {(["tl", "tr", "bl", "br", "t", "b", "l", "r"] as HandlePos[]).map(
+            (pos) => (
+              <ResizeHandle
+                key={pos}
+                position={pos}
+                onMouseDown={(e) => handleResizeMouseDown(e, pos)}
+              />
+            ),
+          )}
         </>
       )}
     </div>
@@ -455,7 +476,7 @@ export default function VideoPreview({
     mascot?.type === "preset"
       ? mascot.presetUrl || null
       : mascot?.type === "custom"
-        ? customMascotUrl
+        ? mascot.localFileUrl || customMascotUrl || mascot.presetUrl || null
         : null;
 
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -483,7 +504,10 @@ export default function VideoPreview({
 
       const mediaWidth = videoEl.videoWidth || elementWidth;
       const mediaHeight = videoEl.videoHeight || elementHeight;
-      const ratio = Math.min(elementWidth / mediaWidth, elementHeight / mediaHeight);
+      const ratio = Math.min(
+        elementWidth / mediaWidth,
+        elementHeight / mediaHeight,
+      );
       const width = mediaWidth * ratio;
       const height = mediaHeight * ratio;
       const left = (elementWidth - width) / 2;
@@ -513,7 +537,11 @@ export default function VideoPreview({
     const image = new window.Image();
     image.onload = () => {
       const aspectRatio = image.naturalWidth / image.naturalHeight || 1;
-      const fallbackPlacement = createDefaultPreviewPlacement(mascot, frame, aspectRatio);
+      const fallbackPlacement = createDefaultPreviewPlacement(
+        mascot,
+        frame,
+        aspectRatio,
+      );
       onMascotChange({
         ...mascot,
         previewPlacement: mascot.previewPlacement
@@ -529,13 +557,26 @@ export default function VideoPreview({
 
     const placement = mascot.previewPlacement;
     if (!placement) {
-      onMascotChange({ ...mascot, previewPlacement: createDefaultPreviewPlacement(mascot, frame, 1) });
+      onMascotChange({
+        ...mascot,
+        previewPlacement: createDefaultPreviewPlacement(mascot, frame, 1),
+      });
       return;
     }
 
-    const clampedPlacement = clampPreviewPlacement(placement, frame, mascot.scale);
-    if (clampedPlacement.xPct !== placement.xPct || clampedPlacement.yPct !== placement.yPct) {
-      onMascotChange({ ...mascot, previewPlacement: clampedPlacement });
+    const clampedPlacement = clampPreviewPlacement(
+      placement,
+      frame,
+      mascot.scale,
+    );
+    if (
+      clampedPlacement.xPct !== placement.xPct ||
+      clampedPlacement.yPct !== placement.yPct
+    ) {
+      onMascotChange({
+        ...mascot,
+        previewPlacement: clampedPlacement,
+      });
     }
   }, [frame, mascot, onMascotChange]);
 
@@ -547,14 +588,20 @@ export default function VideoPreview({
       const movedPlacement = clampPreviewPlacement(
         {
           ...mascot.previewPlacement,
-          xPct: mascot.previewPlacement.xPct + (event.delta.x / frame.width) * 100,
-          yPct: mascot.previewPlacement.yPct + (event.delta.y / frame.height) * 100,
+          xPct:
+            mascot.previewPlacement.xPct + (event.delta.x / frame.width) * 100,
+          yPct:
+            mascot.previewPlacement.yPct + (event.delta.y / frame.height) * 100,
         },
         frame,
         mascot.scale,
       );
 
-      const { guides, snappedCorner } = applyCornerSnap(movedPlacement, frame, mascot.scale);
+      const { guides, snappedCorner } = applyCornerSnap(
+        movedPlacement,
+        frame,
+        mascot.scale,
+      );
       setGuideState({
         nearLeft: guides.nearLeft,
         nearRight: guides.nearRight,
@@ -564,15 +611,34 @@ export default function VideoPreview({
       });
     },
     onDragEnd: () => {
-      setGuideState({ nearLeft: false, nearRight: false, nearTop: false, nearBottom: false, corner: null });
+      setGuideState({
+        nearLeft: false,
+        nearRight: false,
+        nearTop: false,
+        nearBottom: false,
+        corner: null,
+      });
     },
     onDragCancel: () => {
-      setGuideState({ nearLeft: false, nearRight: false, nearTop: false, nearBottom: false, corner: null });
+      setGuideState({
+        nearLeft: false,
+        nearRight: false,
+        nearTop: false,
+        nearBottom: false,
+        corner: null,
+      });
     },
   });
 
   const mascotPlacementReady = useMemo(
-    () => Boolean(mascot && mascot.type !== "none" && mascot.previewPlacement && mascotSrc && frame),
+    () =>
+      Boolean(
+        mascot &&
+        mascot.type !== "none" &&
+        mascot.previewPlacement &&
+        mascotSrc &&
+        frame,
+      ),
     [frame, mascot, mascotSrc],
   );
 
@@ -628,7 +694,11 @@ export default function VideoPreview({
 
           {mascotPlacementReady && mascot && mascotSrc ? (
             <div className="pointer-events-auto">
-              <DraggableMascotLayer mascot={mascot} mascotSrc={mascotSrc} frame={frame} />
+              <DraggableMascotLayer
+                mascot={mascot}
+                mascotSrc={mascotSrc}
+                frame={frame}
+              />
             </div>
           ) : null}
         </div>
