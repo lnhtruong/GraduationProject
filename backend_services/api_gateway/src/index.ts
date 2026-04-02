@@ -96,7 +96,7 @@ app.use(cookieParser());
 app.use('/socket.io', mediaWebSocketProxy);
 
 // Apply rate limiting to all routes
-app.use(rateLimitMiddleware);
+// app.use(rateLimitMiddleware);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
