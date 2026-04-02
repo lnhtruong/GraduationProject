@@ -3,8 +3,9 @@
  * CRUD operations for projects and mascot overlays
  */
 
-import { apiClient, tokenManager } from "@/lib/http";
+import { apiClient } from "@/lib/http";
 import { createSimpleApi } from "@/features/_shared/api";
+import { authStorageHelper } from "@/store/auth";
 
 // ============================================================================
 // TYPES
@@ -34,6 +35,7 @@ export interface Project {
 export interface UserVideo {
   id?: number;
   video_id?: number;
+  image_id?: number;
   user_id: number;
   type?: "highlight" | "mascot" | string;
   url: string;
@@ -43,9 +45,19 @@ export interface UserVideo {
   updated_at?: string;
 }
 
+export interface MascotImage {
+  image_id: number;
+  user_id: number;
+  url: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface MascotOverlayRequest {
   edit_id?: number;
-  mascot_video_id: number;
+  image_id?: number;
   position_x: number;
   position_y: number;
   scale: number;
@@ -55,6 +67,7 @@ export interface MascotOverlayRequest {
 }
 
 export interface UpdateMascotOverlayRequest {
+  image_id?: number;
   position_x?: number;
   position_y?: number;
   scale?: number;
@@ -66,15 +79,24 @@ export interface UpdateMascotOverlayRequest {
 export interface MascotOverlay {
   mascot_overlay_id: number;
   edit_id: number;
-  mascot_video_id: number;
+  image_id?: number | null;
   position_x: number;
   position_y: number;
   scale: number;
   start_time: number;
   end_time: number;
   layer_index: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  mascotImage?: {
+    image_id: number;
+    user_id: number;
+    url: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
 }
 
 // ============================================================================
@@ -152,7 +174,7 @@ export interface CloudinarySignature {
 }
 
 function getCurrentUserId(): number | null {
-  const user = tokenManager.getUser() as {
+  const user = authStorageHelper.getUser() as {
     id?: number;
     user_id?: number;
   } | null;
@@ -160,7 +182,7 @@ function getCurrentUserId(): number | null {
   if (typeof user?.id === "number") return user.id;
   if (typeof user?.user_id === "number") return user.user_id;
 
-  const token = tokenManager.getAccessToken();
+  const token = authStorageHelper.getAccessToken();
   if (!token) return null;
 
   try {
@@ -204,6 +226,7 @@ export const cloudinaryApi = createSimpleApi({
   uploadDirectToCloudinary: async (
     file: File,
     signature: CloudinarySignature,
+    resourceType: "video" | "image" = "video",
     onProgress?: (percent: number) => void,
   ): Promise<string> => {
     const userId = getCurrentUserId();
@@ -218,7 +241,7 @@ export const cloudinaryApi = createSimpleApi({
     formData.append("signature", signature.signature);
     formData.append("folder", signature.folder);
     formData.append("context", `userId=${userId}`);
-    formData.append("resource_type", "video");
+    formData.append("resource_type", resourceType);
 
     // Upload directly to Cloudinary
     const xhr = new XMLHttpRequest();
@@ -250,10 +273,31 @@ export const cloudinaryApi = createSimpleApi({
 
       xhr.open(
         "POST",
-        `https://api.cloudinary.com/v1_1/${signature.cloud_name}/video/upload`,
+        `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${resourceType}/upload`,
       );
       xhr.send(formData);
     });
+  },
+});
+
+// ============================================================================
+// MASCOT IMAGE API
+// ============================================================================
+
+export const mascotImageApi = createSimpleApi({
+  create: async (data: Pick<MascotImage, "url">) => {
+    const { data: response } = await apiClient.post<MascotImage>(
+      "/media/mascot_images",
+      data,
+    );
+    return response;
+  },
+
+  listByUser: async () => {
+    const { data: response } = await apiClient.get<MascotImage[]>(
+      "/media/mascot_images/user",
+    );
+    return response;
   },
 });
 

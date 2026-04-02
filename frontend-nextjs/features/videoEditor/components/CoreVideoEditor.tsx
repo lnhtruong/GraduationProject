@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -12,19 +12,18 @@ import {
 import { DragOverlay } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import { Download, Save } from "lucide-react";
-import EditorToolbar from "@/features/videoEditor/components/EditorToolbar";
 import VideoPreview from "@/features/videoEditor/components/VideoPreview";
-import EditorRightPanel from "@/features/videoEditor/components/EditorRightPanel";
 import TimelinePanel from "@/features/videoEditor/components/TimelinePanel";
+import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
 import EditorMediaDropzone, {
   VideoDropData,
 } from "@/features/videoEditor/components/EditorMediaDropzone";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import useVideoEditor from "@/features/videoEditor/hooks/useVideoEditor";
+import { toast } from "sonner";
 import type {
   ExternalEditorPanelBindings,
   LayerItem,
-  OptionType,
   TextOption,
   VideoFrameSize,
 } from "@/features/videoEditor/types";
@@ -47,12 +46,26 @@ export interface CoreVideoEditorProps {
   hideLeftToolbar?: boolean;
   hideTopBar?: boolean;
   initialVideoUrl?: string;
-  rightPanelOption?: OptionType;
-  onRightPanelOptionChange?: (option: OptionType) => void;
   queuedTextTemplate?: string | null;
   onQueuedTextTemplateConsumed?: () => void;
-  hideRightPanel?: boolean;
   onPanelBindingsChange?: (bindings: ExternalEditorPanelBindings) => void;
+  editId?: number | null;
+  existingMascotOverlay?: {
+    mascot_overlay_id: number;
+    image_id?: number | null;
+    position_x: number;
+    position_y: number;
+    scale: number;
+    mascotImage?: {
+      image_id: number;
+      url: string;
+    };
+  } | null;
+  existingMascotOverlayId?: number | null;
+  onFinalizeMascotProject?: (payload: {
+    videoId?: number;
+    videoUrl?: string;
+  }) => Promise<void> | void;
 }
 
 export default function CoreVideoEditor({
@@ -62,12 +75,13 @@ export default function CoreVideoEditor({
   hideLeftToolbar = false,
   hideTopBar = false,
   initialVideoUrl,
-  rightPanelOption,
-  onRightPanelOptionChange,
   queuedTextTemplate,
   onQueuedTextTemplateConsumed,
-  hideRightPanel = false,
   onPanelBindingsChange,
+  editId,
+  existingMascotOverlay,
+  existingMascotOverlayId,
+  onFinalizeMascotProject,
 }: CoreVideoEditorProps) {
   const editor = useVideoEditor(initialVideoUrl);
   const {
@@ -76,10 +90,6 @@ export default function CoreVideoEditor({
     setVideoSrc,
     originalVideoFile,
     setOriginalVideoFile,
-    isPlaying,
-    play,
-    pause,
-    toggle,
     effect,
     setEffect,
     cssFilter,
@@ -91,6 +101,8 @@ export default function CoreVideoEditor({
     mascot,
     setMascot,
     applyMascot,
+    startMascotJob,
+    waitForMascotJobCompletion,
     isApplyingMascot,
     mascotProgress,
     voice,
@@ -100,10 +112,12 @@ export default function CoreVideoEditor({
 
   const [activeItem, setActiveItem] = useState<LayerItem | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isCreatingMascotVideo, setIsCreatingMascotVideo] = useState(false);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [mascotFrameSize, setMascotFrameSize] = useState<VideoFrameSize | null>(
     null,
   );
+  const appliedOverlayRef = useRef<string | null>(null);
 
   // ── Timeline state ──────────────────────────────────────────────────────────
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -163,10 +177,10 @@ export default function CoreVideoEditor({
 
       const STEP = e.shiftKey ? 5 : 1; // hold Shift for bigger step
       const arrowMap: Record<string, { dx: number; dy: number }> = {
-        ArrowLeft:  { dx: -STEP, dy: 0 },
-        ArrowRight: { dx:  STEP, dy: 0 },
-        ArrowUp:    { dx: 0, dy: -STEP },
-        ArrowDown:  { dx: 0, dy:  STEP },
+        ArrowLeft: { dx: -STEP, dy: 0 },
+        ArrowRight: { dx: STEP, dy: 0 },
+        ArrowUp: { dx: 0, dy: -STEP },
+        ArrowDown: { dx: 0, dy: STEP },
       };
       const delta = arrowMap[e.key];
       if (!delta) return;
@@ -301,28 +315,30 @@ export default function CoreVideoEditor({
       !hasSelectedVideo ||
       (disableUpload && !originalVideoFile && !hasSelectedVideo)
     ) {
-      alert("Không có video để áp dụng mascot.");
+      toast.error("Không có video để áp dụng mascot.");
       return;
     }
 
     if (mascot.type !== "none" && mascot.position !== "replace") {
       if (!mascot.previewPlacement?.hasPlaced) {
-        alert("Hãy kéo mascot lên video trước khi áp dụng.");
+        toast.warning("Hãy kéo mascot lên video trước khi áp dụng.");
         return;
       }
 
       if (!mascotFrameSize) {
-        alert("Không thể xác định kích thước khung video để áp dụng mascot.");
+        toast.error(
+          "Không thể xác định kích thước khung video để áp dụng mascot.",
+        );
         return;
       }
     }
 
     const computedMascot =
-      mascot.type !== "none" && mascot.position !== "replace" && mascotFrameSize
+      mascot.position !== "replace" && mascotFrameSize
         ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
         : mascot;
 
-    await applyMascot(computedMascot, videoSrc, (blobUrl) => {
+    await applyMascot(computedMascot, videoSrc, ({ blobUrl }) => {
       setVideoSrc(blobUrl);
     });
   }, [
@@ -335,19 +351,138 @@ export default function CoreVideoEditor({
     setVideoSrc,
   ]);
 
+  const handleCreateMascotVideo = useCallback(async () => {
+    const hasSelectedVideo =
+      Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
+
+    if (
+      !hasSelectedVideo ||
+      (disableUpload && !originalVideoFile && !hasSelectedVideo)
+    ) {
+      toast.error("Không có video để tạo mascot video.");
+      return;
+    }
+
+    if (mascot.type === "none") {
+      toast.warning("Hãy chọn mascot trước khi tạo video mascot.");
+      return;
+    }
+
+    if (mascot.position !== "replace") {
+      if (!mascot.previewPlacement?.hasPlaced) {
+        toast.warning("Hãy kéo mascot lên video trước khi tạo mascot video.");
+        return;
+      }
+
+      if (!mascotFrameSize) {
+        toast.error("Không thể xác định kích thước khung video.");
+        return;
+      }
+    }
+
+    const computedMascot =
+      mascot.position !== "replace" && mascotFrameSize
+        ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
+        : mascot;
+
+    setIsCreatingMascotVideo(true);
+
+    try {
+      const jobId = await startMascotJob(computedMascot, videoSrc);
+      if (!jobId) {
+        return;
+      }
+
+      toast(
+        "Video của bạn đang được tạo. Bạn có thể xem video ở Library của bạn sau.",
+      );
+
+      await onFinalizeMascotProject?.({
+        videoId: undefined,
+        videoUrl: undefined,
+      });
+
+      await waitForMascotJobCompletion(jobId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Tạo mascot video thất bại: ${message}`);
+    } finally {
+      setIsCreatingMascotVideo(false);
+    }
+  }, [
+    videoSrc,
+    disableUpload,
+    originalVideoFile,
+    mascot,
+    mascotFrameSize,
+    startMascotJob,
+    waitForMascotJobCompletion,
+    onFinalizeMascotProject,
+  ]);
+
   const hasSelectedVideo =
     Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
   const needsVideoSelection = !originalVideoFile && !hasSelectedVideo;
 
-  const handleSeek = useCallback((ms: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = ms / 1000;
-    // Cập nhật state ngay lập tức để playhead không lag
-    setCurrentTimeMs(ms);
-  }, [videoRef]);
+  const handleSeek = useCallback(
+    (ms: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+      video.currentTime = ms / 1000;
+      // Cập nhật state ngay lập tức để playhead không lag
+      setCurrentTimeMs(ms);
+    },
+    [videoRef],
+  );
 
   // ── Queued text template ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!existingMascotOverlay) {
+      appliedOverlayRef.current = null;
+      return;
+    }
+
+    const overlayKey = [
+      existingMascotOverlay.mascot_overlay_id,
+      existingMascotOverlay.mascotImage?.url ?? "",
+      existingMascotOverlay.position_x,
+      existingMascotOverlay.position_y,
+      existingMascotOverlay.scale,
+    ].join("|");
+
+    if (appliedOverlayRef.current === overlayKey) {
+      return;
+    }
+
+    setMascot((prev) => {
+      const restoredUrl = existingMascotOverlay.mascotImage?.url;
+      if (!restoredUrl && prev.type === "none") return prev;
+
+      return {
+        ...prev,
+        type: "custom",
+        imageId: existingMascotOverlay.image_id ?? prev.imageId,
+        presetUrl: restoredUrl ?? prev.presetUrl,
+        customFile: undefined,
+        presetId: undefined,
+        position: prev.position === "replace" ? "bottom-right" : prev.position,
+        scale:
+          typeof existingMascotOverlay.scale === "number" &&
+          existingMascotOverlay.scale > 0
+            ? existingMascotOverlay.scale
+            : prev.scale,
+        previewPlacement: {
+          xPct: existingMascotOverlay.position_x,
+          yPct: existingMascotOverlay.position_y,
+          aspectRatio: prev.previewPlacement?.aspectRatio ?? 1,
+          hasPlaced: true,
+        },
+      };
+    });
+
+    appliedOverlayRef.current = overlayKey;
+  }, [existingMascotOverlay, setMascot]);
+
   useEffect(() => {
     if (!queuedTextTemplate) return;
     const newText: TextOption = {
@@ -369,17 +504,26 @@ export default function CoreVideoEditor({
     handleAddText(newText);
     setSelectedTextId(newText.id);
     onQueuedTextTemplateConsumed?.();
-  }, [queuedTextTemplate, handleAddText, onQueuedTextTemplateConsumed]);
+  }, [
+    queuedTextTemplate,
+    videoDurationMs,
+    handleAddText,
+    onQueuedTextTemplateConsumed,
+  ]);
 
   // ── External panel bindings ───────────────────────────────────────────────────
   useEffect(() => {
     onPanelBindingsChange?.({
+      editId,
       effect,
       onEffectChange: setEffect,
       mascot,
       onMascotChange: setMascot,
       onMascotApply: handleMascotApply,
+      onMascotCreateVideo: handleCreateMascotVideo,
+      existingMascotOverlayId,
       isApplyingMascot,
+      isCreatingMascotVideo,
       mascotProgress,
       videoFile: originalVideoFile,
       videoSourceUrl: hasSelectedVideo ? videoSrc : undefined,
@@ -394,9 +538,12 @@ export default function CoreVideoEditor({
       onTextSelect: setSelectedTextId,
     });
   }, [
+    editId,
     effect,
     mascot,
+    existingMascotOverlayId,
     isApplyingMascot,
+    isCreatingMascotVideo,
     mascotProgress,
     originalVideoFile,
     videoSrc,
@@ -409,10 +556,11 @@ export default function CoreVideoEditor({
     setEffect,
     setMascot,
     setVoice,
+    handleMascotApply,
+    handleCreateMascotVideo,
     handleAddText,
     handleUpdateText,
     handleRemoveText,
-    handleMascotApply,
   ]);
 
   // ── Editor export payload ─────────────────────────────────────────────────────
@@ -448,26 +596,28 @@ export default function CoreVideoEditor({
       videoDurationMs,
       effects: { ...effect },
       textLayers,
-      mascot: mascot.type !== "none"
-        ? {
-            type: mascot.type,
-            position: mascot.position,
-            presetId: mascot.presetId,
-            presetUrl: mascot.presetUrl,
-            scale: mascot.scale,
-            margin_x: mascot.margin_x,
-            margin_y: mascot.margin_y,
-          }
-        : null,
-      voice: voice.type !== "none"
-        ? {
-            type: voice.type,
-            presetId: voice.presetId,
-            speed: voice.speed,
-            volume: voice.volume,
-            pitch: voice.pitch,
-          }
-        : null,
+      mascot:
+        mascot.type !== "none"
+          ? {
+              type: mascot.type,
+              position: mascot.position,
+              presetId: mascot.presetId,
+              presetUrl: mascot.presetUrl,
+              scale: mascot.scale,
+              margin_x: mascot.margin_x,
+              margin_y: mascot.margin_y,
+            }
+          : null,
+      voice:
+        voice.type !== "none"
+          ? {
+              type: voice.type,
+              presetId: voice.presetId,
+              speed: voice.speed,
+              volume: voice.volume,
+              pitch: voice.pitch,
+            }
+          : null,
     };
   };
 
@@ -490,9 +640,10 @@ export default function CoreVideoEditor({
   const visibleLayers = layers.filter((layer) => {
     if (layer.type !== "text") return true;
     const start = layer.data.startTime ?? 0;
-    const dur = layer.data.duration && layer.data.duration > 0
-      ? layer.data.duration
-      : Infinity;
+    const dur =
+      layer.data.duration && layer.data.duration > 0
+        ? layer.data.duration
+        : Infinity;
     return currentTimeMs >= start && currentTimeMs <= start + dur;
   });
 
@@ -519,11 +670,6 @@ export default function CoreVideoEditor({
       </div>
     );
   }
-
-  // ── Grid layout helpers ───────────────────────────────────────────────────────
-  const previewColSpan = hideLeftToolbar
-    ? hideRightPanel ? "lg:col-span-12" : "lg:col-span-9"
-    : hideRightPanel ? "lg:col-span-11" : "lg:col-span-8";
 
   return (
     <div
@@ -557,26 +703,12 @@ export default function CoreVideoEditor({
       <div className="w-full px-2 sm:px-4 lg:px-6 py-2 sm:py-4 overflow-hidden flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
         {/* ── Preview row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 min-h-0 auto-rows-max">
-          {!hideLeftToolbar && (
-            <aside className="col-span-1 overflow-y-auto hidden lg:block">
-              <EditorToolbar
-                isPlaying={isPlaying}
-                onPlay={play}
-                onPause={pause}
-                onToggle={toggle}
-                onDownload={download}
-              />
-            </aside>
-          )}
-
           <DndContext
             sensors={sensors}
             onDragStart={handlePreviewDragStart}
             onDragEnd={handlePreviewDragEnd}
           >
-            <section
-              className={`bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 ${previewColSpan} col-span-1`}
-            >
+            <section className="bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 lg:col-span-12 col-span-1">
               {needsVideoSelection && disableUpload ? (
                 <EditorMediaDropzone
                   onMediaSelect={(url, file, videoId) => {
@@ -604,6 +736,8 @@ export default function CoreVideoEditor({
               )}
             </section>
 
+            {activeItem?.type === "text" && <TrashDropZone />}
+
             {/* DragOverlay: ghost label khi kéo layer từ preview */}
             <DragOverlay dropAnimation={null}>
               {activeItem && activeItem.type === "text" && (
@@ -626,40 +760,15 @@ export default function CoreVideoEditor({
               )}
             </DragOverlay>
           </DndContext>
-
-          {!hideRightPanel && (
-            <aside className="col-span-1 lg:col-span-3 min-h-0 max-h-[60vh] overflow-y-auto">
-              <EditorRightPanel
-                effect={effect}
-                onEffectChange={setEffect}
-                mascot={mascot}
-                onMascotChange={setMascot}
-                onMascotApply={handleMascotApply}
-                isApplyingMascot={isApplyingMascot}
-                mascotProgress={mascotProgress}
-                videoFile={originalVideoFile}
-                videoSourceUrl={hasSelectedVideo ? videoSrc : undefined}
-                voice={voice}
-                onVoiceChange={setVoice}
-                layers={layers}
-                onTextAdd={handleAddText}
-                onTextUpdate={handleUpdateText}
-                onTextRemove={handleRemoveText}
-                selectedTextId={selectedTextId}
-                onTextSelect={setSelectedTextId}
-                activeOption={rightPanelOption}
-                onActiveOptionChange={onRightPanelOptionChange}
-                videoDurationMs={videoDurationMs}
-              />
-            </aside>
-          )}
         </div>
 
         {/* ── Timeline row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4">
           {!hideLeftToolbar && <div className="col-span-1 hidden lg:block" />}
 
-          <div className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}>
+          <div
+            className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}
+          >
             <section className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-sm h-52 sm:h-60 overflow-hidden">
               <TimelinePanel
                 layers={layers}

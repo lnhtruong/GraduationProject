@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MoreVertical, Wand2, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface StudioHeaderProps {
   activeSessionName: string;
@@ -11,6 +22,10 @@ interface StudioHeaderProps {
   isLoading: boolean;
   onStartEmptyProject: () => void;
   onSaveSession: (name: string) => Promise<void>;
+  hasMascotOverlay?: boolean;
+  isCreatingMascotVideo?: boolean;
+  mascotProgress?: string;
+  onCreateMascotVideo?: () => void | Promise<void>;
 }
 
 export function StudioHeader({
@@ -19,6 +34,10 @@ export function StudioHeader({
   isLoading,
   onStartEmptyProject,
   onSaveSession,
+  hasMascotOverlay = false,
+  isCreatingMascotVideo = false,
+  mascotProgress = "",
+  onCreateMascotVideo,
 }: StudioHeaderProps) {
   const [draftName, setDraftName] = useState(activeSessionName);
   const [isNameEditing, setIsNameEditing] = useState(false);
@@ -32,15 +51,12 @@ export function StudioHeader({
   }, [isNameEditing]);
 
   const trimmedDraftName = useMemo(() => draftName.trim(), [draftName]);
-  const canSave =
-    Boolean(activeEditId) &&
-    !isLoading &&
-    trimmedDraftName.length > 0 &&
-    trimmedDraftName !== activeSessionName;
+  const canSave = Boolean(activeEditId) && !isLoading;
 
   const handleSave = async () => {
     if (!canSave) return;
-    await onSaveSession(trimmedDraftName);
+    const nextName = trimmedDraftName || activeSessionName;
+    await onSaveSession(nextName);
   };
 
   const handleCommitName = async () => {
@@ -116,18 +132,61 @@ export function StudioHeader({
           )}
         </div>
 
-        {activeEditId ? (
-          <Button
-            size="sm"
-            onClick={() => {
-              void handleSave();
-            }}
-            disabled={!canSave}
-            className="h-9"
-          >
-            Lưu dự án
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {activeEditId ? (
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isCreatingMascotVideo || isLoading}
+                      className="h-9 w-9 p-0"
+                      title="Tùy chọn video"
+                    >
+                      {isCreatingMascotVideo ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : (
+                        <MoreVertical size={16} />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isCreatingMascotVideo
+                    ? `Đang tạo video: ${mascotProgress}`
+                    : "Tùy chọn video mascot"}
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => {
+                    void onCreateMascotVideo?.();
+                  }}
+                  disabled={isCreatingMascotVideo || isLoading}
+                  className="cursor-pointer flex items-center gap-2"
+                >
+                  <Wand2 size={16} />
+                  <span>Tạo video mascot</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+
+          {activeEditId ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                void handleSave();
+              }}
+              disabled={!canSave}
+              className="h-9"
+            >
+              Lưu dự án
+            </Button>
+          ) : null}
+        </div>
       </div>
     </header>
   );
