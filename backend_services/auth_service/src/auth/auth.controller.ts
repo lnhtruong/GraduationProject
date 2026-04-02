@@ -12,7 +12,6 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
@@ -26,18 +25,21 @@ import type { Response, Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
-    console.log('check2')
+    console.log('check2');
     return this.authService.register(registerDto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(loginDto);
 
     res.cookie(
@@ -54,12 +56,8 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Req() req: Request, @Body() refreshTokenDto: RefreshTokenDto) {
-    let { refreshToken } = refreshTokenDto;
-
-    if (!refreshToken) {
-      refreshToken = req.cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
-    }
+  async refreshToken(@Req() req: Request) {
+    const refreshToken = req.cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
