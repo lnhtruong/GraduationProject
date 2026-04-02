@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Download, Edit, FileArchive } from "lucide-react";
 import type { Clip } from "@/features/upload/types";
@@ -10,6 +9,8 @@ import type { Clip } from "@/features/upload/types";
 interface ResultsSectionProps {
   clips: Clip[];
   isVisible: boolean;
+  createdProjectId?: number | null;
+  onEditClip?: (clip: Clip) => void | Promise<void>;
 }
 
 // ============================================================================
@@ -19,6 +20,8 @@ interface ResultsSectionProps {
 export default function ResultsSection({
   clips,
   isVisible,
+  createdProjectId,
+  onEditClip,
 }: ResultsSectionProps) {
   if (!isVisible || clips.length === 0) {
     return null;
@@ -34,7 +37,13 @@ export default function ResultsSection({
 
       <div className="grid gap-4">
         {clips.map((clip, index) => (
-          <ClipCard key={index} clip={clip} index={index} />
+          <ClipCard
+            key={index}
+            clip={clip}
+            index={index}
+            createdProjectId={createdProjectId}
+            onEditClip={onEditClip}
+          />
         ))}
       </div>
     </div>
@@ -48,17 +57,28 @@ export default function ResultsSection({
 interface ClipCardProps {
   clip: Clip;
   index: number;
+  createdProjectId?: number | null;
+  onEditClip?: (clip: Clip) => void | Promise<void>;
 }
 
-function ClipCard({ clip, index }: ClipCardProps) {
+function ClipCard({
+  clip,
+  index,
+  createdProjectId,
+  onEditClip,
+}: ClipCardProps) {
   const isZip = clip.url.endsWith(".zip") || clip.name.endsWith(".zip");
   const isVideo =
     !isZip &&
     (clip.url.startsWith("blob:") || /\.(mp4|mov|avi|webm)$/i.test(clip.url));
   const editorParams = new URLSearchParams({ src: clip.url });
   if (clip.videoId) {
-    editorParams.set("videoId", String(clip.videoId));
+    editorParams.set("video_id", String(clip.videoId));
   }
+  if (createdProjectId) {
+    editorParams.set("edit_id", String(createdProjectId));
+  }
+  const editorHref = `/editor?${editorParams.toString()}`;
 
   return (
     <div className="bg-card border rounded-lg overflow-hidden">
@@ -104,18 +124,16 @@ function ClipCard({ clip, index }: ClipCardProps) {
             <Button
               variant="default"
               size="sm"
-              asChild
               onClick={() => {
                 console.log(
                   "[ResultsSection] Navigating to editor with URL:",
-                  clip.url,
+                  editorHref,
                 );
+                void onEditClip?.(clip);
               }}
             >
-              <Link href={`/editor?${editorParams.toString()}`}>
-                <Edit className="w-4 h-4 mr-2" />
-                Chỉnh sửa
-              </Link>
+              <Edit className="w-4 h-4 mr-2" />
+              Chỉnh sửa
             </Button>
           )}
         </div>

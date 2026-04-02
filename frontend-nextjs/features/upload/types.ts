@@ -36,6 +36,7 @@ export interface UploadState {
   progress: number | null;
   status: UploadStatus;
   jobId: string | null;
+  createdProjectId: number | null;
   clips: Clip[];
   isDownloading: boolean;
   error: string | null;
@@ -58,6 +59,10 @@ export interface HighlightParams {
 export interface UploadHookReturn extends UploadState {
   setFile: (file: File | null) => void;
   startUpload: (file: File, params: HighlightParams) => Promise<void>;
+  ensureProjectForClip: (clip: Clip) => Promise<{
+    projectId: number;
+    videoId: number;
+  } | null>;
   cancel: () => void;
   reset: () => void;
 }
