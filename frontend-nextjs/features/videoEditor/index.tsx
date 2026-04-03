@@ -18,8 +18,10 @@ export default function VideoEditor() {
         if (!prev) return next;
 
         const sameState =
+          prev.editId === next.editId &&
           prev.effect === next.effect &&
           prev.mascot === next.mascot &&
+          prev.existingMascotOverlayId === next.existingMascotOverlayId &&
           prev.voice === next.voice &&
           prev.layers === next.layers &&
           prev.selectedTextId === next.selectedTextId &&
@@ -27,6 +29,7 @@ export default function VideoEditor() {
           prev.videoSourceUrl === next.videoSourceUrl &&
           prev.mascotFrameSize === next.mascotFrameSize &&
           prev.isApplyingMascot === next.isApplyingMascot &&
+          prev.isCreatingMascotVideo === next.isCreatingMascotVideo &&
           prev.mascotProgress === next.mascotProgress;
 
         if (sameState) {
@@ -35,8 +38,10 @@ export default function VideoEditor() {
 
         return {
           ...prev,
+          editId: next.editId,
           effect: next.effect,
           mascot: next.mascot,
+          existingMascotOverlayId: next.existingMascotOverlayId,
           voice: next.voice,
           layers: next.layers,
           selectedTextId: next.selectedTextId,
@@ -44,10 +49,12 @@ export default function VideoEditor() {
           videoSourceUrl: next.videoSourceUrl,
           mascotFrameSize: next.mascotFrameSize,
           isApplyingMascot: next.isApplyingMascot,
+          isCreatingMascotVideo: next.isCreatingMascotVideo,
           mascotProgress: next.mascotProgress,
           onEffectChange: next.onEffectChange,
           onMascotChange: next.onMascotChange,
           onMascotApply: next.onMascotApply,
+          onMascotCreateVideo: next.onMascotCreateVideo,
           onVoiceChange: next.onVoiceChange,
           onTextAdd: next.onTextAdd,
           onTextUpdate: next.onTextUpdate,
@@ -67,10 +74,15 @@ export default function VideoEditor() {
     highlightVideosLoading,
     mascotVideos,
     mascotVideosLoading,
+    selectedMascotImageId,
+    existingMascotOverlay,
+    existingMascotOverlayId,
     handleStartEmptyProject,
     handleCreateProjectOnFirstVideo,
     handleStartFromHighlight,
+    handleSelectMascotVideo,
     handleSaveSession,
+    handleFinalizeMascotProject,
   } = useStudioSession();
 
   return (
@@ -85,11 +97,13 @@ export default function VideoEditor() {
       <StudioSidebar
         highlightVideos={highlightVideos}
         highlightVideosLoading={highlightVideosLoading}
-        mascotVideos={mascotVideos}
-        mascotVideosLoading={mascotVideosLoading}
+        mascotImages={mascotVideos}
+        mascotImagesLoading={mascotVideosLoading}
         onSelectVideo={(video) => {
           void handleStartFromHighlight(video);
         }}
+        selectedMascotImageId={selectedMascotImageId}
+        onSelectMascotImage={handleSelectMascotVideo}
         panelBindings={panelBindings}
         collapsed={isSidebarCollapsed}
         onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -103,7 +117,11 @@ export default function VideoEditor() {
           activeEditId={activeEditId}
           isLoading={isLoading}
           onStartEmptyProject={handleStartEmptyProject}
-          onSaveSession={handleSaveSession}
+          onSaveSession={(name) => handleSaveSession(name, panelBindings)}
+          hasMascotOverlay={Boolean(existingMascotOverlay)}
+          isCreatingMascotVideo={panelBindings?.isCreatingMascotVideo ?? false}
+          mascotProgress={panelBindings?.mascotProgress ?? ""}
+          onCreateMascotVideo={panelBindings?.onMascotCreateVideo}
         />
 
         <main className="min-h-[calc(100vh-56px)] bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-2 sm:p-3 lg:p-4">
@@ -119,8 +137,11 @@ export default function VideoEditor() {
               disableUpload
               hideLeftToolbar
               hideTopBar
-              hideRightPanel
               onPanelBindingsChange={handlePanelBindingsChange}
+              editId={activeEditId}
+              existingMascotOverlay={existingMascotOverlay}
+              existingMascotOverlayId={existingMascotOverlayId}
+              onFinalizeMascotProject={handleFinalizeMascotProject}
             />
           </div>
         </main>

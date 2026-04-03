@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { PageLoader } from "@/components/PageLoader";
 
 interface ProtectedRouteProps {

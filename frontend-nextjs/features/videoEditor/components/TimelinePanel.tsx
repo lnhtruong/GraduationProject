@@ -12,7 +12,8 @@ import { Trash2, ChevronUp, ChevronDown, Type } from "lucide-react";
 import type { LayerItem, TextOption } from "@/features/videoEditor/types";
 import { cn } from "@/lib/utils";
 
-const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, v));
 const fmt = (ms: number) => {
   const s = ms / 1000;
   const m = Math.floor(s / 60);
@@ -21,14 +22,29 @@ const fmt = (ms: number) => {
 };
 
 type DragTarget =
-  | { kind: "move";         layerId: string; startMs: number; mouseXStart: number }
-  | { kind: "resize-left";  layerId: string; startMs: number; mouseXStart: number }
-  | { kind: "resize-right"; layerId: string; endMs: number;   mouseXStart: number };
+  | { kind: "move"; layerId: string; startMs: number; mouseXStart: number }
+  | {
+      kind: "resize-left";
+      layerId: string;
+      startMs: number;
+      mouseXStart: number;
+    }
+  | {
+      kind: "resize-right";
+      layerId: string;
+      endMs: number;
+      mouseXStart: number;
+    };
 
 // ─── TimelineTrack ─────────────────────────────────────────────────────────────
 function TimelineTrack({
-  layer, selected, totalMs, pxPerMs,
-  onSelect, onUpdate, onRemove,
+  layer,
+  selected,
+  totalMs,
+  pxPerMs,
+  onSelect,
+  onUpdate,
+  onRemove,
 }: {
   layer: LayerItem & { type: "text" };
   selected: boolean;
@@ -38,11 +54,13 @@ function TimelineTrack({
   onUpdate: (id: string, updates: Partial<TextOption>) => void;
   onRemove: (id: string) => void;
 }) {
-  const startMs  = layer.data.startTime ?? 0;
-  const durationMs = layer.data.duration && layer.data.duration > 0
-    ? layer.data.duration : totalMs;
+  const startMs = layer.data.startTime ?? 0;
+  const durationMs =
+    layer.data.duration && layer.data.duration > 0
+      ? layer.data.duration
+      : totalMs;
   const endMs = Math.min(startMs + durationMs, totalMs);
-  const left  = startMs * pxPerMs;
+  const left = startMs * pxPerMs;
   const width = Math.max(8, (endMs - startMs) * pxPerMs);
 
   const dragRef = useRef<DragTarget | null>(null);
@@ -53,25 +71,58 @@ function TimelineTrack({
       e.preventDefault();
       onSelect();
       if (kind === "move")
-        dragRef.current = { kind, layerId: layer.id, startMs, mouseXStart: e.clientX };
+        dragRef.current = {
+          kind,
+          layerId: layer.id,
+          startMs,
+          mouseXStart: e.clientX,
+        };
       else if (kind === "resize-left")
-        dragRef.current = { kind, layerId: layer.id, startMs, mouseXStart: e.clientX };
+        dragRef.current = {
+          kind,
+          layerId: layer.id,
+          startMs,
+          mouseXStart: e.clientX,
+        };
       else
-        dragRef.current = { kind, layerId: layer.id, endMs, mouseXStart: e.clientX };
+        dragRef.current = {
+          kind,
+          layerId: layer.id,
+          endMs,
+          mouseXStart: e.clientX,
+        };
 
       const onMove = (ev: MouseEvent) => {
         if (!dragRef.current) return;
         const dx = ev.clientX - dragRef.current.mouseXStart;
         const deltaMs = dx / pxPerMs;
         if (dragRef.current.kind === "move") {
-          const newStart = clamp(dragRef.current.startMs + deltaMs, 0, totalMs - 100);
+          const newStart = clamp(
+            dragRef.current.startMs + deltaMs,
+            0,
+            totalMs - 100,
+          );
           const dur = durationMs < totalMs ? durationMs : totalMs - newStart;
-          onUpdate(layer.id, { startTime: Math.round(newStart), duration: Math.round(dur) });
+          onUpdate(layer.id, {
+            startTime: Math.round(newStart),
+            duration: Math.round(dur),
+          });
         } else if (dragRef.current.kind === "resize-left") {
-          const newStart = clamp(dragRef.current.startMs + deltaMs, 0, endMs - 100);
-          onUpdate(layer.id, { startTime: Math.round(newStart), duration: Math.round(endMs - newStart) });
+          const newStart = clamp(
+            dragRef.current.startMs + deltaMs,
+            0,
+            endMs - 100,
+          );
+          onUpdate(layer.id, {
+            startTime: Math.round(newStart),
+            duration: Math.round(endMs - newStart),
+          });
         } else {
-          const newEnd = clamp(dragRef.current.endMs + deltaMs, startMs + 100, totalMs);
+          const newEnd = clamp(
+            dragRef.current.endMs + deltaMs,
+            startMs + 100,
+            totalMs,
+          );
           onUpdate(layer.id, { duration: Math.round(newEnd - startMs) });
         }
       };
@@ -83,7 +134,16 @@ function TimelineTrack({
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [layer.id, startMs, endMs, durationMs, totalMs, pxPerMs, onSelect, onUpdate],
+    [
+      layer.id,
+      startMs,
+      endMs,
+      durationMs,
+      totalMs,
+      pxPerMs,
+      onSelect,
+      onUpdate,
+    ],
   );
 
   return (
@@ -128,19 +188,26 @@ interface Props {
   onSeek?: (ms: number) => void;
 }
 
-const RULER_HEIGHT  = 24;
-const TRACK_WIDTH   = 140;
+const RULER_HEIGHT = 24;
+const TRACK_WIDTH = 140;
 const MIN_PX_PER_SEC = 10;
 const MAX_PX_PER_SEC = 120;
 
 export default function TimelinePanel({
-  layers, selectedId, onSelect, onReorder, onUpdate, onRemove,
-  videoDurationMs = 30_000, currentTimeMs = 0, onSeek,
+  layers,
+  selectedId,
+  onSelect,
+  onReorder,
+  onUpdate,
+  onRemove,
+  videoDurationMs = 30_000,
+  currentTimeMs = 0,
+  onSeek,
 }: Props) {
   const textLayers = layers.filter(
-    (l): l is LayerItem & { type: "text" } => l.type === "text"
+    (l): l is LayerItem & { type: "text" } => l.type === "text",
   );
-  const containerRef  = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
   const [pxPerSec, setPxPerSec] = useState(40);
@@ -153,8 +220,8 @@ export default function TimelinePanel({
     return () => obs.disconnect();
   }, []);
 
-  const pxPerMs  = pxPerSec / 1000;
-  const totalPx  = Math.max(containerWidth, (videoDurationMs / 1000) * pxPerSec);
+  const pxPerMs = pxPerSec / 1000;
+  const totalPx = Math.max(containerWidth, (videoDurationMs / 1000) * pxPerSec);
   const ticksEvery = pxPerSec >= 60 ? 1 : pxPerSec >= 20 ? 2 : 5;
   const ticks: number[] = [];
   for (let s = 0; s <= videoDurationMs / 1000; s += ticksEvery) ticks.push(s);
@@ -209,7 +276,10 @@ export default function TimelinePanel({
   const playheadLeft = currentTimeMs * pxPerMs;
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-1 select-none w-full h-full min-h-0">
+    <div
+      ref={containerRef}
+      className="flex flex-col gap-1 select-none w-full h-full min-h-0"
+    >
       {/* Controls */}
       <div className="flex items-center justify-between px-2 pb-1 border-b border-border shrink-0">
         <span className="text-xs font-semibold">Timeline</span>
@@ -252,19 +322,37 @@ export default function TimelinePanel({
               <span className="text-[11px] truncate flex-1 font-medium">
                 {layer.data.text || "Text"}
               </span>
-              <button type="button" title="Lên trên"
-                onClick={(e) => { e.stopPropagation(); moveLayer(layer.id, -1); }}
-                className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                title="Lên trên"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveLayer(layer.id, -1);
+                }}
+                className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+              >
                 <ChevronUp size={10} />
               </button>
-              <button type="button" title="Xuống dưới"
-                onClick={(e) => { e.stopPropagation(); moveLayer(layer.id, 1); }}
-                className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                title="Xuống dưới"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveLayer(layer.id, 1);
+                }}
+                className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+              >
                 <ChevronDown size={10} />
               </button>
-              <button type="button" title="Xóa layer"
-                onClick={(e) => { e.stopPropagation(); onRemove(layer.id); }}
-                className="p-0.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-500">
+              <button
+                type="button"
+                title="Xóa layer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(layer.id);
+                }}
+                className="p-0.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-500"
+              >
                 <Trash2 size={10} />
               </button>
             </div>
@@ -272,8 +360,13 @@ export default function TimelinePanel({
         </div>
 
         {/* Scrollable area */}
-        <div ref={scrollAreaRef} className="flex-1 overflow-x-auto overflow-y-hidden min-w-0 relative">
-          <div style={{ width: totalPx, minWidth: "100%", position: "relative" }}>
+        <div
+          ref={scrollAreaRef}
+          className="flex-1 overflow-x-auto overflow-y-hidden min-w-0 relative"
+        >
+          <div
+            style={{ width: totalPx, minWidth: "100%", position: "relative" }}
+          >
             {/* Ruler — click để seek */}
             <div
               className="relative bg-muted/40 border-b border-border cursor-pointer"
@@ -281,16 +374,23 @@ export default function TimelinePanel({
               onClick={handleRulerClick}
             >
               {ticks.map((s) => (
-                <div key={s} className="absolute top-0 flex flex-col items-start" style={{ left: s * pxPerSec }}>
+                <div
+                  key={s}
+                  className="absolute top-0 flex flex-col items-start"
+                  style={{ left: s * pxPerSec }}
+                >
                   <div className="w-px h-3 bg-border/80" />
-                  <span className="text-[9px] text-muted-foreground ml-0.5">{s}s</span>
+                  <span className="text-[9px] text-muted-foreground ml-0.5">
+                    {s}s
+                  </span>
                 </div>
               ))}
             </div>
 
             {/* Grid lines */}
             {ticks.map((s) => (
-              <div key={s}
+              <div
+                key={s}
                 className="absolute bottom-0 w-px bg-border/25 pointer-events-none"
                 style={{ left: s * pxPerSec, top: RULER_HEIGHT }}
               />
@@ -349,7 +449,9 @@ export default function TimelinePanel({
           )}
           onMouseEnter={() => setTrashHover(true)}
           onMouseLeave={() => setTrashHover(false)}
-          onClick={() => { if (selectedId) onRemove(selectedId); }}
+          onClick={() => {
+            if (selectedId) onRemove(selectedId);
+          }}
         >
           <Trash2 size={13} />
           <span className="text-xs font-medium">Xóa layer đang chọn</span>

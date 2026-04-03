@@ -22,7 +22,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { UserVideo } from "@/features/videoEditor/api/editSession.api";
+import type {
+  MascotImage,
+  UserVideo,
+} from "@/features/videoEditor/api/editSession.api";
 import type {
   ExternalEditorPanelBindings,
   TextOption,
@@ -35,13 +38,15 @@ import VoiceOptions from "@/features/videoEditor/components/optionDetails/Voice"
 interface StudioSidebarProps {
   highlightVideos: UserVideo[];
   highlightVideosLoading: boolean;
-  mascotVideos: UserVideo[];
-  mascotVideosLoading: boolean;
+  mascotImages: MascotImage[];
+  mascotImagesLoading: boolean;
   onSelectVideo: (video: {
     id?: number;
     video_id?: number;
     url: string;
   }) => void;
+  selectedMascotImageId?: number | null;
+  onSelectMascotImage?: (image: { image_id?: number; url: string }) => void;
   panelBindings: ExternalEditorPanelBindings | null;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -50,9 +55,11 @@ interface StudioSidebarProps {
 export function StudioSidebar({
   highlightVideos,
   highlightVideosLoading,
-  mascotVideos,
-  mascotVideosLoading,
+  mascotImages,
+  mascotImagesLoading,
   onSelectVideo,
+  selectedMascotImageId,
+  onSelectMascotImage,
   panelBindings,
   collapsed,
   onToggleCollapsed,
@@ -71,18 +78,18 @@ export function StudioSidebar({
     }
   };
 
-  const filterVideos = (videos: UserVideo[]) => {
+  const filterByUrl = <T extends { url: string }>(items: T[]) => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return videos;
+    if (!keyword) return items;
 
-    return videos.filter((video) => {
-      const fileName = video.url?.split("/").pop()?.split("?")[0] || "";
+    return items.filter((item) => {
+      const fileName = item.url?.split("/").pop()?.split("?")[0] || "";
       return fileName.toLowerCase().includes(keyword);
     });
   };
 
-  const filteredHighlightVideos = filterVideos(highlightVideos);
-  const filteredMascotVideos = filterVideos(mascotVideos);
+  const filteredHighlightVideos = filterByUrl(highlightVideos);
+  const filteredMascotImages = filterByUrl(mascotImages);
 
   const formatDuration = (duration?: number | null) => {
     if (!duration || duration <= 0) return null;
@@ -393,56 +400,79 @@ export function StudioSidebar({
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm mascot video..."
+                    placeholder="Tìm mascot image..."
                     className="h-8 border-border bg-background"
                   />
                 </div>
 
                 <ScrollArea className="h-[calc(100vh-210px)] pr-1">
                   <div className="space-y-2">
-                    {mascotVideosLoading ? (
+                    {mascotImagesLoading ? (
                       <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Đang tải mascot...
+                        Đang tải mascot image...
                       </div>
-                    ) : filteredMascotVideos.length === 0 ? (
+                    ) : filteredMascotImages.length === 0 ? (
                       <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Chưa có mascot video.
+                        Chưa có mascot image.
                       </div>
                     ) : (
-                      filteredMascotVideos.map((video) => {
-                        const key = video.video_id ?? video.id ?? video.url;
-                        const fileName =
-                          video.url?.split("/").pop()?.split("?")[0] ||
-                          "Mascot";
-                        const thumbnailSrc = video.thumbnail || video.url;
+                      <div className="rounded-xl border border-border bg-background p-2">
+                        <div className="mb-2 text-[11px] text-muted-foreground">
+                          {filteredMascotImages.length} mascot image
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {filteredMascotImages.map((image) => {
+                            const key = image.image_id ?? image.url;
+                            const isSelected =
+                              typeof image.image_id === "number" &&
+                              image.image_id === selectedMascotImageId;
 
-                        return (
-                          <div
-                            key={key}
-                            className="rounded-xl border border-border bg-background p-2 hover:border-primary/60"
-                          >
-                            <div className="flex items-start gap-2">
-                              <div className="h-12 w-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted/45">
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => {
+                                  onSelectMascotImage?.(image);
+
+                                  panelBindings?.onMascotChange({
+                                    type: "custom",
+                                    customFile: undefined,
+                                    imageId: image.image_id,
+                                    presetUrl: image.url,
+                                    presetId: undefined,
+                                    position:
+                                      panelBindings.mascot.position ===
+                                      "replace"
+                                        ? "bottom-right"
+                                        : panelBindings.mascot.position,
+                                    margin_x:
+                                      panelBindings.mascot.margin_x || 40,
+                                    margin_y:
+                                      panelBindings.mascot.margin_y || 40,
+                                    scale: panelBindings.mascot.scale || 1,
+                                    previewPlacement:
+                                      panelBindings.mascot.previewPlacement,
+                                  });
+                                }}
+                                className={`relative aspect-square overflow-hidden rounded-md border transition-all ${
+                                  isSelected
+                                    ? "border-primary bg-primary/10 ring-2 ring-primary"
+                                    : "border-border hover:border-primary/50 hover:scale-105"
+                                }`}
+                                title="Chọn mascot"
+                              >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={thumbnailSrc}
-                                  alt={fileName}
-                                  className="h-full w-full object-cover"
+                                  src={image.url}
+                                  alt="Mascot image"
+                                  className="h-full w-full object-contain p-1"
                                   loading="lazy"
                                 />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="line-clamp-1 text-sm font-medium">
-                                  {fileName}
-                                </p>
-                                <p className="mt-1 text-[11px] text-muted-foreground">
-                                  Dùng để chọn nhanh mascot nguồn
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
 
                     {panelBindings ? (
@@ -451,10 +481,22 @@ export function StudioSidebar({
                           value={panelBindings.mascot}
                           onChange={panelBindings.onMascotChange}
                           onApply={panelBindings.onMascotApply}
+                          onCreateVideo={panelBindings.onMascotCreateVideo}
                           isApplying={panelBindings.isApplyingMascot}
+                          isCreatingVideo={panelBindings.isCreatingMascotVideo}
                           mascotProgress={panelBindings.mascotProgress}
+                          onMascotImageIdChange={(imageId) =>
+                            onSelectMascotImage?.({
+                              image_id:
+                                typeof imageId === "number"
+                                  ? imageId
+                                  : undefined,
+                              url: "",
+                            })
+                          }
                           hasVideo={Boolean(
-                            panelBindings.videoFile || panelBindings.videoSourceUrl,
+                            panelBindings.videoFile ||
+                            panelBindings.videoSourceUrl,
                           )}
                         />
                       </div>

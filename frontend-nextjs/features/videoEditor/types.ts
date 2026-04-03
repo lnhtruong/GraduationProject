@@ -10,7 +10,9 @@ export interface MascotOption {
     | "replace";
   presetId?: string;
   presetUrl?: string;
+  imageId?: number;
   customFile?: File;
+  localFileUrl?: string; // Blob URL for local files (not serialized to localStorage)
   audioFile?: File;
   margin_x: number;
   margin_y: number;
@@ -51,10 +53,10 @@ export interface TextOption {
   textDecoration: "none" | "underline";
   textAlign: "left" | "center" | "right";
   // Timeline & Dimension
-  startTime?: number;  // ms, default 0
-  duration?: number;   // ms, default 0 (whole video)
-  width?: number;      // px or %, default auto
-  height?: number;     // px or %, default auto
+  startTime?: number; // ms, default 0
+  duration?: number; // ms, default 0 (whole video)
+  width?: number; // px or %, default auto
+  height?: number; // px or %, default auto
 }
 
 export interface EffectOption {
@@ -101,12 +103,16 @@ export interface MascotLayer extends BaseLayer {
 export type LayerItem = TextLayer | MascotLayer;
 
 export interface ExternalEditorPanelBindings {
+  editId?: number | null;
   effect: EffectOption;
   onEffectChange: (effect: EffectOption) => void;
   mascot: MascotOption;
   onMascotChange: (mascot: MascotOption) => void;
-  onMascotApply: () => void;
+  onMascotApply: () => Promise<void> | void;
+  onMascotCreateVideo: () => Promise<void> | void;
+  existingMascotOverlayId?: number | null;
   isApplyingMascot: boolean;
+  isCreatingMascotVideo: boolean;
   mascotProgress?: string;
   videoFile: File | null;
   videoSourceUrl?: string;

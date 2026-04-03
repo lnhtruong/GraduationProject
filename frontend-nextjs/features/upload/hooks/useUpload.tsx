@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProcessHighlight } from "../api/upload.hooks";
 import {
   createMediaUploadSocket,
@@ -9,11 +10,10 @@ import {
   type VideoErrorEvent,
   type VideoProgressEvent,
 } from "../api/upload.websocket";
-import { tokenManager } from "@/lib/http";
-import type {
-  UploadState,
-  UploadHookReturn,
-} from "@/features/upload/types";
+import { useCreateProject } from "@/features/videoEditor/api/editSession.hooks";
+import { userVideoApi } from "@/features/videoEditor/api/editSession.api";
+import { authStorageHelper } from "@/store/auth";
+import type { UploadState, UploadHookReturn } from "@/features/upload/types";
 import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
 
 // ============================================================================
@@ -25,6 +25,7 @@ const INITIAL_STATE: UploadState = {
   progress: null,
   status: "idle",
   jobId: null,
+  createdProjectId: null,
   clips: [],
   isDownloading: false,
   error: null,
@@ -36,17 +37,17 @@ const INITIAL_STATE: UploadState = {
 // HOOK
 // ============================================================================
 
-function resolveUserId(
-  authUserId: number | undefined,
-): number | undefined {
+function resolveUserId(authUserId: number | undefined): number | undefined {
   if (authUserId != null) return authUserId;
-  const stored = tokenManager.getUser() as { id?: number } | null;
+  const stored = authStorageHelper.getUser() as { id?: number } | null;
   return stored?.id;
 }
 
 export function useUpload(): UploadHookReturn {
   const [state, setState] = useState<UploadState>(INITIAL_STATE);
   const { user } = useAuth();
+  const router = useRouter();
+  const { mutateAsync: createProject } = useCreateProject();
 
   // Use React Query mutation
   const processHighlight = useProcessHighlight({
@@ -99,13 +100,15 @@ export function useUpload(): UploadHookReturn {
     const userId = resolveUserId(user?.id);
     //DEBUG ws
     if (!userId || !wsSessionActive) {
-      console.log("🔌 WS Skip: Chưa có userId hoặc session chưa active", { userId, wsSessionActive });
+      console.log("🔌 WS Skip: Chưa có userId hoặc session chưa active", {
+        userId,
+        wsSessionActive,
+      });
       return;
     }
     console.log("🔌 WS Attempting connection for User:", userId);
     const socket = createMediaUploadSocket(userId);
 
-    
     const onVideoProgress = (data: VideoProgressEvent) => {
       setState((prev) => {
         if (prev.status === "completed" || prev.status === "failed") {
@@ -122,6 +125,7 @@ export function useUpload(): UploadHookReturn {
 
     const onVideoCompleted = (payload: VideoCompletedEvent) => {
       const url = payload?.data?.url;
+      const videoId = payload?.data?.id;
       if (!url) return;
 
       setState((prev) => {
@@ -131,7 +135,7 @@ export function useUpload(): UploadHookReturn {
         return {
           ...prev,
           status: "completed",
-          clips: [{ name, url }],
+          clips: [{ name, url, videoId }],
           isDownloading: false,
           progress: null,
         };
@@ -163,6 +167,187 @@ export function useUpload(): UploadHookReturn {
   }, [user?.id, wsSessionActive]);
 
   // ============================================================================
+  // AUTO-CREATE PROJECT AND REDIRECT WHEN VIDEO COMPLETES
+  // ============================================================================
+  useEffect(() => {
+    if (state.status !== "completed" || state.clips.length === 0) {
+      return;
+    }
+
+    const firstClip = state.clips[0];
+    if (!firstClip?.url || !user?.id) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const createProjectAndRedirect = async () => {
+      try {
+        console.log("[useUpload] Auto-creating project for highlight:", {
+          videoUrl: firstClip.url,
+          videoId: firstClip.videoId,
+        });
+
+        const normalizeUrl = (value?: string) => {
+          if (!value) return "";
+          try {
+            const parsed = new URL(value);
+            return `${parsed.origin}${parsed.pathname}`;
+          } catch {
+            return value;
+          }
+        };
+
+        const resolveVideoIdByUrl = async (url: string) => {
+          const targetUrl = normalizeUrl(url);
+
+          for (let attempt = 0; attempt < 10; attempt++) {
+            const videos = await userVideoApi.listByUser("highlight");
+            const matched = videos.find(
+              (video) => normalizeUrl(video.url) === targetUrl,
+            );
+            const videoId = matched?.video_id ?? matched?.id;
+            if (videoId) {
+              return videoId;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+
+          return undefined;
+        };
+
+        const resolvedVideoId =
+          firstClip.videoId ?? (await resolveVideoIdByUrl(firstClip.url));
+
+        if (!resolvedVideoId) {
+          console.warn(
+            "[useUpload] Cannot resolve videoId by URL, skipping project creation to avoid empty project.",
+          );
+          return;
+        }
+
+        const now = new Date();
+        const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
+
+        const createdProject = await createProject({
+          session_name: projectName,
+          video_id: resolvedVideoId,
+        });
+
+        if (!isMounted) return;
+
+        const projectId = (() => {
+          const record = createdProject as {
+            edit_id?: number;
+            id?: number;
+            data?: { edit_id?: number; id?: number };
+          };
+          return (
+            record?.edit_id ??
+            record?.id ??
+            record?.data?.edit_id ??
+            record?.data?.id
+          );
+        })();
+        if (projectId) {
+          console.log(
+            "[useUpload] Project created, redirecting to editor:",
+            projectId,
+          );
+          setState((prev) => ({ ...prev, createdProjectId: projectId }));
+          const params = new URLSearchParams({
+            edit_id: String(projectId),
+            src: firstClip.url,
+            video_id: String(resolvedVideoId),
+          });
+          router.push(`/editor?${params.toString()}`);
+        } else {
+          console.warn("[useUpload] No project ID returned from create");
+        }
+      } catch (error) {
+        console.error("[useUpload] Failed to auto-create project:", error);
+        // Fail silently - user can still manually create project if needed
+      }
+    };
+
+    createProjectAndRedirect();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [state.status, state.clips, user?.id, router, createProject]);
+
+  const ensureProjectForClip = async (
+    clip: UploadState["clips"][number],
+  ): Promise<{ projectId: number; videoId: number } | null> => {
+    if (!clip?.url || !user?.id) return null;
+
+    const existingProjectId = state.createdProjectId;
+    if (existingProjectId && clip.videoId) {
+      return { projectId: existingProjectId, videoId: clip.videoId };
+    }
+
+    const normalizeUrl = (value?: string) => {
+      if (!value) return "";
+      try {
+        const parsed = new URL(value);
+        return `${parsed.origin}${parsed.pathname}`;
+      } catch {
+        return value;
+      }
+    };
+
+    const findVideoIdByUrl = async (url: string) => {
+      const targetUrl = normalizeUrl(url);
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const videos = await userVideoApi.listByUser("highlight");
+        const matched = videos.find(
+          (video) => normalizeUrl(video.url) === targetUrl,
+        );
+        const videoId = matched?.video_id ?? matched?.id;
+        if (videoId) return videoId;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      return undefined;
+    };
+
+    const resolvedVideoId = clip.videoId ?? (await findVideoIdByUrl(clip.url));
+    if (!resolvedVideoId) return null;
+
+    if (existingProjectId) {
+      return { projectId: existingProjectId, videoId: resolvedVideoId };
+    }
+
+    const now = new Date();
+    const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
+    const createdProject = await createProject({
+      session_name: projectName,
+      video_id: resolvedVideoId,
+    });
+
+    const projectId = (() => {
+      const record = createdProject as {
+        edit_id?: number;
+        id?: number;
+        data?: { edit_id?: number; id?: number };
+      };
+      return (
+        record?.edit_id ??
+        record?.id ??
+        record?.data?.edit_id ??
+        record?.data?.id
+      );
+    })();
+
+    if (!projectId) return null;
+
+    setState((prev) => ({ ...prev, createdProjectId: projectId }));
+    return { projectId, videoId: resolvedVideoId };
+  };
+
+  // ============================================================================
   // UPDATE STATE HELPER
   // ============================================================================
   const updateState = (updates: Partial<UploadState>) => {
@@ -189,6 +374,7 @@ export function useUpload(): UploadHookReturn {
       status: "uploading",
       clips: [],
       jobId: null,
+      createdProjectId: null,
       error: null,
     });
 
@@ -205,7 +391,8 @@ export function useUpload(): UploadHookReturn {
         excludeKeywords: excludeKeywordsFormatted,
         // Cap at 99%: the last 1% only "completes" when the server responds with job_id.
         // This prevents the bar being stuck at 100% while the server processes the upload.
-        onUploadProgress: (percent) => updateState({ progress: Math.min(percent, 99) }),
+        onUploadProgress: (percent) =>
+          updateState({ progress: Math.min(percent, 99) }),
       });
 
       // Hide progress bar after completion
@@ -237,6 +424,7 @@ export function useUpload(): UploadHookReturn {
       jobId: null,
       clips: [],
       isDownloading: false,
+      createdProjectId: null,
       error: null,
     });
   };
@@ -248,6 +436,7 @@ export function useUpload(): UploadHookReturn {
     ...state,
     setFile,
     startUpload,
+    ensureProjectForClip,
     cancel,
     reset,
   };
