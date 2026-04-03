@@ -20,6 +20,7 @@ import EditorMediaDropzone, {
 } from "@/features/videoEditor/components/EditorMediaDropzone";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import useVideoEditor from "@/features/videoEditor/hooks/useVideoEditor";
+import { authStorageHelper } from "@/store/auth";
 import { toast } from "sonner";
 import type {
   ExternalEditorPanelBindings,
@@ -34,6 +35,11 @@ import {
   deriveBackendMascotFromPreview,
   getMascotDisplaySize,
 } from "@/features/videoEditor/utils/mascotPlacement";
+import {
+  createMediaUploadSocket,
+  type VideoCompletedEvent,
+  type VideoErrorEvent,
+} from "@/features/upload/api/upload.websocket";
 
 export interface CoreVideoEditorProps {
   onFirstVideoAdded?: (payload: {
@@ -102,7 +108,6 @@ export default function CoreVideoEditor({
     setMascot,
     applyMascot,
     startMascotJob,
-    waitForMascotJobCompletion,
     isApplyingMascot,
     mascotProgress,
     voice,
@@ -229,25 +234,32 @@ export default function CoreVideoEditor({
       mascotFrameSize &&
       mascot.previewPlacement
     ) {
+      const scaleX = mascotFrameSize.scaleX ?? 1;
+      const scaleY = mascotFrameSize.scaleY ?? 1;
+
       const movedPlacement = clampPreviewPlacement(
         {
           ...mascot.previewPlacement,
-          xPct:
-            mascot.previewPlacement.xPct +
-            (event.delta.x / mascotFrameSize.width) * 100,
-          yPct:
-            mascot.previewPlacement.yPct +
-            (event.delta.y / mascotFrameSize.height) * 100,
+          x:
+            mascot.previewPlacement.x +
+            event.delta.x / Math.max(scaleX, 0.0001),
+          y:
+            mascot.previewPlacement.y +
+            event.delta.y / Math.max(scaleY, 0.0001),
           hasPlaced: true,
         },
         mascotFrameSize,
         mascot.scale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
 
       const { snappedPlacement, snappedCorner } = applyCornerSnap(
         movedPlacement,
         mascotFrameSize,
         mascot.scale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
 
       setMascot({
@@ -270,16 +282,21 @@ export default function CoreVideoEditor({
         mascotFrameSize,
         mascot.scale,
         mascot.previewPlacement.aspectRatio,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
       const nextDisplayWidth = Math.max(20, size.width + event.delta.x);
       const nextScale = deriveScaleFromDisplayWidth(
         mascotFrameSize,
         nextDisplayWidth,
+        mascot.sourceWidth,
       );
       const nextPlacement = clampPreviewPlacement(
         mascot.previewPlacement,
         mascotFrameSize,
         nextScale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
 
       setMascot({
@@ -397,12 +414,55 @@ export default function CoreVideoEditor({
         "Video của bạn đang được tạo. Bạn có thể xem video ở Library của bạn sau.",
       );
 
-      await onFinalizeMascotProject?.({
-        videoId: undefined,
-        videoUrl: undefined,
-      });
+      const userId = (() => {
+        const user = authStorageHelper.getUser() as {
+          id?: number;
+          user_id?: number;
+        } | null;
+        return user?.id ?? user?.user_id ?? null;
+      })();
 
-      await waitForMascotJobCompletion(jobId);
+      if (!userId) {
+        throw new Error(
+          "Không tìm thấy thông tin người dùng để theo dõi socket.",
+        );
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const socket = createMediaUploadSocket(userId);
+
+        const cleanup = () => {
+          socket.off("video:completed", onVideoCompleted);
+          socket.off("video:error", onVideoError);
+          socket.disconnect();
+        };
+
+        const onVideoCompleted = async (payload: VideoCompletedEvent) => {
+          if (payload.data.type !== "mascot") return;
+
+          try {
+            await onFinalizeMascotProject?.({
+              videoId: payload.data.id,
+              videoUrl: payload.data.url,
+            });
+            cleanup();
+            resolve();
+          } catch (error) {
+            cleanup();
+            reject(error);
+          }
+        };
+
+        const onVideoError = (payload: VideoErrorEvent) => {
+          cleanup();
+          reject(
+            new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
+          );
+        };
+
+        socket.on("video:completed", onVideoCompleted);
+        socket.on("video:error", onVideoError);
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       toast.error(`Tạo mascot video thất bại: ${message}`);
@@ -416,7 +476,6 @@ export default function CoreVideoEditor({
     mascot,
     mascotFrameSize,
     startMascotJob,
-    waitForMascotJobCompletion,
     onFinalizeMascotProject,
   ]);
 
@@ -442,11 +501,24 @@ export default function CoreVideoEditor({
       return;
     }
 
+    const rawX = existingMascotOverlay.position_x;
+    const rawY = existingMascotOverlay.position_y;
+    const looksLikeLegacyPercent = rawX <= 100 && rawY <= 100;
+
+    const resolvedX =
+      looksLikeLegacyPercent && mascotFrameSize
+        ? Math.round((rawX / 100) * mascotFrameSize.width)
+        : Math.round(rawX);
+    const resolvedY =
+      looksLikeLegacyPercent && mascotFrameSize
+        ? Math.round((rawY / 100) * mascotFrameSize.height)
+        : Math.round(rawY);
+
     const overlayKey = [
       existingMascotOverlay.mascot_overlay_id,
       existingMascotOverlay.mascotImage?.url ?? "",
-      existingMascotOverlay.position_x,
-      existingMascotOverlay.position_y,
+      resolvedX,
+      resolvedY,
       existingMascotOverlay.scale,
     ].join("|");
 
@@ -472,8 +544,8 @@ export default function CoreVideoEditor({
             ? existingMascotOverlay.scale
             : prev.scale,
         previewPlacement: {
-          xPct: existingMascotOverlay.position_x,
-          yPct: existingMascotOverlay.position_y,
+          x: resolvedX,
+          y: resolvedY,
           aspectRatio: prev.previewPlacement?.aspectRatio ?? 1,
           hasPlaced: true,
         },
@@ -481,7 +553,7 @@ export default function CoreVideoEditor({
     });
 
     appliedOverlayRef.current = overlayKey;
-  }, [existingMascotOverlay, setMascot]);
+  }, [existingMascotOverlay, mascotFrameSize, setMascot]);
 
   useEffect(() => {
     if (!queuedTextTemplate) return;

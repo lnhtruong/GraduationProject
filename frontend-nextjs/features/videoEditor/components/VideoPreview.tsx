@@ -316,8 +316,8 @@ function DraggableMascotLayer({
   frame: VideoFrameSize;
 }) {
   const placement = mascot.previewPlacement || {
-    xPct: 0,
-    yPct: 0,
+    x: 0,
+    y: 0,
     aspectRatio: 1,
     hasPlaced: false,
   };
@@ -338,11 +338,20 @@ function DraggableMascotLayer({
     data: { source: "mascot-resize" },
   });
 
-  const size = getMascotDisplaySize(frame, mascot.scale, placement.aspectRatio);
+  const size = getMascotDisplaySize(
+    frame,
+    mascot.scale,
+    placement.aspectRatio,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
+  );
+
+  const scaleX = frame.scaleX ?? 1;
+  const scaleY = frame.scaleY ?? 1;
 
   const containerStyle = {
-    left: `${placement.xPct}%`,
-    top: `${placement.yPct}%`,
+    left: `${placement.x * scaleX}px`,
+    top: `${placement.y * scaleY}px`,
     width: `${size.width}px`,
     height: `${size.height}px`,
     position: "absolute" as const,
@@ -508,14 +517,28 @@ export default function VideoPreview({
         elementWidth / mediaWidth,
         elementHeight / mediaHeight,
       );
-      const width = mediaWidth * ratio;
-      const height = mediaHeight * ratio;
-      const left = (elementWidth - width) / 2;
-      const top = (elementHeight - height) / 2;
+      const displayWidth = mediaWidth * ratio;
+      const displayHeight = mediaHeight * ratio;
+      const left = (elementWidth - displayWidth) / 2;
+      const top = (elementHeight - displayHeight) / 2;
 
-      setFrame({ width, height });
+      setFrame({
+        width: mediaWidth,
+        height: mediaHeight,
+        displayWidth,
+        displayHeight,
+        scaleX: displayWidth / mediaWidth,
+        scaleY: displayHeight / mediaHeight,
+      });
       setFrameOffset({ left, top });
-      onMascotFrameChange?.({ width, height });
+      onMascotFrameChange?.({
+        width: mediaWidth,
+        height: mediaHeight,
+        displayWidth,
+        displayHeight,
+        scaleX: displayWidth / mediaWidth,
+        scaleY: displayHeight / mediaHeight,
+      });
     };
 
     updateFrame();
@@ -531,7 +554,8 @@ export default function VideoPreview({
   useEffect(() => {
     if (!mascot || mascot.type === "none" || !onMascotChange || !frame) return;
     const hasAspectRatio = Boolean(mascot.previewPlacement?.aspectRatio);
-    if (hasAspectRatio) return;
+    const hasSourceSize = Boolean(mascot.sourceWidth && mascot.sourceHeight);
+    if (hasAspectRatio && hasSourceSize) return;
     if (!mascotSrc) return;
 
     const image = new window.Image();
@@ -544,6 +568,8 @@ export default function VideoPreview({
       );
       onMascotChange({
         ...mascot,
+        sourceWidth: image.naturalWidth,
+        sourceHeight: image.naturalHeight,
         previewPlacement: mascot.previewPlacement
           ? { ...mascot.previewPlacement, aspectRatio }
           : fallbackPlacement,
@@ -568,10 +594,12 @@ export default function VideoPreview({
       placement,
       frame,
       mascot.scale,
+      mascot.sourceWidth,
+      mascot.sourceHeight,
     );
     if (
-      clampedPlacement.xPct !== placement.xPct ||
-      clampedPlacement.yPct !== placement.yPct
+      clampedPlacement.x !== placement.x ||
+      clampedPlacement.y !== placement.y
     ) {
       onMascotChange({
         ...mascot,
@@ -585,22 +613,31 @@ export default function VideoPreview({
       if (event.active.data.current?.source !== "mascot-preview") return;
       if (!frame || !mascot?.previewPlacement) return;
 
+      const scaleX = frame.scaleX ?? 1;
+      const scaleY = frame.scaleY ?? 1;
+
       const movedPlacement = clampPreviewPlacement(
         {
           ...mascot.previewPlacement,
-          xPct:
-            mascot.previewPlacement.xPct + (event.delta.x / frame.width) * 100,
-          yPct:
-            mascot.previewPlacement.yPct + (event.delta.y / frame.height) * 100,
+          x:
+            mascot.previewPlacement.x +
+            event.delta.x / Math.max(scaleX, 0.0001),
+          y:
+            mascot.previewPlacement.y +
+            event.delta.y / Math.max(scaleY, 0.0001),
         },
         frame,
         mascot.scale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
 
       const { guides, snappedCorner } = applyCornerSnap(
         movedPlacement,
         frame,
         mascot.scale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
       );
       setGuideState({
         nearLeft: guides.nearLeft,
@@ -669,20 +706,28 @@ export default function VideoPreview({
           style={{
             left: frameOffset.left,
             top: frameOffset.top,
-            width: frame.width,
-            height: frame.height,
+            width: frame.displayWidth ?? frame.width,
+            height: frame.displayHeight ?? frame.height,
           }}
         >
           {(guideState.nearLeft || guideState.nearRight) && (
             <div
               className="absolute top-0 bottom-0 w-px border-l border-dashed border-primary/80"
-              style={{ left: guideState.nearLeft ? 0 : frame.width }}
+              style={{
+                left: guideState.nearLeft
+                  ? 0
+                  : (frame.displayWidth ?? frame.width),
+              }}
             />
           )}
           {(guideState.nearTop || guideState.nearBottom) && (
             <div
               className="absolute left-0 right-0 h-px border-t border-dashed border-primary/80"
-              style={{ top: guideState.nearTop ? 0 : frame.height }}
+              style={{
+                top: guideState.nearTop
+                  ? 0
+                  : (frame.displayHeight ?? frame.height),
+              }}
             />
           )}
 
