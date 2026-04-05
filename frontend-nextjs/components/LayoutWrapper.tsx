@@ -19,8 +19,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/reset-password");
 
   const isEditorShellPage = pathname?.startsWith("/editor");
+  const isImmersivePage = pathname?.startsWith("/newsfeed");
 
-  if (isAuthPage || isEditorShellPage) {
+  if (isAuthPage || isEditorShellPage || isImmersivePage) {
     return <>{children}</>;
   }
 
