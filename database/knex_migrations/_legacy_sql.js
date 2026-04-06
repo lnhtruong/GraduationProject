@@ -112,7 +112,12 @@ async function hasIndex(knex, tableName, indexName) {
   return cnt > 0;
 }
 
+const up = async () => { };
+const down = async () => { };
+
 module.exports = {
+  up,
+  down,
   legacySqlPath,
   runLegacySqlFile,
   runLegacySqlFiles,
