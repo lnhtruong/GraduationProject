@@ -10,6 +10,7 @@ import jwtConfig from './config/jwt.config';
 import { LessonsModule } from './lessons/lesson.module';
 import { LessonActivitiesModule } from './lessonActivities/lesson.activities.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
+import { CartsModule } from './carts/carts.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { QuizzesModule } from './quizzes/quizzes.module';
     LessonsModule,
     LessonActivitiesModule,
     QuizzesModule,
+    CartsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

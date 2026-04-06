@@ -4,6 +4,8 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import databaseConfig from '../config/database.config';
 import { User } from '../users/user.model';
 import { Video } from '../models/video.model';
+import { Cart } from '../models/cart.model';
+import { CartItem } from '../models/cart-item.model';
 
 @Module({
   imports: [
@@ -13,9 +15,9 @@ import { Video } from '../models/video.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, Video],
+          models: [User, Video, Cart, CartItem],
           autoLoadModels: true,
-          synchronize: false, // Set to true only for development
+          synchronize: true, // Set to true to create new tables (carts, cart_items)
         };
       },
       inject: [ConfigService],
