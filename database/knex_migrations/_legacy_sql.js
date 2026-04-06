@@ -1,19 +1,20 @@
 const fs = require("fs");
 const path = require("path");
 
+/**
+ * Đường tới file SQL trong `database/migrations/` (legacy / script gộp).
+ */
 function legacySqlPath(fileName) {
-  // folder structure:
-  // database/
-  //   migrations/*.sql   (legacy)
   return path.join(__dirname, "..", "migrations", fileName);
 }
 
+/**
+ * Chạy nguyên nội dung file SQL (cần `multipleStatements: true` trong knexfile nếu nhiều câu lệnh).
+ */
 async function runLegacySqlFile(knex, fileName) {
   const filePath = legacySqlPath(fileName);
   const sql = fs.readFileSync(filePath, "utf8").trim();
   if (!sql) return;
-
-  // Raw executes the legacy SQL exactly as-is.
   await knex.raw(sql);
 }
 
@@ -38,11 +39,15 @@ function getDbName(knex) {
   return undefined;
 }
 
+async function hasTable(knex, tableName) {
+  return knex.schema.hasTable(tableName);
+}
+
 async function hasColumn(knex, tableName, columnName) {
   const dbName = getDbName(knex);
   if (!dbName) {
     throw new Error(
-      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema.",
+      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema."
     );
   }
 
@@ -52,10 +57,9 @@ async function hasColumn(knex, tableName, columnName) {
      WHERE table_schema = ?
        AND table_name = ?
        AND column_name = ?`,
-    [dbName, tableName, columnName],
+    [dbName, tableName, columnName]
   );
 
-  // knex.raw() typically returns: [rows, fields]
   const rows = Array.isArray(result) ? result[0] : result;
   const firstRow = Array.isArray(rows) ? rows[0] : rows;
   const cnt = Number(firstRow?.cnt ?? 0);
@@ -66,7 +70,7 @@ async function isColumnNullable(knex, tableName, columnName) {
   const dbName = getDbName(knex);
   if (!dbName) {
     throw new Error(
-      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema.",
+      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema."
     );
   }
 
@@ -76,13 +80,12 @@ async function isColumnNullable(knex, tableName, columnName) {
      WHERE table_schema = ?
        AND table_name = ?
        AND column_name = ?`,
-    [dbName, tableName, columnName],
+    [dbName, tableName, columnName]
   );
 
   const rows = Array.isArray(result) ? result[0] : result;
   const firstRow = Array.isArray(rows) ? rows[0] : rows;
   const isNullable = String(firstRow?.isNullable ?? "").toUpperCase();
-  // MySQL uses 'YES' / 'NO'
   return isNullable === "YES";
 }
 
@@ -90,7 +93,7 @@ async function hasIndex(knex, tableName, indexName) {
   const dbName = getDbName(knex);
   if (!dbName) {
     throw new Error(
-      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema.",
+      "Missing DB_NAME/DB_DATABASE (or knex connection.database). Cannot check information_schema."
     );
   }
 
@@ -100,7 +103,7 @@ async function hasIndex(knex, tableName, indexName) {
      WHERE table_schema = ?
        AND table_name = ?
        AND index_name = ?`,
-    [dbName, tableName, indexName],
+    [dbName, tableName, indexName]
   );
 
   const rows = Array.isArray(result) ? result[0] : result;
@@ -110,8 +113,11 @@ async function hasIndex(knex, tableName, indexName) {
 }
 
 module.exports = {
+  legacySqlPath,
   runLegacySqlFile,
   runLegacySqlFiles,
+  getDbName,
+  hasTable,
   hasColumn,
   isColumnNullable,
   hasIndex,

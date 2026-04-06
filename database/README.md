@@ -1,24 +1,30 @@
-# Knex.js migration (baseline đến `006`, áp `007` + `008`)
+# Database schema & Knex migration
 
-Repo hiện tại đang có các migration legacy dạng `.sql` ở `database/migrations/`.
-File này thêm một layer Knex để:
+## Nguồn schema “đúng bản hiện tại”
 
-- Dev chỉ cần chạy một lệnh `migrate` là Knex tự biết script nào đã chạy ở DB (qua bảng `knex_migrations`).
-- Dùng “baseline” tại trạng thái sau migration legacy `006`.
-- Migration `007` và `008` được làm “idempotent” (nếu cột đã có thì no-op) để an toàn khi DB dev đã chạy thủ công trước đó.
+- **`initial_schema.sql`**: một file SQL gộp toàn bộ schema hiện tại (tương đương legacy `001`–`008` đã chạy xong). Dùng để dựng DB mới **một phát**.
+- **`migrations/*.sql`**: giữ làm tham chiếu lịch sử; **không cần** chạy lần lượt nữa nếu đã dùng `initial_schema.sql` / Knex.
 
-## 1) Cài dependencies Knex
+## Knex (theo dõi đã chạy migration nào)
+
+Trong `knex_migrations/` hiện có:
+
+- `001_initial_schema.js` — chạy `initial_schema.sql` khi DB **chưa có** bảng `users` (DB trống / mới clone).
+
+Các thay đổi schema **tiếp theo**: tạo file mới trong `knex_migrations/` (timestamp + mô tả), không sửa `initial_schema.sql` trừ khi lead quyết định “reset mốc gốc”.
+
+### 1) Cài dependency
 
 ```bash
 cd database
 yarn install
 ```
 
-## 2) Đặt biến kết nối MySQL
+### 2) MySQL & biến môi trường
 
-Trước khi migrate, đảm bảo MySQL đang chạy (ví dụ: `docker-compose up -d` ở root).
+Bật MySQL (ví dụ ở root repo: `docker-compose up -d`).
 
-Theo `docker-compose.yml`, default MySQL chạy với:
+Mặc định giống `docker-compose.yml`:
 
 - `DB_HOST=127.0.0.1`
 - `DB_PORT=3306`
@@ -26,19 +32,23 @@ Theo `docker-compose.yml`, default MySQL chạy với:
 - `DB_PASSWORD=graduation_password`
 - `DB_NAME=graduation_db`
 
-Nếu bạn dùng `.env`/cấu hình khác thì set các biến tương ứng (không bắt buộc).
+### 3) Chạy migration
 
-PowerShell ví dụ:
-
-```powershell
-$env:DB_HOST="127.0.0.1"
-$env:DB_PORT="3306"
-$env:DB_USER="graduation_user"
-$env:DB_PASSWORD="graduation_password"
-$env:DB_NAME="graduation_db"
+```bash
+cd database
+yarn migrate
 ```
 
-## 3) Chạy migration
+### 4) Lệnh khác
+
+```bash
+cd database
+yarn migrate:status
+yarn migrate:list
+yarn migrate:rollback
+```
+
+## DB mới — không dùng Knex (chỉ import SQL)
 
 ```bash
 cd database
@@ -61,6 +71,5 @@ yarn migrate:status
 # list migration
 yarn migrate:list
 
-# rollback 1 bước (chỉ nên dùng khi biết chắc)
-yarn migrate:rollback
+Lần đầu chạy `yarn migrate`, `001_initial_schema` thấy đã có `users` → không chạy lại `initial_schema.sql` (tránh trùng bảng). Bảng `knex_migrations` vẫn được cập nhật đúng.
 ```

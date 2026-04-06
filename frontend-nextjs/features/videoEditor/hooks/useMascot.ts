@@ -4,7 +4,6 @@
  */
 
 import { useState } from "react";
-import { useProcessMascot } from "../api/editor.hooks";
 import type { MascotOption } from "@/features/videoEditor/types";
 import {
   mascotApi,
@@ -12,6 +11,12 @@ import {
   type MascotParams,
 } from "../api/editor.api";
 import { toast } from "sonner";
+import { authStorageHelper } from "@/store/auth";
+import {
+  createMediaUploadSocket,
+  type VideoCompletedEvent,
+  type VideoErrorEvent,
+} from "@/features/upload/api/upload.websocket";
 
 export function useMascot() {
   const [mascot, setMascot] = useState<MascotOption>({
@@ -71,43 +76,6 @@ export function useMascot() {
     return true;
   };
 
-  // Use React Query mutation
-  const processMascot = useProcessMascot({
-    onProgress: (stage) => {
-      console.log("[useMascot] Progress:", stage);
-      setMascotProgress(stage);
-    },
-    onSuccess: async (result) => {
-      console.log("[useMascot] Success:", result);
-
-      if (!result.downloadUrl) {
-        throw new Error("No download URL in result");
-      }
-
-      // Download the result as blob
-      const response = await fetch(result.downloadUrl);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      setIsApplyingMascot(false);
-      setMascotProgress("");
-
-      // Call the success callback
-      if (applyMascot.currentOnSuccess) {
-        applyMascot.currentOnSuccess({
-          blobUrl,
-          downloadUrl: result.downloadUrl,
-        });
-      }
-    },
-    onError: (error) => {
-      console.error("[useMascot] Error:", error);
-      toast.error(`Lỗi: ${error.message}`);
-      setIsApplyingMascot(false);
-      setMascotProgress("");
-    },
-  });
-
   const applyMascot = async (
     mascotOption: MascotOption,
     videoSrc: string,
@@ -119,7 +87,7 @@ export function useMascot() {
     }
 
     setIsApplyingMascot(true);
-    setMascotProgress("Đang tải lên...");
+    setMascotProgress("Đang gửi yêu cầu tạo video mascot...");
 
     // Store callback for later use
     applyMascot.currentOnSuccess = onSuccess;
@@ -134,8 +102,21 @@ export function useMascot() {
       mascotImageUrl,
     });
 
-    // Start processing with React Query
-    await processMascot.mutateAsync({
+    const user = authStorageHelper.getUser() as {
+      id?: number;
+      user_id?: number;
+    } | null;
+    const userId = user?.id ?? user?.user_id ?? null;
+
+    if (!userId) {
+      setIsApplyingMascot(false);
+      setMascotProgress("");
+      throw new Error(
+        "Không tìm thấy thông tin người dùng để theo dõi socket.",
+      );
+    }
+
+    const jobId = await mascotApi.startJob({
       videoOrUrl: videoSrc,
       mascotImageUrl,
       position: mascotOption.position,
@@ -143,6 +124,64 @@ export function useMascot() {
       margin_y: mascotOption.margin_y,
       scale: mascotOption.scale,
       audio: mascotOption.audioFile,
+    });
+
+    setMascotProgress("Đang chờ video hoàn tất...");
+
+    await new Promise<void>((resolve, reject) => {
+      const socket = createMediaUploadSocket(userId);
+
+      const cleanup = () => {
+        socket.off("video:completed", onVideoCompleted);
+        socket.off("video:error", onVideoError);
+        socket.disconnect();
+      };
+
+      const finish = async (downloadUrl: string) => {
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        setIsApplyingMascot(false);
+        setMascotProgress("");
+
+        if (applyMascot.currentOnSuccess) {
+          applyMascot.currentOnSuccess({
+            blobUrl,
+            downloadUrl,
+          });
+        }
+      };
+
+      const onVideoCompleted = async (payload: VideoCompletedEvent) => {
+        if (payload.data.type !== "mascot") return;
+
+        try {
+          cleanup();
+          await finish(payload.data.url);
+          resolve();
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      };
+
+      const onVideoError = (payload: VideoErrorEvent) => {
+        cleanup();
+        setIsApplyingMascot(false);
+        setMascotProgress("");
+        reject(
+          new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
+        );
+      };
+
+      socket.on("video:completed", onVideoCompleted);
+      socket.on("video:error", onVideoError);
+
+      if (!jobId) {
+        cleanup();
+        reject(new Error("Không thể tạo job mascot."));
+      }
     });
   };
 
@@ -177,42 +216,6 @@ export function useMascot() {
     }
   };
 
-  const waitForMascotJobCompletion = async (
-    jobId: string,
-    options?: {
-      intervalMs?: number;
-      maxAttempts?: number;
-    },
-  ): Promise<{ downloadUrl?: string }> => {
-    const intervalMs = options?.intervalMs ?? 3000;
-    const maxAttempts = options?.maxAttempts ?? 120;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const status = await mascotApi.getStatus(jobId);
-
-      if (status.stage) {
-        setMascotProgress(status.stage);
-      }
-
-      if (status.status === "completed") {
-        setMascotProgress("");
-        return {
-          downloadUrl: status.result?.download_url,
-        };
-      }
-
-      if (status.status === "failed") {
-        setMascotProgress("");
-        throw new Error(status.error || "Tạo mascot video thất bại.");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-
-    setMascotProgress("");
-    throw new Error("Quá thời gian chờ tạo mascot video.");
-  };
-
   // Store callback reference on function
   applyMascot.currentOnSuccess = null as
     | ((result: { blobUrl: string; downloadUrl: string }) => void)
@@ -237,7 +240,6 @@ export function useMascot() {
     setMascot,
     applyMascot,
     startMascotJob,
-    waitForMascotJobCompletion,
     createMascotVideoRecord,
     isApplyingMascot,
     mascotProgress,

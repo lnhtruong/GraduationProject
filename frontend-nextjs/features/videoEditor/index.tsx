@@ -89,7 +89,7 @@ export default function VideoEditor() {
     <div className="relative flex min-h-screen w-full bg-background text-foreground">
       {!isSidebarCollapsed && (
         <div
-          className="fixed inset-y-0 left-14 right-0 z-40 bg-black/45 backdrop-blur-[1px] transition-opacity lg:hidden"
+          className="fixed inset-y-0 left-14 right-0 z-40 bg-black/35 backdrop-blur-[1px] transition-opacity"
           onClick={() => setIsSidebarCollapsed(true)}
         />
       )}
@@ -109,9 +109,7 @@ export default function VideoEditor() {
         onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div
-        className={`ml-14 w-full flex-1 motion-safe:transition-[margin] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? "lg:ml-18" : "lg:ml-90"}`}
-      >
+      <div className="ml-14 w-full flex-1">
         <StudioHeader
           activeSessionName={activeSessionName}
           activeEditId={activeEditId}

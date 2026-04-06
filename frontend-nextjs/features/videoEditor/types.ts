@@ -17,19 +17,28 @@ export interface MascotOption {
   margin_x: number;
   margin_y: number;
   scale: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
   previewPlacement?: MascotPreviewPlacement;
 }
 
 export interface MascotPreviewPlacement {
-  xPct: number;
-  yPct: number;
+  x: number;
+  y: number;
   aspectRatio: number;
   hasPlaced: boolean;
 }
 
 export interface VideoFrameSize {
+  // Base (source-of-truth) video resolution.
   width: number;
   height: number;
+  // Rendered preview size in UI.
+  displayWidth?: number;
+  displayHeight?: number;
+  // Scale factors between UI preview and base video resolution.
+  scaleX?: number;
+  scaleY?: number;
 }
 
 export interface VoiceOption {

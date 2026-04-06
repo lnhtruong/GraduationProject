@@ -16,6 +16,7 @@ import {
   useUserMascotImages,
 } from "@/features/videoEditor/api/editSession.hooks";
 import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
+import { normalizeMascotScale } from "@/features/videoEditor/utils/mascotPlacement";
 import { toast } from "sonner";
 
 function getErrorMessage(error: unknown): string {
@@ -259,99 +260,6 @@ export function useStudioSession() {
     isDeletingLayer;
 
   useEffect(() => {
-    const sourceUrl = searchParams.get("src");
-    if (!sourceUrl || activeEditId || !user?.id) {
-      return;
-    }
-
-    if (bootstrappedSourceRef.current === sourceUrl) {
-      return;
-    }
-
-    const findVideoIdByUrl = (url: string) => {
-      const matched = highlightVideos.find((video) => video.url === url);
-      return matched?.video_id ?? matched?.id;
-    };
-
-    const resolveVideoIdByUrl = async (url: string) => {
-      let videoId = findVideoIdByUrl(url);
-      if (videoId) return videoId;
-
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const refreshed = await refetchHighlightVideos();
-        const matched = refreshed.data?.find((video) => video.url === url);
-        videoId = matched?.video_id ?? matched?.id;
-        if (videoId) return videoId;
-      }
-
-      return undefined;
-    };
-
-    let cancelled = false;
-
-    const bootstrapProjectFromSource = async () => {
-      setIsBootstrappingProject(true);
-      try {
-        const resolvedVideoId =
-          selectedVideoId ?? (await resolveVideoIdByUrl(sourceUrl));
-
-        if (!resolvedVideoId || cancelled) {
-          return;
-        }
-
-        bootstrappedSourceRef.current = sourceUrl;
-        const now = new Date();
-        const projectName = `Project ${now.toLocaleDateString("vi-VN")}`;
-
-        const createdProject = await createProject({
-          session_name: projectName,
-          video_id: resolvedVideoId,
-        });
-
-        if (cancelled) return;
-
-        const projectId = getProjectIdFromResponse(createdProject);
-        if (projectId) {
-          setEditId(projectId);
-          setSessionName(projectName);
-
-          const nextParams = new URLSearchParams(searchParams.toString());
-          nextParams.set("edit_id", String(projectId));
-          nextParams.set("src", sourceUrl);
-          nextParams.set("video_id", String(resolvedVideoId));
-          nextParams.delete("editId");
-          nextParams.delete("editid");
-
-          const nextQuery = nextParams.toString();
-          const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-          router.replace(nextUrl, { scroll: false });
-        }
-      } finally {
-        if (!cancelled) {
-          setIsBootstrappingProject(false);
-        }
-      }
-    };
-
-    void bootstrapProjectFromSource();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeEditId,
-    createProject,
-    highlightVideos,
-    pathname,
-    refetchHighlightVideos,
-    router,
-    searchParams,
-    selectedVideoId,
-    user?.id,
-  ]);
-
-  useEffect(() => {
     const params = new URLSearchParams(currentQuery);
 
     // No edit_id => keep current query (e.g. src/video_id from upload flow)
@@ -571,10 +479,10 @@ export function useStudioSession() {
 
     const placement = bindings.mascot.previewPlacement;
     const position_x = placement
-      ? Number(placement.xPct.toFixed(3))
+      ? Math.round(placement.x)
       : bindings.mascot.margin_x;
     const position_y = placement
-      ? Number(placement.yPct.toFixed(3))
+      ? Math.round(placement.y)
       : bindings.mascot.margin_y;
 
     const payload = {
@@ -582,7 +490,7 @@ export function useStudioSession() {
         selectedMascotImageId ?? existingMascotOverlay?.image_id ?? undefined,
       position_x,
       position_y,
-      scale: bindings.mascot.scale,
+      scale: normalizeMascotScale(bindings.mascot.scale),
       start_time: 0,
       end_time: 1,
       layer_index: 1,
@@ -624,23 +532,8 @@ export function useStudioSession() {
       },
     });
 
-    if (!payload?.videoUrl) return;
-
-    const params = new URLSearchParams(currentQuery);
-    params.set("src", payload.videoUrl);
-
-    if (payload.videoId) {
-      params.set("video_id", String(payload.videoId));
-    }
-
-    params.delete("videoId");
-
-    const nextQuery = params.toString();
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-
-    if (nextUrl !== currentUrl) {
-      router.replace(nextUrl, { scroll: false });
+    if (payload?.videoUrl) {
+      router.replace("/library", { scroll: false });
     }
   };
 

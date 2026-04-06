@@ -23,6 +23,7 @@ interface CloudinaryPayload {
         custom?: CloudinaryContextCustom;
     };
     display_name?: string;
+    original_filename?: string;
 }
 
 interface ai_model_result {
@@ -49,7 +50,7 @@ export class WebhookService {
      * Both must send the same `context.custom.job_id` (and `user_id`) so we upsert one row.
      */
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, public_id, duration, resource_type, format, context, display_name } =
+        const { secure_url, url, public_id, duration, resource_type, format, context, display_name, original_filename } =
             payload;
 
         const assetUrl = secure_url ?? url;
@@ -88,6 +89,7 @@ export class WebhookService {
                 public_id,
                 duration,
                 display_name,
+                original_filename,
                 custom,
                 userId,
                 jobId,
@@ -113,18 +115,46 @@ export class WebhookService {
             : VideoType.HIGHLIGHT;
     }
 
+    private resolveVideoName(params: {
+        originalFilename?: string;
+        displayName?: string;
+        type: VideoType;
+    }): string | null {
+        const originalFilename =
+            typeof params.originalFilename === 'string'
+                ? params.originalFilename.trim()
+                : '';
+
+        if (originalFilename) {
+            return `${originalFilename}_${params.type}`;
+        }
+
+        const displayName =
+            typeof params.displayName === 'string'
+                ? params.displayName.trim()
+                : '';
+
+        return displayName || null;
+    }
+
     private async handleCloudinaryVideo(params: {
         assetUrl: string;
         public_id?: string;
         duration?: number;
         display_name?: string;
+        original_filename?: string;
         custom?: CloudinaryContextCustom;
         userId: number;
         jobId: string;
     }) {
-        const { assetUrl, public_id, duration, display_name, custom, userId, jobId } = params;
+        const { assetUrl, public_id, duration, display_name, original_filename, custom, userId, jobId } = params;
 
         const type = this.resolveVideoType(custom);
+        const resolvedName = this.resolveVideoName({
+            originalFilename: original_filename,
+            displayName: display_name,
+            type,
+        });
 
         const cloudName = process.env.CLOUD_NAME?.trim();
         const publicId = typeof public_id === 'string' ? public_id.trim() : undefined;
@@ -142,7 +172,7 @@ export class WebhookService {
                 type,
                 url: assetUrl,
                 duration: typeof duration === 'number' ? duration : null,
-                name: display_name ?? null,
+                name: resolvedName,
                 thumbnail:
                     thumbnailUrl ?? 'https://placehold.co/320x180/png?text=thumbnail',
             });
@@ -155,7 +185,7 @@ export class WebhookService {
                 type,
                 url: assetUrl,
                 duration: typeof duration === 'number' ? duration : row.duration,
-                ...(display_name ? { name: display_name } : {}),
+                ...(resolvedName ? { name: resolvedName } : {}),
                 ...(thumbnailUrl ? { thumbnail: thumbnailUrl } : {}),
             });
             this.logger.log(`Updated video row id=${row.id} job_id=${jobId} (video asset)`);

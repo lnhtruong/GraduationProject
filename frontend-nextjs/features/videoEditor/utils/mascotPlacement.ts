@@ -12,6 +12,26 @@ const DEFAULT_SNAP_THRESHOLD_PX = 24;
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
+const getScale = (frame: VideoFrameSize) => {
+  const safeScaleX =
+    frame.scaleX && frame.scaleX > 0
+      ? frame.scaleX
+      : frame.displayWidth && frame.displayWidth > 0
+        ? frame.displayWidth / Math.max(frame.width, 1)
+        : 1;
+  const safeScaleY =
+    frame.scaleY && frame.scaleY > 0
+      ? frame.scaleY
+      : frame.displayHeight && frame.displayHeight > 0
+        ? frame.displayHeight / Math.max(frame.height, 1)
+        : safeScaleX;
+
+  return {
+    scaleX: safeScaleX,
+    scaleY: safeScaleY,
+  };
+};
+
 export function normalizeMascotScale(scale: number) {
   return clamp(scale, MIN_SCALE, MAX_SCALE);
 }
@@ -20,29 +40,55 @@ export function getMascotDisplaySize(
   frame: VideoFrameSize,
   scale: number,
   aspectRatio: number,
+  sourceWidth?: number,
+  sourceHeight?: number,
 ) {
   const normalizedScale = normalizeMascotScale(scale);
-  const safeAspectRatio = aspectRatio > 0 ? aspectRatio : 1;
-  const width = frame.width * BASE_WIDTH_RATIO * normalizedScale;
-  const height = width / safeAspectRatio;
+  const safeAspectRatio =
+    aspectRatio > 0
+      ? aspectRatio
+      : typeof sourceWidth === "number" &&
+          typeof sourceHeight === "number" &&
+          sourceWidth > 0 &&
+          sourceHeight > 0
+        ? sourceWidth / sourceHeight
+        : 1;
+
+  const baseWidth = frame.width * BASE_WIDTH_RATIO * normalizedScale;
+  const baseHeight = baseWidth / safeAspectRatio;
+
+  const { scaleX, scaleY } = getScale(frame);
+  const width = baseWidth * scaleX;
+  const height = baseHeight * scaleY;
 
   return {
+    baseWidth,
+    baseHeight,
     width,
     height,
-    widthPct: (width / frame.width) * 100,
-    heightPct: (height / frame.height) * 100,
+    widthPct: (baseWidth / frame.width) * 100,
+    heightPct: (baseHeight / frame.height) * 100,
   };
 }
 
 export function deriveScaleFromDisplayWidth(
   frame: VideoFrameSize,
   displayWidth: number,
+  sourceWidth?: number,
 ) {
-  if (!frame.width) {
+  if (!frame.width || displayWidth <= 0) {
     return MIN_SCALE;
   }
 
-  const rawScale = displayWidth / (frame.width * BASE_WIDTH_RATIO);
+  const { scaleX } = getScale(frame);
+  const baseDisplayWidth = displayWidth / Math.max(scaleX, 0.0001);
+
+  const baseReferenceWidth =
+    typeof sourceWidth === "number" && sourceWidth > 0
+      ? sourceWidth
+      : frame.width * BASE_WIDTH_RATIO;
+
+  const rawScale = baseDisplayWidth / Math.max(baseReferenceWidth, 1);
   return normalizeMascotScale(rawScale);
 }
 
@@ -50,15 +96,23 @@ export function clampPreviewPlacement(
   placement: MascotPreviewPlacement,
   frame: VideoFrameSize,
   scale: number,
+  sourceWidth?: number,
+  sourceHeight?: number,
 ) {
-  const size = getMascotDisplaySize(frame, scale, placement.aspectRatio);
-  const maxXPct = Math.max(0, 100 - size.widthPct);
-  const maxYPct = Math.max(0, 100 - size.heightPct);
+  const size = getMascotDisplaySize(
+    frame,
+    scale,
+    placement.aspectRatio,
+    sourceWidth,
+    sourceHeight,
+  );
+  const maxX = Math.max(0, frame.width - size.baseWidth);
+  const maxY = Math.max(0, frame.height - size.baseHeight);
 
   return {
     ...placement,
-    xPct: clamp(placement.xPct, 0, maxXPct),
-    yPct: clamp(placement.yPct, 0, maxYPct),
+    x: Math.round(clamp(placement.x, 0, maxX)),
+    y: Math.round(clamp(placement.y, 0, maxY)),
   };
 }
 
@@ -68,36 +122,42 @@ export function createDefaultPreviewPlacement(
   aspectRatio: number,
 ): MascotPreviewPlacement {
   const safeAspectRatio = aspectRatio > 0 ? aspectRatio : 1;
-  const size = getMascotDisplaySize(frame, mascot.scale, safeAspectRatio);
+  const size = getMascotDisplaySize(
+    frame,
+    mascot.scale,
+    safeAspectRatio,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
+  );
 
-  let xPct = 100 - size.widthPct - 5;
-  let yPct = 100 - size.heightPct - 5;
+  let x = Math.max(0, frame.width - size.baseWidth - 40);
+  let y = Math.max(0, frame.height - size.baseHeight - 40);
 
   if (mascot.position === "top-left") {
-    xPct = (mascot.margin_x / frame.width) * 100;
-    yPct = (mascot.margin_y / frame.height) * 100;
+    x = mascot.margin_x;
+    y = mascot.margin_y;
   } else if (mascot.position === "top-right") {
-    xPct = ((frame.width - size.width - mascot.margin_x) / frame.width) * 100;
-    yPct = (mascot.margin_y / frame.height) * 100;
+    x = frame.width - size.baseWidth - mascot.margin_x;
+    y = mascot.margin_y;
   } else if (mascot.position === "bottom-left") {
-    xPct = (mascot.margin_x / frame.width) * 100;
-    yPct =
-      ((frame.height - size.height - mascot.margin_y) / frame.height) * 100;
+    x = mascot.margin_x;
+    y = frame.height - size.baseHeight - mascot.margin_y;
   } else if (mascot.position === "bottom-right") {
-    xPct = ((frame.width - size.width - mascot.margin_x) / frame.width) * 100;
-    yPct =
-      ((frame.height - size.height - mascot.margin_y) / frame.height) * 100;
+    x = frame.width - size.baseWidth - mascot.margin_x;
+    y = frame.height - size.baseHeight - mascot.margin_y;
   }
 
   return clampPreviewPlacement(
     {
-      xPct,
-      yPct,
+      x,
+      y,
       aspectRatio: safeAspectRatio,
       hasPlaced: false,
     },
     frame,
     mascot.scale,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
   );
 }
 
@@ -114,17 +174,25 @@ export function deriveBackendMascotFromPreview(
     return mascot;
   }
 
-  const normalizedPlacement = clampPreviewPlacement(placement, frame, mascot.scale);
+  const normalizedPlacement = clampPreviewPlacement(
+    placement,
+    frame,
+    mascot.scale,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
+  );
   const size = getMascotDisplaySize(
     frame,
     mascot.scale,
     normalizedPlacement.aspectRatio,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
   );
 
-  const left = (normalizedPlacement.xPct / 100) * frame.width;
-  const top = (normalizedPlacement.yPct / 100) * frame.height;
-  const right = Math.max(0, frame.width - left - size.width);
-  const bottom = Math.max(0, frame.height - top - size.height);
+  const left = normalizedPlacement.x;
+  const top = normalizedPlacement.y;
+  const right = Math.max(0, frame.width - left - size.baseWidth);
+  const bottom = Math.max(0, frame.height - top - size.baseHeight);
 
   const candidates = [
     {
@@ -163,30 +231,64 @@ export function deriveBackendMascotFromPreview(
     margin_x: best.margin_x,
     margin_y: best.margin_y,
     previewPlacement: normalizedPlacement,
-    scale: normalizeMascotScale(mascot.scale),
+    scale: deriveBackendScaleFromPreview(mascot, frame),
   };
+}
+
+export function deriveBackendScaleFromPreview(
+  mascot: MascotOption,
+  frame: VideoFrameSize,
+) {
+  const aspectRatio = mascot.previewPlacement?.aspectRatio ?? 1;
+  const currentSize = getMascotDisplaySize(
+    frame,
+    mascot.scale,
+    aspectRatio,
+    mascot.sourceWidth,
+    mascot.sourceHeight,
+  );
+
+  return deriveScaleFromDisplayWidth(
+    frame,
+    currentSize.width,
+    mascot.sourceWidth,
+  );
 }
 
 export function applyCornerSnap(
   placement: MascotPreviewPlacement,
   frame: VideoFrameSize,
   scale: number,
+  sourceWidth?: number,
+  sourceHeight?: number,
   thresholdPx = DEFAULT_SNAP_THRESHOLD_PX,
 ) {
-  const normalized = clampPreviewPlacement(placement, frame, scale);
-  const size = getMascotDisplaySize(frame, scale, normalized.aspectRatio);
-  const left = (normalized.xPct / 100) * frame.width;
-  const top = (normalized.yPct / 100) * frame.height;
-  const right = frame.width - left - size.width;
-  const bottom = frame.height - top - size.height;
+  const normalized = clampPreviewPlacement(
+    placement,
+    frame,
+    scale,
+    sourceWidth,
+    sourceHeight,
+  );
+  const size = getMascotDisplaySize(
+    frame,
+    scale,
+    normalized.aspectRatio,
+    sourceWidth,
+    sourceHeight,
+  );
+  const left = normalized.x;
+  const top = normalized.y;
+  const right = frame.width - left - size.baseWidth;
+  const bottom = frame.height - top - size.baseHeight;
 
   const nearLeft = left <= thresholdPx;
   const nearRight = right <= thresholdPx;
   const nearTop = top <= thresholdPx;
   const nearBottom = bottom <= thresholdPx;
 
-  let xPct = normalized.xPct;
-  let yPct = normalized.yPct;
+  let x = normalized.x;
+  let y = normalized.y;
   let snappedCorner:
     | "top-left"
     | "top-right"
@@ -195,20 +297,20 @@ export function applyCornerSnap(
     | null = null;
 
   if (nearLeft && nearTop) {
-    xPct = 0;
-    yPct = 0;
+    x = 0;
+    y = 0;
     snappedCorner = "top-left";
   } else if (nearRight && nearTop) {
-    xPct = 100 - size.widthPct;
-    yPct = 0;
+    x = Math.max(0, frame.width - size.baseWidth);
+    y = 0;
     snappedCorner = "top-right";
   } else if (nearLeft && nearBottom) {
-    xPct = 0;
-    yPct = 100 - size.heightPct;
+    x = 0;
+    y = Math.max(0, frame.height - size.baseHeight);
     snappedCorner = "bottom-left";
   } else if (nearRight && nearBottom) {
-    xPct = 100 - size.widthPct;
-    yPct = 100 - size.heightPct;
+    x = Math.max(0, frame.width - size.baseWidth);
+    y = Math.max(0, frame.height - size.baseHeight);
     snappedCorner = "bottom-right";
   }
 
@@ -216,11 +318,13 @@ export function applyCornerSnap(
     snappedPlacement: clampPreviewPlacement(
       {
         ...normalized,
-        xPct,
-        yPct,
+        x,
+        y,
       },
       frame,
       scale,
+      sourceWidth,
+      sourceHeight,
     ),
     snappedCorner,
     guides: {
