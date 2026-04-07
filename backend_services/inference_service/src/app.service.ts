@@ -44,10 +44,12 @@ export class AppService {
       const topic = getStringField(body, 'topic');
       const includeKeywords = getStringField(body, 'include_keywords');
       const excludeKeywords = getStringField(body, 'exclude_keywords');
+      const isOpenAI = getStringField(body, 'isOpenAI');
       formData.append('user_id', String(userIdFromHeader ?? ''));
       if (topic) formData.append('topic', topic);
       if (includeKeywords) formData.append('include_keywords', includeKeywords);
       if (excludeKeywords) formData.append('exclude_keywords', excludeKeywords);
+      if (isOpenAI) formData.append('isOpenAI', isOpenAI);
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
@@ -70,7 +72,7 @@ export class AppService {
 
   // 2. Tạo Mascot Video
   async createMascot(
-    mascotImage: Express.Multer.File,
+    mascotImageUrl: string,
     audio: Express.Multer.File | undefined,
     body: unknown,
     userIdFromHeader?: number,
@@ -89,11 +91,7 @@ export class AppService {
       formData.append('margin_x', marginX);
       formData.append('margin_y', marginY);
       formData.append('scale', scale);
-
-      formData.append('mascot_image', mascotImage.buffer, {
-        filename: mascotImage.originalname,
-        contentType: mascotImage.mimetype,
-      });
+      formData.append('mascot_image_url', mascotImageUrl);
 
       if (audio) {
         formData.append('audio', audio.buffer, {
@@ -147,9 +145,11 @@ export class AppService {
   }
 
   // 4. Lấy trạng thái Job
-  async getJobStatus(jobId: string, userIdFromHeader?: number,): Promise<unknown> {
+  async getJobStatus(
+    jobId: string,
+    userIdFromHeader?: number,
+  ): Promise<unknown> {
     try {
-
       const response = await firstValueFrom(
         this.httpService.get<unknown>(`${this.colabUrl}/jobs/status/${jobId}`),
       );

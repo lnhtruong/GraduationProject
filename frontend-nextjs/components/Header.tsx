@@ -20,7 +20,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();

@@ -9,6 +9,7 @@ import { createKeyFactory } from "@/lib/queryKeys";
 import {
   projectApi,
   mascotOverlayApi,
+  mascotImageApi,
   userVideoApi,
   cloudinaryApi,
 } from "./editSession.api";
@@ -85,16 +86,18 @@ export function useUserHighlightVideos(userId: number | null, enabled = true) {
   });
 }
 
-export function useUserMascotVideos(userId: number | null, enabled = true) {
+export function useUserMascotImages(userId: number | null, enabled = true) {
   return useQuery({
-    queryKey: userVideosKeys.custom("mascot", userId),
+    queryKey: userVideosKeys.custom("mascot-images", userId),
     queryFn: async () => {
-      return userVideoApi.listByUser("mascot");
+      return mascotImageApi.listByUser();
     },
     enabled: enabled && userId !== null && userId !== undefined,
     staleTime: 60 * 1000,
   });
 }
+
+export const useUserMascotVideos = useUserMascotImages;
 
 // ============================================================================
 // CLOUDINARY DIRECT UPLOAD MUTATION (Client-side to Cloudinary API)
@@ -121,6 +124,7 @@ export function useCloudinaryDirectUpload(
       const secureUrl = await cloudinaryApi.uploadDirectToCloudinary(
         file,
         signature,
+        "video",
         onProgress,
       );
 
@@ -144,6 +148,74 @@ export function useCloudinaryDirectUpload(
         const errObj = error as Record<string, unknown>;
         if (typeof errObj.message === "string") {
           message = errObj.message;
+        }
+      }
+      toast.error(message);
+    },
+  });
+}
+
+export function useUploadMascotImage(
+  onProgress?: (percent: number) => void,
+  onSuccess?: (payload: { imageId: number; url: string }) => void,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      file,
+      folderName = "editor-mascot-images",
+    }: {
+      file: File;
+      folderName?: string;
+    }) => {
+      const signature = await cloudinaryApi.getSignature(folderName);
+
+      const secureUrl = await cloudinaryApi.uploadDirectToCloudinary(
+        file,
+        signature,
+        "image",
+        onProgress,
+      );
+
+      const created = await mascotImageApi.create({
+        url: secureUrl,
+      });
+
+      return {
+        imageId: created.image_id,
+        url: created.url,
+      };
+    },
+    onSuccess: (response) => {
+      toast.success("Mascot image uploaded successfully!");
+      queryClient.invalidateQueries({
+        queryKey: userVideosKeys.custom("mascot-images"),
+      });
+      onSuccess?.(response);
+    },
+    onError: (error: unknown) => {
+      let message = "Failed to upload mascot image";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        const errObj = error as Record<string, unknown>;
+        if (typeof errObj.message === "string") {
+          message = errObj.message;
+        }
+
+        const response = errObj.response as
+          | {
+              data?: {
+                message?: string | string[];
+              };
+            }
+          | undefined;
+        const apiMessage = response?.data?.message;
+        if (Array.isArray(apiMessage)) {
+          message = apiMessage.join(" | ");
+        } else if (typeof apiMessage === "string") {
+          message = apiMessage;
         }
       }
       toast.error(message);

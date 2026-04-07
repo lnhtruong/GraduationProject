@@ -3,7 +3,7 @@
  */
 
 import { createApi } from "@/features/_shared/api";
-import { apiClient } from "@/lib/http";
+import { inferenceClient } from "@/lib/http";
 import type {
   JobIdResponse,
   Clip,
@@ -116,8 +116,9 @@ export const uploadApi = createApi({
       formData.append("include_keywords", params.includeKeywords);
     if (params.excludeKeywords)
       formData.append("exclude_keywords", params.excludeKeywords);
+    formData.append("isOpenAI", "false");
 
-    const { data } = await apiClient.post<JobIdResponse>(
+    const { data } = await inferenceClient.post<JobIdResponse>(
       UPLOAD_ENDPOINT,
       formData,
       {
@@ -138,7 +139,7 @@ export const uploadApi = createApi({
     return data.job_id;
   },
   getStatus: async (jobId: string) => {
-    const { data } = await apiClient.get<JobStatusResponse>(
+    const { data } = await inferenceClient.get<JobStatusResponse>(
       `/mascot_colab/jobs/status/${jobId}`,
     );
     return data;

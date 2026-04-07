@@ -19,9 +19,22 @@ export default function useVideoEditor(initialSrc?: string) {
   } = useVideoSource(initialSrc);
   const { videoRef, isPlaying, play, pause, toggle } = useVideoPlayback();
   const { effect, setEffect, cssFilter } = useVideoEffects();
-  const { layers, handleAddText, handleUpdateText, handleReorderText, handleRemoveText } = useTextOverlays();
-  const { mascot, setMascot, applyMascot, isApplyingMascot, mascotProgress } =
-    useMascot();
+  const {
+    layers,
+    handleAddText,
+    handleUpdateText,
+    handleReorderText,
+    handleRemoveText,
+  } = useTextOverlays();
+  const {
+    mascot,
+    setMascot,
+    applyMascot,
+    startMascotJob,
+    createMascotVideoRecord,
+    isApplyingMascot,
+    mascotProgress,
+  } = useMascot();
 
   // Voice (keeping simple for now)
   const [voice, setVoice] = useState<VoiceOption>({
@@ -75,16 +88,18 @@ export default function useVideoEditor(initialSrc?: string) {
     cssFilter,
 
     // Text
-      layers,
-      handleAddText,
-      handleUpdateText,
-      handleReorderText,
-      handleRemoveText,
+    layers,
+    handleAddText,
+    handleUpdateText,
+    handleReorderText,
+    handleRemoveText,
 
     // Mascot
     mascot,
     setMascot,
     applyMascot,
+    startMascotJob,
+    createMascotVideoRecord,
     isApplyingMascot,
     mascotProgress,
 

@@ -7,7 +7,7 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCloudinaryDirectUpload } from "@/features/videoEditor/api/editSession.hooks";
 import {
   createMediaUploadSocket,
@@ -15,7 +15,7 @@ import {
 } from "@/features/upload/api/upload.websocket";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { tokenManager } from "@/lib/http";
+import { authStorageHelper } from "@/store/auth";
 
 // ============================================================================
 // TYPES
@@ -79,7 +79,7 @@ export default function EditorMediaDropzone({
 
   const resolveUserId = (): number | undefined => {
     if (typeof user?.id === "number") return user.id;
-    const stored = tokenManager.getUser() as {
+    const stored = authStorageHelper.getUser() as {
       id?: number;
       user_id?: number;
     } | null;
@@ -98,6 +98,17 @@ export default function EditorMediaDropzone({
     }
 
     return new Promise((resolve) => {
+      const normalizeUrl = (value?: string) => {
+        if (!value) return "";
+        try {
+          const parsed = new URL(value);
+          return `${parsed.origin}${parsed.pathname}`;
+        } catch {
+          return value;
+        }
+      };
+
+      const targetUrl = normalizeUrl(uploadedUrl);
       const socket = createMediaUploadSocket(userId);
       let settled = false;
 
@@ -113,7 +124,11 @@ export default function EditorMediaDropzone({
       const onUploadCompleted = (payload: VideoCompletedEvent) => {
         const eventUrl = payload?.data?.url;
         const eventId = payload?.data?.id;
-        if (!eventUrl || eventUrl !== uploadedUrl) return;
+        if (!eventUrl) return;
+
+        const normalizedEventUrl = normalizeUrl(eventUrl);
+        if (normalizedEventUrl !== targetUrl) return;
+
         finish(typeof eventId === "number" ? eventId : undefined);
       };
 

@@ -16,7 +16,7 @@ export class Video extends Model {
   @Column(DataType.INTEGER)
   declare id: number;
 
-  @Index('idx_videos_job_id')
+  @Index({ unique: true, name: 'uq_videos_job_id' })
   @Column({
     type: DataType.STRING(255),
     allowNull: true,

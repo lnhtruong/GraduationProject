@@ -1,0 +1,19 @@
+{
+  "name": "graduationproject-database-migrations",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "knexfile.js",
+  "scripts": {
+    "migrate": "knex migrate:latest --env development",
+    "migrate:railway": "knex migrate:latest --env railway",
+    "migrate:rollback": "knex migrate:rollback --env development",
+    "migrate:status": "knex migrate:currentVersion --env development",
+    "migrate:list": "knex migrate:list --env development"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.1",
+    "knex": "^3.1.0",
+    "mysql2": "^3.12.0"
+  }
+}
