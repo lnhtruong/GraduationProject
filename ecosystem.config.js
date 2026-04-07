@@ -7,13 +7,13 @@ module.exports = {
       interpreter: "node",
       env_file: "/opt/graduation-project/backend_services/auth_service/.env",
     },
-    {
-      name: "user_service",
-      cwd: "./backend_services/user_service",
-      script: "dist/main.js",
-      interpreter: "node",
-      env_file: "/opt/graduation-project/backend_services/user_service/.env",
-    },
+    // {
+    //   name: "user_service",
+    //   cwd: "./backend_services/user_service",
+    //   script: "dist/main.js",
+    //   interpreter: "node",
+    //   env_file: "/opt/graduation-project/backend_services/user_service/.env",
+    // },
     //   {
     //     name: "mail_service",
     //     cwd: "/opt/graduation-project/backend_services/mail_service",

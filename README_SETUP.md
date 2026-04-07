@@ -3,6 +3,7 @@
 ## Tổng quan
 
 Dự án bao gồm 3 microservices:
+
 1. **auth_service** (Port 3001) - Xử lý authentication
 2. **user_service** (Port 3002) - Quản lý thông tin user
 3. **api_gateway** (Port 3000) - Gateway routing và middleware
@@ -21,6 +22,7 @@ docker-compose up -d
 ```
 
 Kiểm tra containers đang chạy:
+
 ```bash
 docker ps
 ```
@@ -34,6 +36,7 @@ docker exec -it graduation_mysql mysql -u graduation_user -pgraduation_password 
 ```
 
 Hoặc copy file SQL và chạy:
+
 ```bash
 docker exec -i graduation_mysql mysql -u graduation_user -pgraduation_password graduation_db < database/migrations/001_create_users_table.sql
 ```
@@ -87,6 +90,7 @@ npm run dev
 ## Test Flow
 
 1. **Register:**
+
 ```bash
 curl -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
@@ -99,6 +103,7 @@ curl -X POST http://localhost:8000/api/auth/register \
 ```
 
 2. **Login:**
+
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -109,12 +114,14 @@ curl -X POST http://localhost:8000/api/auth/login \
 ```
 
 3. **Get Profile (sử dụng accessToken từ login):**
+
 ```bash
 curl -X GET http://localhost:8000/api/users/profile \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 4. **Refresh Token:**
+
 ```bash
 curl -X POST http://localhost:8000/api/auth/refresh \
   -H "Content-Type: application/json" \
@@ -126,6 +133,7 @@ curl -X POST http://localhost:8000/api/auth/refresh \
 ## Cấu trúc Database
 
 ### Users Table
+
 - `id` (INT, PRIMARY KEY, AUTO_INCREMENT)
 - `email` (VARCHAR(100), UNIQUE)
 - `password` (VARCHAR(255), hashed)
@@ -150,7 +158,3 @@ TTL mặc định: 7 ngày (604800 giây)
 2. **Redis connection error:** Kiểm tra Redis container
 3. **JWT verification failed:** Đảm bảo tất cả services dùng cùng JWT_SECRET
 4. **Port already in use:** Thay đổi PORT trong .env files
-
-
-
-

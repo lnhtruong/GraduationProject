@@ -23,6 +23,7 @@ interface CloudinaryPayload {
         custom?: CloudinaryContextCustom;
     };
     display_name?: string;
+    original_filename?: string;
 }
 
 interface ai_model_result {
@@ -49,7 +50,7 @@ export class WebhookService {
      * Both must send the same `context.custom.job_id` (and `user_id`) so we upsert one row.
      */
     async handleUpload(payload: CloudinaryPayload) {
-        const { secure_url, url, public_id, duration, resource_type, format, context, display_name } =
+        const { secure_url, url, public_id, duration, resource_type, format, context, display_name, original_filename } =
             payload;
 
         const assetUrl = secure_url ?? url;
@@ -63,11 +64,6 @@ export class WebhookService {
             typeof custom?.job_id === 'string' && custom.job_id.trim().length > 0
                 ? custom.job_id.trim()
                 : undefined;
-
-        if (!jobId) {
-            this.logger.warn('Cloudinary webhook missing job_id in context.custom');
-            return { ignored: true, reason: 'missing_job_id' };
-        }
 
         const userIdStr = custom?.userId ?? custom?.user_id;
         const userId =
@@ -88,6 +84,7 @@ export class WebhookService {
                 public_id,
                 duration,
                 display_name,
+                original_filename,
                 custom,
                 userId,
                 jobId,
@@ -95,6 +92,10 @@ export class WebhookService {
         }
 
         if (rt === 'raw') {
+            if (!jobId) {
+                this.logger.warn('Cloudinary webhook missing job_id in context.custom');
+                return { ignored: true, reason: 'missing_job_id' };
+            }
             return this.handleCloudinaryRawSrt({
                 assetUrl,
                 format,
@@ -113,18 +114,46 @@ export class WebhookService {
             : VideoType.HIGHLIGHT;
     }
 
+    private resolveVideoName(params: {
+        originalFilename?: string;
+        displayName?: string;
+        type: VideoType;
+    }): string | null {
+        const originalFilename =
+            typeof params.originalFilename === 'string'
+                ? params.originalFilename.trim()
+                : '';
+
+        if (originalFilename) {
+            return `${originalFilename}_${params.type}`;
+        }
+
+        const displayName =
+            typeof params.displayName === 'string'
+                ? params.displayName.trim()
+                : '';
+
+        return displayName || null;
+    }
+
     private async handleCloudinaryVideo(params: {
         assetUrl: string;
         public_id?: string;
         duration?: number;
         display_name?: string;
+        original_filename?: string;
         custom?: CloudinaryContextCustom;
         userId: number;
-        jobId: string;
+        jobId?: string;
     }) {
-        const { assetUrl, public_id, duration, display_name, custom, userId, jobId } = params;
+        const { assetUrl, public_id, duration, display_name, original_filename, custom, userId, jobId } = params;
 
         const type = this.resolveVideoType(custom);
+        const resolvedName = this.resolveVideoName({
+            originalFilename: original_filename,
+            displayName: display_name,
+            type,
+        });
 
         const cloudName = process.env.CLOUD_NAME?.trim();
         const publicId = typeof public_id === 'string' ? public_id.trim() : undefined;
@@ -133,32 +162,57 @@ export class WebhookService {
                 ? `https://res.cloudinary.com/${cloudName}/video/upload/so_1/${publicId}.jpg`
                 : undefined;
 
-        let row = await this.videoModel.findOne({ where: { job_id: jobId } });
+        let row: Video;
 
-        if (!row) {
+        if (jobId) {
+            const [v, created] = await this.videoModel.findOrCreate({
+                where: { job_id: jobId },
+                defaults: {
+                    job_id: jobId,
+                    user_id: userId,
+                    type,
+                    url: assetUrl,
+                    duration: typeof duration === 'number' ? duration : null,
+                    name: resolvedName,
+                    thumbnail:
+                        thumbnailUrl ?? 'https://placehold.co/320x180/png?text=thumbnail',
+                    srt_raw_url: null,
+                },
+            });
+
+            row = v;
+
+            if (!created) {
+                await row.update({
+                    user_id: userId,
+                    type,
+                    url: assetUrl,
+                    duration: typeof duration === 'number' ? duration : row.duration,
+                    ...(resolvedName ? { name: resolvedName } : {}),
+                    ...(thumbnailUrl ? { thumbnail: thumbnailUrl } : {}),
+                });
+                this.logger.log(`Updated video row id=${row.id} job_id=${jobId} (video asset)`);
+            } else {
+                this.logger.log(
+                    `Created video row id=${row.id} job_id=${jobId} user_id=${userId} type=${type}`,
+                );
+            }
+        } else {
             row = await this.videoModel.create({
-                job_id: jobId,
+                job_id: null,
                 user_id: userId,
                 type,
                 url: assetUrl,
                 duration: typeof duration === 'number' ? duration : null,
-                name: display_name ?? null,
+                name: resolvedName,
                 thumbnail:
                     thumbnailUrl ?? 'https://placehold.co/320x180/png?text=thumbnail',
+                srt_raw_url: null,
             });
+
             this.logger.log(
-                `Created video row id=${row.id} job_id=${jobId} user_id=${userId} type=${type}`,
+                `Created direct-upload video row id=${row.id} user_id=${userId} type=${type} (no job_id)`,
             );
-        } else {
-            await row.update({
-                user_id: userId,
-                type,
-                url: assetUrl,
-                duration: typeof duration === 'number' ? duration : row.duration,
-                ...(display_name ? { name: display_name } : {}),
-                ...(thumbnailUrl ? { thumbnail: thumbnailUrl } : {}),
-            });
-            this.logger.log(`Updated video row id=${row.id} job_id=${jobId} (video asset)`);
         }
 
         await row.reload();
@@ -192,10 +246,9 @@ export class WebhookService {
             return { ignored: true, reason: 'not_srt' };
         }
 
-        let row = await this.videoModel.findOne({ where: { job_id: jobId } });
-
-        if (!row) {
-            row = await this.videoModel.create({
+        const [row, created] = await this.videoModel.findOrCreate({
+            where: { job_id: jobId },
+            defaults: {
                 job_id: jobId,
                 user_id: userId,
                 type: VideoType.HIGHLIGHT,
@@ -203,13 +256,16 @@ export class WebhookService {
                 duration: null,
                 thumbnail: 'https://placehold.co/320x180/png?text=thumbnail',
                 srt_raw_url: assetUrl,
-            });
+            },
+        });
+
+        if (!created) {
+            await row.update({ srt_raw_url: assetUrl });
+            this.logger.log(`Updated srt_raw_url for video id=${row.id} job_id=${jobId}`);
+        } else {
             this.logger.log(
                 `Created placeholder video id=${row.id} job_id=${jobId} (SRT first, video pending)`,
             );
-        } else {
-            await row.update({ srt_raw_url: assetUrl });
-            this.logger.log(`Updated srt_raw_url for video id=${row.id} job_id=${jobId}`);
         }
 
         return { success: true, id: row.id };
