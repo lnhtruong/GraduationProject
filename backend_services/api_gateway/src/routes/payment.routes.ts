@@ -11,7 +11,7 @@ router.use(
     target: config.services.payment.url,
     changeOrigin: true,
     pathRewrite: {
-      '^/api': '',
+      '^/api/payment': '',
     },
     onProxyReq: (proxyReq, req: AuthRequest) => {
       if (req.headers['content-type']) {
