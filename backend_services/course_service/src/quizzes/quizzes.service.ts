@@ -12,6 +12,8 @@ import { generateQuizPayload } from './helper/index.quiz_gen';
 import { toPersistableQuestionRow } from './quiz-payload.mapper';
 import { resolveSrtRawForQuiz } from './resolve-srt';
 
+const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
+
 @Injectable()
 export class QuizzesService {
   constructor(
@@ -22,7 +24,51 @@ export class QuizzesService {
     @InjectConnection() private readonly sequelize: Sequelize,
   ) { }
 
+  private normalizeVideoTimestamp(value?: string | null): string | null {
+    if (!value) return null;
+    const normalized = value.trim().replace(',', '.');
+    if (!VIDEO_TIMESTAMP_REGEX.test(normalized)) {
+      throw new BadRequestException(
+        `Invalid video timestamp format "${value}". Expected "HH:MM:SS,mmm" or "HH:MM:SS.mmm".`,
+      );
+    }
+    return normalized;
+  }
+
+  private assertQuizVideoTimestampConsistency(
+    isInVideo: boolean,
+    questions: Array<{ videoTimestamp?: string | null }>,
+  ): void {
+    if (!questions.length) return;
+
+    if (!isInVideo) {
+      const hasAnyTimestamp = questions.some((q) => !!q.videoTimestamp);
+      if (hasAnyTimestamp) {
+        throw new BadRequestException(
+          'videoTimestamp must be null for all questions when quiz.isInVideo is false.',
+        );
+      }
+      return;
+    }
+
+    const missingTimestamp = questions.find((q) => !q.videoTimestamp);
+    if (missingTimestamp) {
+      throw new BadRequestException(
+        'videoTimestamp is required for every question when quiz.isInVideo is true.',
+      );
+    }
+  }
+
   async createOne(payload: CreateQuizDto): Promise<Quiz> {
+    const isInVideo = payload.isInVideo ?? false;
+    const normalizedQuestions =
+      payload.questions?.map((q) => ({
+        ...q,
+        videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+      })) ?? [];
+
+    this.assertQuizVideoTimestampConsistency(isInVideo, normalizedQuestions);
+
     return await this.sequelize.transaction(async (transaction) => {
       const quiz = await this.quizModel.create(
         {
@@ -32,12 +78,13 @@ export class QuizzesService {
           shuffleOption: payload.shuffleOption ?? false,
           passingScore: payload.passingScore,
           timeLimitMinutes: payload.timeLimitMinutes,
+          isInVideo,
         },
         { transaction },
       );
 
-      if (payload.questions?.length) {
-        for (const q of payload.questions) {
+      if (normalizedQuestions.length) {
+        for (const q of normalizedQuestions) {
           const question = await this.quizQuestionModel.create(
             {
               quizId: quiz.id,
@@ -46,6 +93,7 @@ export class QuizzesService {
               point: q.point,
               correctAns: q.correctAns,
               orderIndex: q.orderIndex,
+              videoTimestamp: q.videoTimestamp,
             },
             { transaction },
           );
@@ -69,6 +117,7 @@ export class QuizzesService {
   }
 
   async createOneByAI(payload: CreateQuizAIDto): Promise<Quiz> {
+    const isInVideo = payload.isInVideo ?? false;
     const video = await this.videoModel.findByPk(payload.videoId, {
       attributes: ['id', 'srt_raw_url'],
     });
@@ -99,6 +148,15 @@ export class QuizzesService {
       payload.timeLimitMinutes ?? 0,
     );
 
+    const generatedRows = generated.questions.map((q) => {
+      const row = toPersistableQuestionRow(q);
+      return {
+        ...row,
+        videoTimestamp: this.normalizeVideoTimestamp(row.videoTimestamp),
+      };
+    });
+    this.assertQuizVideoTimestampConsistency(isInVideo, generatedRows);
+
     // console.log('check generated: ', generated);
 
     return await this.sequelize.transaction(async (transaction) => {
@@ -110,12 +168,12 @@ export class QuizzesService {
           shuffleOption: generated.shuffleOption,
           passingScore: generated.passingScore,
           timeLimitMinutes: generated.timeLimitMinutes,
+          isInVideo: isInVideo,
         },
         { transaction },
       );
 
-      for (const q of generated.questions) {
-        const row = toPersistableQuestionRow(q);
+      for (const row of generatedRows) {
         const question = await this.quizQuestionModel.create(
           {
             quizId: quiz.id,
@@ -124,6 +182,7 @@ export class QuizzesService {
             point: row.point,
             correctAns: row.correctAns,
             orderIndex: row.orderIndex,
+            videoTimestamp: row.videoTimestamp,
           },
           { transaction },
         );
@@ -165,6 +224,14 @@ export class QuizzesService {
   }
 
   private async createOneWithTransaction(payload: CreateQuizDto, transaction: any): Promise<Quiz> {
+    const isInVideo = payload.isInVideo ?? false;
+    const normalizedQuestions =
+      payload.questions?.map((q) => ({
+        ...q,
+        videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+      })) ?? [];
+    this.assertQuizVideoTimestampConsistency(isInVideo, normalizedQuestions);
+
     const quiz = await this.quizModel.create(
       {
         lessonActivityId: payload.lessonActivityId,
@@ -173,12 +240,13 @@ export class QuizzesService {
         shuffleOption: payload.shuffleOption ?? false,
         passingScore: payload.passingScore,
         timeLimitMinutes: payload.timeLimitMinutes,
+        isInVideo,
       },
       { transaction },
     );
 
-    if (payload.questions?.length) {
-      for (const q of payload.questions) {
+    if (normalizedQuestions.length) {
+      for (const q of normalizedQuestions) {
         const question = await this.quizQuestionModel.create(
           {
             quizId: quiz.id,
@@ -187,6 +255,7 @@ export class QuizzesService {
             point: q.point,
             correctAns: q.correctAns,
             orderIndex: q.orderIndex,
+            videoTimestamp: q.videoTimestamp,
           },
           { transaction },
         );
@@ -246,8 +315,20 @@ export class QuizzesService {
 
   async update(id: number, payload: UpdateQuizDto): Promise<Quiz> {
     return await this.sequelize.transaction(async (transaction) => {
-      const quiz = await this.quizModel.findByPk(id, { transaction });
+      const quiz = await this.quizModel.findByPk(id, {
+        transaction,
+        include: [{ model: QuizQuestion, as: 'questions', required: false }],
+      });
       if (!quiz) throw new NotFoundException(`Quiz with ID ${id} not found`);
+
+      const isInVideo = payload.isInVideo ?? quiz.isInVideo ?? false;
+      const normalizedPayloadQuestions = payload.questions?.map((q) => ({
+        ...q,
+        videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+      }));
+
+      const consistencySource = normalizedPayloadQuestions ?? quiz.questions ?? [];
+      this.assertQuizVideoTimestampConsistency(isInVideo, consistencySource);
 
       await quiz.update(
         {
@@ -257,15 +338,16 @@ export class QuizzesService {
           shuffleOption: payload.shuffleOption ?? quiz.shuffleOption,
           passingScore: payload.passingScore ?? quiz.passingScore,
           timeLimitMinutes: payload.timeLimitMinutes ?? quiz.timeLimitMinutes,
+          isInVideo,
         },
         { transaction },
       );
 
       // If client sends questions, treat as "replace" (simple + predictable for maintainability).
-      if (payload.questions) {
+      if (normalizedPayloadQuestions) {
         await this.quizQuestionModel.destroy({ where: { quizId: id }, transaction });
 
-        for (const q of payload.questions) {
+        for (const q of normalizedPayloadQuestions) {
           const question = await this.quizQuestionModel.create(
             {
               quizId: id,
@@ -274,6 +356,7 @@ export class QuizzesService {
               point: q.point,
               correctAns: q.correctAns,
               orderIndex: q.orderIndex,
+              videoTimestamp: q.videoTimestamp,
             },
             { transaction },
           );

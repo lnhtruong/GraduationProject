@@ -10,6 +10,13 @@ export function mapGeneratedQuestionType(quesType: string): QuestionType {
   return QuestionType.MULTIPLE_CHOICE;
 }
 
+function toDbVideoTimestamp(evidence?: string): string | null {
+  if (!evidence) return null;
+  const normalized = evidence.trim().replace(',', '.');
+  if (!/^\d{2}:\d{2}:\d{2}\.\d{3}$/.test(normalized)) return null;
+  return normalized;
+}
+
 export function toPersistableQuestionRow(q: GenQuizQuestion) {
   return {
     quesType: mapGeneratedQuestionType(q.quesType),
@@ -17,6 +24,7 @@ export function toPersistableQuestionRow(q: GenQuizQuestion) {
     point: q.point,
     correctAns: q.correctExplanation ?? null,
     orderIndex: q.orderIndex,
+    videoTimestamp: toDbVideoTimestamp(q.evidence),
     options: (q.options ?? []).map((o) => ({
       optionText: o.optionText,
       isCorrect: o.isCorrect,

@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import FormData from 'form-data';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
-import { InjectModel } from '@nestjs/sequelize';
+// import { InjectModel } from '@nestjs/sequelize';
 import type { Response } from 'express';
 import type { Readable } from 'stream';
 
@@ -61,23 +61,6 @@ export class AppService {
         ),
       );
 
-      // console.log('check res: ', response);
-
-      // const data = response.data as any;
-      // const outputUrl: string | undefined = isRecord(data)
-      //   ? (data.download_url as string | undefined) ?? (data.url as string | undefined)
-      //   : undefined;
-
-      // const userId = userIdFromHeader;
-
-      // if (outputUrl && userId && !Number.isNaN(userId)) {
-      //   await this.videoModel.create({
-      //     user_id: userId,
-      //     type: VideoType.HIGHLIGHT,
-      //     url: outputUrl,
-      //   });
-      // }
-
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as AxiosError<unknown> | undefined;
@@ -122,24 +105,6 @@ export class AppService {
           headers: formData.getHeaders(),
         }),
       );
-
-      // console.log('check response: ', response);
-
-      // const data = response.data as any;
-      // const outputUrl: string | undefined = isRecord(data)
-      //   ? (data.download_url as string | undefined) ??
-      //   (data.url as string | undefined)
-      //   : undefined;
-
-      // const userId = userIdFromHeader;
-
-      // if (outputUrl && userId && !Number.isNaN(userId)) {
-      //   await this.videoModel.create({
-      //     user_id: userId,
-      //     type: VideoType.MASCOT,
-      //     url: outputUrl,
-      //   });
-      // }
 
       return response.data;
     } catch (error: unknown) {
