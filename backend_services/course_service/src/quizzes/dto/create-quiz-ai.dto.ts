@@ -39,5 +39,9 @@ export class CreateQuizAIDto {
   @IsInt()
   @IsOptional()
   timeLimitMinutes?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isInVideo?: boolean;
 }
 
