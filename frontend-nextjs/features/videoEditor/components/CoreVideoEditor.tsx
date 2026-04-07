@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  DragMoveEvent,
   DndContext,
   DragEndEvent,
   DragStartEvent,
@@ -123,6 +124,11 @@ export default function CoreVideoEditor({
     null,
   );
   const appliedOverlayRef = useRef<string | null>(null);
+  const mascotDragStartRef = useRef<{
+    source: "mascot-preview" | "mascot-resize";
+    placement: NonNullable<typeof mascot.previewPlacement>;
+    scale: number;
+  } | null>(null);
 
   // ── Timeline state ──────────────────────────────────────────────────────────
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -217,7 +223,101 @@ export default function CoreVideoEditor({
   const handlePreviewDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id);
     const item = layers.find((l) => l.id === id);
+    const source = event.active.data.current?.source;
+
+    if (
+      (source === "mascot-preview" || source === "mascot-resize") &&
+      mascot.previewPlacement
+    ) {
+      mascotDragStartRef.current = {
+        source,
+        placement: mascot.previewPlacement,
+        scale: mascot.scale,
+      };
+    }
+
     if (item) setActiveItem(item);
+  };
+
+  const handlePreviewDragMove = (event: DragMoveEvent) => {
+    const source = event.active.data.current?.source;
+
+    if (!mascotFrameSize || !mascot.previewPlacement) {
+      return;
+    }
+
+    if (source === "mascot-preview") {
+      const start = mascotDragStartRef.current;
+      const startPlacement =
+        start?.source === "mascot-preview"
+          ? start.placement
+          : mascot.previewPlacement;
+      const scale =
+        start?.source === "mascot-preview" ? start.scale : mascot.scale;
+      const scaleX = mascotFrameSize.scaleX ?? 1;
+      const scaleY = mascotFrameSize.scaleY ?? 1;
+
+      const movedPlacement = clampPreviewPlacement(
+        {
+          ...startPlacement,
+          x: startPlacement.x + event.delta.x / Math.max(scaleX, 0.0001),
+          y: startPlacement.y + event.delta.y / Math.max(scaleY, 0.0001),
+          hasPlaced: true,
+        },
+        mascotFrameSize,
+        scale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
+      );
+
+      setMascot((prev) => ({
+        ...prev,
+        previewPlacement: {
+          ...movedPlacement,
+          hasPlaced: true,
+        },
+      }));
+    }
+
+    if (source === "mascot-resize") {
+      const start = mascotDragStartRef.current;
+      const startPlacement =
+        start?.source === "mascot-resize"
+          ? start.placement
+          : mascot.previewPlacement;
+      const startScale =
+        start?.source === "mascot-resize" ? start.scale : mascot.scale;
+
+      const startSize = getMascotDisplaySize(
+        mascotFrameSize,
+        startScale,
+        startPlacement.aspectRatio,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
+      );
+      const nextDisplayWidth = Math.max(20, startSize.width + event.delta.x);
+      const nextScale = deriveScaleFromDisplayWidth(
+        mascotFrameSize,
+        nextDisplayWidth,
+        mascot.sourceWidth,
+      );
+      const nextPlacement = clampPreviewPlacement(
+        startPlacement,
+        mascotFrameSize,
+        nextScale,
+        mascot.sourceWidth,
+        mascot.sourceHeight,
+      );
+
+      setMascot((prev) => ({
+        ...prev,
+        scale: nextScale,
+        previewPlacement: {
+          ...nextPlacement,
+          hasPlaced: true,
+        },
+      }));
+    }
   };
 
   const handlePreviewDragEnd = (event: DragEndEvent) => {
@@ -234,22 +334,25 @@ export default function CoreVideoEditor({
       mascotFrameSize &&
       mascot.previewPlacement
     ) {
+      const start = mascotDragStartRef.current;
+      const startPlacement =
+        start?.source === "mascot-preview"
+          ? start.placement
+          : mascot.previewPlacement;
+      const scale =
+        start?.source === "mascot-preview" ? start.scale : mascot.scale;
       const scaleX = mascotFrameSize.scaleX ?? 1;
       const scaleY = mascotFrameSize.scaleY ?? 1;
 
       const movedPlacement = clampPreviewPlacement(
         {
-          ...mascot.previewPlacement,
-          x:
-            mascot.previewPlacement.x +
-            event.delta.x / Math.max(scaleX, 0.0001),
-          y:
-            mascot.previewPlacement.y +
-            event.delta.y / Math.max(scaleY, 0.0001),
+          ...startPlacement,
+          x: startPlacement.x + event.delta.x / Math.max(scaleX, 0.0001),
+          y: startPlacement.y + event.delta.y / Math.max(scaleY, 0.0001),
           hasPlaced: true,
         },
         mascotFrameSize,
-        mascot.scale,
+        scale,
         mascot.sourceWidth,
         mascot.sourceHeight,
       );
@@ -257,19 +360,19 @@ export default function CoreVideoEditor({
       const { snappedPlacement, snappedCorner } = applyCornerSnap(
         movedPlacement,
         mascotFrameSize,
-        mascot.scale,
+        scale,
         mascot.sourceWidth,
         mascot.sourceHeight,
       );
 
-      setMascot({
-        ...mascot,
-        position: snappedCorner ?? mascot.position,
+      setMascot((prev) => ({
+        ...prev,
+        position: snappedCorner ?? prev.position,
         previewPlacement: {
           ...snappedPlacement,
           hasPlaced: true,
         },
-      });
+      }));
     }
 
     if (
@@ -278,10 +381,18 @@ export default function CoreVideoEditor({
       mascotFrameSize &&
       mascot.previewPlacement
     ) {
+      const start = mascotDragStartRef.current;
+      const startPlacement =
+        start?.source === "mascot-resize"
+          ? start.placement
+          : mascot.previewPlacement;
+      const startScale =
+        start?.source === "mascot-resize" ? start.scale : mascot.scale;
+
       const size = getMascotDisplaySize(
         mascotFrameSize,
-        mascot.scale,
-        mascot.previewPlacement.aspectRatio,
+        startScale,
+        startPlacement.aspectRatio,
         mascot.sourceWidth,
         mascot.sourceHeight,
       );
@@ -292,23 +403,29 @@ export default function CoreVideoEditor({
         mascot.sourceWidth,
       );
       const nextPlacement = clampPreviewPlacement(
-        mascot.previewPlacement,
+        startPlacement,
         mascotFrameSize,
         nextScale,
         mascot.sourceWidth,
         mascot.sourceHeight,
       );
 
-      setMascot({
-        ...mascot,
+      setMascot((prev) => ({
+        ...prev,
         scale: nextScale,
         previewPlacement: {
           ...nextPlacement,
           hasPlaced: true,
         },
-      });
+      }));
     }
 
+    mascotDragStartRef.current = null;
+    setActiveItem(null);
+  };
+
+  const handlePreviewDragCancel = () => {
+    mascotDragStartRef.current = null;
     setActiveItem(null);
   };
 
@@ -778,7 +895,9 @@ export default function CoreVideoEditor({
           <DndContext
             sensors={sensors}
             onDragStart={handlePreviewDragStart}
+            onDragMove={handlePreviewDragMove}
             onDragEnd={handlePreviewDragEnd}
+            onDragCancel={handlePreviewDragCancel}
           >
             <section className="bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 lg:col-span-12 col-span-1">
               {needsVideoSelection && disableUpload ? (

@@ -4,7 +4,15 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Search, X, User, LogOut, Settings } from "lucide-react";
+import {
+  Search,
+  X,
+  User,
+  LogOut,
+  Settings,
+  FolderOpen,
+  BookOpen,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -190,6 +198,19 @@ export function Header() {
                       </p>
                     </div>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/workspace" className="cursor-pointer">
+                      <FolderOpen className="mr-2 h-4 w-4" />
+                      <span>Không gian làm việc</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/library" className="cursor-pointer">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span>Thư viện video & ảnh</span>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">

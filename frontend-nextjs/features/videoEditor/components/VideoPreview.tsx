@@ -8,7 +8,6 @@ import type {
   VideoFrameSize,
 } from "@/features/videoEditor/types";
 import { useDndMonitor, useDraggable, useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import {
   applyCornerSnap,
   clampPreviewPlacement,
@@ -322,11 +321,10 @@ function DraggableMascotLayer({
     hasPlaced: false,
   };
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: "mascot-preview",
-      data: { source: "mascot-preview" },
-    });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: "mascot-preview",
+    data: { source: "mascot-preview" },
+  });
 
   const {
     attributes: resizeAttributes,
@@ -359,9 +357,8 @@ function DraggableMascotLayer({
   };
 
   const style = {
-    transform: isDragging
-      ? `${CSS.Translate.toString(transform)}`
-      : "translate3d(0px, 0px, 0px)",
+    // Position is updated live from drag move in parent, so no extra transform here.
+    transform: "translate3d(0px, 0px, 0px)",
     cursor: "grab",
     opacity: isDragging || isResizing ? 0.72 : 1,
     border: "2px solid rgba(59, 130, 246, 0.85)",
