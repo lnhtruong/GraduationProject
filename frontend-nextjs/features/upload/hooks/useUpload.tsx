@@ -10,11 +10,14 @@ import {
   type VideoErrorEvent,
   type VideoProgressEvent,
 } from "../api/upload.websocket";
-import { useCreateProject } from "@/features/videoEditor/api/editSession.hooks";
-import { userVideoApi } from "@/features/videoEditor/api/editSession.api";
+import { useCreateProject } from "@/features/videoEditor/api/videoEditor.hooks";
+import { userVideoApi } from "@/features/videoEditor/api/videoEditor.api";
 import { authStorageHelper } from "@/store/auth";
-import type { UploadState, UploadHookReturn } from "@/features/upload/types";
-import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
+import type {
+  UploadState,
+  UploadHookReturn,
+  HighlightParams,
+} from "@/features/upload/types";
 
 // ============================================================================
 // INITIAL STATE
@@ -57,25 +60,6 @@ export function useUpload(): UploadHookReturn {
         jobId,
         status: "pending",
         progress: null,
-      }));
-    },
-    onProgress: (stage, progress) => {
-      console.log("[useUpload] Progress update:", { stage, progress });
-      setState((prev) => ({
-        ...prev,
-        status: "processing",
-        stage: stage,
-        progressPercent: progress,
-      }));
-    },
-    onSuccess: (result) => {
-      console.log("[useUpload] Job completed:", result);
-      setState((prev) => ({
-        ...prev,
-        status: "completed",
-        jobId: result.jobId,
-        clips: result.clips,
-        isDownloading: false,
       }));
     },
     onError: (error) => {

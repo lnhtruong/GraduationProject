@@ -9,7 +9,7 @@ import {
   mascotApi,
   mascotVideoApi,
   type MascotParams,
-} from "../api/editor.api";
+} from "../api/videoEditor.api";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
 import {

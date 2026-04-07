@@ -3,8 +3,7 @@
  * CRUD endpoints for user mascot images
  */
 
-import { createSimpleApi } from "@/features/_shared/api";
-import { apiClient } from "@/lib/http";
+import { createResourceApi } from "@/features/_shared/crud-hooks";
 import type {
 	CreateImageRequest,
 	DeleteImageResponse,
@@ -37,41 +36,24 @@ function mapImage(raw: ImageApiResponse): Image {
 	};
 }
 
-export const imageApi = createSimpleApi({
-	create: async (data: CreateImageRequest) => {
-		const { data: response } = await apiClient.post<ImageApiResponse>(
-			IMAGE_ENDPOINT,
-			data,
-		);
-		return mapImage(response);
-	},
-
-	findById: async (id: number) => {
-		const { data: response } = await apiClient.get<ImageApiResponse>(
-			`${IMAGE_ENDPOINT}/${id}`,
-		);
-		return mapImage(response);
-	},
-
-	getAllByUser: async () => {
-		const { data: response } = await apiClient.get<ImageApiResponse[]>(
-			`${IMAGE_ENDPOINT}/user`,
-		);
-		return response.map(mapImage);
-	},
-
-	updateById: async (id: number, data: UpdateImageRequest) => {
-		const { data: response } = await apiClient.patch<ImageApiResponse>(
-			`${IMAGE_ENDPOINT}/${id}`,
-			data,
-		);
-		return mapImage(response);
-	},
-
-	deleteById: async (id: number) => {
-		const { data: response } = await apiClient.delete<DeleteImageResponse>(
-			`${IMAGE_ENDPOINT}/${id}`,
-		);
-		return response;
-	},
+const imageCrudApi = createResourceApi<
+	ImageApiResponse,
+	Image,
+	CreateImageRequest,
+	UpdateImageRequest,
+	number,
+	unknown,
+	DeleteImageResponse
+>({
+	basePath: IMAGE_ENDPOINT,
+	mapItem: mapImage,
+	getListPath: () => `${IMAGE_ENDPOINT}/user`,
 });
+
+export const imageApi = {
+	...imageCrudApi,
+	findById: imageCrudApi.getOne,
+	getAllByUser: () => imageCrudApi.list?.() ?? Promise.resolve([]),
+	updateById: imageCrudApi.update,
+	deleteById: imageCrudApi.delete,
+};

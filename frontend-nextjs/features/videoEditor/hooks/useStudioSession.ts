@@ -14,7 +14,7 @@ import {
   useDeleteLayer,
   useUserHighlightVideos,
   useUserMascotImages,
-} from "@/features/videoEditor/api/editSession.hooks";
+} from "@/features/videoEditor/api/videoEditor.hooks";
 import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
 import { normalizeMascotScale } from "@/features/videoEditor/utils/mascotPlacement";
 import { toast } from "sonner";
@@ -404,24 +404,45 @@ export function useStudioSession() {
     video_id?: number;
     url: string;
   }) => {
-    setIsBootstrappingProject(true);
     const matched = highlightVideos.find((v) => v.url === video.url);
     const videoId =
       video.video_id ?? video.id ?? matched?.video_id ?? matched?.id;
 
+    if (!videoId) {
+      toast.warning("Không tìm thấy video_id của video đã chọn.");
+      return;
+    }
+
     const params = new URLSearchParams(currentQuery);
     params.set("src", video.url);
-    if (videoId) {
-      params.set("video_id", String(videoId));
-    } else {
-      params.delete("video_id");
-    }
+    params.set("video_id", String(videoId));
     params.delete("videoId");
 
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
     router.replace(nextUrl, { scroll: false });
 
+    if (activeEditId) {
+      setIsBootstrappingProject(true);
+      try {
+        await updateProject({
+          id: activeEditId,
+          data: {
+            video_id: videoId,
+            status: "draft",
+          },
+        });
+      } catch (error) {
+        console.error("Update project video failed:", error);
+        toast.error("Cập nhật video cho project thất bại");
+        throw error;
+      } finally {
+        setIsBootstrappingProject(false);
+      }
+      return;
+    }
+
+    setIsBootstrappingProject(true);
     try {
       const now = new Date();
       const name = `Project ${now.toLocaleDateString("vi-VN")}`;

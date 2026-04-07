@@ -3,8 +3,7 @@
  * CRUD endpoints for editing sessions/projects
  */
 
-import { createSimpleApi } from "@/features/_shared/api";
-import { apiClient } from "@/lib/http";
+import { createResourceApi } from "@/features/_shared/crud-hooks";
 import type { Video } from "@/features/video";
 import type {
 	CreateProjectRequest,
@@ -67,42 +66,25 @@ function mapProject(raw: ProjectApiResponse): Project {
 	};
 }
 
-export const projectApi = createSimpleApi({
-	create: async (data: CreateProjectRequest) => {
-		const { data: response } = await apiClient.post<ProjectApiResponse>(
-			PROJECT_ENDPOINT,
-			data,
-		);
-		return mapProject(response);
-	},
-
-	findById: async (id: number) => {
-		const { data: response } = await apiClient.get<ProjectApiResponse>(
-			`${PROJECT_ENDPOINT}/${id}`,
-		);
-		return mapProject(response);
-	},
-
-	getAllByUser: async () => {
-		const { data: response } = await apiClient.get<ProjectApiResponse[]>(
-			`${PROJECT_ENDPOINT}/user`,
-		);
-		return response.map(mapProject);
-	},
-
-	updateById: async (id: number, data: UpdateProjectRequest) => {
-		const { data: response } = await apiClient.patch<ProjectApiResponse>(
-			`${PROJECT_ENDPOINT}/${id}`,
-			data,
-		);
-		return mapProject(response);
-	},
-
-	deleteById: async (id: number) => {
-		const { data: response } = await apiClient.delete<DeleteProjectResponse>(
-			`${PROJECT_ENDPOINT}/${id}`,
-		);
-		return response;
-	},
+const projectCrudApi = createResourceApi<
+	ProjectApiResponse,
+	Project,
+	CreateProjectRequest,
+	UpdateProjectRequest,
+	number,
+	unknown,
+	DeleteProjectResponse
+>({
+	basePath: PROJECT_ENDPOINT,
+	mapItem: mapProject,
+	getListPath: () => `${PROJECT_ENDPOINT}/user`,
 });
+
+export const projectApi = {
+	...projectCrudApi,
+	findById: projectCrudApi.getOne,
+	getAllByUser: () => projectCrudApi.list?.() ?? Promise.resolve([]),
+	updateById: projectCrudApi.update,
+	deleteById: projectCrudApi.delete,
+};
 
