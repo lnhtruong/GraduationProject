@@ -51,8 +51,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Redirect logic after initialization
-  const isPublicRoute = PUBLIC_AUTH_ROUTES.includes(
-    pathname as (typeof PUBLIC_AUTH_ROUTES)[number],
+  const isPublicRoute = PUBLIC_AUTH_ROUTES.some((route) =>
+    pathname.startsWith(route),
   );
 
   if (!isAuthenticated && !isPublicRoute) {
