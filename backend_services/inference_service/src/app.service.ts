@@ -90,6 +90,7 @@ export class AppService {
   // 2. Tạo Mascot Video
   async createMascot(
     mascotImageUrl: string,
+    originFileName: string,
     audio: Express.Multer.File | undefined,
     body: unknown,
     userIdFromHeader?: number,
@@ -109,6 +110,7 @@ export class AppService {
       formData.append('margin_y', marginY);
       formData.append('scale', scale);
       formData.append('mascot_image_url', mascotImageUrl);
+      formData.append('origin_file_name', originFileName);
 
       if (audio) {
         formData.append('audio', audio.buffer, {
