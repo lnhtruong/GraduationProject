@@ -1,72 +1,111 @@
 const { PayOS } = require("@payos/node");
-const { publishPaymentWebhook, publishPaymentSuccess, savePaymentData, getPaymentData, publishPaymentFailed } = require("./event.publisher");
+const {
+  publishPaymentWebhook,
+  publishPaymentSuccess,
+  savePaymentData,
+  getPaymentData,
+  publishPaymentFailed,
+} = require("./event.publisher");
 const db = require("../models");
-const Payment = db.Payment;
+
+const Transaction = db.Transaction;
+const TransactionItem = db.TransactionItem;
+const Course = db.Course;
 require("dotenv").config();
 
 const payos = new PayOS({
   clientId: process.env.PAYOS_CLIENT_ID,
   apiKey: process.env.PAYOS_API_KEY,
-  checksumKey: process.env.PAYOS_CHECKSUM_KEY
+  checksumKey: process.env.PAYOS_CHECKSUM_KEY,
 });
 
 const PORT = process.env.PORT || 3000;
-const CANCEL_URL = process.env.PAYOS_CANCEL_URL || `http://localhost:${PORT}/payment/cancel`;
-const RETURN_URL = process.env.PAYOS_RETURN_URL || `http://localhost:${PORT}/payment/return`;
-const WEBHOOK_URL = process.env.PAYOS_WEBHOOK_URL // Must public url
+const CANCEL_URL =
+  process.env.PAYOS_CANCEL_URL || `http://localhost:${PORT}/payment/cancel`;
+const RETURN_URL =
+  process.env.PAYOS_RETURN_URL || `http://localhost:${PORT}/payment/return`;
+const WEBHOOK_URL = process.env.PAYOS_WEBHOOK_URL; // Must be a public URL
 
 const setupWebhookUrl = async () => {
   try {
     await payos.webhooks.confirm(WEBHOOK_URL);
     console.log("Webhook registered successfully");
   } catch {
-    //pass
+    // pass
   }
 };
 
-// Gọi setup webhook khi module được load
 setupWebhookUrl();
 
+// ============================================================
+// CREATE: Tạo đơn thanh toán (1 transaction, nhiều courses)
+// ============================================================
 /**
- * Tạo đơn hàng trên PayOS
+ * Create Payment Link (Atomic Transaction)
+ * @param {number[]} courseIds - Array of course IDs
+ * @param {number} userId - User ID from token
  */
-const createPaymentLink = async (amount, user_id, course_id) => {
+const createPaymentLink = async (courseIds, userId) => {
+  if (!Array.isArray(courseIds) || courseIds.length === 0) {
+    throw new Error("courseIds phải là mảng và không được rỗng");
+  }
+
+  // 1. Fetch course details to get current prices
+  const courses = await Course.findAll({
+    where: { id: courseIds }
+  });
+
+  if (!courses || courses.length === 0) {
+    throw new Error("Không tìm thấy thông tin khóa học hợp lệ.");
+  }
+
+  // 2. Calculate total amount
+  const totalAmount = courses.reduce((sum, c) => sum + c.price, 0);
+
+  // Prepare items for local DB snapshot
+  const courseItems = courses.map(c => ({
+    course_id: c.id,
+    price: c.price
+  }));
+
   const orderCode = Date.now();
+
   const body = {
     orderCode: orderCode,
-    amount: amount,
-    description: "Thanh toán bằng mã QR",
+    amount: totalAmount,
+    description: "Thanh toán khóa học",
     cancelUrl: CANCEL_URL,
     returnUrl: RETURN_URL,
   };
 
   const paymentLinkResponse = await payos.paymentRequests.create(body);
+
   const pendingData = {
-    user_id: user_id || 0,
-    course_id: course_id || 0,
-    amount: amount,
-    status: 'pending',
-    provider: 'payos',
-    provider_order_id: String(orderCode)
+    user_id: userId,
+    total_amount: totalAmount,
+    status: "pending",
+    provider: "payos",
+    provider_order_id: String(orderCode),
+    courseItems, // [{ course_id, price }]
   };
 
-  // Lưu payment vào DB ở trạng thái pending khi mới tạo Order
-  await savePaymentToDB(pendingData);
+  // Lưu transaction vào DB ở trạng thái pending
+  const savedTransaction = await saveTransactionToDB(pendingData);
 
-  // Khởi tạo payment data trong Redis
-  await savePaymentData(orderCode, pendingData);
-  // Tự hủy sau 5 phút nếu chưa thanh toán (Logic đơn giản bằng setTimeout)
+  // Lưu data vào Redis (kèm transaction_id để dùng khi callback)
+  await savePaymentData(orderCode, {
+    ...pendingData,
+    transaction_id: savedTransaction.id,
+  });
+
+  // Tự hủy sau 5 phút nếu chưa thanh toán
   setTimeout(async () => {
     try {
       const paymentInfo = await payos.paymentRequests.get(orderCode);
       if (paymentInfo && paymentInfo.status !== "PAID") {
         await payos.paymentRequests.cancel(orderCode, "Expired");
-        // update status to failed
-        await updatePaymentStatus(orderCode, 'failed');
-        // update status in redis
-        await savePaymentData(orderCode, { status: 'failed' });
-        // publish failed event
-        // publishPaymentFailed(orderCode, 'Expired');
+        await updateTransactionStatus(orderCode, "failed");
+        await savePaymentData(orderCode, { status: "failed" });
         console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
       }
     } catch (e) {
@@ -77,92 +116,148 @@ const createPaymentLink = async (amount, user_id, course_id) => {
   return {
     orderCode: paymentLinkResponse.orderCode,
     checkoutUrl: paymentLinkResponse.checkoutUrl,
-    qrCode: paymentLinkResponse.qrCode
+    qrCode: paymentLinkResponse.qrCode,
+    transaction_id: savedTransaction.id,
   };
 };
 
+// ============================================================
+// CREATE internal: Lưu transaction + items vào DB atomically
+// ============================================================
 /**
- * Kiểm tra trạng thái đơn hàng
+ * @param {{ user_id, total_amount, status, provider, provider_order_id, courseItems }} data
  */
+const saveTransactionToDB = async (data) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const transaction = await Transaction.create(
+      {
+        user_id: data.user_id,
+        total_amount: data.total_amount,
+        status: data.status || "pending",
+        provider: data.provider || "payos",
+        provider_order_id: data.provider_order_id,
+        created_at: new Date(),
+      },
+      { transaction: t }
+    );
+
+    const items = data.courseItems.map((item) => ({
+      transaction_id: transaction.id,
+      course_id: item.course_id,
+      price: item.price,
+    }));
+
+    await TransactionItem.bulkCreate(items, { transaction: t });
+    await t.commit();
+
+    console.log(`✅ Lưu transaction vào DB, ID: ${transaction.id}, items: ${items.length}`);
+    return transaction;
+  } catch (error) {
+    await t.rollback();
+    console.error("❌ Lỗi khi lưu transaction vào DB:", error.message);
+    throw error;
+  }
+};
+
+// ============================================================
+// READ: Lấy danh sách transactions của một user
+// ============================================================
+const getTransactionsByUser = async (userId) => {
+  const transactions = await Transaction.findAll({
+    where: { user_id: userId },
+    include: [{ model: TransactionItem, as: "items" }],
+    order: [["created_at", "DESC"]],
+  });
+  return transactions;
+};
+
+// ============================================================
+// READ: Lấy chi tiết một transaction theo ID
+// ============================================================
+const getTransactionById = async (transactionId) => {
+  const transaction = await Transaction.findByPk(transactionId, {
+    include: [{ model: TransactionItem, as: "items" }],
+  });
+  if (!transaction) {
+    const err = new Error(`Không tìm thấy transaction ID: ${transactionId}`);
+    err.status = 404;
+    throw err;
+  }
+  return transaction;
+};
+
+// ============================================================
+// UPDATE: Cập nhật trạng thái transaction theo provider_order_id
+// ============================================================
+const updateTransactionStatus = async (providerOrderId, status) => {
+  try {
+    const updateData = { status };
+    if (status === "paid") {
+      updateData.paid_at = new Date();
+    }
+    const updated = await Transaction.update(updateData, {
+      where: { provider_order_id: String(providerOrderId) },
+    });
+    console.log(
+      `✅ Cập nhật trạng thái transaction thành ${status} cho order: ${providerOrderId}`
+    );
+    return updated;
+  } catch (error) {
+    console.error("❌ Lỗi khi cập nhật trạng thái:", error.message);
+    throw error;
+  }
+};
+
+// ============================================================
+// Kiểm tra trạng thái đơn hàng trên PayOS
+// ============================================================
 const getOrderStatus = async (orderCode) => {
   const paymentInfo = await payos.paymentRequests.get(orderCode);
   return paymentInfo.status;
 };
 
-
-const savePaymentToDB = async (paymentData) => {
-  try {
-    const payment = await Payment.create({
-      user_id: paymentData.user_id,
-      course_id: paymentData.course_id,
-      amount: paymentData.amount,
-      status: paymentData.status || 'pending',
-      provider: paymentData.provider || 'payos',
-      provider_order_id: paymentData.provider_order_id,
-      created_at: new Date()
-    });
-    console.log(`✅ Lưu payment vào DB thành công, ID: ${payment.id}`);
-    return payment;
-  } catch (error) {
-    console.error("❌ Lỗi khi lưu payment vào DB:", error.message);
-    throw error;
-  }
-};
-
-/**
- * Cập nhật trạng thái payment trong cơ sở dữ liệu
- */
-const updatePaymentStatus = async (provider_order_id, status) => {
-  try {
-    const updated = await Payment.update(
-      { status },
-      { where: { provider_order_id: String(provider_order_id) } }
-    );
-    console.log(`✅ Cập nhật trạng thái payment thành ${status} cho order: ${provider_order_id}`);
-    return updated;
-  } catch (error) {
-    console.error("❌ Lỗi khi cập nhật trạng thái DB:", error.message);
-  }
-};
-
-/**
- * Xử lý callback từ PayOS
- */
+// ============================================================
+// Xử lý webhook callback từ PayOS
+// ============================================================
 const payosCallback = async (req) => {
   try {
     const webhookData = await payos.webhooks.verify(req.body);
 
     if (webhookData) {
-      console.log(`💵 Đơn hàng ${webhookData.orderCode} đã thanh toán thành công!`);
-      console.log("webhookDatakk: ", webhookData);
+      console.log(`💵 Đơn hàng ${webhookData.orderCode} đã được xử lý`);
 
-      // Lấy data cũ từ Redis để merge với webhookData
-      const oldData = await getPaymentData(webhookData.orderCode) || {};
+      // Lấy data cũ từ Redis (bao gồm transaction_id, course_ids)
+      const oldData = (await getPaymentData(webhookData.orderCode)) || {};
 
-      // PayOS dùng field `code` để xác định giao dịch thành công (thường là '00')
-      const isSuccess = webhookData.code === '00';
+      const isSuccess = webhookData.code === "00";
       const updatedData = {
         ...oldData,
         ...webhookData,
-        status: isSuccess ? 'paid' : 'failed'
+        status: isSuccess ? "paid" : "failed",
       };
 
-      // Update payment data vào Redis
+      // Cập nhật Redis
       await savePaymentData(webhookData.orderCode, updatedData);
 
-      // 📢 Publish webhook event để các service khác có thể subscribe
+      // Cập nhật DB
+      await updateTransactionStatus(
+        webhookData.orderCode,
+        updatedData.status
+      );
+
+      // Publish event với course_ids array (breaking change từ course_id cũ)
       publishPaymentWebhook(updatedData);
 
       if (isSuccess) {
-        // 📢 Publish payment success event
-        publishPaymentSuccess(webhookData.orderCode, updatedData);
-      } else {
-        // pass;
-        // publishPaymentFailed(webhookData.orderCode, webhookData.desc || 'Thanh toán thất bại');
+        // payload: { user_id, transaction_id, course_ids: [{ course_id, price }] }
+        publishPaymentSuccess(webhookData.orderCode, {
+          user_id: oldData.user_id,
+          transaction_id: oldData.transaction_id,
+          courseItems: oldData.courseItems || [],
+        });
       }
 
-      // Cập nhật trạng thái DB thành paid hoặc failed
-      await updatePaymentStatus(webhookData.orderCode, updatedData.status);
       return { message: "Callback nhận thành công", data: webhookData };
     } else {
       const error = new Error("Chữ ký không hợp lệ");
@@ -179,7 +274,10 @@ const payosCallback = async (req) => {
 
 module.exports = {
   createPaymentLink,
+  saveTransactionToDB,
+  getTransactionsByUser,
+  getTransactionById,
+  updateTransactionStatus,
   getOrderStatus,
   payosCallback,
-  savePaymentToDB
 };
