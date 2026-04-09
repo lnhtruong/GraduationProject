@@ -10,6 +10,7 @@ import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 import courseRoutes from './routes/course.routes';
+import paymentRoutes from './routes/payment.routes';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import httpProxy from 'http-proxy';
 import { IncomingMessage, ServerResponse } from 'http';
@@ -116,8 +117,10 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/check-otp',
   '/api/media/webhooks/cloudinary/upload',
-  // '/api/media/cloudinary/sign',
-  '/api/media/webhooks/ai-model/result'
+  '/api/media/webhooks/ai-model/result',
+  '/api/payment/payos-callback',
+  '/api/payment/return',
+  '/api/payment/cancel'
 ];
 
 app.use((req, res, next) => {
@@ -148,6 +151,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/course', courseRoutes);
+app.use('/api/payment', paymentRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
 
@@ -173,6 +177,7 @@ const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(` User Service: ${config.services.user.url}`);
   console.log(` Course Service: ${config.services.course.url}`);
   console.log(` Media Service: ${config.services.media.url}`);
+  console.log(` Payment Service: ${config.services.payment.url}`);
   // console.log(` Edit Session Service: ${config.services.edit.url}`);
   console.log(` Mascot Colab Service: ${config.services.mascot_colab.url}`);
 });

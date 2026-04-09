@@ -4,13 +4,13 @@ const db = require('./models');
 
 const PORT = process.env.PORT || 3000;
 
-db.sequelize.sync()
+db.sequelize.authenticate()
   .then(() => {
-    console.log('Synced db.');
+    console.log('✅ Database connected.');
     app.listen(PORT, () => {
-      console.log(`Payment service running on port ${PORT}`);
+      console.log(`✅ Payment service running on port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.log('Failed to sync db: ' + err.message);
+    console.log('❌ Failed to connect to db: ' + err.message);
   });

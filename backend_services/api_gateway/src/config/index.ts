@@ -18,6 +18,9 @@ export const config = {
     media: {
       url: process.env.MEDIA_SERVICE_URL || 'http://localhost:8003',
     },
+    payment: {
+      url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:8006',
+    },
     mascot_colab: { url: process.env.MASCOT_COLAB_SERVICE_URL || 'http://localhost:3005' },
   },
   // trong 15p 1 ip dc gửi tối đa 100 request

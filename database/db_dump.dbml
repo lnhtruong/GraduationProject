@@ -428,6 +428,29 @@ Table Payments [headercolor: #175e7a] {
 	status status_pending_paid_failed_t [ default: 'pending' ]
 	created_at datetime
 	paid_at datetime
+	Note: 'Legacy table - kept for backward compatibility'
+}
+
+Table Transactions [headercolor: #c0392b] {
+	id integer [ pk, increment, not null, unique ]
+	user_id integer [ not null ]
+	total_amount double [ not null, note: 'Tổng tiền của tất cả courses trong đơn' ]
+	status status_pending_paid_failed_t [ not null, default: 'pending' ]
+	provider varchar(50) [ not null, default: 'payos' ]
+	provider_order_id varchar(255) [ unique, note: 'Mã đơn hàng từ PayOS (orderCode)' ]
+	created_at datetime [ not null ]
+	paid_at datetime [ note: 'Thời điểm thanh toán thành công' ]
+}
+
+Table Transaction_Items [headercolor: #c0392b] {
+	id integer [ pk, increment, not null, unique ]
+	transaction_id integer [ not null ]
+	course_id integer [ not null ]
+	price double [ not null, note: 'Giá course tại thời điểm mua (snapshot)' ]
+
+	indexes {
+		(transaction_id, course_id) [unique, name: 'uq_transaction_course']
+	}
 }
 
 Table DiscussionForum [headercolor: #175e7a] {
@@ -642,4 +665,16 @@ Ref fk_DiscussionForum_course_id_Courses {
 
 Ref fk_Notifications_user_id_Users {
 	Notifications.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Transactions_user_id_Users {
+	Transactions.user_id > Users.id [ delete: no action, update: no action ]
+}
+
+Ref fk_Transaction_Items_transaction_id_Transactions {
+	Transaction_Items.transaction_id > Transactions.id [ delete: cascade, update: no action ]
+}
+
+Ref fk_Transaction_Items_course_id_Courses {
+	Transaction_Items.course_id > Courses.id [ delete: no action, update: no action ]
 }
