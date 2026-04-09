@@ -4,6 +4,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import databaseConfig from '../config/database.config';
 import { User } from '../users/user.model';
 import { Video } from '../models/video.model';
+import { Course } from '../models/course.model';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { Video } from '../models/video.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, Video],
+          models: [User, Video, Course],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };
