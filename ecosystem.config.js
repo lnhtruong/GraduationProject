@@ -49,5 +49,12 @@ module.exports = {
       interpreter: "node",
       env_file: "./backend_services/inference_service/.env",
     },
+    {
+      name: "course_service",
+      cwd: "./backend_services/course_service",
+      script: "dist/main.js",
+      interpreter: "node",
+      env_file: "./backend_services/course_service/.env",
+    },
   ],
 };
