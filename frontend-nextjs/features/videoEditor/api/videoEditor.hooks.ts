@@ -1,6 +1,6 @@
 /**
- * Edit Session Hooks
- * TanStack Query hooks for project and layer management
+ * Video Editor Hooks
+ * TanStack Query hooks for project management, mascot overlays, and media uploads
  */
 
 import { createCrudHooks } from "@/features/_shared/crud-hooks";
@@ -12,7 +12,7 @@ import {
   mascotImageApi,
   userVideoApi,
   cloudinaryApi,
-} from "./editSession.api";
+} from "./videoEditor.api";
 import { toast } from "sonner";
 
 // ============================================================================

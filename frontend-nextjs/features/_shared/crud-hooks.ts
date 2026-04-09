@@ -5,6 +5,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createKeyFactory } from "@/lib/queryKeys";
+import { apiHttpClient, createApi } from "./api";
 import { createMutationHooks } from "./hooks";
 
 // ============================================================================
@@ -47,6 +48,78 @@ export interface CrudHooksOptions<TItem extends object> {
     update?: (data: TItem) => void;
     delete?: (data: unknown) => void;
   };
+}
+
+export interface ResourceApiConfig<
+  TRaw,
+  TItem,
+  TId extends CrudId = CrudId,
+  TListParams = unknown,
+> {
+  basePath: string;
+  mapItem: (raw: TRaw) => TItem;
+  getListPath?: (params?: TListParams) => string;
+  getOnePath?: (id: TId) => string;
+  getUpdatePath?: (id: TId) => string;
+  getDeletePath?: (id: TId) => string;
+  updateMethod?: "patch" | "put";
+}
+
+export function createResourceApi<
+  TRaw,
+  TItem,
+  TCreate,
+  TUpdate,
+  TId extends CrudId = CrudId,
+  TListParams = unknown,
+  TDeleteResponse = unknown,
+>(
+  config: ResourceApiConfig<
+    TRaw,
+    TItem,
+    TId,
+    TListParams
+  >,
+): CrudApi<TItem, TCreate, TUpdate, TId, TId, TListParams> & {
+  delete: (id: TId) => Promise<TDeleteResponse>;
+} {
+  const {
+    basePath,
+    mapItem,
+    getListPath = () => `${basePath}`,
+    getOnePath = (id) => `${basePath}/${id}`,
+    getUpdatePath = (id) => `${basePath}/${id}`,
+    getDeletePath = (id) => `${basePath}/${id}`,
+    updateMethod = "patch",
+  } = config;
+
+  return createApi({
+    list: async (params?: TListParams) => {
+      const { data } = await apiHttpClient.get<TRaw[]>(getListPath(params));
+      return data.map(mapItem);
+    },
+    getOne: async (id: TId) => {
+      const { data } = await apiHttpClient.get<TRaw>(getOnePath(id));
+      return mapItem(data);
+    },
+    create: async (payload: TCreate) => {
+      const { data } = await apiHttpClient.post<TRaw>(`${basePath}`, payload);
+      return mapItem(data);
+    },
+    update: async (id: TId, payload: TUpdate) => {
+      const request =
+        updateMethod === "put"
+          ? apiHttpClient.put<TRaw>(getUpdatePath(id), payload)
+          : apiHttpClient.patch<TRaw>(getUpdatePath(id), payload);
+
+      const { data } = await request;
+      return mapItem(data);
+    },
+    delete: async (id: TId) => {
+      const { data } = await apiHttpClient.delete<TDeleteResponse>(getDeletePath(id));
+      return data;
+    },
+  });
 }
 
 function getItemId<TItem extends object>(
@@ -152,10 +225,13 @@ export function createCrudHooks<
   );
 
   function useCreate(opts?: {
-    onSuccess?: (data: TItem) => void;
+    onSuccess?: (data: TItem, variables: TCreate) => void;
     onError?: (error: Error) => void;
   }) {
-    return useCreateBase(opts);
+    return useCreateBase({
+      onSuccess: (data, variables) => opts?.onSuccess?.(data, variables),
+      onError: opts?.onError,
+    });
   }
 
   // =========================================================================
@@ -179,10 +255,13 @@ export function createCrudHooks<
   );
 
   function useUpdate(opts?: {
-    onSuccess?: (data: TItem) => void;
+    onSuccess?: (data: TItem, variables: { id: TId; data: TUpdate }) => void;
     onError?: (error: Error) => void;
   }) {
-    return useUpdateBase(opts);
+    return useUpdateBase({
+      onSuccess: (data, variables) => opts?.onSuccess?.(data, variables),
+      onError: opts?.onError,
+    });
   }
 
   // =========================================================================
@@ -204,10 +283,13 @@ export function createCrudHooks<
   );
 
   function useDelete(opts?: {
-    onSuccess?: (data: unknown) => void;
+    onSuccess?: (data: unknown, id: TId) => void;
     onError?: (error: Error) => void;
   }) {
-    return useDeleteBase(opts);
+    return useDeleteBase({
+      onSuccess: (data, id) => opts?.onSuccess?.(data, id),
+      onError: opts?.onError,
+    });
   }
 
   // =========================================================================

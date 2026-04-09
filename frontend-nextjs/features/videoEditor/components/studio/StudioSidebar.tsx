@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   MascotImage,
   UserVideo,
-} from "@/features/videoEditor/api/editSession.api";
+} from "@/features/videoEditor/types";
 import type {
   ExternalEditorPanelBindings,
   TextOption,
@@ -321,6 +321,8 @@ export function StudioSidebar({
                             onDragStart={(e) => {
                               const dragData = {
                                 type: "video",
+                                id: video.video_id ?? video.id,
+                                video_id: video.video_id ?? video.id,
                                 url: video.url,
                                 fileName,
                               };

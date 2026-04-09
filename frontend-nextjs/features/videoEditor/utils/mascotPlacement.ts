@@ -76,19 +76,17 @@ export function deriveScaleFromDisplayWidth(
   displayWidth: number,
   sourceWidth?: number,
 ) {
+  void sourceWidth;
+
   if (!frame.width || displayWidth <= 0) {
     return MIN_SCALE;
   }
 
   const { scaleX } = getScale(frame);
-  const baseDisplayWidth = displayWidth / Math.max(scaleX, 0.0001);
-
-  const baseReferenceWidth =
-    typeof sourceWidth === "number" && sourceWidth > 0
-      ? sourceWidth
-      : frame.width * BASE_WIDTH_RATIO;
-
-  const rawScale = baseDisplayWidth / Math.max(baseReferenceWidth, 1);
+  const baseWidth = displayWidth / Math.max(scaleX, 0.0001);
+  // Keep inverse mapping consistent with getMascotDisplaySize:
+  // baseWidth = frame.width * BASE_WIDTH_RATIO * scale
+  const rawScale = baseWidth / Math.max(frame.width * BASE_WIDTH_RATIO, 1);
   return normalizeMascotScale(rawScale);
 }
 
@@ -247,6 +245,13 @@ export function deriveBackendScaleFromPreview(
     mascot.sourceWidth,
     mascot.sourceHeight,
   );
+
+  // Backend interprets scale relative to mascot source image dimensions.
+  // Convert current preview base width back to that backend scale space.
+  if (typeof mascot.sourceWidth === "number" && mascot.sourceWidth > 0) {
+    const backendScale = currentSize.baseWidth / mascot.sourceWidth;
+    return normalizeMascotScale(backendScale);
+  }
 
   return deriveScaleFromDisplayWidth(
     frame,

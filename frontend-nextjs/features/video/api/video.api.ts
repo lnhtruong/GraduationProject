@@ -3,8 +3,7 @@
  * CRUD endpoints for user videos
  */
 
-import { createSimpleApi } from "@/features/_shared/api";
-import { apiClient } from "@/lib/http";
+import { createResourceApi } from "@/features/_shared/crud-hooks";
 import type {
 	CreateVideoRequest,
 	DeleteVideoResponse,
@@ -48,45 +47,27 @@ function mapVideo(raw: VideoApiResponse): Video {
 	};
 }
 
-export const videoApi = createSimpleApi({
-	create: async (data: CreateVideoRequest) => {
-		const { data: response } = await apiClient.post<VideoApiResponse>(
-			VIDEO_ENDPOINT,
-			data,
-		);
-		return mapVideo(response);
-	},
-
-	findById: async (id: number) => {
-		const { data: response } = await apiClient.get<VideoApiResponse>(
-			`${VIDEO_ENDPOINT}/${id}`,
-		);
-		return mapVideo(response);
-	},
-
-	getAllByUser: async (type?: VideoListType | null) => {
-		const endpoint = type
-			? `${VIDEO_ENDPOINT}/user/${type}`
-			: `${VIDEO_ENDPOINT}/user`;
-		const { data: response } = await apiClient.get<VideoApiResponse[]>(
-			endpoint,
-		);
-		return response.map(mapVideo);
-	},
-
-	updateById: async (id: number, data: UpdateVideoRequest) => {
-		const { data: response } = await apiClient.patch<VideoApiResponse>(
-			`${VIDEO_ENDPOINT}/${id}`,
-			data,
-		);
-		return mapVideo(response);
-	},
-
-	deleteById: async (id: number) => {
-		const { data: response } = await apiClient.delete<DeleteVideoResponse>(
-			`${VIDEO_ENDPOINT}/${id}`,
-		);
-		return response;
-	},
+const videoCrudApi = createResourceApi<
+	VideoApiResponse,
+	Video,
+	CreateVideoRequest,
+	UpdateVideoRequest,
+	number,
+	VideoListType | null | undefined,
+	DeleteVideoResponse
+>({
+	basePath: VIDEO_ENDPOINT,
+	mapItem: mapVideo,
+	getListPath: (type) =>
+		type ? `${VIDEO_ENDPOINT}/user/${type}` : `${VIDEO_ENDPOINT}/user`,
 });
+
+export const videoApi = {
+	...videoCrudApi,
+	findById: videoCrudApi.getOne,
+	getAllByUser: (type?: VideoListType | null) =>
+		videoCrudApi.list?.(type) ?? Promise.resolve([]),
+	updateById: videoCrudApi.update,
+	deleteById: videoCrudApi.delete,
+};
 
