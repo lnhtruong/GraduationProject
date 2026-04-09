@@ -1,5 +1,4 @@
 export const PUBLIC_AUTH_ROUTES = [
-  "/",
   "/signin",
   "/signup",
   "/forgot-password",

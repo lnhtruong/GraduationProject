@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import CoreVideoEditor from "@/features/videoEditor/components/CoreVideoEditor";
 import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
 import { useStudioSession } from "@/features/videoEditor/hooks/useStudioSession";
@@ -10,10 +10,13 @@ import { StudioSidebar } from "@/features/videoEditor/components/studio/StudioSi
 export default function VideoEditor() {
   const [panelBindings, setPanelBindings] =
     useState<ExternalEditorPanelBindings | null>(null);
+  const panelBindingsRef = useRef<ExternalEditorPanelBindings | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handlePanelBindingsChange = useCallback(
     (next: ExternalEditorPanelBindings) => {
+      panelBindingsRef.current = next;
+
       setPanelBindings((prev) => {
         if (!prev) return next;
 
@@ -69,6 +72,8 @@ export default function VideoEditor() {
   const {
     activeEditId,
     activeSessionName,
+    activeSourceVideoUrl,
+    activeSourceVideoName,
     isLoading,
     highlightVideos,
     highlightVideosLoading,
@@ -115,7 +120,9 @@ export default function VideoEditor() {
           activeEditId={activeEditId}
           isLoading={isLoading}
           onStartEmptyProject={handleStartEmptyProject}
-          onSaveSession={(name) => handleSaveSession(name, panelBindings)}
+          onSaveSession={(name) =>
+            handleSaveSession(name, panelBindingsRef.current)
+          }
           hasMascotOverlay={Boolean(existingMascotOverlay)}
           isCreatingMascotVideo={panelBindings?.isCreatingMascotVideo ?? false}
           mascotProgress={panelBindings?.mascotProgress ?? ""}
@@ -125,10 +132,12 @@ export default function VideoEditor() {
         <main className="min-h-[calc(100vh-56px)] bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-2 sm:p-3 lg:p-4">
           <div className="h-full rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
             <CoreVideoEditor
+              initialVideoUrl={activeSourceVideoUrl}
               onFirstVideoAdded={handleCreateProjectOnFirstVideo}
               onVideoDrop={(video) => {
                 void handleStartFromHighlight(video);
               }}
+              sourceVideoName={activeSourceVideoName}
               disableUpload
               hideLeftToolbar
               hideTopBar

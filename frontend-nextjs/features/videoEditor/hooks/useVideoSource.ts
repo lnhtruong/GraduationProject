@@ -4,25 +4,21 @@
  */
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 export function useVideoSource(initialSrc?: string) {
-  const searchParams = useSearchParams();
-  const querySrc = searchParams.get("src");
-
   const [videoSrc, setVideoSrc] = useState<string>(() => {
-    return searchParams.get("src") || initialSrc || "/videos/Download.mp4";
+    return initialSrc || "/videos/Download.mp4";
   });
 
   const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
 
   useEffect(() => {
-    // Keep editor source in sync when query param changes (e.g. selecting/dragging a highlight video).
-    if (querySrc && querySrc !== videoSrc) {
-      setVideoSrc(querySrc);
+    // Keep editor source in sync with the provided initial source.
+    if (initialSrc && initialSrc !== videoSrc) {
+      setVideoSrc(initialSrc);
       setOriginalVideoFile(null);
     }
-  }, [querySrc, videoSrc]);
+  }, [initialSrc, videoSrc]);
 
   // Load original video file when needed (lazy loading)
   const loadVideoFile = async () => {

@@ -1,4 +1,4 @@
-import { createApi } from "@/features/_shared/api";
+import { createApi } from "@/features/_shared/api-factories";
 import { authClient } from "./auth-client";
 import { initializeAuth } from "./auth-bootstrap";
 import { clearAuthSession, syncAuthSession } from "@/lib/auth-session";

@@ -24,6 +24,7 @@ export interface CoreVideoEditorProps {
   hideLeftToolbar?: boolean;
   hideTopBar?: boolean;
   initialVideoUrl?: string;
+  sourceVideoName?: string;
   queuedTextTemplate?: string | null;
   onQueuedTextTemplateConsumed?: () => void;
   onPanelBindingsChange?: (bindings: ExternalEditorPanelBindings) => void;
@@ -53,6 +54,7 @@ export default function CoreVideoEditor({
   hideLeftToolbar = false,
   hideTopBar = false,
   initialVideoUrl,
+  sourceVideoName,
   queuedTextTemplate,
   onQueuedTextTemplateConsumed,
   onPanelBindingsChange,
@@ -83,6 +85,7 @@ export default function CoreVideoEditor({
   } = useCoreVideoEditorController({
     disableUpload,
     initialVideoUrl,
+    sourceVideoName,
     editId,
     queuedTextTemplate,
     onQueuedTextTemplateConsumed,
@@ -106,7 +109,8 @@ export default function CoreVideoEditor({
     setMascot,
   } = editor;
 
-  const selectedTextOverlay = activeItem && activeItem.type === "text" ? activeItem : null;
+  const selectedTextOverlay =
+    activeItem && activeItem.type === "text" ? activeItem : null;
 
   if (needsVideoSelection && !disableUpload) {
     return (

@@ -32,6 +32,7 @@ import {
 export interface CoreVideoEditorControllerProps {
   disableUpload?: boolean;
   initialVideoUrl?: string;
+  sourceVideoName?: string;
   editId?: number | null;
   queuedTextTemplate?: string | null;
   onQueuedTextTemplateConsumed?: () => void;
@@ -57,6 +58,7 @@ export interface CoreVideoEditorControllerProps {
 export function useCoreVideoEditorController({
   disableUpload = false,
   initialVideoUrl,
+  sourceVideoName,
   editId,
   queuedTextTemplate,
   onQueuedTextTemplateConsumed,
@@ -212,8 +214,11 @@ export function useCoreVideoEditorController({
     if (source === "mascot-preview") {
       const start = mascotDragStartRef.current;
       const startPlacement =
-        start?.source === "mascot-preview" ? start.placement : mascot.previewPlacement;
-      const scale = start?.source === "mascot-preview" ? start.scale : mascot.scale;
+        start?.source === "mascot-preview"
+          ? start.placement
+          : mascot.previewPlacement;
+      const scale =
+        start?.source === "mascot-preview" ? start.scale : mascot.scale;
       const scaleX = mascotFrameSize.scaleX ?? 1;
       const scaleY = mascotFrameSize.scaleY ?? 1;
 
@@ -242,8 +247,11 @@ export function useCoreVideoEditorController({
     if (source === "mascot-resize") {
       const start = mascotDragStartRef.current;
       const startPlacement =
-        start?.source === "mascot-resize" ? start.placement : mascot.previewPlacement;
-      const startScale = start?.source === "mascot-resize" ? start.scale : mascot.scale;
+        start?.source === "mascot-resize"
+          ? start.placement
+          : mascot.previewPlacement;
+      const startScale =
+        start?.source === "mascot-resize" ? start.scale : mascot.scale;
 
       const startSize = getMascotDisplaySize(
         mascotFrameSize,
@@ -293,8 +301,11 @@ export function useCoreVideoEditorController({
     ) {
       const start = mascotDragStartRef.current;
       const startPlacement =
-        start?.source === "mascot-preview" ? start.placement : mascot.previewPlacement;
-      const scale = start?.source === "mascot-preview" ? start.scale : mascot.scale;
+        start?.source === "mascot-preview"
+          ? start.placement
+          : mascot.previewPlacement;
+      const scale =
+        start?.source === "mascot-preview" ? start.scale : mascot.scale;
       const scaleX = mascotFrameSize.scaleX ?? 1;
       const scaleY = mascotFrameSize.scaleY ?? 1;
 
@@ -337,8 +348,11 @@ export function useCoreVideoEditorController({
     ) {
       const start = mascotDragStartRef.current;
       const startPlacement =
-        start?.source === "mascot-resize" ? start.placement : mascot.previewPlacement;
-      const startScale = start?.source === "mascot-resize" ? start.scale : mascot.scale;
+        start?.source === "mascot-resize"
+          ? start.placement
+          : mascot.previewPlacement;
+      const startScale =
+        start?.source === "mascot-resize" ? start.scale : mascot.scale;
 
       const size = getMascotDisplaySize(
         mascotFrameSize,
@@ -392,8 +406,12 @@ export function useCoreVideoEditorController({
   };
 
   const handleMascotApply = useCallback(async () => {
-    const hasSelectedVideo = Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
-    if (!hasSelectedVideo || (disableUpload && !originalVideoFile && !hasSelectedVideo)) {
+    const hasSelectedVideo =
+      Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
+    if (
+      !hasSelectedVideo ||
+      (disableUpload && !originalVideoFile && !hasSelectedVideo)
+    ) {
       toast.error("Không có video để áp dụng mascot.");
       return;
     }
@@ -405,7 +423,9 @@ export function useCoreVideoEditorController({
       }
 
       if (!mascotFrameSize) {
-        toast.error("Không thể xác định kích thước khung video để áp dụng mascot.");
+        toast.error(
+          "Không thể xác định kích thước khung video để áp dụng mascot.",
+        );
         return;
       }
     }
@@ -415,15 +435,33 @@ export function useCoreVideoEditorController({
         ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
         : mascot;
 
-    await applyMascot(computedMascot, videoSrc, ({ blobUrl }) => {
-      setVideoSrc(blobUrl);
-    });
-  }, [videoSrc, disableUpload, originalVideoFile, applyMascot, mascot, mascotFrameSize, setVideoSrc]);
+    await applyMascot(
+      computedMascot,
+      videoSrc,
+      sourceVideoName,
+      ({ blobUrl }) => {
+        setVideoSrc(blobUrl);
+      },
+    );
+  }, [
+    videoSrc,
+    disableUpload,
+    originalVideoFile,
+    applyMascot,
+    mascot,
+    mascotFrameSize,
+    sourceVideoName,
+    setVideoSrc,
+  ]);
 
   const handleCreateMascotVideo = useCallback(async () => {
-    const hasSelectedVideo = Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
+    const hasSelectedVideo =
+      Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
 
-    if (!hasSelectedVideo || (disableUpload && !originalVideoFile && !hasSelectedVideo)) {
+    if (
+      !hasSelectedVideo ||
+      (disableUpload && !originalVideoFile && !hasSelectedVideo)
+    ) {
       toast.error("Không có video để tạo mascot video.");
       return;
     }
@@ -453,15 +491,26 @@ export function useCoreVideoEditorController({
     setIsCreatingMascotVideo(true);
 
     try {
-      const jobId = await startMascotJob(computedMascot, videoSrc);
+      const jobId = await startMascotJob(
+        computedMascot,
+        videoSrc,
+        sourceVideoName,
+      );
       if (!jobId) return;
 
-      toast("Video của bạn đang được tạo. Bạn có thể xem video ở Library của bạn sau.");
+      toast(
+        "Video của bạn đang được tạo. Bạn có thể xem video ở Library của bạn sau.",
+      );
 
-      const user = authStorageHelper.getUser() as { id?: number; user_id?: number } | null;
+      const user = authStorageHelper.getUser() as {
+        id?: number;
+        user_id?: number;
+      } | null;
       const userId = user?.id ?? user?.user_id ?? null;
       if (!userId) {
-        throw new Error("Không tìm thấy thông tin người dùng để theo dõi socket.");
+        throw new Error(
+          "Không tìm thấy thông tin người dùng để theo dõi socket.",
+        );
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -491,7 +540,9 @@ export function useCoreVideoEditorController({
 
         const onVideoError = (payload: VideoErrorEvent) => {
           cleanup();
-          reject(new Error(payload.error?.message ?? "Tạo mascot video thất bại."));
+          reject(
+            new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
+          );
         };
 
         socket.on("video:completed", onVideoCompleted);
@@ -503,9 +554,19 @@ export function useCoreVideoEditorController({
     } finally {
       setIsCreatingMascotVideo(false);
     }
-  }, [videoSrc, disableUpload, originalVideoFile, mascot, mascotFrameSize, startMascotJob, onFinalizeMascotProject]);
+  }, [
+    videoSrc,
+    disableUpload,
+    originalVideoFile,
+    mascot,
+    mascotFrameSize,
+    startMascotJob,
+    sourceVideoName,
+    onFinalizeMascotProject,
+  ]);
 
-  const hasSelectedVideo = Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
+  const hasSelectedVideo =
+    Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
   const needsVideoSelection = !originalVideoFile && !hasSelectedVideo;
 
   const handleSeek = useCallback(
@@ -560,7 +621,8 @@ export function useCoreVideoEditorController({
         presetId: undefined,
         position: prev.position === "replace" ? "bottom-right" : prev.position,
         scale:
-          typeof existingMascotOverlay.scale === "number" && existingMascotOverlay.scale > 0
+          typeof existingMascotOverlay.scale === "number" &&
+          existingMascotOverlay.scale > 0
             ? existingMascotOverlay.scale
             : prev.scale,
         previewPlacement: {
@@ -596,7 +658,12 @@ export function useCoreVideoEditorController({
     handleAddText(newText);
     setSelectedTextId(newText.id);
     onQueuedTextTemplateConsumed?.();
-  }, [queuedTextTemplate, videoDurationMs, handleAddText, onQueuedTextTemplateConsumed]);
+  }, [
+    queuedTextTemplate,
+    videoDurationMs,
+    handleAddText,
+    onQueuedTextTemplateConsumed,
+  ]);
 
   useEffect(() => {
     onPanelBindingsChange?.({
@@ -722,7 +789,10 @@ export function useCoreVideoEditorController({
   const visibleLayers = layers.filter((layer) => {
     if (layer.type !== "text") return true;
     const start = layer.data.startTime ?? 0;
-    const dur = layer.data.duration && layer.data.duration > 0 ? layer.data.duration : Infinity;
+    const dur =
+      layer.data.duration && layer.data.duration > 0
+        ? layer.data.duration
+        : Infinity;
     return currentTimeMs >= start && currentTimeMs <= start + dur;
   });
 

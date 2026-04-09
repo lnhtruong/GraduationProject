@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useCloudinaryDirectUpload } from "@/features/videoEditor/api/videoEditor.hooks";
+import { useCloudinaryDirectUpload } from "@/features/cloudinary";
 import {
   createMediaUploadSocket,
   type VideoCompletedEvent,
 } from "@/features/upload/api/upload.websocket";
-import { Upload, Loader2 } from "lucide-react"; 
+import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
 
@@ -73,7 +73,7 @@ export default function EditorMediaDropzone({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
 
-  const uploadMutation = useCloudinaryDirectUpload((percent) =>
+  const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
     setUploadProgress(percent),
   );
 

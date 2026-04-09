@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Upload Feature API
  */
 
 import {
   createApi,
   inferenceHttpClient as inferenceClient,
-} from "@/features/_shared/api";
+} from "@/features/_shared/api-factories";
 import {
   buildHighlightReelFormData,
   buildHighlightReelRequestConfig,

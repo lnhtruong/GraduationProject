@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Upload Feature Hooks
  */
 
 import { uploadApi } from "./upload.api";
-import { createMutationHooks } from "@/features/_shared/hooks";
+import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import type { HighlightReelParams } from "../types";
 
 // ============================================================================

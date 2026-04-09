@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { authApi } from "@/features/auth/api/auth.api";
-import { PUBLIC_AUTH_ROUTES } from "@/lib/auth-routes";
+import { isPublicAuthRoute } from "@/lib/auth-routes";
 import { useAuthStore } from "@/store/auth";
 
 interface AuthProviderProps {
@@ -21,6 +21,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
   const [isInitialized, setIsInitialized] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const isAuthPage = isPublicAuthRoute(pathname);
 
   // Initialize auth on app startup
   useEffect(() => {
@@ -38,6 +39,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initAuth();
   }, []);
 
+  // Keep provider focused on auth-page behavior only.
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    if (isAuthenticated && isAuthPage) {
+      router.replace("/");
+    }
+  }, [isInitialized, isAuthenticated, isAuthPage, router]);
+
   // Show loading while initializing
   if (!isInitialized) {
     return (
@@ -48,23 +58,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         </div>
       </div>
     );
-  }
-
-  // Redirect logic after initialization
-  const isPublicRoute = PUBLIC_AUTH_ROUTES.includes(
-    pathname as (typeof PUBLIC_AUTH_ROUTES)[number],
-  );
-
-  if (!isAuthenticated && !isPublicRoute) {
-    // Not authenticated, redirect to login
-    router.replace(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
-    return null;
-  }
-
-  if (isAuthenticated && isPublicRoute) {
-    // Already authenticated, redirect home
-    router.replace("/");
-    return null;
   }
 
   return children;

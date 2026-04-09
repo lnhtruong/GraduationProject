@@ -20,6 +20,9 @@ export function buildMascotFormData(params: MascotParams): FormData {
 
   formData.append("video_url", params.videoOrUrl);
   formData.append("mascot_image_url", params.mascotImageUrl);
+  if (params.origin_file_name?.trim()) {
+    formData.append("origin_file_name", params.origin_file_name.trim());
+  }
   formData.append("position", params.position);
   formData.append("margin_x", String(params.margin_x ?? 40));
   formData.append("margin_y", String(params.margin_y ?? 40));
