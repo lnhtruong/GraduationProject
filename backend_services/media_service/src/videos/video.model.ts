@@ -29,7 +29,7 @@ export class Video extends Model {
   declare id: number;
 
   /** Correlates Cloudinary webhooks (video + raw SRT) from one Colab run. */
-  @Index('idx_videos_job_id')
+  @Index({ unique: true, name: 'uq_videos_job_id' })
   @Column({
     type: DataType.STRING(255),
     allowNull: true,

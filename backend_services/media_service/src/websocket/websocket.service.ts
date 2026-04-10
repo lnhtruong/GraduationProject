@@ -72,6 +72,7 @@ export class WebsocketService {
         url: string;
         type: string;
         duration?: number;
+        name?: string;
     }) {
         if (!this.server) {
             this.logger.warn('WebSocket server not initialized');

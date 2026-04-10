@@ -1,4 +1,4 @@
-import { createSimpleApi } from "@/features/_shared/api";
+import { createApi } from "@/features/_shared/api";
 import { authClient } from "./auth-client";
 import { initializeAuth } from "./auth-bootstrap";
 import { clearAuthSession, syncAuthSession } from "@/lib/auth-session";
@@ -18,7 +18,7 @@ import type {
 // AUTH API
 // ============================================================================
 
-export const authApi = createSimpleApi({
+export const authApi = createApi({
   login: async (data: LoginRequest) => {
     const { data: response } = await authClient.post<LoginResponse>(
       "/login",

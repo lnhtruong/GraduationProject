@@ -369,16 +369,27 @@ CREATE TABLE IF NOT EXISTS `Final_Video` (
 );
 
 
-CREATE TABLE IF NOT EXISTS `Payments` (
-	`id` INTEGER AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS `Transactions` (
+	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`user_id` INTEGER,
-	`course_id` INTEGER,
-	`amount` DOUBLE,
-	`provider` VARCHAR(50),
+	`total_amount` DOUBLE,
+	`status` ENUM('pending', 'paid', 'failed') DEFAULT 'pending' COMMENT 'pending, paid, failed',
+	`provider` VARCHAR(50) DEFAULT 'payos',
 	`provider_order_id` VARCHAR(255),
-	`status` ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
-	`created_at` DATETIME,
 	`paid_at` DATETIME,
+	`created_at` DATETIME,
+	`updated_at` DATETIME,
+	PRIMARY KEY(`id`)
+);
+
+
+CREATE TABLE IF NOT EXISTS `Transaction_Items` (
+	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
+	`transaction_id` INTEGER,
+	`course_id` INTEGER,
+	`price` DOUBLE,
+	`created_at` DATETIME,
+	`updated_at` DATETIME,
 	PRIMARY KEY(`id`)
 );
 
@@ -537,10 +548,13 @@ ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `Audio`
 ADD FOREIGN KEY(`voice_profile_id`) REFERENCES `Voice_Profile`(`voice_profile_id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `Payments`
+ALTER TABLE `Transactions`
 ADD FOREIGN KEY(`user_id`) REFERENCES `Users`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `Payments`
+ALTER TABLE `Transaction_Items`
+ADD FOREIGN KEY(`transaction_id`) REFERENCES `Transactions`(`id`)
+ON UPDATE NO ACTION ON DELETE NO ACTION;
+ALTER TABLE `Transaction_Items`
 ADD FOREIGN KEY(`course_id`) REFERENCES `Courses`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `DiscussionForum`

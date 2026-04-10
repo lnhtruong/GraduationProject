@@ -21,16 +21,7 @@ import {
   highlightParamsSchema,
   type HighlightParamsFormValues,
 } from "../schemas";
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export interface HighlightParams {
-  topic: string;
-  includeKeywords: string[];
-  excludeKeywords: string[];
-}
+import type { HighlightParams } from "../types";
 
 interface HighlightParamsFormProps {
   onSubmit: (params: HighlightParams) => void;

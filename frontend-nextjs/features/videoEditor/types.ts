@@ -1,3 +1,12 @@
+/**
+ * Video Editor Types
+ * Consolidated type definitions for UI state and API DTOs
+ */
+
+// ============================================================================
+// UI STATE & COMPONENT TYPES
+// ============================================================================
+
 export type OptionType = "mascot" | "voice" | "text" | "effect";
 
 export interface MascotOption {
@@ -134,4 +143,125 @@ export interface ExternalEditorPanelBindings {
   onTextRemove: (id: string) => void;
   selectedTextId: string | null;
   onTextSelect: (id: string | null) => void;
+}
+
+// ============================================================================
+// API DTOs & REQUEST/RESPONSE TYPES
+// ============================================================================
+
+export interface CreateProjectRequest {
+  session_name: string;
+  video_id?: number;
+}
+
+export interface UpdateProjectRequest {
+  session_name?: string;
+  status?: "draft" | "saved" | "finalized";
+  video_id?: number;
+}
+
+export interface Project {
+  edit_id: number;
+  user_id: number;
+  video_id?: number;
+  session_name: string;
+  status: "draft" | "saved" | "finalized";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserVideo {
+  id?: number;
+  video_id?: number;
+  image_id?: number;
+  user_id: number;
+  type?: "highlight" | "mascot" | string;
+  url: string;
+  thumbnail?: string | null;
+  duration?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MascotImage {
+  image_id: number;
+  user_id: number;
+  url: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MascotOverlayRequest {
+  edit_id?: number;
+  image_id?: number;
+  position_x: number;
+  position_y: number;
+  scale: number;
+  start_time: number;
+  end_time: number;
+  layer_index: number;
+}
+
+export interface UpdateMascotOverlayRequest {
+  image_id?: number;
+  position_x?: number;
+  position_y?: number;
+  scale?: number;
+  start_time?: number;
+  end_time?: number;
+  layer_index?: number;
+}
+
+export interface MascotOverlay {
+  mascot_overlay_id: number;
+  edit_id: number;
+  image_id?: number | null;
+  position_x: number;
+  position_y: number;
+  scale: number;
+  start_time: number;
+  end_time: number;
+  layer_index: number;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  mascotImage?: {
+    image_id: number;
+    user_id: number;
+    url: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+}
+
+export interface CloudinarySignature {
+  signature: string;
+  timestamp: number;
+  cloud_name: string;
+  api_key: string;
+  folder: string;
+}
+
+export interface MascotParams {
+  videoOrUrl: File | string;
+  mascotImageUrl: string;
+  position:
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right"
+    | "replace";
+  margin_x?: number;
+  margin_y?: number;
+  scale?: number;
+  audio?: File;
+}
+
+export interface CreateMascotVideoPayload {
+  url: string;
+  image_id?: number;
+  duration?: number;
 }

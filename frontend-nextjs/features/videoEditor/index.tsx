@@ -127,10 +127,7 @@ export default function VideoEditor() {
             <CoreVideoEditor
               onFirstVideoAdded={handleCreateProjectOnFirstVideo}
               onVideoDrop={(video) => {
-                void handleStartFromHighlight({
-                  url: video.url,
-                  id: undefined,
-                });
+                void handleStartFromHighlight(video);
               }}
               disableUpload
               hideLeftToolbar

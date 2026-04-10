@@ -1,13 +1,34 @@
 const { Router } = require("express");
-const { createPaymentLink, getOrderStatus, payosCallback } = require("../controllers");
+const {
+    createPaymentLink,
+    getTransactionsByUser,
+    getTransactionById,
+    getOrderStatus,
+    payosCallback,
+} = require("../controllers");
 const { join } = require("path");
 
 const router = Router();
 
+// ── Thanh toán ──────────────────────────────────────────────
+// POST  /payment/create-payment
+//   body: { user_id, courseItems: [{course_id, price}], totalAmount }
 router.post("/create-payment", createPaymentLink);
+
+// POST  /payment/payos-callback  (webhook từ PayOS)
 router.post("/payos-callback", payosCallback);
+
+// GET   /payment/order-status/:orderCode
 router.get("/order-status/:orderCode", getOrderStatus);
 
+// ── CRUD Transactions ────────────────────────────────────────
+// GET   /payment/transactions?user_id=1
+router.get("/transactions", getTransactionsByUser);
+
+// GET   /payment/transactions/:id
+router.get("/transactions/:id", getTransactionById);
+
+// ── Redirect pages ───────────────────────────────────────────
 router.get("/return", (req, res) => {
     res.sendFile(join(__dirname, "../views/payment_success.html"));
 });

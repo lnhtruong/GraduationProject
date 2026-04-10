@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  Matches,
   IsNumber,
   IsOptional,
   IsString,
@@ -44,6 +45,11 @@ export class CreateQuizQuestionDto {
   @IsOptional()
   orderIndex?: number;
 
+  @IsString()
+  @Matches(/^\d{2}:\d{2}:\d{2}[,.]\d{3}$/)
+  @IsOptional()
+  videoTimestamp?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateQuizOptionDto)
@@ -74,6 +80,10 @@ export class CreateQuizDto {
   @IsInt()
   @IsOptional()
   timeLimitMinutes?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isInVideo?: boolean;
 
   @IsArray()
   @ValidateNested({ each: true })

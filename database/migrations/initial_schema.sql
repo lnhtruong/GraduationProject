@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
             END
         )
     ),
-    INDEX `idx_videos_job_id` (`job_id`),
+    UNIQUE INDEX `uq_videos_job_id` (`job_id`),
     CONSTRAINT `fk_videos_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_videos_mascot_image` FOREIGN KEY (`mascot_image_id`) REFERENCES `mascot_images` (`image_id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
