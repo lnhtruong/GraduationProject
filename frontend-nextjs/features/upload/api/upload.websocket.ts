@@ -1,10 +1,10 @@
 /**
- * Socket.IO client for media namespace — always go through API Gateway (e.g. http://localhost:8000).
- * Gateway proxies /socket.io to the media service; namespace /media matches WebsocketGateway.
+ * Socket.IO event contracts for the media namespace.
+ * The shared client lives in features/_shared/realtime/media-socket.ts.
  */
 
-import { io, type Socket } from "socket.io-client";
-import { API_URL } from "@/lib/env";
+import type { Socket } from "socket.io-client";
+import { createMediaSocket } from "@/features/_shared/realtime/media-socket";
 
 // ============================================================================
 // TYPES (aligned with backend WebsocketService)
@@ -37,39 +37,6 @@ export interface VideoProgressEvent {
   timestamp: string;
 }
 
-// ============================================================================
-// URL HELPERS
-// ============================================================================
-
-/**
- * Gateway origin for Socket.IO (same host as REST API, without /api path).
- * Override with NEXT_PUBLIC_WS_GATEWAY_URL if needed.
- */
-export function resolveMediaGatewayOrigin(): string {
-  const explicit = process.env.NEXT_PUBLIC_WS_GATEWAY_URL;
-  if (explicit?.trim()) {
-    return explicit.replace(/\/$/, "");
-  }
-  try {
-    return new URL(API_URL).origin;
-  } catch {
-    return "http://localhost:8000";
-  }
-}
-
-/**
- * Creates a Socket.IO connection to namespace /media on the API Gateway.
- */
 export function createMediaUploadSocket(userId: number): Socket {
-  const origin = resolveMediaGatewayOrigin();
-
-  return io(`${origin}/media`, {
-    path: "/socket.io",
-    query: { userId: String(userId) },
-    transports: ["websocket", "polling"],
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-  });
+  return createMediaSocket(userId);
 }
