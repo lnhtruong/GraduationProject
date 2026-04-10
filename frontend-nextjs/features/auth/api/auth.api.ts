@@ -1,4 +1,4 @@
-import { createApi } from "@/features/_shared/api-factories";
+import { apiHttpClient, createApi } from "@/features/_shared/api-factories";
 import { authClient } from "./auth-client";
 import { initializeAuth } from "./auth-bootstrap";
 import { clearAuthSession, syncAuthSession } from "@/lib/auth-session";
@@ -62,11 +62,15 @@ export const authApi = createApi({
 
   logout: async () => {
     try {
-      const { data: response } = await authClient.post<{ message: string }>(
-        "/logout",
+      const { data } = await apiHttpClient.post<{ message: string }>(
+        "/auth/logout",
         undefined,
+        {
+          withCredentials: true,
+        },
       );
-      return response;
+
+      return data;
     } finally {
       clearAuthSession();
     }

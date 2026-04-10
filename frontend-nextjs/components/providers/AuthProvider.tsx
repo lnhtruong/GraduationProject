@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { authApi } from "@/features/auth/api/auth.api";
 import { isPublicAuthRoute } from "@/lib/auth-routes";
 import { useAuthStore } from "@/store/auth";
+import { PageLoader } from "@/components/PageLoader";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -50,14 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Show loading while initializing
   if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang khôi phục phiên...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader className="min-h-screen" />;
   }
 
   return children;
