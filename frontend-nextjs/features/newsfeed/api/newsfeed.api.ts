@@ -4,12 +4,14 @@ import type { NewsfeedItem } from "../types";
 
 const COURSE_LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
 const COURSE_CATEGORIES = [
-	"AI in Education",
-	"Data Storytelling",
-	"Learning Design",
-	"Productivity",
-	"Digital Skills",
+	["Frontend", "React"],
+	["Backend", "NodeJS"],
+	["Data", "SQL"],
+	["Mobile", "Flutter"],
+	["AI", "Prompting"],
 ] as const;
+
+const COURSE_STATUSES = ["draft", "published"] as const;
 
 function buildMockStats(seed: number) {
 	return {
@@ -25,13 +27,16 @@ function mapToNewsfeedItem(index: number, rawVideo: Awaited<
 >[number]): NewsfeedItem {
 	const displayIndex = index + 1;
 	const level = COURSE_LEVELS[index % COURSE_LEVELS.length];
-	const category = COURSE_CATEGORIES[index % COURSE_CATEGORIES.length];
+	const categories = COURSE_CATEGORIES[index % COURSE_CATEGORIES.length];
+	const status = COURSE_STATUSES[index % COURSE_STATUSES.length];
+	const createdAt = new Date(Date.now() - displayIndex * 86400000).toISOString();
+	const updatedAt = new Date(Date.now() - displayIndex * 3600000).toISOString();
 
 	return {
 		id: rawVideo.id,
 		title: `Bai hoc ngan #${displayIndex}`,
 		description:
-			"Tom tat noi dung bai giang theo phong cach ngan gon de hoc vien xem nhanh tren newsfeed.",
+			"Tom tat noi dung bai giang theo phong cach ngan gon de hoc vien xem nhanh tren newsfeed. Ban demo newsfeed dang su dung mock data theo format API khoa hoc. Thong tin chi tiet se duoc hien thi khi click vao tung bai hoc.",
 		videoUrl: rawVideo.url,
 		thumbnail: rawVideo.thumbnail ?? rawVideo.image?.thumbnail ?? null,
 		type: rawVideo.type,
@@ -39,18 +44,19 @@ function mapToNewsfeedItem(index: number, rawVideo: Awaited<
 		sourceVideo: rawVideo,
 		course: {
 			id: rawVideo.id,
-			title: `Khoa hoc demo ${displayIndex}`,
-			instructor: `Giang vien ${displayIndex}`,
-			category,
+			name: `React cho nguoi moi bat dau #${displayIndex}`,
 			level,
-			durationLabel: `${12 + (displayIndex % 8)} gio`,
-			totalLessons: 8 + (displayIndex % 20),
+			duration: `${10 + (displayIndex % 8)}:${String(20 + (displayIndex % 30)).padStart(2, "0")}:00`,
+			language: "vi",
+			price: 299000 + (displayIndex % 5) * 100000,
+			userId: rawVideo.user_id ?? 1,
+			status,
+			categories: [...categories],
 			thumbnail: rawVideo.thumbnail ?? rawVideo.image?.thumbnail ?? null,
 			description:
-				"Mo ta demo cho thong tin khoa hoc. Sau nay co the thay bang API chi tiet khoa hoc.",
-			tags: ["video ngan", "hoc nhanh", "thuc hanh"],
-			students: 200 + displayIndex * 13,
-			rating: Number((4 + ((displayIndex % 9) / 10)).toFixed(1)),
+				"Khoa hoc tu co ban den du an nho. Ban demo newsfeed dang su dung mock data theo format API khoa hoc.",
+			created_at: createdAt,
+			updated_at: updatedAt,
 		},
 	};
 }
