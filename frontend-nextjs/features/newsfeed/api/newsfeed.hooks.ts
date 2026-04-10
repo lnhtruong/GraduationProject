@@ -1,16 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
-import { createKeyFactory } from "@/lib/queryKeys";
+﻿/**
+ * Newsfeed Hooks
+ * TanStack Query hooks for newsfeed data
+ */
+
+import { createQueryHooks } from "@/features/_shared/react-query-factories";
 import { newsfeedApi } from "./newsfeed.api";
 
-const keys = createKeyFactory("newsfeed");
+// ============================================================================
+// NEWSFEED QUERIES
+// ============================================================================
 
-export const newsfeedKeys = keys;
+export const newsfeedHooks = createQueryHooks(
+  "newsfeed",
+  ["demo", "feed"],
+  newsfeedApi.getFeed,
+  {
+    staleTime: 45 * 1000,
+  },
+);
 
-export function useNewsfeedFeed(enabled = true) {
-	return useQuery({
-		queryKey: keys.custom("demo", "feed"),
-		queryFn: newsfeedApi.getFeed,
-		enabled,
-		staleTime: 45 * 1000,
-	});
-}
+export const newsfeedKeys = newsfeedHooks.keys;
+export const useNewsfeedFeed = newsfeedHooks.useQuery;
+

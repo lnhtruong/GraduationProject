@@ -1,24 +1,25 @@
 /**
- * Mascot Hook
- * Manages mascot application to video
+ * Mascot Hook - Refactored
+ * Manages mascot form state + uses mutation hooks for API interactions
  */
 
 import { useState } from "react";
 import type { MascotOption } from "@/features/videoEditor/types";
-import {
-  mascotApi,
-  mascotVideoApi,
-  type MascotParams,
-} from "../api/videoEditor.api";
+import { useMascotJob } from "../api/mascot.hooks";
+import type { MascotParams } from "../types";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
+import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 import {
-  createMediaUploadSocket,
   type VideoCompletedEvent,
   type VideoErrorEvent,
 } from "@/features/upload/api/upload.websocket";
 
 export function useMascot() {
+  // ============================================================================
+  // STATE
+  // ============================================================================
+
   const [mascot, setMascot] = useState<MascotOption>({
     type: "none",
     position: "bottom-right",
@@ -29,6 +30,16 @@ export function useMascot() {
 
   const [isApplyingMascot, setIsApplyingMascot] = useState(false);
   const [mascotProgress, setMascotProgress] = useState<string>("");
+
+  // ============================================================================
+  // MUTATION HOOKS
+  // ============================================================================
+
+  const startJobMutation = useMascotJob();
+
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
 
   const resolveMascotImageUrl = (mascotOption: MascotOption): string | null => {
     if (mascotOption.type === "none") {
@@ -76,9 +87,14 @@ export function useMascot() {
     return true;
   };
 
+  // ============================================================================
+  // MAIN OPERATIONS
+  // ============================================================================
+
   const applyMascot = async (
     mascotOption: MascotOption,
     videoSrc: string,
+    sourceVideoName: string | undefined,
     onSuccess: (result: { blobUrl: string; downloadUrl: string }) => void,
   ) => {
     const mascotImageUrl = resolveMascotImageUrl(mascotOption);
@@ -88,19 +104,6 @@ export function useMascot() {
 
     setIsApplyingMascot(true);
     setMascotProgress("Đang gửi yêu cầu tạo video mascot...");
-
-    // Store callback for later use
-    applyMascot.currentOnSuccess = onSuccess;
-
-    console.log("Applying mascot with params:", {
-      position: mascotOption.position,
-      margin_x: mascotOption.margin_x,
-      margin_y: mascotOption.margin_y,
-      scale: mascotOption.scale,
-      type: mascotOption.type,
-      audio: mascotOption.audioFile?.name,
-      mascotImageUrl,
-    });
 
     const user = authStorageHelper.getUser() as {
       id?: number;
@@ -116,19 +119,85 @@ export function useMascot() {
       );
     }
 
-    const jobId = await mascotApi.startJob({
+    try {
+      console.log("Applying mascot with params:", {
+        position: mascotOption.position,
+        margin_x: mascotOption.margin_x,
+        margin_y: mascotOption.margin_y,
+        scale: mascotOption.scale,
+        type: mascotOption.type,
+        audio: mascotOption.audioFile?.name,
+        mascotImageUrl,
+      });
+
+      const payload: MascotParams = {
+        videoOrUrl: videoSrc,
+        mascotImageUrl,
+        origin_file_name: sourceVideoName,
+        position: mascotOption.position,
+        margin_x: mascotOption.margin_x,
+        margin_y: mascotOption.margin_y,
+        scale: mascotOption.scale,
+        audio: mascotOption.audioFile,
+      };
+
+      const jobId = await startJobMutation.mutateAsync(payload);
+      setMascotProgress("Đang chờ video hoàn tất...");
+
+      await listenForJobCompletion(jobId, userId, onSuccess);
+    } catch (error) {
+      setIsApplyingMascot(false);
+      setMascotProgress("");
+      const errorMsg =
+        error instanceof Error ? error.message : "Lỗi không xác định";
+      toast.error(errorMsg);
+      throw error;
+    }
+  };
+
+  const startMascotJob = async (
+    mascotOption: MascotOption,
+    videoSrc: string,
+    sourceVideoName?: string,
+  ): Promise<string | null> => {
+    const mascotImageUrl = resolveMascotImageUrl(mascotOption);
+    if (!mascotImageUrl || !validateMascotOption(mascotOption)) {
+      return null;
+    }
+
+    setMascotProgress("Đang gửi yêu cầu tạo video mascot...");
+
+    const payload: MascotParams = {
       videoOrUrl: videoSrc,
       mascotImageUrl,
+      origin_file_name: sourceVideoName,
       position: mascotOption.position,
       margin_x: mascotOption.margin_x,
       margin_y: mascotOption.margin_y,
       scale: mascotOption.scale,
       audio: mascotOption.audioFile,
-    });
+    };
 
-    setMascotProgress("Đang chờ video hoàn tất...");
+    try {
+      const jobId = await startJobMutation.mutateAsync(payload);
+      setMascotProgress("");
+      return jobId;
+    } catch (error) {
+      setMascotProgress("");
+      throw error;
+    }
+  };
 
-    await new Promise<void>((resolve, reject) => {
+  // ============================================================================
+  // SOCKET HANDLING
+  // ============================================================================
+
+  const listenForJobCompletion = (
+    jobId: string,
+    userId: number,
+    onSuccess: (result: { blobUrl: string; downloadUrl: string }) => void,
+  ): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
       const socket = createMediaUploadSocket(userId);
 
       const cleanup = () => {
@@ -138,18 +207,22 @@ export function useMascot() {
       };
 
       const finish = async (downloadUrl: string) => {
-        const response = await fetch(downloadUrl);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
+        try {
+          const response = await fetch(downloadUrl);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
 
-        setIsApplyingMascot(false);
-        setMascotProgress("");
+          setIsApplyingMascot(false);
+          setMascotProgress("");
 
-        if (applyMascot.currentOnSuccess) {
-          applyMascot.currentOnSuccess({
+          onSuccess({
             blobUrl,
             downloadUrl,
           });
+        } catch (error) {
+          setIsApplyingMascot(false);
+          setMascotProgress("");
+          reject(error);
         }
       };
 
@@ -185,62 +258,15 @@ export function useMascot() {
     });
   };
 
-  const startMascotJob = async (
-    mascotOption: MascotOption,
-    videoSrc: string,
-  ): Promise<string | null> => {
-    const mascotImageUrl = resolveMascotImageUrl(mascotOption);
-    if (!mascotImageUrl || !validateMascotOption(mascotOption)) {
-      return null;
-    }
-
-    setMascotProgress("Đang gửi yêu cầu tạo video mascot...");
-
-    const payload: MascotParams = {
-      videoOrUrl: videoSrc,
-      mascotImageUrl,
-      position: mascotOption.position,
-      margin_x: mascotOption.margin_x,
-      margin_y: mascotOption.margin_y,
-      scale: mascotOption.scale,
-      audio: mascotOption.audioFile,
-    };
-
-    try {
-      const jobId = await mascotApi.startJob(payload);
-      setMascotProgress("");
-      return jobId;
-    } catch (error) {
-      setMascotProgress("");
-      throw error;
-    }
-  };
-
-  // Store callback reference on function
-  applyMascot.currentOnSuccess = null as
-    | ((result: { blobUrl: string; downloadUrl: string }) => void)
-    | null;
-
-  const createMascotVideoRecord = async (params: {
-    url: string;
-    imageId?: number;
-    duration?: number;
-  }) => {
-    const created = (await mascotVideoApi.createVideoRecord({
-      url: params.url,
-      image_id: params.imageId,
-      duration: params.duration ?? 0,
-    })) as { id?: number; video_id?: number };
-
-    return created.id ?? created.video_id ?? null;
-  };
+  // ============================================================================
+  // RETURN
+  // ============================================================================
 
   return {
     mascot,
     setMascot,
     applyMascot,
     startMascotJob,
-    createMascotVideoRecord,
     isApplyingMascot,
     mascotProgress,
   };
