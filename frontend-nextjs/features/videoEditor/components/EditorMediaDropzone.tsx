@@ -8,11 +8,9 @@ import {
 } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useCloudinaryDirectUpload } from "@/features/videoEditor/api/editSession.hooks";
-import {
-  createMediaUploadSocket,
-  type VideoCompletedEvent,
-} from "@/features/upload/api/upload.websocket";
+import { useCloudinaryDirectUpload } from "@/features/cloudinary";
+import { type VideoCompletedEvent } from "@/features/upload/api/upload.websocket";
+import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
@@ -73,7 +71,7 @@ export default function EditorMediaDropzone({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
 
-  const uploadMutation = useCloudinaryDirectUpload((percent) =>
+  const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
     setUploadProgress(percent),
   );
 
@@ -116,7 +114,6 @@ export default function EditorMediaDropzone({
         if (settled) return;
         settled = true;
         socket.off("upload-video :completed", onUploadCompleted);
-        socket.off("upload-video:completed", onUploadCompleted);
         socket.disconnect();
         resolve(videoId);
       };
@@ -138,7 +135,6 @@ export default function EditorMediaDropzone({
       }, timeoutMs);
 
       socket.on("upload-video :completed", onUploadCompleted);
-      socket.on("upload-video:completed", onUploadCompleted);
     });
   };
 

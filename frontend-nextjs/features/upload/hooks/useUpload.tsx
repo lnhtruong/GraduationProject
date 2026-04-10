@@ -10,11 +10,14 @@ import {
   type VideoErrorEvent,
   type VideoProgressEvent,
 } from "../api/upload.websocket";
-import { useCreateProject } from "@/features/videoEditor/api/editSession.hooks";
-import { userVideoApi } from "@/features/videoEditor/api/editSession.api";
+import { useCreateProject } from "@/features/project/api/project.hooks";
+import { useVideosByUser } from "@/features/video/api/video.hooks";
 import { authStorageHelper } from "@/store/auth";
-import type { UploadState, UploadHookReturn } from "@/features/upload/types";
-import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
+import type {
+  UploadState,
+  UploadHookReturn,
+  HighlightParams,
+} from "@/features/upload/types";
 
 // ============================================================================
 // INITIAL STATE
@@ -48,6 +51,7 @@ export function useUpload(): UploadHookReturn {
   const { user } = useAuth();
   const router = useRouter();
   const { mutateAsync: createProject } = useCreateProject();
+  const highlightVideosQuery = useVideosByUser("highlight", true);
 
   // Use React Query mutation
   const processHighlight = useProcessHighlight({
@@ -57,25 +61,6 @@ export function useUpload(): UploadHookReturn {
         jobId,
         status: "pending",
         progress: null,
-      }));
-    },
-    onProgress: (stage, progress) => {
-      console.log("[useUpload] Progress update:", { stage, progress });
-      setState((prev) => ({
-        ...prev,
-        status: "processing",
-        stage: stage,
-        progressPercent: progress,
-      }));
-    },
-    onSuccess: (result) => {
-      console.log("[useUpload] Job completed:", result);
-      setState((prev) => ({
-        ...prev,
-        status: "completed",
-        jobId: result.jobId,
-        clips: result.clips,
-        isDownloading: false,
       }));
     },
     onError: (error) => {
@@ -156,11 +141,13 @@ export function useUpload(): UploadHookReturn {
 
     socket.on("video:progress", onVideoProgress);
     socket.on("video:completed", onVideoCompleted);
+    socket.on("upload-video :completed", onVideoCompleted);
     socket.on("video:error", onVideoError);
 
     return () => {
       socket.off("video:progress", onVideoProgress);
       socket.off("video:completed", onVideoCompleted);
+      socket.off("upload-video :completed", onVideoCompleted);
       socket.off("video:error", onVideoError);
       socket.disconnect();
     };
@@ -202,14 +189,15 @@ export function useUpload(): UploadHookReturn {
           const targetUrl = normalizeUrl(url);
 
           for (let attempt = 0; attempt < 10; attempt++) {
-            const videos = await userVideoApi.listByUser("highlight");
+            const videos = highlightVideosQuery.data ?? [];
             const matched = videos.find(
               (video) => normalizeUrl(video.url) === targetUrl,
             );
-            const videoId = matched?.video_id ?? matched?.id;
+            const videoId = matched?.id;
             if (videoId) {
               return videoId;
             }
+            await highlightVideosQuery.refetch();
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
 
@@ -301,12 +289,13 @@ export function useUpload(): UploadHookReturn {
       const targetUrl = normalizeUrl(url);
 
       for (let attempt = 0; attempt < 10; attempt++) {
-        const videos = await userVideoApi.listByUser("highlight");
+        const videos = highlightVideosQuery.data ?? [];
         const matched = videos.find(
           (video) => normalizeUrl(video.url) === targetUrl,
         );
-        const videoId = matched?.video_id ?? matched?.id;
+        const videoId = matched?.id;
         if (videoId) return videoId;
+        await highlightVideosQuery.refetch();
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 

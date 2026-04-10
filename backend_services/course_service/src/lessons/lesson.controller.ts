@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Headers } fro
 import { LessonsService } from './lesson.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
+import { GetLessonsQueryDto } from './dto/get-lessons-query.dto';
 
 @Controller('lessons')
 export class LessonsController {
@@ -13,8 +14,8 @@ export class LessonsController {
   }
 
   @Get('course')
-  findAllByCourseId(@Query('courseId') courseId?: number | null) {
-    return this.lessonsService.findAllByCourseId(courseId);
+  findAllByCourseId(@Query() query: GetLessonsQueryDto) {
+    return this.lessonsService.findAllByCourseId(query);
   }
 
   // @Get('user')

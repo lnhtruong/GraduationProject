@@ -33,56 +33,56 @@ export class Course extends Model {
     type: DataType.STRING(255),
     allowNull: false,
   })
-  name: string;
+  declare name: string;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: true,
   })
-  description?: string;
+  declare description?: string;
 
   @Column({
     type: DataType.JSON,
     allowNull: false,
   })
-  categories: unknown;
+  declare categories: unknown;
 
   @Column({
     type: DataType.ENUM(...Object.values(CourseLevel)),
     allowNull: false,
     defaultValue: CourseLevel.BEGINNER,
   })
-  level: CourseLevel;
+  declare level: CourseLevel;
 
   @Column({
     type: DataType.TIME,
     allowNull: false,
   })
-  duration: string;
+  declare duration: string;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
   })
-  language: string;
+  declare language: string;
 
   @Column({
     type: DataType.DOUBLE,
     allowNull: false,
   })
-  price: number;
+  declare price: number;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
     field: 'user_id',
   })
-  userId: number;
+  declare userId: number;
 
   @Column({
     type: DataType.ENUM(...Object.values(CourseStatus)),
     allowNull: false,
     defaultValue: CourseStatus.DRAFT,
   })
-  status: CourseStatus;
+  declare status: CourseStatus;
 }

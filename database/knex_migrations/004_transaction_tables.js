@@ -1,4 +1,4 @@
-const { runLegacySqlFiles } = require("./_legacy_sql");
+const { runLegacySqlFiles } = require("../helpers/_legacy_sql");
 
 /**
  * Migration 009: Hỗ trợ multi-course transactions.
@@ -6,7 +6,7 @@ const { runLegacySqlFiles } = require("./_legacy_sql");
  */
 exports.up = async function (knex) {
   if (!(await knex.schema.hasTable("Transactions"))) {
-    await runLegacySqlFiles(knex, ["009_transaction_tables.sql"]);
+    await runLegacySqlFiles(knex, ["transaction_tables.sql"]);
   }
 };
 

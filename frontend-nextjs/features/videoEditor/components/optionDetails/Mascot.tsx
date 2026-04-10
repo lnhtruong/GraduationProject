@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { Upload, Move, Maximize2 } from "lucide-react";
-import { useUploadMascotImage } from "@/features/videoEditor/api/editSession.hooks";
+import { useUploadMascotImage } from "@/features/videoEditor/api/mascot-image.hooks";
 import type { MascotOption } from "@/features/videoEditor/types";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -68,8 +68,8 @@ export default function MascotOptions({
   const cloudUploadRef = useRef<HTMLInputElement>(null);
   const { mutateAsync: uploadMascotImage, isPending: isUploadingMascot } =
     useUploadMascotImage(
-      (progress) => setUploadProgress(progress),
-      ({ imageId }) => {
+      (progress: number) => setUploadProgress(progress),
+      ({ imageId }: { imageId: number }) => {
         onMascotImageIdChange?.(imageId);
       },
     );

@@ -8,7 +8,7 @@ import HighlightParamsForm from "@/features/upload/components/HighlightParamsFor
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import ResultsSection from "@/features/upload/components/ResultsSection";
 import { useUpload } from "@/features/upload/hooks/useUpload";
-import type { HighlightParams } from "@/features/upload/components/HighlightParamsForm";
+import type { HighlightParams } from "@/features/upload/types";
 
 // ============================================================================
 // COMPONENT

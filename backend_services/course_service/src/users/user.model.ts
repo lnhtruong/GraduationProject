@@ -18,29 +18,29 @@ export class User extends Model {
     allowNull: false,
     unique: true,
   })
-  email: string;
+  declare email: string;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
   })
-  password: string;
+  declare password: string;
 
   @Column({
     type: DataType.STRING(100),
     allowNull: true,
   })
-  firstName: string;
+  declare firstName: string;
 
   @Column({
     type: DataType.STRING(100),
     allowNull: true,
   })
-  lastName: string;
+  declare lastName: string;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
   })
-  role: number;
+  declare role: number;
 }

@@ -1,86 +1,35 @@
-/**
+﻿/**
  * Upload Feature Hooks
  */
 
 import { uploadApi } from "./upload.api";
-import type { HighlightReelParams, UploadResult } from "./upload.api";
-import { createHooks } from "@/features/_shared/hooks";
-import { poll } from "@/features/_shared/utils/async";
-import type { JobStatusResponse } from "@/features/_shared/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createKeyFactory } from "@/lib/queryKeys";
-
-const keys = createKeyFactory("upload");
+import { createMutationHooks } from "@/features/_shared/react-query-factories";
+import type { HighlightReelParams } from "../types";
 
 // ============================================================================
 // HOOKS
 // ============================================================================
 
-const baseHooks = createHooks<
-  HighlightReelParams,
-  JobStatusResponse,
-  UploadResult
->("upload", uploadApi);
+const useStartUploadJob = createMutationHooks<string, HighlightReelParams>(
+  "upload",
+  "start-job",
+  uploadApi.startJob,
+);
 
 /**
- * Complete workflow: Start → Poll → Process result
+ * Start upload job only.
+ * Progress and completion are handled by socket events in useUpload.
  */
 export function useProcessHighlight(options?: {
   onJobStarted?: (jobId: string) => void;
-  onProgress?: (stage: string, progress?: number) => void;
-  onSuccess?: (result: UploadResult) => void;
   onError?: (error: Error) => void;
-  pollInterval?: number;
 }) {
-  const {
-    onJobStarted,
-    onProgress,
-    onSuccess,
-    onError,
-    pollInterval = 30000,
-  } = options || {};
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: HighlightReelParams) => {
-      // Step 1: Start job
-      const jobId = await uploadApi.startJob(params);
-      onJobStarted?.(jobId);
-
-      // Step 2: Poll until complete
-      const finalStatus = await poll<JobStatusResponse>({
-        fetchFn: () => uploadApi.getStatus(jobId),
-        shouldStop: (data) =>
-          data.status === "completed" || data.status === "failed",
-        interval: pollInterval,
-        onProgress: (data) => {
-          if (onProgress && data.stage) {
-            onProgress(data.stage, data.progress);
-          }
-          queryClient.setQueryData(keys.custom("jobs", "status", jobId), data);
-        },
-      });
-
-      // Step 3: Check result
-      if (finalStatus.status === "failed") {
-        throw new Error(
-          finalStatus.error ||
-            (finalStatus.result?.error as string) ||
-            "Job failed",
-        );
-      }
-
-      // Step 4: Process result
-      const result = uploadApi.processResult
-        ? await uploadApi.processResult(finalStatus)
-        : ({ jobId, ...finalStatus.result } as UploadResult);
-
-      return result;
+  return useStartUploadJob({
+    onSuccess: (jobId) => {
+      options?.onJobStarted?.(jobId);
     },
-    onSuccess,
-    onError,
+    onError: options?.onError,
   });
 }
 
-// Re-export base hooks
-export const { useJobStatus, useStartJob: useUploadHighlight } = baseHooks;
+export const useUploadHighlight = useStartUploadJob;
