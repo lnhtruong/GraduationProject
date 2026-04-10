@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import type {
   DragEndEvent,
@@ -24,10 +25,10 @@ import {
   getMascotDisplaySize,
 } from "@/features/videoEditor/utils/mascotPlacement";
 import {
-  createMediaUploadSocket,
   type VideoCompletedEvent,
   type VideoErrorEvent,
 } from "@/features/upload/api/upload.websocket";
+import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 
 export interface CoreVideoEditorControllerProps {
   disableUpload?: boolean;
@@ -67,6 +68,7 @@ export function useCoreVideoEditorController({
   existingMascotOverlayId,
   onFinalizeMascotProject,
 }: CoreVideoEditorControllerProps) {
+  const router = useRouter();
   const editor = useVideoEditor(initialVideoUrl);
   const {
     videoRef,
@@ -548,6 +550,9 @@ export function useCoreVideoEditorController({
         socket.on("video:completed", onVideoCompleted);
         socket.on("video:error", onVideoError);
       });
+
+      toast.success("Tạo mascot video thành công, chuyển sang thư viện...");
+      router.push("/library");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       toast.error(`Tạo mascot video thất bại: ${message}`);
@@ -563,6 +568,7 @@ export function useCoreVideoEditorController({
     startMascotJob,
     sourceVideoName,
     onFinalizeMascotProject,
+    router,
   ]);
 
   const hasSelectedVideo =

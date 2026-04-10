@@ -9,8 +9,8 @@ import { useMascotJob } from "../api/mascot.hooks";
 import type { MascotParams } from "../types";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
+import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 import {
-  createMediaUploadSocket,
   type VideoCompletedEvent,
   type VideoErrorEvent,
 } from "@/features/upload/api/upload.websocket";

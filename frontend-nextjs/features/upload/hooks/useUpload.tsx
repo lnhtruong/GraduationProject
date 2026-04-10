@@ -141,11 +141,13 @@ export function useUpload(): UploadHookReturn {
 
     socket.on("video:progress", onVideoProgress);
     socket.on("video:completed", onVideoCompleted);
+    socket.on("upload-video :completed", onVideoCompleted);
     socket.on("video:error", onVideoError);
 
     return () => {
       socket.off("video:progress", onVideoProgress);
       socket.off("video:completed", onVideoCompleted);
+      socket.off("upload-video :completed", onVideoCompleted);
       socket.off("video:error", onVideoError);
       socket.disconnect();
     };

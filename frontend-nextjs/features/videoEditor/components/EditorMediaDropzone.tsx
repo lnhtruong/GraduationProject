@@ -9,10 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
-import {
-  createMediaUploadSocket,
-  type VideoCompletedEvent,
-} from "@/features/upload/api/upload.websocket";
+import { type VideoCompletedEvent } from "@/features/upload/api/upload.websocket";
+import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
@@ -116,7 +114,6 @@ export default function EditorMediaDropzone({
         if (settled) return;
         settled = true;
         socket.off("upload-video :completed", onUploadCompleted);
-        socket.off("upload-video:completed", onUploadCompleted);
         socket.disconnect();
         resolve(videoId);
       };
@@ -138,7 +135,6 @@ export default function EditorMediaDropzone({
       }, timeoutMs);
 
       socket.on("upload-video :completed", onUploadCompleted);
-      socket.on("upload-video:completed", onUploadCompleted);
     });
   };
 
