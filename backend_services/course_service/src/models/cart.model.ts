@@ -4,7 +4,6 @@ import {
   DataType,
   Model,
   HasMany,
-  Index,
 } from 'sequelize-typescript';
 import { CartItem } from './cart-item.model';
 
@@ -28,8 +27,24 @@ export class Cart extends Model {
     unique: true,
     field: 'user_id',
   })
-  userId: number;
+  declare userId: number;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    field: 'total_quantity',
+  })
+  declare totalQuantity: number;
+
+  @Column({
+    type: DataType.DOUBLE,
+    allowNull: false,
+    defaultValue: 0,
+    field: 'total_amount',
+  })
+  declare totalAmount: number;
 
   @HasMany(() => CartItem, { onDelete: 'CASCADE', hooks: true })
-  items: CartItem[];
+  declare items: CartItem[];
 }

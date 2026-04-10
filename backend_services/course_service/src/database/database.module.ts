@@ -6,6 +6,7 @@ import { User } from '../users/user.model';
 import { Video } from '../models/video.model';
 import { Cart } from '../models/cart.model';
 import { CartItem } from '../models/cart-item.model';
+import { Course } from '../models/course.model';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { CartItem } from '../models/cart-item.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, Video, Cart, CartItem],
+          models: [User, Video, Cart, CartItem, Course],
           autoLoadModels: true,
           synchronize: true, // Set to true to create new tables (carts, cart_items)
         };

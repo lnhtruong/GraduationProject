@@ -6,21 +6,35 @@ import {
   Body,
   Param,
   Headers,
-  Req,
+  Res,
+  UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CartsService } from './carts.service';
 
 @Controller('carts')
 export class CartsController {
   constructor(private readonly cartsService: CartsService) {}
 
+  private resolveUserId(userId: string): number {
+    if (!userId) {
+      throw new UnauthorizedException('Vui lòng đăng nhập');
+    }
+    const id = Number(userId);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new UnauthorizedException('User không hợp lệ');
+    }
+    return id;
+  }
+
   /**
    * Get the current user's cart
-   * userId is retrieved from the 'x-user-id' header (set by API Gateway)
    */
   @Get()
   async getCart(@Headers('x-user-id') userId: string) {
-    return this.cartsService.getCart(Number(userId));
+    const id = this.resolveUserId(userId);
+    return this.cartsService.getCart(id);
   }
 
   /**
@@ -30,8 +44,14 @@ export class CartsController {
   async addItem(
     @Headers('x-user-id') userId: string,
     @Body('courseId') courseId: number,
+    @Res() res: Response,
   ) {
-    return this.cartsService.addItem(Number(userId), courseId);
+    const id = this.resolveUserId(userId);
+    if (!courseId || !Number.isInteger(Number(courseId)) || Number(courseId) <= 0) {
+      throw new BadRequestException('courseId không hợp lệ');
+    }
+    const item = await this.cartsService.addItem(id, Number(courseId));
+    return (res as any).status(201).json(item);
   }
 
   /**
@@ -42,7 +62,12 @@ export class CartsController {
     @Headers('x-user-id') userId: string,
     @Param('courseId') courseId: string,
   ) {
-    return this.cartsService.removeItem(Number(userId), Number(courseId));
+    const id = this.resolveUserId(userId);
+    const cid = Number(courseId);
+    if (!Number.isInteger(cid) || cid <= 0) {
+      throw new BadRequestException('courseId không hợp lệ');
+    }
+    return this.cartsService.removeItem(id, cid);
   }
 
   /**
@@ -50,6 +75,7 @@ export class CartsController {
    */
   @Delete()
   async clearCart(@Headers('x-user-id') userId: string) {
-    return this.cartsService.clearCart(Number(userId));
+    const id = this.resolveUserId(userId);
+    return this.cartsService.clearCart(id);
   }
 }

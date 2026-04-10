@@ -5,7 +5,6 @@ import {
   Model,
   ForeignKey,
   BelongsTo,
-  Index,
 } from 'sequelize-typescript';
 import { Cart } from './cart.model';
 
@@ -29,15 +28,15 @@ export class CartItem extends Model {
     allowNull: false,
     field: 'cart_id',
   })
-  cartId: number;
+  declare cartId: number;
 
   @BelongsTo(() => Cart)
-  cart: Cart;
+  declare cart: Cart;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
     field: 'course_id',
   })
-  courseId: number;
+  declare courseId: number;
 }
