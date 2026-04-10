@@ -129,32 +129,3 @@ curl -X POST http://localhost:8000/api/auth/refresh \
     "refreshToken": "YOUR_REFRESH_TOKEN"
   }'
 ```
-
-## Cấu trúc Database
-
-### Users Table
-
-- `id` (INT, PRIMARY KEY, AUTO_INCREMENT)
-- `email` (VARCHAR(100), UNIQUE)
-- `password` (VARCHAR(255), hashed)
-- `firstName` (VARCHAR(100))
-- `lastName` (VARCHAR(100))
-- `role` (INT)
-- `createdAt` (DATETIME)
-- `updatedAt` (DATETIME)
-
-## Redis
-
-Refresh tokens được lưu trong Redis với key format: `refresh_token:{userId}`
-TTL mặc định: 7 ngày (604800 giây)
-
-## Environment Variables
-
-Đảm bảo tất cả các services sử dụng cùng `JWT_SECRET` để verify tokens.
-
-## Troubleshooting
-
-1. **Database connection error:** Kiểm tra Docker containers đang chạy
-2. **Redis connection error:** Kiểm tra Redis container
-3. **JWT verification failed:** Đảm bảo tất cả services dùng cùng JWT_SECRET
-4. **Port already in use:** Thay đổi PORT trong .env files

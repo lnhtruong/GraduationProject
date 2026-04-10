@@ -3,7 +3,7 @@
  */
 exports.up = async function (knex) {
   await knex.raw(`
-    CREATE TABLE IF NOT EXISTS courses (
+    CREATE TABLE IF NOT EXISTS Courses (
       id INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
       name VARCHAR(255) NOT NULL,
       description VARCHAR(255),
