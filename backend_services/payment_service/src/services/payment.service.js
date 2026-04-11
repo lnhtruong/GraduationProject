@@ -88,14 +88,11 @@ const createPaymentLink = async (courseIds, userId) => {
     throw new Error("courseIds phải là mảng và không được rỗng");
   }
 
-  await validateCoursesInCart(userId, courseIds);
-
-  // Fetch course details
+  // Check course tồn tại trước
   const courses = await Course.findAll({
     where: { id: courseIds },
   });
 
-  // Validate all requested courseIds were found
   if (courses.length !== courseIds.length) {
     const foundIds = courses.map((c) => c.id);
     const notFound = courseIds.filter((id) => !foundIds.includes(id));
@@ -103,6 +100,9 @@ const createPaymentLink = async (courseIds, userId) => {
     err.status = 404;
     throw err;
   }
+
+  // Sau đó mới check cart
+  await validateCoursesInCart(userId, courseIds);
 
   // Calculate total amount
   const totalAmount = courses.reduce((sum, c) => sum + c.price, 0);
