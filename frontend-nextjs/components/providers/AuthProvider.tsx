@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { authApi } from "@/features/auth/api/auth.api";
-import { PUBLIC_AUTH_ROUTES } from "@/lib/auth-routes";
+import { isPublicAuthRoute } from "@/lib/auth-routes";
 import { useAuthStore } from "@/store/auth";
 
 interface AuthProviderProps {
@@ -21,6 +21,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
   const [isInitialized, setIsInitialized] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const setUser = useAuthStore((state) => state.setUser);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
   // Initialize auth on app startup
   useEffect(() => {
@@ -36,7 +38,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initAuth();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show loading while initializing
   if (!isInitialized) {
@@ -51,9 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Redirect logic after initialization
-  const isPublicRoute = PUBLIC_AUTH_ROUTES.includes(
-    pathname as (typeof PUBLIC_AUTH_ROUTES)[number],
-  );
+  const isPublicRoute = isPublicAuthRoute(pathname);
 
   if (!isAuthenticated && !isPublicRoute) {
     // Not authenticated, redirect to login

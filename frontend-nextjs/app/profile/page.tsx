@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { getRoleName } from "@/lib/roles";
 
 export default function ProfilePage() {
   return (
@@ -17,18 +18,7 @@ export default function ProfilePage() {
 function ProfileContent() {
   const { user } = useAuth();
 
-  const getRoleName = (role: number) => {
-    switch (role) {
-      case 1:
-        return "Người dùng";
-      case 2:
-        return "Quản trị viên";
-      case 3:
-        return "Người kiểm duyệt";
-      default:
-        return "Không xác định";
-    }
-  };
+
 
   const getRoleVariant = (
     role: number,
