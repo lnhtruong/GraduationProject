@@ -15,22 +15,22 @@ import type {
   LayerItem,
   TextOption,
   VideoFrameSize,
-} from "@/features/videoEditor/types";
-import useVideoEditor from "./useVideoEditor";
+} from "@/features/editor/types";
+import useEditor from "./useEditor";
 import {
   applyCornerSnap,
   clampPreviewPlacement,
   deriveScaleFromDisplayWidth,
   deriveBackendMascotFromPreview,
   getMascotDisplaySize,
-} from "@/features/videoEditor/utils/mascotPlacement";
+} from "@/features/editor/utils/mascotPlacement";
 import {
   type VideoCompletedEvent,
   type VideoErrorEvent,
 } from "@/features/upload/api/upload.websocket";
 import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
 
-export interface CoreVideoEditorControllerProps {
+export interface CoreEditorControllerProps {
   disableUpload?: boolean;
   initialVideoUrl?: string;
   sourceVideoName?: string;
@@ -56,7 +56,7 @@ export interface CoreVideoEditorControllerProps {
   }) => Promise<void> | void;
 }
 
-export function useCoreVideoEditorController({
+export function useCoreEditorController({
   disableUpload = false,
   initialVideoUrl,
   sourceVideoName,
@@ -67,9 +67,9 @@ export function useCoreVideoEditorController({
   existingMascotOverlay,
   existingMascotOverlayId,
   onFinalizeMascotProject,
-}: CoreVideoEditorControllerProps) {
+}: CoreEditorControllerProps) {
   const router = useRouter();
-  const editor = useVideoEditor(initialVideoUrl);
+  const editor = useEditor(initialVideoUrl);
   const {
     videoRef,
     videoSrc,
@@ -593,16 +593,8 @@ export function useCoreVideoEditorController({
 
     const rawX = existingMascotOverlay.position_x;
     const rawY = existingMascotOverlay.position_y;
-    const looksLikeLegacyPercent = rawX <= 100 && rawY <= 100;
-
-    const resolvedX =
-      looksLikeLegacyPercent && mascotFrameSize
-        ? Math.round((rawX / 100) * mascotFrameSize.width)
-        : Math.round(rawX);
-    const resolvedY =
-      looksLikeLegacyPercent && mascotFrameSize
-        ? Math.round((rawY / 100) * mascotFrameSize.height)
-        : Math.round(rawY);
+    const resolvedX = rawX;
+    const resolvedY = rawY;
 
     const overlayKey = [
       existingMascotOverlay.mascot_overlay_id,

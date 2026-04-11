@@ -2,7 +2,7 @@ import type {
   MascotOption,
   MascotPreviewPlacement,
   VideoFrameSize,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 
 const BASE_WIDTH_RATIO = 0.2;
 const MIN_SCALE = 0.1;
@@ -109,8 +109,8 @@ export function clampPreviewPlacement(
 
   return {
     ...placement,
-    x: Math.round(clamp(placement.x, 0, maxX)),
-    y: Math.round(clamp(placement.y, 0, maxY)),
+    x: clamp(placement.x, 0, maxX),
+    y: clamp(placement.y, 0, maxY),
   };
 }
 

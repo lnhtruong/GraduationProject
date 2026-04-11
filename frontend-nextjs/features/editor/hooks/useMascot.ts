@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import type { MascotOption } from "@/features/videoEditor/types";
+import type { MascotOption } from "@/features/editor/types";
 import { useMascotJob } from "../api/mascot.hooks";
 import type { MascotParams } from "../types";
 import { toast } from "sonner";

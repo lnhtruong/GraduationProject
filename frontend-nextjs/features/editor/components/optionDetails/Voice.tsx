@@ -1,5 +1,5 @@
 import { Upload } from 'lucide-react';
-import type { VoiceOption } from '@/features/videoEditor/types';
+import type { VoiceOption } from '@/features/editor/types';
 
 interface Props {
   value: VoiceOption;

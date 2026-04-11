@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { TextOption } from "@/features/videoEditor/types";
+import type { TextOption } from "@/features/editor/types";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";

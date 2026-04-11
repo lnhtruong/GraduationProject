@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import VideoEditor from "@/features/videoEditor";
+import Editor from "@/features/editor";
 import { PageLoader } from "@/components/PageLoader";
 
-export default function VideoEditorPage() {
+export default function EditorPage() {
   return (
     <Suspense fallback={<PageLoader message="Đang tải trình chỉnh sửa..." />}>
-      <VideoEditor />
+      <Editor />
     </Suspense>
   );
 }

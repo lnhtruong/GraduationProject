@@ -6,9 +6,9 @@ import { useVideoPlayback } from "./useVideoPlayback";
 import { useVideoEffects } from "./useVideoEffects";
 import { useTextOverlays } from "./useTextOverlays";
 import { useMascot } from "./useMascot";
-import type { VoiceOption } from "@/features/videoEditor/types";
+import type { VoiceOption } from "@/features/editor/types";
 
-export default function useVideoEditor(initialSrc?: string) {
+export default function useEditor(initialSrc?: string) {
   // Compose smaller hooks
   const {
     videoSrc,

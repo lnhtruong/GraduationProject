@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import type { TextOption, LayerItem } from "@/features/videoEditor/types";
+import type { TextOption, LayerItem } from "@/features/editor/types";
 
 export function useTextOverlays() {
     // const [textOverlays, setTextOverlays] = useState<TextOption[]>([]);

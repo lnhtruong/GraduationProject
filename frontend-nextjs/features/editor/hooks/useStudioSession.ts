@@ -9,7 +9,7 @@ import {
   useCreateLayer,
   useUpdateLayer,
   useDeleteLayer,
-} from "@/features/videoEditor/api/mascot-overlay.hooks";
+} from "@/features/editor/api/mascot-overlay.hooks";
 import {
   useProjectById,
   useCreateProject,
@@ -21,9 +21,9 @@ import type {
   ExternalEditorPanelBindings,
   MascotImage,
   UserVideo,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 import type { Project } from "@/features/project";
-import { normalizeMascotScale } from "@/features/videoEditor/utils/mascotPlacement";
+import { normalizeMascotScale } from "@/features/editor/utils/mascotPlacement";
 import { toast } from "sonner";
 import type { Video } from "@/features/video";
 import type { Image } from "@/features/image";
@@ -520,12 +520,8 @@ export function useStudioSession() {
       }
 
       const placement = bindings.mascot.previewPlacement;
-      const position_x = placement
-        ? Math.round(placement.x)
-        : bindings.mascot.margin_x;
-      const position_y = placement
-        ? Math.round(placement.y)
-        : bindings.mascot.margin_y;
+      const position_x = placement ? placement.x : bindings.mascot.margin_x;
+      const position_y = placement ? placement.y : bindings.mascot.margin_y;
 
       const payload = {
         image_id:

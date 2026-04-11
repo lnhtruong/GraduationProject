@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import CoreVideoEditor from "@/features/videoEditor/components/CoreVideoEditor";
-import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
-import { useStudioSession } from "@/features/videoEditor/hooks/useStudioSession";
-import { StudioHeader } from "@/features/videoEditor/components/studio/StudioHeader";
-import { StudioSidebar } from "@/features/videoEditor/components/studio/StudioSidebar";
+import CoreEditor from "@/features/editor/components/CoreEditor";
+import type { ExternalEditorPanelBindings } from "@/features/editor/types";
+import { useStudioSession } from "@/features/editor/hooks/useStudioSession";
+import { StudioHeader } from "@/features/editor/components/studio/StudioHeader";
+import { StudioSidebar } from "@/features/editor/components/studio/StudioSidebar";
 
-export default function VideoEditor() {
+export default function Editor() {
   const [panelBindings, setPanelBindings] =
     useState<ExternalEditorPanelBindings | null>(null);
   const panelBindingsRef = useRef<ExternalEditorPanelBindings | null>(null);
@@ -131,7 +131,7 @@ export default function VideoEditor() {
 
         <main className="min-h-[calc(100vh-56px)] bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-2 sm:p-3 lg:p-4">
           <div className="h-full rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
-            <CoreVideoEditor
+            <CoreEditor
               initialVideoUrl={activeSourceVideoUrl}
               onFirstVideoAdded={handleCreateProjectOnFirstVideo}
               onVideoDrop={(video) => {
