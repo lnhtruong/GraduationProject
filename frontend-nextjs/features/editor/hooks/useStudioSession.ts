@@ -9,7 +9,7 @@ import {
   useCreateLayer,
   useUpdateLayer,
   useDeleteLayer,
-} from "@/features/videoEditor/api/mascot-overlay.hooks";
+} from "@/features/editor/api/mascot-overlay.hooks";
 import {
   useProjectById,
   useCreateProject,
@@ -21,9 +21,9 @@ import type {
   ExternalEditorPanelBindings,
   MascotImage,
   UserVideo,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 import type { Project } from "@/features/project";
-import { normalizeMascotScale } from "@/features/videoEditor/utils/mascotPlacement";
+import { normalizeMascotScale } from "@/features/editor/utils/mascotPlacement";
 import { toast } from "sonner";
 import type { Video } from "@/features/video";
 import type { Image } from "@/features/image";

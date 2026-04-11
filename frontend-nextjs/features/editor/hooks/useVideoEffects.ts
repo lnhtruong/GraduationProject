@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import type { EffectOption } from "@/features/videoEditor/types";
+import type { EffectOption } from "@/features/editor/types";
 
 export function useVideoEffects() {
   const [effect, setEffect] = useState<EffectOption>({

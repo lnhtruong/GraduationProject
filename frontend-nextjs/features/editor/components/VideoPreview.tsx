@@ -6,14 +6,14 @@ import type {
   MascotOption,
   TextOption,
   VideoFrameSize,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 import { useDndMonitor, useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   applyCornerSnap,
   clampPreviewPlacement,
   createDefaultPreviewPlacement,
   getMascotDisplaySize,
-} from "@/features/videoEditor/utils/mascotPlacement";
+} from "@/features/editor/utils/mascotPlacement";
 
 type HandlePos = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 

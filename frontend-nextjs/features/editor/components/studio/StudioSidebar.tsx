@@ -25,15 +25,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   MascotImage,
   UserVideo,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 import type {
   ExternalEditorPanelBindings,
   TextOption,
-} from "@/features/videoEditor/types";
-import EffectOptions from "@/features/videoEditor/components/optionDetails/Effect";
-import TextOptions from "@/features/videoEditor/components/optionDetails/Text";
-import MascotOptions from "@/features/videoEditor/components/optionDetails/Mascot";
-import VoiceOptions from "@/features/videoEditor/components/optionDetails/Voice";
+} from "@/features/editor/types";
+import EffectOptions from "@/features/editor/components/optionDetails/Effect";
+import TextOptions from "@/features/editor/components/optionDetails/Text";
+import MascotOptions from "@/features/editor/components/optionDetails/Mascot";
+import VoiceOptions from "@/features/editor/components/optionDetails/Voice";
 
 interface StudioSidebarProps {
   highlightVideos: UserVideo[];

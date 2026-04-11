@@ -2,7 +2,7 @@ import type {
   MascotOption,
   MascotPreviewPlacement,
   VideoFrameSize,
-} from "@/features/videoEditor/types";
+} from "@/features/editor/types";
 
 const BASE_WIDTH_RATIO = 0.2;
 const MIN_SCALE = 0.1;

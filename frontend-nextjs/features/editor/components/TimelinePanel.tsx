@@ -9,7 +9,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Trash2, ChevronUp, ChevronDown, Type } from "lucide-react";
-import type { LayerItem, TextOption } from "@/features/videoEditor/types";
+import type { LayerItem, TextOption } from "@/features/editor/types";
 import { cn } from "@/lib/utils";
 
 const clamp = (v: number, min: number, max: number) =>

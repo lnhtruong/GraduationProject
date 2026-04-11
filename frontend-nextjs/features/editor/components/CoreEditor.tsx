@@ -3,17 +3,17 @@
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import { Download, Save } from "lucide-react";
-import VideoPreview from "@/features/videoEditor/components/VideoPreview";
-import TimelinePanel from "@/features/videoEditor/components/TimelinePanel";
-import TrashDropZone from "@/features/videoEditor/components/TrashDropZone";
+import VideoPreview from "@/features/editor/components/VideoPreview";
+import TimelinePanel from "@/features/editor/components/TimelinePanel";
+import TrashDropZone from "@/features/editor/components/TrashDropZone";
 import EditorMediaDropzone, {
   VideoDropData,
-} from "@/features/videoEditor/components/EditorMediaDropzone";
+} from "@/features/editor/components/EditorMediaDropzone";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
-import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
-import { useCoreVideoEditorController } from "@/features/videoEditor/hooks/useCoreVideoEditorController";
+import type { ExternalEditorPanelBindings } from "@/features/editor/types";
+import { useCoreEditorController } from "@/features/editor/hooks/useCoreEditorController";
 
-export interface CoreVideoEditorProps {
+export interface CoreEditorProps {
   onFirstVideoAdded?: (payload: {
     file?: File;
     url?: string;
@@ -47,7 +47,7 @@ export interface CoreVideoEditorProps {
   }) => Promise<void> | void;
 }
 
-export default function CoreVideoEditor({
+export default function CoreEditor({
   onFirstVideoAdded,
   onVideoDrop,
   disableUpload = false,
@@ -62,7 +62,7 @@ export default function CoreVideoEditor({
   existingMascotOverlay,
   existingMascotOverlayId,
   onFinalizeMascotProject,
-}: CoreVideoEditorProps) {
+}: CoreEditorProps) {
   const {
     editor,
     activeItem,
@@ -82,7 +82,7 @@ export default function CoreVideoEditor({
     handleSave,
     setSelectedTextId,
     handleMascotFrameChange,
-  } = useCoreVideoEditorController({
+  } = useCoreEditorController({
     disableUpload,
     initialVideoUrl,
     sourceVideoName,

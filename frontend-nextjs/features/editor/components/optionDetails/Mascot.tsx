@@ -3,8 +3,8 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { Upload, Move, Maximize2 } from "lucide-react";
-import { useUploadMascotImage } from "@/features/videoEditor/api/mascot-image.hooks";
-import type { MascotOption } from "@/features/videoEditor/types";
+import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
+import type { MascotOption } from "@/features/editor/types";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
