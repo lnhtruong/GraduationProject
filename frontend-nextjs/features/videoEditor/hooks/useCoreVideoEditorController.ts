@@ -593,16 +593,8 @@ export function useCoreVideoEditorController({
 
     const rawX = existingMascotOverlay.position_x;
     const rawY = existingMascotOverlay.position_y;
-    const looksLikeLegacyPercent = rawX <= 100 && rawY <= 100;
-
-    const resolvedX =
-      looksLikeLegacyPercent && mascotFrameSize
-        ? Math.round((rawX / 100) * mascotFrameSize.width)
-        : Math.round(rawX);
-    const resolvedY =
-      looksLikeLegacyPercent && mascotFrameSize
-        ? Math.round((rawY / 100) * mascotFrameSize.height)
-        : Math.round(rawY);
+    const resolvedX = rawX;
+    const resolvedY = rawY;
 
     const overlayKey = [
       existingMascotOverlay.mascot_overlay_id,

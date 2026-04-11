@@ -109,8 +109,8 @@ export function clampPreviewPlacement(
 
   return {
     ...placement,
-    x: Math.round(clamp(placement.x, 0, maxX)),
-    y: Math.round(clamp(placement.y, 0, maxY)),
+    x: clamp(placement.x, 0, maxX),
+    y: clamp(placement.y, 0, maxY),
   };
 }
 

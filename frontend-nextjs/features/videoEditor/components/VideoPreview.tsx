@@ -508,8 +508,16 @@ export default function VideoPreview({
         return;
       }
 
-      const mediaWidth = videoEl.videoWidth || elementWidth;
-      const mediaHeight = videoEl.videoHeight || elementHeight;
+      const mediaWidth = videoEl.videoWidth;
+      const mediaHeight = videoEl.videoHeight;
+      // Wait for real video metadata to avoid using temporary element dimensions
+      // that can cause mascot position drift after reload.
+      if (!mediaWidth || !mediaHeight) {
+        setFrame(null);
+        onMascotFrameChange?.(null);
+        return;
+      }
+
       const ratio = Math.min(
         elementWidth / mediaWidth,
         elementHeight / mediaHeight,
@@ -577,6 +585,18 @@ export default function VideoPreview({
 
   useEffect(() => {
     if (!mascot || mascot.type === "none" || !onMascotChange || !frame) return;
+
+    const hasAspectRatio = Boolean(
+      mascot.previewPlacement?.aspectRatio &&
+      mascot.previewPlacement.aspectRatio > 0,
+    );
+    const hasSourceSize = Boolean(mascot.sourceWidth && mascot.sourceHeight);
+    // Skip clamping until mascot intrinsic size is known.
+    // Otherwise we may clamp with a temporary aspect ratio and permanently
+    // shift the restored position after reload.
+    if (mascotSrc && (!hasAspectRatio || !hasSourceSize)) {
+      return;
+    }
 
     const placement = mascot.previewPlacement;
     if (!placement) {

@@ -520,12 +520,8 @@ export function useStudioSession() {
       }
 
       const placement = bindings.mascot.previewPlacement;
-      const position_x = placement
-        ? Math.round(placement.x)
-        : bindings.mascot.margin_x;
-      const position_y = placement
-        ? Math.round(placement.y)
-        : bindings.mascot.margin_y;
+      const position_x = placement ? placement.x : bindings.mascot.margin_x;
+      const position_y = placement ? placement.y : bindings.mascot.margin_y;
 
       const payload = {
         image_id:
