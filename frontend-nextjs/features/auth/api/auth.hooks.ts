@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Auth Hooks
  * TanStack Query hooks for authentication using shared patterns
  */
 
-import { createMutationHooks } from "@/features/_shared/hooks";
+import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import { authApi } from "./auth.api";
 import { authStorageHelper } from "@/store/auth";
 import type {
@@ -16,9 +16,6 @@ import type {
   ResetPasswordRequest,
   ResetPasswordResponse,
 } from "../types";
-import { createKeyFactory } from "@/lib/queryKeys";
-
-const keys = createKeyFactory("auth");
 
 // ============================================================================
 // LOGIN
@@ -30,10 +27,6 @@ const useLoginBase = createMutationHooks<LoginResponse, LoginRequest>(
   authApi.login,
   {
     retry: false,
-    onSuccess: (_data, _variables, queryClient) => {
-      // Invalidate auth queries
-      queryClient.invalidateQueries({ queryKey: keys.root });
-    },
   },
 );
 
@@ -54,9 +47,6 @@ const useRegisterBase = createMutationHooks<RegisterResponse, RegisterRequest>(
   authApi.register,
   {
     retry: false,
-    onSuccess: (_data, _variables, queryClient) => {
-      queryClient.invalidateQueries({ queryKey: keys.root });
-    },
   },
 );
 

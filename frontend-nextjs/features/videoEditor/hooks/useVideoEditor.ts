@@ -31,7 +31,6 @@ export default function useVideoEditor(initialSrc?: string) {
     setMascot,
     applyMascot,
     startMascotJob,
-    createMascotVideoRecord,
     isApplyingMascot,
     mascotProgress,
   } = useMascot();
@@ -99,7 +98,6 @@ export default function useVideoEditor(initialSrc?: string) {
     setMascot,
     applyMascot,
     startMascotJob,
-    createMascotVideoRecord,
     isApplyingMascot,
     mascotProgress,
 

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { authApi } from "@/features/auth/api/auth.api";
 import { isPublicAuthRoute } from "@/lib/auth-routes";
 import { useAuthStore } from "@/store/auth";
+import { PageLoader } from "@/components/PageLoader";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -21,8 +22,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
   const [isInitialized, setIsInitialized] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  const setUser = useAuthStore((state) => state.setUser);
-  const setAccessToken = useAuthStore((state) => state.setAccessToken);
+  const isAuthPage = isPublicAuthRoute(pathname);
 
   // Initialize auth on app startup
   useEffect(() => {
@@ -38,33 +38,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initAuth();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep provider focused on auth-page behavior only.
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    if (isAuthenticated && isAuthPage) {
+      router.replace("/");
+    }
+  }, [isInitialized, isAuthenticated, isAuthPage, router]);
 
   // Show loading while initializing
   if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang khôi phục phiên...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect logic after initialization
-  const isPublicRoute = isPublicAuthRoute(pathname);
-
-  if (!isAuthenticated && !isPublicRoute) {
-    // Not authenticated, redirect to login
-    router.replace(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
-    return null;
-  }
-
-  if (isAuthenticated && isPublicRoute) {
-    // Already authenticated, redirect home
-    router.replace("/");
-    return null;
+    return <PageLoader className="min-h-screen" />;
   }
 
   return children;

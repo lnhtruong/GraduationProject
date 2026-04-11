@@ -1,12 +1,13 @@
-/**
+﻿/**
  * Generic CRUD Hooks Factory
  * Creates complete CRUD hooks from an API object
  */
 
 import { useQuery } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { createKeyFactory } from "@/lib/queryKeys";
-import { apiHttpClient, createApi } from "./api";
-import { createMutationHooks } from "./hooks";
+import { apiHttpClient, createApi } from "./api-factories";
+import { createMutationHooks } from "./react-query-factories";
 
 // ============================================================================
 // TYPES
@@ -21,13 +22,14 @@ export interface CrudApi<
   TId extends CrudId = CrudId,
   TParentId extends CrudId = TId,
   TListParams = unknown,
+  TDelete = unknown,
 > {
   list?: (params?: TListParams) => Promise<TItem[]>;
   listByParent?: (parentId: TParentId) => Promise<TItem[]>;
   getOne: (id: TId) => Promise<TItem>;
   create: (data: TCreate) => Promise<TItem>;
   update: (id: TId, data: TUpdate) => Promise<TItem>;
-  delete: (id: TId) => Promise<unknown>;
+  delete: (id: TId) => Promise<TDelete>;
 }
 
 export interface CrudHooksOptions<TItem extends object> {
@@ -49,6 +51,10 @@ export interface CrudHooksOptions<TItem extends object> {
     delete?: (data: unknown) => void;
   };
 }
+
+// ============================================================================
+// RESOURCE API FACTORY
+// ============================================================================
 
 export interface ResourceApiConfig<
   TRaw,
@@ -74,15 +80,8 @@ export function createResourceApi<
   TListParams = unknown,
   TDeleteResponse = unknown,
 >(
-  config: ResourceApiConfig<
-    TRaw,
-    TItem,
-    TId,
-    TListParams
-  >,
-): CrudApi<TItem, TCreate, TUpdate, TId, TId, TListParams> & {
-  delete: (id: TId) => Promise<TDeleteResponse>;
-} {
+  config: ResourceApiConfig<TRaw, TItem, TId, TListParams>,
+): CrudApi<TItem, TCreate, TUpdate, TId, TId, TListParams, TDeleteResponse> {
   const {
     basePath,
     mapItem,
@@ -116,11 +115,17 @@ export function createResourceApi<
       return mapItem(data);
     },
     delete: async (id: TId) => {
-      const { data } = await apiHttpClient.delete<TDeleteResponse>(getDeletePath(id));
+      const { data } = await apiHttpClient.delete<TDeleteResponse>(
+        getDeletePath(id),
+      );
       return data;
     },
   });
 }
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
 function getItemId<TItem extends object>(
   item: TItem,
@@ -144,10 +149,18 @@ export function createCrudHooks<
   TId extends CrudId = CrudId,
   TParentId extends CrudId = TId,
   TListParams = unknown,
+  TDelete = unknown,
 >(
   resource: string,
-  api: CrudApi<TItem, TCreate, TUpdate, TId, TParentId, TListParams>,
-  options: CrudHooksOptions<TItem> = {},
+  api: CrudApi<TItem, TCreate, TUpdate, TId, TParentId, TListParams, TDelete>,
+  options: CrudHooksOptions<TItem> & {
+    onSuccess?: {
+      list?: (data: TItem[]) => void;
+      create?: (data: TItem) => void;
+      update?: (data: TItem) => void;
+      delete?: (data: TDelete) => void;
+    };
+  } = {},
 ) {
   const {
     idField = "id",
@@ -157,6 +170,10 @@ export function createCrudHooks<
     onSuccess,
   } = options;
   const keys = createKeyFactory(resource);
+
+  const invalidateResource = (qc: QueryClient) => {
+    qc.invalidateQueries({ queryKey: keys.root });
+  };
 
   // =========================================================================
   // LIST QUERIES
@@ -211,34 +228,24 @@ export function createCrudHooks<
   // CREATE MUTATION
   // =========================================================================
 
-  const useCreateBase = createMutationHooks<TItem, TCreate>(
+  const useCreate = createMutationHooks<TItem, TCreate>(
     resource,
     "create",
     api.create,
     {
       retry: false,
       onSuccess: (data, _variables, qc) => {
-        qc.invalidateQueries({ queryKey: keys.root });
+        invalidateResource(qc);
         onSuccess?.create?.(data);
       },
     },
   );
 
-  function useCreate(opts?: {
-    onSuccess?: (data: TItem, variables: TCreate) => void;
-    onError?: (error: Error) => void;
-  }) {
-    return useCreateBase({
-      onSuccess: (data, variables) => opts?.onSuccess?.(data, variables),
-      onError: opts?.onError,
-    });
-  }
-
   // =========================================================================
   // UPDATE MUTATION
   // =========================================================================
 
-  const useUpdateBase = createMutationHooks<TItem, { id: TId; data: TUpdate }>(
+  const useUpdate = createMutationHooks<TItem, { id: TId; data: TUpdate }>(
     resource,
     "update",
     ({ id, data }) => api.update(id, data),
@@ -248,27 +255,17 @@ export function createCrudHooks<
         const itemId =
           (getItemId(data, idField) as TId | undefined) ?? variables.id;
         qc.invalidateQueries({ queryKey: keys.detail(itemId) });
-        qc.invalidateQueries({ queryKey: keys.root });
+        invalidateResource(qc);
         onSuccess?.update?.(data);
       },
     },
   );
 
-  function useUpdate(opts?: {
-    onSuccess?: (data: TItem, variables: { id: TId; data: TUpdate }) => void;
-    onError?: (error: Error) => void;
-  }) {
-    return useUpdateBase({
-      onSuccess: (data, variables) => opts?.onSuccess?.(data, variables),
-      onError: opts?.onError,
-    });
-  }
-
   // =========================================================================
   // DELETE MUTATION
   // =========================================================================
 
-  const useDeleteBase = createMutationHooks<unknown, TId>(
+  const useDelete = createMutationHooks<TDelete, TId>(
     resource,
     "delete",
     api.delete,
@@ -276,21 +273,11 @@ export function createCrudHooks<
       retry: false,
       onSuccess: (data, id, qc) => {
         qc.invalidateQueries({ queryKey: keys.detail(id) });
-        qc.invalidateQueries({ queryKey: keys.root });
+        invalidateResource(qc);
         onSuccess?.delete?.(data);
       },
     },
   );
-
-  function useDelete(opts?: {
-    onSuccess?: (data: unknown, id: TId) => void;
-    onError?: (error: Error) => void;
-  }) {
-    return useDeleteBase({
-      onSuccess: (data, id) => opts?.onSuccess?.(data, id),
-      onError: opts?.onError,
-    });
-  }
 
   // =========================================================================
   // RETURN ALL HOOKS

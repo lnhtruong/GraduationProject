@@ -2,14 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   BookOpen,
-  Facebook,
-  GraduationCap,
-  Instagram,
-  Mail,
-  Star,
-  Youtube,
   Target,
   Gamepad2,
   Scissors,
@@ -19,9 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useFeaturedCourses } from "./api/home.hooks";
-import type { FeaturedCourse } from "./types";
+import { PageLoader } from "@/components/PageLoader";
+import { CourseCard } from "./component/CourseCard";
 
 // ─── Static config (UI copy / icons – không cần từ backend) ─────────────────
 
@@ -61,127 +56,37 @@ const TEACHER_FEATURES = [
   },
 ];
 
-const FOOTER_LINKS = {
-  "Sản phẩm": ["Dành cho học viên", "Dành cho giáo viên", "Dành cho trường học"],
-  "Công ty": ["Về chúng tôi", "Blog", "Tuyển dụng"],
-  "Hỗ trợ": ["Trung tâm trợ giúp", "Liên hệ", "Chính sách"],
-};
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function CourseCard({ course }: { course: FeaturedCourse }) {
-  return (
-    <Link href={`/courses/${course.id}`}>
-      <Card className="group overflow-hidden border-border/60 hover:border-primary/40 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 cursor-pointer h-full">
-        {/* Thumbnail */}
-        <div className="relative aspect-video overflow-hidden bg-muted">
-          {/* TODO: Swap <img> for Next.js <Image> with real domain in next.config */}
-          <img
-            src={course.thumbnail}
-            alt={course.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          <span className="absolute top-2 left-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
-            {course.category}
-          </span>
-        </div>
-
-        <CardContent className="p-4 flex flex-col gap-2">
-          <h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-            {course.title}
-          </h3>
-
-          {/* Instructor */}
-          <div className="flex items-center gap-1.5">
-            {course.instructorAvatar ? (
-              /* TODO: Replace with Next.js <Image> when real avatars available */
-              <img
-                src={course.instructorAvatar}
-                alt={course.instructor}
-                className="w-5 h-5 rounded-full object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center shrink-0">
-                <GraduationCap className="h-3 w-3 text-muted-foreground" />
-              </div>
-            )}
-            <span className="text-xs text-muted-foreground truncate">{course.instructor}</span>
-          </div>
-
-          {/* Rating + Price */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Star className="h-3.5 w-3.5 text-primary fill-primary" />
-              <span className="font-medium text-foreground">{course.rating}</span>
-              <span>({course.reviewCount.toLocaleString()})</span>
-            </span>
-            {course.price !== null ? (
-              <span className="text-sm font-bold text-foreground">
-                {course.price.toLocaleString()}đ
-              </span>
-            ) : (
-              <span className="text-sm font-bold text-primary">Miễn phí</span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function CourseCardSkeleton() {
-  return (
-    <Card className="overflow-hidden border-border/60 h-full">
-      <Skeleton className="aspect-video w-full" />
-      <CardContent className="p-4 flex flex-col gap-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <div className="flex items-center gap-1.5">
-          <Skeleton className="h-5 w-5 rounded-full" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-        <div className="flex items-center justify-between pt-1">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"learner" | "teacher">("learner");
-  const features = activeTab === "learner" ? LEARNER_FEATURES : TEACHER_FEATURES;
+  const features =
+    activeTab === "learner" ? LEARNER_FEATURES : TEACHER_FEATURES;
 
-  const { data: featuredCourses, isLoading: coursesLoading } = useFeaturedCourses();
+  const { data: featuredCourses, isLoading: coursesLoading } =
+    useFeaturedCourses();
 
   return (
     <div className="min-h-screen bg-background font-sans">
-
       {/* ── 1. Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden py-16 lg:py-24">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background -z-10" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-background to-background -z-10" />
 
         <div className="container mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-
             {/* Text */}
             <div className="flex flex-col gap-6">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-foreground">
                 Học mọi thứ qua
                 <br />
-                video ngắn.{" "}
-                <span className="text-primary">Dạy dễ</span>
+                video ngắn. <span className="text-primary">Dạy dễ</span>
                 <br />
                 <span className="text-primary">hơn với AI.</span>
               </h1>
 
               <p className="text-base md:text-lg text-muted-foreground max-w-md leading-relaxed">
-                Nền tảng giáo dục tích hợp AI tạo video highlight, cá nhân hóa trải
-                nghiệm học tập cho mọi người.
+                Nền tảng giáo dục tích hợp AI tạo video highlight, cá nhân hóa
+                trải nghiệm học tập cho mọi người.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -208,16 +113,16 @@ export default function Home() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-72 h-72 bg-primary/20 rounded-full blur-[80px]" />
               </div>
-              <div className="relative z-10 w-64 md:w-72 aspect-[9/18] rounded-[2.5rem] border-[6px] border-foreground/10 bg-muted overflow-hidden shadow-2xl">
-                {/* TODO: Replace with real app screenshot */}
-                <img
+              <div className="relative z-10 w-64 md:w-72 aspect-9/18 rounded-[2.5rem] border-[6px] border-foreground/10 bg-muted overflow-hidden shadow-2xl">
+                <Image
                   src="/homepage.png"
                   alt="App preview"
+                  fill
+                  priority
                   className="w-full h-full object-cover"
                 />
               </div>
             </div>
-
           </div>
         </div>
       </section>
@@ -225,7 +130,6 @@ export default function Home() {
       {/* ── 2. Features – Tab toggle ─────────────────────────────────────────── */}
       <section className="py-16 bg-muted/30 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
-
           <div className="flex justify-center mb-10">
             <div className="inline-flex items-center bg-background border border-border rounded-full p-1 shadow-xs">
               {(["learner", "teacher"] as const).map((tab) => (
@@ -238,7 +142,9 @@ export default function Home() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {tab === "learner" ? "Dành cho người học" : "Dành cho giáo viên"}
+                  {tab === "learner"
+                    ? "Dành cho người học"
+                    : "Dành cho giáo viên"}
                 </button>
               ))}
             </div>
@@ -256,20 +162,20 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base mb-1">{feat.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{feat.desc}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {feat.desc}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-
         </div>
       </section>
 
       {/* ── 3. Featured Courses ──────────────────────────────────────────────── */}
       <section className="py-16 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
-
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
               Khóa học nổi bật
@@ -283,65 +189,21 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {coursesLoading
-              ? Array.from({ length: 4 }).map((_, i) => <CourseCardSkeleton key={i} />)
-              : featuredCourses?.map((course) => (
-                  <CourseCard key={course.id} course={course} />
-                ))}
+            {coursesLoading ? (
+              <div className="col-span-full">
+                <PageLoader
+                  message="Đang tải khóa học nổi bật..."
+                  className="py-10"
+                />
+              </div>
+            ) : (
+              featuredCourses?.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))
+            )}
           </div>
-
         </div>
       </section>
-
-      {/* ── 4. Footer ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border/40 py-12 bg-background">
-        <div className="container mx-auto px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
-
-            <div>
-              <Link href="/" className="inline-block mb-3">
-                <span className="text-2xl font-extrabold text-primary">EduFlow</span>
-              </Link>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                Học thông minh hơn, dạy hiệu quả hơn
-              </p>
-              <div className="flex gap-3">
-                {[Facebook, Instagram, Youtube, Mail].map((Icon, i) => (
-                  <a
-                    key={i}
-                    href="#"
-                    className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {Object.entries(FOOTER_LINKS).map(([title, links]) => (
-              <div key={title}>
-                <h4 className="font-bold text-sm mb-4">{title}</h4>
-                <ul className="space-y-2.5">
-                  {links.map((link) => (
-                    <li key={link}>
-                      {/* TODO: Replace # with actual routes */}
-                      <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-
-          </div>
-
-          <div className="border-t border-border/40 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">© 2026 EduFlow. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-
     </div>
   );
 }

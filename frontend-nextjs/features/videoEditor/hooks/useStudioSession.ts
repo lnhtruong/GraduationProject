@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
-  useProject,
-  useCreateProject,
-  useUpdateProject,
   useProjectLayers,
   useLayer,
   useCreateLayer,
   useUpdateLayer,
   useDeleteLayer,
-  useUserHighlightVideos,
-  useUserMascotImages,
-} from "@/features/videoEditor/api/videoEditor.hooks";
-import type { ExternalEditorPanelBindings } from "@/features/videoEditor/types";
+} from "@/features/videoEditor/api/mascot-overlay.hooks";
+import {
+  useProjectById,
+  useCreateProject,
+  useUpdateProject,
+} from "@/features/project/api/project.hooks";
+import { useImagesByUser } from "@/features/image/api/image.hooks";
+import { useVideosByUser } from "@/features/video/api/video.hooks";
+import type {
+  ExternalEditorPanelBindings,
+  MascotImage,
+  UserVideo,
+} from "@/features/videoEditor/types";
+import type { Project } from "@/features/project";
 import { normalizeMascotScale } from "@/features/videoEditor/utils/mascotPlacement";
 import { toast } from "sonner";
+import type { Video } from "@/features/video";
+import type { Image } from "@/features/image";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -52,7 +61,7 @@ export function useStudioSession() {
   const [selectedMascotImageId, setSelectedMascotImageId] = useState<
     number | null
   >(null);
-  const bootstrappedSourceRef = useRef<string | null>(null);
+  const bootstrappedSourceRef = useRef<number | null>(null);
 
   const rawEditId =
     searchParams.get("edit_id") ??
@@ -94,19 +103,82 @@ export function useStudioSession() {
   }, [activeEditId, currentQuery, pathname, router]);
 
   const {
-    data: highlightVideos = [],
+    data: rawHighlightVideos = [],
     isLoading: highlightVideosLoading,
     refetch: refetchHighlightVideos,
-  } = useUserHighlightVideos(user?.id || null);
-  const { data: mascotImages = [], isLoading: mascotImagesLoading } =
-    useUserMascotImages(user?.id || null);
-  const { data: currentProject } = useProject(activeEditId);
+  } = useVideosByUser("highlight", true);
+  const { data: rawMascotImages = [], isLoading: mascotImagesLoading } =
+    useImagesByUser(true);
+  const { data: currentProject } = useProjectById(
+    activeEditId ?? 0,
+    activeEditId !== null,
+  );
   const { data: projectLayers = [] } = useProjectLayers(activeEditId);
+  const highlightVideos = useMemo<UserVideo[]>(
+    () =>
+      rawHighlightVideos.map((video: Video) => ({
+        id: video.id,
+        video_id: video.id,
+        user_id: video.user_id ?? 0,
+        image_id: video.image_id ?? undefined,
+        name: video.name ?? null,
+        url: video.url,
+        duration: video.duration,
+        type: video.type,
+        thumbnail: video.thumbnail ?? null,
+        image: video.image ?? null,
+        created_at: video.created_at,
+        updated_at: video.updated_at,
+      })),
+    [rawHighlightVideos],
+  );
+  const mascotImages = useMemo<MascotImage[]>(
+    () =>
+      rawMascotImages.map((image: Image) => ({
+        image_id: image.id,
+        user_id: image.user_id ?? 0,
+        url: image.url,
+        thumbnail: image.thumbnail ?? null,
+        created_at: image.created_at,
+        updated_at: image.updated_at,
+        createdAt: image.created_at,
+        updatedAt: image.updated_at,
+      })),
+    [rawMascotImages],
+  );
   const firstOverlayId =
     projectLayers.length > 0 ? projectLayers[0].mascot_overlay_id : null;
   const { data: overlayDetail } = useLayer(firstOverlayId);
   const activeSessionName = currentProject?.session_name ?? sessionName;
-  const existingMascotOverlay = overlayDetail ?? projectLayers[0] ?? null;
+  const activeSourceVideoUrl =
+    highlightVideos.find(
+      (video) => (video.video_id ?? video.id) === currentProject?.video_id,
+    )?.url ?? undefined;
+  const activeSourceVideoName =
+    highlightVideos.find(
+      (video) => (video.video_id ?? video.id) === currentProject?.video_id,
+    )?.name ?? undefined;
+  const existingMascotOverlay = useMemo(() => {
+    const rawOverlay = overlayDetail ?? projectLayers[0] ?? null;
+    if (!rawOverlay) return null;
+
+    if (rawOverlay.mascotImage?.url) return rawOverlay;
+
+    const imageId = rawOverlay.image_id;
+    if (!imageId) return rawOverlay;
+
+    const matchedImage = mascotImages.find((img) => img.image_id === imageId);
+    if (!matchedImage?.url) return rawOverlay;
+
+    return {
+      ...rawOverlay,
+      mascotImage: {
+        image_id: matchedImage.image_id,
+        user_id: matchedImage.user_id,
+        url: matchedImage.url,
+      },
+    };
+  }, [overlayDetail, projectLayers, mascotImages]);
   const existingMascotOverlayId =
     existingMascotOverlay?.mascot_overlay_id ?? null;
 
@@ -115,77 +187,37 @@ export function useStudioSession() {
     setSelectedMascotImageId(existingMascotOverlay.image_id);
   }, [existingMascotOverlay, selectedMascotImageId]);
 
-  const getProjectIdFromResponse = (data: unknown): number | null => {
-    if (!data || typeof data !== "object") return null;
-    const record = data as Record<string, unknown>;
-
-    if (typeof record.edit_id === "number") return record.edit_id;
-    if (typeof record.id === "number") return record.id;
-
-    const nestedData = record.data;
-    if (nestedData && typeof nestedData === "object") {
-      const nested = nestedData as Record<string, unknown>;
-      if (typeof nested.edit_id === "number") return nested.edit_id;
-      if (typeof nested.id === "number") return nested.id;
-    }
-
-    return null;
-  };
-
   const { mutateAsync: createProject, isPending: isCreating } =
     useCreateProject({
-      onSuccess: (data) => {
-        const projectId = getProjectIdFromResponse(data);
-        if (projectId) {
-          setEditId(projectId);
+      onSuccess: (data: Project) => {
+        if (data.edit_id > 0) {
+          setEditId(data.edit_id);
         }
         setSessionName(data.session_name);
       },
     });
 
   useEffect(() => {
-    const sourceUrl = searchParams.get("src");
-    if (!sourceUrl || activeEditId || !user?.id) {
+    if (!selectedVideoId || activeEditId || !user?.id) {
       return;
     }
 
-    if (bootstrappedSourceRef.current === sourceUrl) {
+    if (bootstrappedSourceRef.current === selectedVideoId) {
       return;
     }
-
-    const findVideoIdByUrl = (url: string) => {
-      const matched = highlightVideos.find((video) => video.url === url);
-      return matched?.video_id ?? matched?.id;
-    };
-
-    const resolveVideoIdByUrl = async (url: string) => {
-      let videoId = findVideoIdByUrl(url);
-      if (videoId) return videoId;
-
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const refreshed = await refetchHighlightVideos();
-        const matched = refreshed.data?.find((video) => video.url === url);
-        videoId = matched?.video_id ?? matched?.id;
-        if (videoId) return videoId;
-      }
-
-      return undefined;
-    };
 
     let cancelled = false;
 
     const bootstrapProjectFromSource = async () => {
       setIsBootstrappingProject(true);
       try {
-        const resolvedVideoId =
-          selectedVideoId ?? (await resolveVideoIdByUrl(sourceUrl));
+        const resolvedVideoId = selectedVideoId;
 
         if (!resolvedVideoId || cancelled) {
           return;
         }
 
-        bootstrappedSourceRef.current = sourceUrl;
+        bootstrappedSourceRef.current = selectedVideoId;
         const now = new Date();
         const projectName = `Project ${now.toLocaleDateString("vi-VN")}`;
 
@@ -196,15 +228,15 @@ export function useStudioSession() {
 
         if (cancelled) return;
 
-        const projectId = getProjectIdFromResponse(createdProject);
+        const projectId = createdProject.edit_id;
         if (projectId) {
           setEditId(projectId);
           setSessionName(projectName);
 
           const nextParams = new URLSearchParams(searchParams.toString());
           nextParams.set("edit_id", String(projectId));
-          nextParams.set("src", sourceUrl);
           nextParams.set("video_id", String(resolvedVideoId));
+          nextParams.delete("src");
           nextParams.delete("editId");
           nextParams.delete("editid");
 
@@ -227,9 +259,7 @@ export function useStudioSession() {
   }, [
     activeEditId,
     createProject,
-    highlightVideos,
     pathname,
-    refetchHighlightVideos,
     router,
     searchParams,
     selectedVideoId,
@@ -238,7 +268,7 @@ export function useStudioSession() {
 
   const { mutateAsync: updateProject, isPending: isUpdating } =
     useUpdateProject({
-      onSuccess: (data) => {
+      onSuccess: (data: Project) => {
         setSessionName(data.session_name);
       },
     });
@@ -262,34 +292,24 @@ export function useStudioSession() {
   useEffect(() => {
     const params = new URLSearchParams(currentQuery);
 
-    // No edit_id => keep current query (e.g. src/video_id from upload flow)
+    // No edit_id => keep current query (e.g. video_id from upload flow)
     // so users can still open editor with a selected source video.
     if (!activeEditId) {
       return;
     }
 
-    // With edit_id, hydrate src/video_id from project so /editor?edit_id=... can reopen project.
+    // With edit_id, hydrate video_id from project so /editor?edit_id=... can reopen project.
     const projectVideoId = currentProject?.video_id;
     if (!projectVideoId) return;
 
-    const matchedVideo = highlightVideos.find(
-      (video) => (video.video_id ?? video.id) === projectVideoId,
-    );
-
-    if (!matchedVideo?.url) return;
-
-    const currentSrc = params.get("src");
     const currentVideoId = params.get("video_id") ?? params.get("videoId");
 
-    if (
-      currentSrc === matchedVideo.url &&
-      currentVideoId === String(projectVideoId)
-    ) {
+    if (currentVideoId === String(projectVideoId)) {
       return;
     }
 
-    params.set("src", matchedVideo.url);
     params.set("video_id", String(projectVideoId));
+    params.delete("src");
     params.delete("videoId");
 
     const nextQuery = params.toString();
@@ -316,8 +336,7 @@ export function useStudioSession() {
       session_name: name,
       video_id: selectedVideoId,
     });
-    const projectId = getProjectIdFromResponse(createdProject);
-    if (projectId) setEditId(projectId);
+    if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
   };
 
   const handleStartEmptyProject = () => {
@@ -351,7 +370,7 @@ export function useStudioSession() {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const refreshed = await refetchHighlightVideos();
         const matched = refreshed.data?.find((video) => video.url === url);
-        videoId = matched?.video_id ?? matched?.id;
+        videoId = matched?.id;
         if (videoId) return videoId;
       }
 
@@ -392,8 +411,7 @@ export function useStudioSession() {
         session_name: name,
         video_id: resolvedVideoId,
       });
-      const projectId = getProjectIdFromResponse(createdProject);
-      if (projectId) setEditId(projectId);
+      if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
     } finally {
       setIsBootstrappingProject(false);
     }
@@ -403,10 +421,10 @@ export function useStudioSession() {
     id?: number;
     video_id?: number;
     url: string;
+    name?: string | null;
   }) => {
     const matched = highlightVideos.find((v) => v.url === video.url);
-    const videoId =
-      video.video_id ?? video.id ?? matched?.video_id ?? matched?.id;
+    const videoId = video.id ?? video.video_id ?? matched?.id;
 
     if (!videoId) {
       toast.warning("Không tìm thấy video_id của video đã chọn.");
@@ -414,7 +432,7 @@ export function useStudioSession() {
     }
 
     const params = new URLSearchParams(currentQuery);
-    params.set("src", video.url);
+    params.delete("src");
     params.set("video_id", String(videoId));
     params.delete("videoId");
 
@@ -451,8 +469,7 @@ export function useStudioSession() {
         video_id: videoId,
       });
 
-      const projectId = getProjectIdFromResponse(createdProject);
-      if (projectId) setEditId(projectId);
+      if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
     } catch (error) {
       console.error("Create project from highlight failed:", error);
       toast.error("Tạo project thất bại");
@@ -478,7 +495,7 @@ export function useStudioSession() {
   ) => {
     if (!activeEditId) return;
 
-    await updateProject({
+    const updateProjectPromise = updateProject({
       id: activeEditId,
       data: {
         session_name: name,
@@ -486,58 +503,65 @@ export function useStudioSession() {
       },
     });
 
-    if (!bindings) return;
+    if (!bindings) {
+      await updateProjectPromise;
+      return;
+    }
 
-    const overlayId =
-      bindings.existingMascotOverlayId ?? existingMascotOverlayId ?? null;
+    const saveOverlayPromise = (async () => {
+      const overlayId =
+        bindings.existingMascotOverlayId ?? existingMascotOverlayId ?? null;
 
-    if (bindings.mascot.type === "none") {
+      if (bindings.mascot.type === "none") {
+        if (overlayId && overlayId > 0) {
+          await deleteLayer(overlayId);
+        }
+        return;
+      }
+
+      const placement = bindings.mascot.previewPlacement;
+      const position_x = placement
+        ? Math.round(placement.x)
+        : bindings.mascot.margin_x;
+      const position_y = placement
+        ? Math.round(placement.y)
+        : bindings.mascot.margin_y;
+
+      const payload = {
+        image_id:
+          selectedMascotImageId ?? existingMascotOverlay?.image_id ?? undefined,
+        position_x,
+        position_y,
+        scale: normalizeMascotScale(bindings.mascot.scale),
+        start_time: 0,
+        end_time: 1,
+        layer_index: 1,
+      };
+
       if (overlayId && overlayId > 0) {
-        await deleteLayer(overlayId);
+        await updateLayer({
+          id: overlayId,
+          data: payload,
+        });
+        return;
       }
-      return;
-    }
 
-    const placement = bindings.mascot.previewPlacement;
-    const position_x = placement
-      ? Math.round(placement.x)
-      : bindings.mascot.margin_x;
-    const position_y = placement
-      ? Math.round(placement.y)
-      : bindings.mascot.margin_y;
-
-    const payload = {
-      image_id:
-        selectedMascotImageId ?? existingMascotOverlay?.image_id ?? undefined,
-      position_x,
-      position_y,
-      scale: normalizeMascotScale(bindings.mascot.scale),
-      start_time: 0,
-      end_time: 1,
-      layer_index: 1,
-    };
-
-    if (overlayId && overlayId > 0) {
-      await updateLayer({
-        id: overlayId,
-        data: payload,
-      });
-      return;
-    }
-
-    try {
-      await createLayer({
-        edit_id: activeEditId,
-        ...payload,
-      });
-    } catch (error) {
-      const message = getErrorMessage(error);
-      if (message.includes("edit_id should not exist")) {
-        await createLayer(payload as typeof payload & { edit_id?: never });
-      } else {
-        throw error;
+      try {
+        await createLayer({
+          edit_id: activeEditId,
+          ...payload,
+        });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        if (message.includes("edit_id should not exist")) {
+          await createLayer(payload as typeof payload & { edit_id?: never });
+        } else {
+          throw error;
+        }
       }
-    }
+    })();
+
+    await Promise.all([updateProjectPromise, saveOverlayPromise]);
   };
 
   const handleFinalizeMascotProject = async (payload?: {
@@ -561,6 +585,8 @@ export function useStudioSession() {
   return {
     activeEditId,
     activeSessionName,
+    activeSourceVideoUrl,
+    activeSourceVideoName,
     isLoading,
     highlightVideos,
     highlightVideosLoading,

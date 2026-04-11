@@ -175,6 +175,7 @@ export interface UserVideo {
   video_id?: number;
   image_id?: number;
   user_id: number;
+  name?: string | null;
   type?: "highlight" | "mascot" | string;
   url: string;
   thumbnail?: string | null;
@@ -237,17 +238,12 @@ export interface MascotOverlay {
   };
 }
 
-export interface CloudinarySignature {
-  signature: string;
-  timestamp: number;
-  cloud_name: string;
-  api_key: string;
-  folder: string;
-}
+export type { CloudinarySignature } from "@/features/cloudinary";
 
 export interface MascotParams {
   videoOrUrl: File | string;
   mascotImageUrl: string;
+  origin_file_name?: string;
   position:
     | "top-left"
     | "top-right"

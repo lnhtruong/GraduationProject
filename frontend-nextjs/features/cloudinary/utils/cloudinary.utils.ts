@@ -6,9 +6,6 @@
 import { authStorageHelper } from "@/store/auth";
 import type { CloudinarySignature } from "../types";
 
-/**
- * Extract user ID from auth storage
- */
 function getCurrentUserId(): number | null {
   const user = authStorageHelper.getUser() as {
     id?: number;
@@ -21,9 +18,6 @@ function getCurrentUserId(): number | null {
   return null;
 }
 
-/**
- * Upload file directly to Cloudinary with progress tracking
- */
 export async function uploadToCloudinary(
   file: File,
   signature: CloudinarySignature,
