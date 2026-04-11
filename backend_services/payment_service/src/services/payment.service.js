@@ -143,13 +143,19 @@ const createPaymentLink = async (courseIds, userId) => {
     courseItems,
   };
 
-  const savedTransaction = await saveTransactionToDB(pendingData);
+  // Wrap DB save + Redis in a transaction; cart removal happens after commit
+  let savedTransaction;
+  const t = await db.sequelize.transaction();
+  try {
+    savedTransaction = await saveTransactionToDB(pendingData, t);
+    await savePaymentData(orderCode, { ...pendingData, transaction_id: savedTransaction.id });
+    await t.commit();
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 
-  await savePaymentData(orderCode, {
-    ...pendingData,
-    transaction_id: savedTransaction.id,
-  });
-
+  // Remove from cart only after transaction committed
   await removePurchasedCoursesFromCart(userId, courseItems);
 
   // Auto-cancel after 5 minutes if unpaid
@@ -213,8 +219,16 @@ const buyNow = async (courseId, userId) => {
     courseItems,
   };
 
-  const savedTransaction = await saveTransactionToDB(pendingData);
-  await savePaymentData(orderCode, { ...pendingData, transaction_id: savedTransaction.id });
+  let savedTransaction;
+  const t = await db.sequelize.transaction();
+  try {
+    savedTransaction = await saveTransactionToDB(pendingData, t);
+    await savePaymentData(orderCode, { ...pendingData, transaction_id: savedTransaction.id });
+    await t.commit();
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 
   setTimeout(async () => {
     try {
@@ -241,8 +255,11 @@ const buyNow = async (courseId, userId) => {
 // ============================================================
 // CREATE internal: Lưu transaction + items vào DB atomically
 // ============================================================
-const saveTransactionToDB = async (data) => {
-  const t = await db.sequelize.transaction();
+// Nếu truyền `t` từ ngoài thì dùng chung, không tự commit/rollback
+const saveTransactionToDB = async (data, t = null) => {
+  const externalTransaction = t !== null;
+  if (!externalTransaction) t = await db.sequelize.transaction();
+
   try {
     const transaction = await Transaction.create(
       {
@@ -263,12 +280,13 @@ const saveTransactionToDB = async (data) => {
     }));
 
     await TransactionItem.bulkCreate(items, { transaction: t });
-    await t.commit();
+
+    if (!externalTransaction) await t.commit();
 
     console.log(`✅ Lưu transaction vào DB, ID: ${transaction.id}, items: ${items.length}`);
     return transaction;
   } catch (error) {
-    await t.rollback();
+    if (!externalTransaction) await t.rollback();
     console.error("❌ Lỗi khi lưu transaction vào DB:", error.message);
     throw error;
   }
