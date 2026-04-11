@@ -12,6 +12,7 @@ import {
   Settings,
   FolderOpen,
   BookOpen,
+  GraduationCap,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { canAccessInstructor } from "@/lib/roles";
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -211,6 +213,18 @@ export function Header() {
                       <span>Thư viện video & ảnh</span>
                     </Link>
                   </DropdownMenuItem>
+                  {/* Creator Studio — chỉ hiện với LECTURER và ADMIN */}
+                  {canAccessInstructor(user?.role) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/instructor/dashboard" className="cursor-pointer">
+                          <GraduationCap className="mr-2 h-4 w-4 text-primary" />
+                          <span className="font-medium text-primary">Creator Studio</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">

@@ -7,7 +7,8 @@ import { PageLoader } from "@/components/PageLoader";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: number;
+  /** Single role ID or array of allowed role IDs */
+  requiredRole?: number | number[];
 }
 
 /**
@@ -29,9 +30,11 @@ export function ProtectedRoute({
         // Not authenticated, redirect to sign in
         const returnUrl = encodeURIComponent(pathname);
         router.push(`/signin?returnUrl=${returnUrl}`);
-      } else if (requiredRole !== undefined && user?.role !== requiredRole) {
-        // Authenticated but insufficient role
-        router.push("/unauthorized");
+      } else if (requiredRole !== undefined) {
+        const hasRole = Array.isArray(requiredRole)
+          ? requiredRole.includes(user?.role ?? -1)
+          : user?.role === requiredRole;
+        if (!hasRole) router.push("/unauthorized");
       }
     }
   }, [isAuthenticated, isLoading, user, requiredRole, router, pathname]);
@@ -47,8 +50,11 @@ export function ProtectedRoute({
   }
 
   // Authenticated but insufficient role
-  if (requiredRole !== undefined && user?.role !== requiredRole) {
-    return <PageLoader />;
+  if (requiredRole !== undefined) {
+    const hasRole = Array.isArray(requiredRole)
+      ? requiredRole.includes(user?.role ?? -1)
+      : user?.role === requiredRole;
+    if (!hasRole) return <PageLoader />;
   }
 
   // All checks passed
