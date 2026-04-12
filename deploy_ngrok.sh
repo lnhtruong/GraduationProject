@@ -93,8 +93,10 @@ echo "======================================================="
 # fi
 
 echo ""
-echo "💡 TIP: Đừng quên cập nhật Webhook URL trên Dashboard PayOS thành:"
-echo "   👉 ${GATEWAY_URL}/api/payment/payos-callback"
+echo "💡 Nhớ cập nhật các URL sau trong backend_services/payment_service/.env:"
+echo "   PAYOS_RETURN_URL=${GATEWAY_URL}/api/payment/return"
+echo "   PAYOS_CANCEL_URL=${GATEWAY_URL}/api/payment/cancel"
+echo "   PAYOS_WEBHOOK_URL=${GATEWAY_URL}/api/payment/payos-callback"
 echo ""
 echo "Press Ctrl+C to stop ngrok tunnels and PM2 services."
 
