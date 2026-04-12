@@ -77,26 +77,13 @@ echo "🌍 API Gateway Public URL: $GATEWAY_URL"
 echo "🌍 Health Check: $GATEWAY_URL/health"
 echo "======================================================="
 
-# echo "Step 3: Updating Payment Service .env with ngrok URLs..."
-# PAYMENT_ENV="backend_services/payment_service/.env"
-# if [ -f "$PAYMENT_ENV" ]; then
-#     # Thay thế các URL cũ bằng URL ngrok mới
-#     # Dùng /api/payment vì đi qua gateway
-#     sed -i '' "s|PAYOS_RETURN_URL=.*|PAYOS_RETURN_URL=${GATEWAY_URL}/api/payment/return|g" "$PAYMENT_ENV"
-#     sed -i '' "s|PAYOS_CANCEL_URL=.*|PAYOS_CANCEL_URL=${GATEWAY_URL}/api/payment/cancel|g" "$PAYMENT_ENV"
-#     # Nếu có biến WEBHOOK_URL thì cập nhật luôn (tùy code backend của bạn)
-#     # sed -i '' "s|PAYOS_WEBHOOK_URL=.*|PAYOS_WEBHOOK_URL=${GATEWAY_URL}/api/payment/payos-callback|g" "$PAYMENT_ENV"
-    
-#     echo "✅ Updated $PAYMENT_ENV with new ngrok URLs."
-#     echo "♻️  Restarting payment_service to apply changes..."
-#     $PM2_CMD restart payment_service
-# fi
-
-# echo ""
-# echo "💡 TIP: Đừng quên cập nhật Webhook URL trên Dashboard PayOS thành:"
-# echo "   👉 ${GATEWAY_URL}/api/payment/payos-callback"
-# echo ""
-# echo "Press Ctrl+C to stop ngrok tunnels and PM2 services."
+echo ""
+echo "💡 Nhớ cập nhật các URL sau trong backend_services/payment_service/.env:"
+echo "   PAYOS_RETURN_URL=${GATEWAY_URL}/api/payment/return"
+echo "   PAYOS_CANCEL_URL=${GATEWAY_URL}/api/payment/cancel"
+echo "   PAYOS_WEBHOOK_URL=${GATEWAY_URL}/api/payment/payos-callback"
+echo ""
+echo "Press Ctrl+C to stop ngrok tunnels and PM2 services."
 
 # Trap Ctrl+C to clean up
 cleanup() {
