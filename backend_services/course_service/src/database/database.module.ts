@@ -7,6 +7,8 @@ import { Video } from '../models/video.model';
 import { Course } from '../models/course.model';
 import { RoadMap } from '../models/roadmap.model';
 import { RoadMapCourse } from '../models/roadmap-course.model';
+import { Enroll } from '../models/enroll.model';
+import { LessonProgress } from '../models/lesson-progress.model';
 
 @Module({
   imports: [
@@ -16,7 +18,15 @@ import { RoadMapCourse } from '../models/roadmap-course.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, Video, Course, RoadMap, RoadMapCourse],
+          models: [
+            User,
+            Video,
+            Course,
+            RoadMap,
+            RoadMapCourse,
+            Enroll,
+            LessonProgress,
+          ],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };
