@@ -166,8 +166,19 @@ export class EnrollsService {
       order: [['id', 'DESC']],
     });
 
+    for (const row of rows) {
+      await this.syncEnrollProgress(row.userId, row.courseId);
+    }
+
+    const refreshedRows = await this.enrollModel.findAll({
+      where,
+      limit,
+      offset,
+      order: [['id', 'DESC']],
+    });
+
     return new PaginatedResponseDto(
-      rows,
+      refreshedRows,
       new PaginationMetaDto(page, limit, count),
     );
   }

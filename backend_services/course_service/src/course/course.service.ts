@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -10,33 +10,40 @@ export class CoursesService {
   constructor(
     @InjectModel(Course)
     private readonly courseModel: typeof Course,
-  ) {}
+  ) { }
 
-  async create(createCourseDto: CreateCourseDto): Promise<Course> {
+  async create(createCourseDto: CreateCourseDto, userId: number | undefined): Promise<Course> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
     return await this.courseModel.create({
       ...createCourseDto,
+      userId: userId,
       level: createCourseDto.level ?? undefined,
       status: createCourseDto.status ?? CourseStatus.DRAFT,
     });
   }
 
   async findAll(
-    userId?: number,
+    userId: number | undefined,
     status?: CourseStatus,
     page?: number,
     limit?: number,
   ): Promise<
     | Course[]
     | {
-        data: Course[];
-        pagination: {
-          page: number;
-          limit: number;
-          totalItems: number;
-          totalPages: number;
-        };
-      }
+      data: Course[];
+      pagination: {
+        page: number;
+        limit: number;
+        totalItems: number;
+        totalPages: number;
+      };
+    }
   > {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
     const whereCondition: any = {};
 
     if (typeof userId === 'number' && !Number.isNaN(userId)) {
