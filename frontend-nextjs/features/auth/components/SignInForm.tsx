@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { canAccessInstructor } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +30,8 @@ import { signInSchema, type SignInFormData } from "../schemas";
 
 export default function SignInForm() {
   const { login } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,7 +47,20 @@ export default function SignInForm() {
     setError("");
 
     try {
-      await login(data);
+      const response = await login(data);
+
+      // Redirect based on role after successful login
+      // TODO: remove this block when backend adds role-based redirect endpoint
+      const returnUrl = searchParams.get("returnUrl");
+      if (returnUrl) {
+        router.push(decodeURIComponent(returnUrl));
+      } else if (canAccessInstructor(response.user?.role)) {
+        // LECTURER (3) và ADMIN (1) → Creator Studio
+        router.push("/instructor/dashboard");
+      } else {
+        // STUDENT (2) → trang học viên
+        router.push("/");
+      }
     } catch (err: unknown) {
       // Parse error message from backend
       let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";
