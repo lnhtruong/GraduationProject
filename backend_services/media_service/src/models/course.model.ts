@@ -1,4 +1,5 @@
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { Column, DataType, Model, Table, ForeignKey, BelongsTo } from 'sequelize-typescript';
+import { User } from './user.model';
 
 export enum CourseLevel {
   BEGINNER = 'Beginner',
@@ -72,6 +73,7 @@ export class Course extends Model {
   })
   declare price: number;
 
+  @ForeignKey(() => User)
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
@@ -79,10 +81,12 @@ export class Course extends Model {
   })
   declare userId: number;
 
+  @BelongsTo(() => User)
+  declare user: User;
+
   @Column({
     type: DataType.ENUM(...Object.values(CourseStatus)),
     allowNull: false,
-    defaultValue: CourseStatus.DRAFT,
   })
   declare status: CourseStatus;
 }

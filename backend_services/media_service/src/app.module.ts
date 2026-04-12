@@ -14,6 +14,7 @@ import { MascotOverlayModule } from './mascot_overlays/mascot_overlay.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { FeedModule } from './feed/feed.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     WebsocketModule,
     WebhookModule,
     CloudinaryModule,
+    FeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
