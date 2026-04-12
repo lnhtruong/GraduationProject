@@ -11,6 +11,7 @@ import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 import courseRoutes from './routes/course.routes';
 import paymentRoutes from './routes/payment.routes';
+import feedRoutes from './routes/feed.routes';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import httpProxy from 'http-proxy';
 import { IncomingMessage, ServerResponse } from 'http';
@@ -120,7 +121,8 @@ const PUBLIC_ROUTES = [
   '/api/media/webhooks/ai-model/result',
   '/api/payment/payos-callback',
   '/api/payment/return',
-  '/api/payment/cancel'
+  '/api/payment/cancel',
+  '/api/feed', // GET /feed is public
 ];
 
 app.use((req, res, next) => {
@@ -141,10 +143,26 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   if (PUBLIC_ROUTES.includes(req.path)) {
+    // Allow GET requests on public routes (like GET /api/feed for viewing)
+    if (req.method === 'GET') {
+      return next();
+    }
+    // But block POST/PUT/DELETE on public feed route unless authenticated
+    if (req.path === '/api/feed' && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE')) {
+      return authMiddleware(req as AuthRequest, res, next);
+    }
     return next();
   }
 
   return authMiddleware(req as AuthRequest, res, next);
+});
+
+// Middleware to forward user ID to downstream services
+app.use((req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.userId) {
+    req.headers['x-user-id'] = String(req.user.userId);
+  }
+  next();
 });
 
 // Routes
@@ -154,6 +172,7 @@ app.use('/api/course', courseRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/mascot_colab', mascotColabRoutes);
+app.use('/api/feed', feedRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

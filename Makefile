@@ -18,7 +18,7 @@ help:
 build-backend:
 	@$$ErrorActionPreference = 'Stop'; Get-ChildItem -Path 'backend_services' -Directory | ForEach-Object { $$pkg = Join-Path $$_.FullName 'package.json'; if (Test-Path $$pkg) { Write-Host "==> $$($$_.FullName)"; $$pkgJson = Get-Content $$pkg -Raw; if ($$pkgJson -match '"build"\s*:') { Push-Location $$_.FullName; yarn build; Pop-Location; } else { Write-Host "Skip $$($$_.Name): no build script"; } } }
 
-install-build:
+'install-build':
 	@$$ErrorActionPreference = 'Stop'; Get-ChildItem -Path 'backend_services' -Directory | ForEach-Object { $$pkg = Join-Path $$_.FullName 'package.json'; if (Test-Path $$pkg) { Write-Host "==> $$($$_.FullName)"; Push-Location $$_.FullName; yarn install; yarn build; Pop-Location; } }
 
 build:
