@@ -3,8 +3,6 @@
  * Creates consistent query keys for caching
  */
 
-export type QueryKey = readonly unknown[];
-
 export function createKeyFactory(scope: string) {
   return {
     root: [scope] as const,

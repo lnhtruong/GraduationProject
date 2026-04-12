@@ -12,7 +12,7 @@ export const ROLES = {
 export type RoleValue = (typeof ROLES)[keyof typeof ROLES];
 
 /**
- * Check if user role can access the instructor (Creator Studio) dashboard.
+ * Check if user role can access the instructor (Teacher Mode) dashboard.
  * LECTURER = giảng viên, ADMIN = có thể quản lý toàn bộ.
  */
 export function canAccessInstructor(role?: number): boolean {
