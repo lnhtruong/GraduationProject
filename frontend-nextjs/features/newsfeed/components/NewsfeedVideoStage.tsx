@@ -143,7 +143,7 @@ export function NewsfeedVideoStage({
 						)}
 					>
 						<div
-							className="group relative h-full w-full overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl"
+							className="group relative h-full w-full overflow-hidden rounded-2xl border border-border/70 bg-background/70 shadow-2xl"
 							onMouseEnter={() => onHoverChange(true)}
 							onMouseLeave={() => onHoverChange(false)}
 							onClick={onTogglePlay}
@@ -161,7 +161,7 @@ export function NewsfeedVideoStage({
 								onTimeUpdate={onVideoTimeUpdate}
 							/>
 
-							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/50" />
+							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-background/55" />
 
 							<div
 								className={cn(
@@ -170,13 +170,13 @@ export function NewsfeedVideoStage({
 								)}
 							>
 								<div
-									className="flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-2.5 py-1.5"
+									className="flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-2.5 py-1.5"
 									onClick={(event) => event.stopPropagation()}
 								>
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-6 w-6 text-white hover:bg-white/15"
+										className="h-6 w-6 text-foreground hover:bg-accent/70"
 										onClick={(event) => {
 											event.stopPropagation();
 											onToggleMute();
@@ -192,7 +192,7 @@ export function NewsfeedVideoStage({
 										value={isMuted ? 0 : volume}
 										onChange={(event) => onVolumeChange(Number(event.target.value))}
 										className={cn(
-											"h-1 accent-white transition-all duration-200",
+											"h-1 accent-primary transition-all duration-200",
 											isHovered ? "w-24 opacity-100" : "w-0 opacity-0",
 										)}
 									/>
@@ -203,7 +203,7 @@ export function NewsfeedVideoStage({
 										<Button
 											variant="ghost"
 											size="icon"
-											className="h-8 w-8 rounded-full border border-white/20 bg-black/45 text-white hover:bg-white/20"
+											className="h-8 w-8 rounded-full border border-border/70 bg-background/75 text-foreground hover:bg-accent/70"
 											onClick={(event) => event.stopPropagation()}
 										>
 											<Ellipsis className="h-4 w-4" />
@@ -227,16 +227,16 @@ export function NewsfeedVideoStage({
 							<div
 								className={cn(
 									"absolute left-0 right-0 bottom-2 px-4 transition-all duration-200",
-									isDescriptionOpen ? "backdrop-blur-sm bg-black/30 pt-3 pb-10" : "pb-10",
+									isDescriptionOpen ? "backdrop-blur-sm bg-background/50 pt-3 pb-10" : "pb-10",
 								)}
 								onClick={(event) => {
 									event.stopPropagation();
 								}}
 							>
-								<p className="text-lg md:text-2xl font-extrabold leading-tight text-white drop-shadow-md line-clamp-1">
+								<p className="text-lg md:text-2xl font-extrabold leading-tight text-foreground drop-shadow-md line-clamp-1">
 									{video.course.name}
 								</p>
-								<p className={cn("mt-1 text-sm md:text-base text-white/92 leading-relaxed drop-shadow-sm", isDescriptionOpen ? "line-clamp-none" : "line-clamp-2") }>
+								<p className={cn("mt-1 text-sm md:text-base text-foreground/90 leading-relaxed drop-shadow-sm", isDescriptionOpen ? "line-clamp-none" : "line-clamp-2") }>
 									{isDescriptionOpen ? video.description : shortDescription}
 									{(video.description?.length ?? 0) > 90 ? (
 										<button
@@ -245,7 +245,7 @@ export function NewsfeedVideoStage({
 												event.stopPropagation();
 												onDescriptionOpenChange(!isDescriptionOpen);
 											}}
-											className="ml-1 inline-flex text-white font-semibold"
+											className="ml-1 inline-flex text-primary font-semibold"
 										>
 											{isDescriptionOpen ? "an bot" : "...xem them"}
 										</button>
@@ -266,11 +266,11 @@ export function NewsfeedVideoStage({
 									seekFromClientX(event.clientX);
 								}}
 							>
-								<div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/40" />
-								<div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-rose-500" style={{ width: `${progressPercent}%` }} />
+								<div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-muted/80" />
+								<div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary" style={{ width: `${progressPercent}%` }} />
 								<div
 									className={cn(
-										"absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow transition-opacity",
+										"absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-primary shadow transition-opacity",
 										isHovered ? "opacity-100" : "opacity-0",
 									)}
 									style={{ left: `calc(${progressPercent}% - 6px)` }}
@@ -289,35 +289,35 @@ export function NewsfeedVideoStage({
 									event.stopPropagation();
 									onToggleCoursePanel();
 								}}
-								className="h-14 w-14 rounded-full border-2 border-white/55 bg-white/15 hover:bg-white/25 transition shadow-xl shadow-black/30"
+								className="h-14 w-14 rounded-full border-2 border-border/80 bg-background/60 hover:bg-accent/70 transition shadow-xl shadow-background/30"
 							>
-								<Avatar className="h-12 w-12 border border-white/70">
+								<Avatar className="h-12 w-12 border border-border/80">
 									<AvatarImage src={video.course.thumbnail ?? undefined} />
-									<AvatarFallback className="bg-primary/25 text-white text-sm font-semibold">
+									<AvatarFallback className="bg-primary/25 text-foreground text-sm font-semibold">
 										{getInitials(video.course.name)}
 									</AvatarFallback>
 								</Avatar>
 							</Button>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-white/15 text-white hover:bg-white/25" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
 								<Heart className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.likes.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.likes.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-white/15 text-white hover:bg-white/25" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
 								<MessageCircle className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.comments.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.comments.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-white/15 text-white hover:bg-white/25" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
 								<Bookmark className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.saves.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.saves.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-white/15 text-white hover:bg-white/25" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
 								<Share2 className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.shares.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.shares.toLocaleString("vi-VN")}</span>
 						</div>
 					</div>
 				</div>

@@ -16,6 +16,7 @@ import { NewsfeedVideoStage } from "./NewsfeedVideoStage";
 export function NewsfeedPage() {
 	const {
 		activeVideo,
+		error,
 		isCoursePanelOpen,
 		isHudVisible,
 		isLoading,
@@ -30,6 +31,7 @@ export function NewsfeedPage() {
 		toggleMenu,
 		openMenu,
 		closeMenu,
+		refetch,
 		wakeHud,
 	} = useNewsfeed();
 	const { user } = useAuth();
@@ -180,6 +182,32 @@ export function NewsfeedPage() {
 		);
 	}
 
+	if (error) {
+		const message = error instanceof Error ? error.message : "Khong the tai newsfeed";
+
+		return (
+			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
+				<Clapperboard className="h-12 w-12 text-destructive" />
+				<h2 className="text-2xl font-bold">Tai newsfeed that bai</h2>
+				<p className="text-muted-foreground max-w-xl">
+					{message}
+				</p>
+				<div className="flex items-center gap-3">
+					<Button
+						onClick={() => {
+							void refetch();
+						}}
+					>
+						Thu lai
+					</Button>
+					<Button asChild variant="outline">
+						<Link href="/">Ve trang chu</Link>
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	if (!activeVideo) {
 		return (
 			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
@@ -200,7 +228,7 @@ export function NewsfeedPage() {
 
 	return (
 		<div
-			className="relative h-screen overflow-hidden bg-black text-white"
+			className="relative h-screen overflow-hidden bg-background text-foreground"
 			onMouseMove={wakeHud}
 			onWheel={onWheelCapture}
 			onTouchStart={onTouchStart}

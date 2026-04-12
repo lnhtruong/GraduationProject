@@ -13,7 +13,7 @@ function mapToNewsfeedItem(
 ): NewsfeedItem {
   const displayIndex = index + 1;
   const feedInfo = buildMockFeedInfo(displayIndex);
-  const courseInfo = buildMockCourseInfo(index, displayIndex);
+  const courseInfo = buildMockCourseInfo(index, displayIndex, rawVideo.user_id);
 
   return {
     id: rawVideo.id,
@@ -26,32 +26,39 @@ function mapToNewsfeedItem(
     sourceVideo: rawVideo,
     course: {
       id: rawVideo.id,
-      title: courseInfo.title,
-      instructor: courseInfo.instructor,
-      category: courseInfo.category,
+      name: courseInfo.name,
       level: courseInfo.level,
-      durationLabel: courseInfo.durationLabel,
-      totalLessons: courseInfo.totalLessons,
+      duration: courseInfo.duration,
+      language: courseInfo.language,
+      price: courseInfo.price,
+      userId: courseInfo.userId,
+      status: courseInfo.status,
+      categories: courseInfo.categories,
       thumbnail: rawVideo.thumbnail ?? rawVideo.image?.thumbnail ?? null,
       description: courseInfo.description,
-      tags: courseInfo.tags,
-      students: courseInfo.students,
-      rating: courseInfo.rating,
+      created_at: courseInfo.created_at,
+      updated_at: courseInfo.updated_at,
     },
   };
 }
 
 export const newsfeedApi = createApi({
   getFeed: async () => {
-    const [highlightResult, mascotResult] = await Promise.allSettled([
+    const [highlightResult, mascotResult, allResult] = await Promise.allSettled([
       videoApi.getAllByUser("highlight"),
       videoApi.getAllByUser("mascot"),
+      videoApi.getAllByUser(null),
     ]);
 
     const merged = [
       ...(highlightResult.status === "fulfilled" ? highlightResult.value : []),
       ...(mascotResult.status === "fulfilled" ? mascotResult.value : []),
+      ...(allResult.status === "fulfilled" ? allResult.value : []),
     ];
+
+    if (!merged.length) {
+      throw new Error("Khong the tai du lieu video newsfeed. Vui long thu lai.");
+    }
 
     const uniqueById = new Map<number, (typeof merged)[number]>();
     for (const video of merged) {
@@ -59,14 +66,6 @@ export const newsfeedApi = createApi({
     }
 
     const videos = Array.from(uniqueById.values());
-
-    // Keep a fallback for environments where only the generic endpoint works.
-    if (!videos.length) {
-      const allVideos = await videoApi.getAllByUser(null);
-      return allVideos
-        .filter((video) => Boolean(video.url))
-        .map((video, index) => mapToNewsfeedItem(index, video));
-    }
 
     return videos
       .filter((video) => Boolean(video.url))
