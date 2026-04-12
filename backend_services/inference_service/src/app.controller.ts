@@ -62,6 +62,18 @@ export class AppController {
       throw new BadRequestException('mascot_image_url is required');
     }
 
+    const originFileName =
+      typeof body === 'object' &&
+        body !== null &&
+        'origin_file_name' in body &&
+        typeof (body as Record<string, unknown>).origin_file_name === 'string'
+        ? (body as Record<string, string>).origin_file_name
+        : undefined;
+
+    if (!originFileName || originFileName.trim().length === 0) {
+      throw new BadRequestException('origin_file_name is required');
+    }
+
     const userId =
       typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
         ? Number(userIdHeader)
@@ -69,7 +81,7 @@ export class AppController {
 
     console.log('check userid: ', userId);
 
-    return this.appService.createMascot(mascotImageUrl, audio, body, userId);
+    return this.appService.createMascot(mascotImageUrl, originFileName, audio, body, userId);
   }
 
   // Map với /generate-quiz

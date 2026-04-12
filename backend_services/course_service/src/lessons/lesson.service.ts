@@ -6,6 +6,8 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 // import { LessonStatus } from './enums/lesson.enum';
 import { Op } from 'sequelize';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
+import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
+import { GetLessonsQueryDto } from './dto/get-lessons-query.dto';
 
 @Injectable()
 export class LessonsService {
@@ -18,7 +20,12 @@ export class LessonsService {
     return await this.lessonModel.create({ ...createLessonDto });
   }
 
-  async findAllByCourseId(courseId?: number | null): Promise<Lesson[]> {
+  async findAllByCourseId(query: GetLessonsQueryDto): Promise<PaginatedResponseDto<Lesson>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const offset = (page - 1) * limit;
+    const courseId = query.courseId;
+
     const whereCondition: any = {
       status: { [Op.ne]: LessonStatus.REMOVED }, // Bỏ qua các lesson đã bị xoá mềm
     };
@@ -27,7 +34,14 @@ export class LessonsService {
       whereCondition.courseId = courseId;
     }
 
-    return await this.lessonModel.findAll({ where: whereCondition });
+    const { rows, count } = await this.lessonModel.findAndCountAll({
+      where: whereCondition,
+      limit,
+      offset,
+      order: [['id', 'ASC']],
+    });
+
+    return new PaginatedResponseDto(rows, new PaginationMetaDto(page, limit, count));
   }
 
   // async findAllByUserId(userId?: number): Promise<Lesson[]> {

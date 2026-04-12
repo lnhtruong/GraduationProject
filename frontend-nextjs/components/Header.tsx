@@ -4,7 +4,16 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Search, X, User, LogOut, Settings } from "lucide-react";
+import {
+  Search,
+  X,
+  User,
+  LogOut,
+  Settings,
+  FolderOpen,
+  BookOpen,
+  GraduationCap,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +30,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { canAccessInstructor } from "@/lib/roles";
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -190,6 +200,31 @@ export function Header() {
                       </p>
                     </div>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/workspace" className="cursor-pointer">
+                      <FolderOpen className="mr-2 h-4 w-4" />
+                      <span>Không gian làm việc</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/library" className="cursor-pointer">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span>Thư viện video & ảnh</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  {/* Creator Studio — chỉ hiện với LECTURER và ADMIN */}
+                  {canAccessInstructor(user?.role) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/instructor/dashboard" className="cursor-pointer">
+                          <GraduationCap className="mr-2 h-4 w-4 text-primary" />
+                          <span className="font-medium text-primary">Creator Studio</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">

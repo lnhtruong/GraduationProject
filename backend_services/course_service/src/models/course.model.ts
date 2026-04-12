@@ -1,7 +1,21 @@
-import { Table, Column, DataType, Model } from 'sequelize-typescript';
+import { Column, DataType, Model, Table } from 'sequelize-typescript';
+
+export enum CourseLevel {
+  BEGINNER = 'Beginner',
+  INTERMEDIATE = 'Intermediate',
+  ADVANCED = 'Advanced',
+}
+
+export enum CourseStatus {
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  PUBLISH = 'publish',
+}
 
 @Table({
-  tableName: 'courses',
+  tableName: 'Courses',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
@@ -11,6 +25,7 @@ export class Course extends Model {
     type: DataType.INTEGER,
     primaryKey: true,
     autoIncrement: true,
+    allowNull: false,
   })
   declare id: number;
 
@@ -21,8 +36,53 @@ export class Course extends Model {
   declare name: string;
 
   @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+  })
+  declare description?: string;
+
+  @Column({
+    type: DataType.JSON,
+    allowNull: false,
+  })
+  declare categories: unknown;
+
+  @Column({
+    type: DataType.ENUM(...Object.values(CourseLevel)),
+    allowNull: false,
+    defaultValue: CourseLevel.BEGINNER,
+  })
+  declare level: CourseLevel;
+
+  @Column({
+    type: DataType.TIME,
+    allowNull: false,
+  })
+  declare duration: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: false,
+  })
+  declare language: string;
+
+  @Column({
     type: DataType.DOUBLE,
     allowNull: false,
   })
   declare price: number;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'user_id',
+  })
+  declare userId: number;
+
+  @Column({
+    type: DataType.ENUM(...Object.values(CourseStatus)),
+    allowNull: false,
+    defaultValue: CourseStatus.DRAFT,
+  })
+  declare status: CourseStatus;
 }

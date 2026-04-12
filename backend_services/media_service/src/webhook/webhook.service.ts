@@ -222,6 +222,7 @@ export class WebhookService {
             url: row.url ?? '',
             type: row.type,
             duration: duration ?? undefined,
+            name: resolvedName ?? undefined,
         });
 
         return { success: true, id: row.id };

@@ -78,6 +78,13 @@ export class QuizQuestion extends Model {
   })
   orderIndex: number;
 
+  @Column({
+    type: DataType.TIME,
+    allowNull: true,
+    field: 'video_timestamp',
+  })
+  videoTimestamp: string | null;
+
   // @HasMany(() => require('./quiz-option.model').QuizOption, { onDelete: 'CASCADE', hooks: true })
   // options: import('./quiz-option.model').QuizOption[];
   @HasMany(() => QuizOption, { onDelete: 'CASCADE', hooks: true })

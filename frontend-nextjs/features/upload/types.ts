@@ -2,6 +2,11 @@
 // UPLOAD FEATURE TYPES
 // ============================================================================
 
+export interface JobIdResponse {
+  job_id: string;
+  status: string;
+}
+
 /**
  * Upload status states
  * - idle: Chưa bắt đầu upload
@@ -65,4 +70,17 @@ export interface UploadHookReturn extends UploadState {
   } | null>;
   cancel: () => void;
   reset: () => void;
+}
+
+// ============================================================================
+// API REQUEST/RESPONSE TYPES
+// ============================================================================
+
+export interface HighlightReelParams {
+  file: File;
+  topic?: string;
+  includeKeywords?: string;
+  excludeKeywords?: string;
+  /** Called with 0–100 as file bytes are sent to the server */
+  onUploadProgress?: (percent: number) => void;
 }

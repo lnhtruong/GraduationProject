@@ -19,8 +19,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/reset-password");
 
   const isEditorShellPage = pathname?.startsWith("/editor");
+  const isImmersivePage = pathname?.startsWith("/newsfeed");
+  // Instructor dashboard có layout riêng — không dùng main Header/Footer
+  const isInstructorPage = pathname?.startsWith("/instructor");
 
-  if (isAuthPage || isEditorShellPage) {
+  if (isAuthPage || isEditorShellPage || isImmersivePage || isInstructorPage) {
     return <>{children}</>;
   }
 

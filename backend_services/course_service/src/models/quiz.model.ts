@@ -73,6 +73,14 @@ export class Quiz extends Model {
   })
   timeLimitMinutes: number;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_in_video',
+  })
+  isInVideo: boolean;
+
   // @HasMany(() => require('./quiz-question.model').QuizQuestion, { onDelete: 'CASCADE', hooks: true })
   // questions: import('./quiz-question.model').QuizQuestion[];
   @HasMany(() => QuizQuestion, { onDelete: 'CASCADE', hooks: true })
