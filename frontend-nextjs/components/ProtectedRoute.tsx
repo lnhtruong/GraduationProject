@@ -8,7 +8,7 @@ import { PageLoader } from "@/components/PageLoader";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   /** Single role ID or array of allowed role IDs */
-  requiredRole?: number | number[];
+  requiredRole?: number | readonly number[];
 }
 
 /**

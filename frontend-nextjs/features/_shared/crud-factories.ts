@@ -29,6 +29,7 @@ export interface CrudApi<
   getOne: (id: TId) => Promise<TItem>;
   create: (data: TCreate) => Promise<TItem>;
   update: (id: TId, data: TUpdate) => Promise<TItem>;
+  updatePatch?: (id: TId, data: TUpdate) => Promise<TItem>;
   delete: (id: TId) => Promise<TDelete>;
 }
 
@@ -50,6 +51,9 @@ export interface CrudHooksOptions<TItem extends object> {
     update?: (data: TItem) => void;
     delete?: (data: unknown) => void;
   };
+
+  /** Build list params from parentId when API does not implement listByParent */
+  parentListParamsBuilder?: (parentId: CrudId) => unknown;
 }
 
 // ============================================================================
@@ -59,16 +63,45 @@ export interface CrudHooksOptions<TItem extends object> {
 export interface ResourceApiConfig<
   TRaw,
   TItem,
+  TCreate = unknown,
+  TUpdate = unknown,
+  TListResponse = TRaw[],
   TId extends CrudId = CrudId,
   TListParams = unknown,
 > {
   basePath: string;
   mapItem: (raw: TRaw) => TItem;
+  mapListResponse?: (raw: TListResponse) => TItem[];
+  toCreatePayload?: (payload: TCreate) => unknown;
+  toUpdatePayload?: (payload: TUpdate) => unknown;
+  toPatchPayload?: (payload: TUpdate) => unknown;
   getListPath?: (params?: TListParams) => string;
   getOnePath?: (id: TId) => string;
   getUpdatePath?: (id: TId) => string;
   getDeletePath?: (id: TId) => string;
   updateMethod?: "patch" | "put";
+}
+
+export function buildQueryString(
+  params?: Record<string, string | number | boolean | null | undefined>,
+) {
+  if (!params) return "";
+
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    searchParams.set(key, String(value));
+  });
+
+  return searchParams.toString();
+}
+
+export function withQueryPath(
+  basePath: string,
+  params?: Record<string, string | number | boolean | null | undefined>,
+) {
+  const query = buildQueryString(params);
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 export function createResourceApi<
@@ -79,12 +112,25 @@ export function createResourceApi<
   TId extends CrudId = CrudId,
   TListParams = unknown,
   TDeleteResponse = unknown,
+  TListResponse = TRaw[],
 >(
-  config: ResourceApiConfig<TRaw, TItem, TId, TListParams>,
+  config: ResourceApiConfig<
+    TRaw,
+    TItem,
+    TCreate,
+    TUpdate,
+    TListResponse,
+    TId,
+    TListParams
+  >,
 ): CrudApi<TItem, TCreate, TUpdate, TId, TId, TListParams, TDeleteResponse> {
   const {
     basePath,
     mapItem,
+    mapListResponse,
+    toCreatePayload,
+    toUpdatePayload,
+    toPatchPayload,
     getListPath = () => `${basePath}`,
     getOnePath = (id) => `${basePath}/${id}`,
     getUpdatePath = (id) => `${basePath}/${id}`,
@@ -94,24 +140,34 @@ export function createResourceApi<
 
   return createApi({
     list: async (params?: TListParams) => {
-      const { data } = await apiHttpClient.get<TRaw[]>(getListPath(params));
-      return data.map(mapItem);
+      const { data } = await apiHttpClient.get<TListResponse>(
+        getListPath(params),
+      );
+      if (mapListResponse) return mapListResponse(data);
+      return (data as unknown as TRaw[]).map(mapItem);
     },
     getOne: async (id: TId) => {
       const { data } = await apiHttpClient.get<TRaw>(getOnePath(id));
       return mapItem(data);
     },
     create: async (payload: TCreate) => {
-      const { data } = await apiHttpClient.post<TRaw>(`${basePath}`, payload);
+      const body = toCreatePayload ? toCreatePayload(payload) : payload;
+      const { data } = await apiHttpClient.post<TRaw>(`${basePath}`, body);
       return mapItem(data);
     },
     update: async (id: TId, payload: TUpdate) => {
+      const body = toUpdatePayload ? toUpdatePayload(payload) : payload;
       const request =
         updateMethod === "put"
-          ? apiHttpClient.put<TRaw>(getUpdatePath(id), payload)
-          : apiHttpClient.patch<TRaw>(getUpdatePath(id), payload);
+          ? apiHttpClient.put<TRaw>(getUpdatePath(id), body)
+          : apiHttpClient.patch<TRaw>(getUpdatePath(id), body);
 
       const { data } = await request;
+      return mapItem(data);
+    },
+    updatePatch: async (id: TId, payload: TUpdate) => {
+      const body = toPatchPayload ? toPatchPayload(payload) : payload;
+      const { data } = await apiHttpClient.patch<TRaw>(getUpdatePath(id), body);
       return mapItem(data);
     },
     delete: async (id: TId) => {
@@ -165,6 +221,7 @@ export function createCrudHooks<
   const {
     idField = "id",
     parentListKey = "parent",
+    parentListParamsBuilder,
     listStaleTimeMs = 5 * 60 * 1000,
     detailStaleTimeMs = 60 * 1000,
     onSuccess,
@@ -198,7 +255,13 @@ export function createCrudHooks<
       queryFn: async () => {
         const data = api.listByParent
           ? await api.listByParent(parentId as TParentId)
-          : [];
+          : api.list && parentListParamsBuilder
+            ? await api.list(
+                parentListParamsBuilder(
+                  parentId as unknown as CrudId,
+                ) as TListParams,
+              )
+            : [];
         onSuccess?.list?.(data);
         return data;
       },
@@ -206,7 +269,7 @@ export function createCrudHooks<
         enabled &&
         parentId !== null &&
         parentId !== undefined &&
-        !!api.listByParent,
+        (!!api.listByParent || (!!api.list && !!parentListParamsBuilder)),
       staleTime: listStaleTimeMs,
     });
   }
@@ -261,6 +324,25 @@ export function createCrudHooks<
     },
   );
 
+  const useUpdatePatch = createMutationHooks<TItem, { id: TId; data: TUpdate }>(
+    resource,
+    "updatePatch",
+    ({ id, data }) =>
+      api.updatePatch
+        ? api.updatePatch(id, data)
+        : api.update(id, data as unknown as TUpdate),
+    {
+      retry: false,
+      onSuccess: (data, variables, qc) => {
+        const itemId =
+          (getItemId(data, idField) as TId | undefined) ?? variables.id;
+        qc.invalidateQueries({ queryKey: keys.detail(itemId) });
+        invalidateResource(qc);
+        onSuccess?.update?.(data);
+      },
+    },
+  );
+
   // =========================================================================
   // DELETE MUTATION
   // =========================================================================
@@ -294,6 +376,7 @@ export function createCrudHooks<
     // Mutations
     useCreate,
     useUpdate,
+    useUpdatePatch,
     useDelete,
   };
 }
