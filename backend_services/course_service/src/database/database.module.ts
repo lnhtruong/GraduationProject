@@ -20,7 +20,7 @@ import { RoadMapCourse } from '../models/roadmap-course.model';
           ...dbConfig,
           models: [User, Video, Course, RoadMap, RoadMapCourse, Cart, CartItem],
           autoLoadModels: true,
-          synchronize: true, // Set to true to create new tables (carts, cart_items)
+          synchronize: false, // Set to true to create new tables (carts, cart_items)
         };
       },
       inject: [ConfigService],
