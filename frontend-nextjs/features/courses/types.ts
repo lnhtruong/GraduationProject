@@ -94,3 +94,50 @@ export interface CourseDetail {
   lastUpdatedAt: string;
   createdAt: string;
 }
+
+export type CourseStatus =
+  | "draft"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "publish";
+
+export interface CourseItem {
+  id: number;
+  name: string;
+  description?: string;
+  categories: string[];
+  level: CourseLevel;
+  duration: string;
+  language: string;
+  price: number;
+  userId: number;
+  status: CourseStatus;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateCourseRequest {
+  name: string;
+  description?: string;
+  categories: string[];
+  level?: CourseLevel;
+  duration: string;
+  language: string;
+  price: number;
+  userId: number;
+  status?: CourseStatus;
+}
+
+export type UpdateCourseRequest = Partial<CreateCourseRequest>;
+
+export interface CourseListParams {
+  userId?: number;
+  status?: CourseStatus;
+  page?: number;
+  limit?: number;
+}
+
+export interface DeleteCourseResponse {
+  message?: string;
+}
