@@ -6,6 +6,11 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { MascotImage } from 'src/images_mascot/images.model';
 import { Video } from 'src/videos/video.model';
 import { Project } from 'src/projects/project.model';
+import { HighlightFeed } from 'src/models/highlight_feed.model';
+import { FeedInteraction } from 'src/models/feed_interactions.model';
+import { FeedView } from 'src/models/feed_views.model';
+import { Course } from 'src/models/course.model';
+import { User } from 'src/models/user.model';
 
 @Module({
   imports: [
@@ -15,7 +20,7 @@ import { Project } from 'src/projects/project.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [MascotImage, Video, Project],
+          models: [MascotImage, Video, Project, HighlightFeed, FeedInteraction, FeedView, Course, User],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };

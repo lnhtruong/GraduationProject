@@ -1,11 +1,12 @@
 const COURSE_LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
 const COURSE_CATEGORIES = [
-  "AI in Education",
-  "Data Storytelling",
-  "Learning Design",
-  "Productivity",
-  "Digital Skills",
+  ["Frontend", "React"],
+  ["Backend", "NodeJS"],
+  ["Data", "SQL"],
+  ["Mobile", "Flutter"],
+  ["AI", "Prompting"],
 ] as const;
+const COURSE_STATUSES = ["draft", "published"] as const;
 
 export function buildMockStats(seed: number) {
   return {
@@ -20,22 +21,30 @@ export function buildMockFeedInfo(displayIndex: number) {
   return {
     title: `Bai hoc ngan #${displayIndex}`,
     description:
-      "Tom tat noi dung bai giang theo phong cach ngan gon de hoc vien xem nhanh tren newsfeed.",
+      "Tom tat noi dung bai giang theo phong cach ngan gon de hoc vien xem nhanh tren newsfeed. Ban demo newsfeed dang su dung mock data theo format API khoa hoc. Thong tin chi tiet se duoc hien thi khi click vao tung bai hoc.",
   };
 }
 
-export function buildMockCourseInfo(index: number, displayIndex: number) {
+export function buildMockCourseInfo(
+  index: number,
+  displayIndex: number,
+  userId?: number | null,
+) {
+  const status = COURSE_STATUSES[index % COURSE_STATUSES.length];
+  const categories = COURSE_CATEGORIES[index % COURSE_CATEGORIES.length];
+
   return {
-    title: `Khoa hoc demo ${displayIndex}`,
-    instructor: `Giang vien ${displayIndex}`,
-    category: COURSE_CATEGORIES[index % COURSE_CATEGORIES.length],
+    name: `React cho nguoi moi bat dau #${displayIndex}`,
     level: COURSE_LEVELS[index % COURSE_LEVELS.length],
-    durationLabel: `${12 + (displayIndex % 8)} gio`,
-    totalLessons: 8 + (displayIndex % 20),
+    duration: `${10 + (displayIndex % 8)}:${String(20 + (displayIndex % 30)).padStart(2, "0")}:00`,
+    language: "vi",
+    price: 299000 + (displayIndex % 5) * 100000,
+    userId: userId ?? 1,
+    status,
+    categories: [...categories],
     description:
-      "Mo ta demo cho thong tin khoa hoc. Sau nay co the thay bang API chi tiet khoa hoc.",
-    tags: ["video ngan", "hoc nhanh", "thuc hanh"],
-    students: 200 + displayIndex * 13,
-    rating: Number((4 + (displayIndex % 9) / 10).toFixed(1)),
+      "Khoa hoc tu co ban den du an nho. Ban demo newsfeed dang su dung mock data theo format API khoa hoc.",
+    created_at: new Date(Date.now() - displayIndex * 86400000).toISOString(),
+    updated_at: new Date(Date.now() - displayIndex * 3600000).toISOString(),
   };
 }

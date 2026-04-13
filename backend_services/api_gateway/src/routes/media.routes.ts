@@ -53,7 +53,7 @@ router.use(
             console.error('[Mascot Service Proxy Error]', err && err.message);
             res.status(503).json({
                 success: false,
-                message: 'Mascot service is unavailable',
+                message: 'Media service is unavailable',
             });
         },
     }),

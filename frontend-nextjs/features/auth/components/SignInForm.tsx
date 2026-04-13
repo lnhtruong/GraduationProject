@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { canAccessInstructor } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +27,16 @@ import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signInSchema, type SignInFormData } from "../schemas";
 
+function getSafeReturnUrl(value: string | null): string | null {
+  if (!value) return null;
+
+  const decoded = decodeURIComponent(value);
+  if (!decoded.startsWith("/")) return null;
+  if (decoded.startsWith("//")) return null;
+
+  return decoded;
+}
+
 export default function SignInForm() {
   const { login } = useAuth();
   const router = useRouter();
@@ -47,20 +56,10 @@ export default function SignInForm() {
     setError("");
 
     try {
-      const response = await login(data);
+      await login(data);
 
-      // Redirect based on role after successful login
-      // TODO: remove this block when backend adds role-based redirect endpoint
-      const returnUrl = searchParams.get("returnUrl");
-      if (returnUrl) {
-        router.push(decodeURIComponent(returnUrl));
-      } else if (canAccessInstructor(response.user?.role)) {
-        // LECTURER (3) và ADMIN (1) → Creator Studio
-        router.push("/instructor/dashboard");
-      } else {
-        // STUDENT (2) → trang học viên
-        router.push("/");
-      }
+      const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
+      router.push(returnUrl ?? "/");
     } catch (err: unknown) {
       // Parse error message from backend
       let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";

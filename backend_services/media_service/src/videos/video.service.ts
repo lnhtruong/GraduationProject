@@ -65,7 +65,7 @@ export class VideoService {
         });
 
         if (!video) {
-            throw new NotFoundException('Mascot video not found');
+            throw new NotFoundException('Video not found');
         }
 
         return video;

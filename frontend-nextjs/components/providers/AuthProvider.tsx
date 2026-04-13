@@ -11,6 +11,13 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+function getSafeReturnUrl(value: string | null): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  return value;
+}
+
 /**
  * Auth Provider - Handles authentication on app startup
  * - Restores persisted auth user from Zustand store
@@ -45,7 +52,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isInitialized) return;
 
     if (isAuthenticated && isAuthPage) {
-      router.replace("/");
+      const params =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search)
+          : null;
+      const returnUrl = getSafeReturnUrl(params?.get("returnUrl") ?? null);
+      router.replace(returnUrl ?? "/");
     }
   }, [isInitialized, isAuthenticated, isAuthPage, router]);
 
