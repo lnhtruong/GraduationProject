@@ -68,78 +68,64 @@ export class FeedService {
   }
 
   async getFeed(cursor?: number, limit = 10, userId?: number) {
-    const where: any = { status: HighlightFeedStatus.ACTIVE };
-    if (cursor) {
-      where.id = { [Op.lt]: cursor };
-    }
+  // Query feeds với cursor-based pagination, eager load video + course + lecturer
+  const feeds = await this.highlightFeedModel.findAll({
+    where: {
+      status: HighlightFeedStatus.ACTIVE,
+      ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
+    },
+    include: [
+      { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+      {
+        model: Course,
+        include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
+      },
+    ],
+    order: [['id', 'DESC']], // mới nhất trước
+    limit,
+  });
 
-    const feeds = await this.highlightFeedModel.findAll({
-      where,
-      include: [
-        {
-          model: Video,
-          attributes: ['url', 'thumbnail', 'duration', 'type'],
-        },
-        {
-          model: Course,
-          attributes: ['id', 'name', 'price'],
-          include: [
-            {
-              model: User,
-              attributes: ['id', 'firstName', 'lastName'],
-            },
-          ],
-        },
-      ],
-      order: [['id', 'DESC']],
-      limit,
-    });
+  const data = await Promise.all(
+    feeds.map(async (feed) => {
+      // Fetch stats + interaction status của user song song để tối ưu performance
+      const [stats, liked, saved] = await Promise.all([
+        this.getFeedStats(feed.id),
+        userId
+          ? this.feedInteractionModel.findOne({
+              where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.LIKE },
+            })
+          : null,
+        userId
+          ? this.feedInteractionModel.findOne({
+              where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.SAVE },
+            })
+          : null,
+      ]);
 
-    const data = await Promise.all(
-      feeds.map(async (feed) => {
-        const stats = await this.getFeedStats(feed.id);
-        let isLiked = false;
-        let isSaved = false;
-        if (userId) {
-          isLiked = !!(await this.feedInteractionModel.findOne({
-            where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.LIKE },
-          }));
-          isSaved = !!(await this.feedInteractionModel.findOne({
-            where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.SAVE },
-          }));
-        }
-        return {
-          feed_id: feed.id,
-          title: feed.title,
-          hashtags: feed.hashtags,
-          video_type: feed.video!.type,
-          video: {
-            url: feed.video!.url,
-            thumbnail: feed.video!.thumbnail,
-            duration: feed.video!.duration,
-          },
-          course: {
-            id: feed.course!.id,
-            name: feed.course!.name,
-            price: feed.course!.price,
-          },
-          lecturer: {
-            id: feed.course!.user!.id,
-            firstName: feed.course!.user!.firstName,
-            lastName: feed.course!.user!.lastName,
-          },
-          stats,
-          is_liked: isLiked,
-          is_saved: isSaved,
-        };
-      }),
-    );
+      // Tách user (lecturer) ra khỏi course object trước khi return
+      const { user, ...courseData } = feed.course!.toJSON();
 
-    const nextCursor = data.length === limit ? data[data.length - 1].feed_id : null;
+      return {
+        feed_id: feed.id,
+        title: feed.title,
+        hashtags: feed.hashtags,
+        video_type: feed.video!.type,
+        video: feed.video!.toJSON(),  // plain object, bỏ Sequelize metadata
+        course: courseData,           // full course info, không kèm user
+        lecturer: user,               // lecturer tách riêng cho FE dễ dùng
+        stats,
+        is_liked: !!liked,
+        is_saved: !!saved,
+      };
+    }),
+  );
 
-    return { data, next_cursor: nextCursor };
+  return {
+    data,
+    // Nếu còn data thì trả cursor, FE dùng để load trang tiếp
+    next_cursor: data.length === limit ? data[data.length - 1].feed_id : null,
+  };
   }
-
   private async getFeedStats(feedId: number) {
     const [likes, saves, views] = await Promise.all([
       this.feedInteractionModel.count({

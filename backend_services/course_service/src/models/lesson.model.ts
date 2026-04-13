@@ -35,7 +35,7 @@ export class Lesson extends Model {
     allowNull: true,
     field: 'course_id',
   })
-  courseId: number;
+  declare courseId: number;
 
   @Index('idx_lessons_video_id')
   @Column({
@@ -43,41 +43,41 @@ export class Lesson extends Model {
     allowNull: true,
     field: 'video_id',
   })
-  videoId: number | null;
+  declare videoId: number | null;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
   })
-  title: string;
+  declare title: string;
 
   @Column({
     type: DataType.ENUM(...Object.values(ContentType)),
     allowNull: false,
   })
-  contentType: ContentType;
+  declare contentType: ContentType;
 
   @Column({
     type: DataType.JSON,
     allowNull: true,
   })
-  content: Record<string, any>;
+  declare content: Record<string, any>;
 
   @Column({
     type: DataType.FLOAT,
     allowNull: true,
   })
-  duration: number;
+  declare duration: number;
 
   @Column({
     type: DataType.ENUM(...Object.values(LessonStatus)),
     defaultValue: LessonStatus.ACTIVE,
   })
-  status: LessonStatus;
+  declare status: LessonStatus;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: true,
   })
-  description: string;
+  declare description: string;
 }
