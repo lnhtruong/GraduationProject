@@ -18,7 +18,7 @@ import type {
 	UpdateCourseRequest,
 } from "../types";
 
-const COURSE_ENDPOINT = "/courses";
+const COURSE_ENDPOINT = "/course/courses";
 
 type CourseApiResponse = {
 	id?: number;
