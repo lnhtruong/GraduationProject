@@ -64,7 +64,7 @@ export class VideoService {
             include: [MascotImage],
         });
 
-        if (!video || video.type !== VideoType.MASCOT) {
+        if (!video) {
             throw new NotFoundException('Mascot video not found');
         }
 
