@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { QuizzesService } from './quizzes.service';
@@ -7,6 +7,19 @@ import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
 @Controller('quizzes')
 export class QuizzesController {
   constructor(private readonly quizzesService: QuizzesService) {}
+
+  private parseQuizTypeFilter(value?: string): 'in_video' | 'after_video' | undefined {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return undefined;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'in_video' || normalized === 'after_video') {
+      return normalized;
+    }
+
+    throw new BadRequestException('type must be either "in_video" or "after_video".');
+  }
 
   // Single endpoint supports both: object and array payloads.
   @Post()
@@ -27,6 +40,17 @@ export class QuizzesController {
         ? Number(lessonActivityId)
         : undefined;
     return await this.quizzesService.findAll({ lessonActivityId: parsed });
+  }
+
+  @Get('lesson/:lessonId')
+  async findAllByLessonId(
+    @Param('lessonId') lessonId: string,
+    @Query('type') type?: string,
+  ) {
+    const parsedLessonId = Number(lessonId);
+    const parsedType = this.parseQuizTypeFilter(type);
+
+    return await this.quizzesService.findAllByLessonId(parsedLessonId, parsedType);
   }
 
   @Get(':id')

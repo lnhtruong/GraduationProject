@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Video } from 'src/models/video.model';
+import { LessonActivity } from 'src/models/lesson-activity.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
@@ -21,6 +23,7 @@ export class QuizzesService {
     @InjectModel(QuizQuestion) private readonly quizQuestionModel: typeof QuizQuestion,
     @InjectModel(QuizOption) private readonly quizOptionModel: typeof QuizOption,
     @InjectModel(Video) private readonly videoModel: typeof Video,
+    @InjectModel(LessonActivity) private readonly lessonActivityModel: typeof LessonActivity,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) { }
 
@@ -280,6 +283,48 @@ export class QuizzesService {
   async findAll(filter?: { lessonActivityId?: number }): Promise<Quiz[]> {
     const where: any = {};
     if (filter?.lessonActivityId) where.lessonActivityId = filter.lessonActivityId;
+
+    return await this.quizModel.findAll({
+      where,
+      order: [['id', 'DESC']],
+      include: [
+        {
+          model: QuizQuestion,
+          as: 'questions',
+          required: false,
+          include: [{ model: QuizOption, as: 'options', required: false }],
+        },
+      ],
+    });
+  }
+
+  async findAllByLessonId(
+    lessonId: number,
+    type?: 'in_video' | 'after_video',
+  ): Promise<Quiz[]> {
+    if (!Number.isInteger(lessonId) || lessonId <= 0) {
+      throw new BadRequestException('lessonId must be a positive integer.');
+    }
+
+    const lessonActivities = await this.lessonActivityModel.findAll({
+      attributes: ['id'],
+      where: { lessonId },
+    });
+
+    if (!lessonActivities.length) {
+      return [];
+    }
+
+    const lessonActivityIds = lessonActivities.map((activity) => activity.id);
+    const where: any = {
+      lessonActivityId: { [Op.in]: lessonActivityIds },
+    };
+
+    if (type === 'in_video') {
+      where.isInVideo = true;
+    } else if (type === 'after_video') {
+      where.isInVideo = false;
+    }
 
     return await this.quizModel.findAll({
       where,
