@@ -11,6 +11,8 @@ import { RoadMap } from '../models/roadmap.model';
 import { RoadMapCourse } from '../models/roadmap-course.model';
 import { Feedback } from '../models/feedback.model';
 import { FeedbackReaction } from '../models/feedback-reaction.model';
+import { Enroll } from '../models/enroll.model';
+import { LessonProgress } from '../models/lesson-progress.model';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { FeedbackReaction } from '../models/feedback-reaction.model';
             CartItem,
             Feedback,
             FeedbackReaction,
+            Enroll,
+            LessonProgress,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)

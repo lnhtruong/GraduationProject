@@ -8,16 +8,26 @@ import { Op } from 'sequelize';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
 import { GetLessonsQueryDto } from './dto/get-lessons-query.dto';
+import { CoursesService } from 'src/course/course.service';
 
 @Injectable()
 export class LessonsService {
   constructor(
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
+    private readonly coursesService: CoursesService,
   ) { }
 
   async create(createLessonDto: CreateLessonDto): Promise<Lesson> {
-    return await this.lessonModel.create({ ...createLessonDto });
+    const lesson = await this.lessonModel.create({ ...createLessonDto });
+
+    // Sync course duration after adding a new lesson
+    console.log('Created lesson, syncing course duration...');
+    if (lesson.courseId) {
+      await this.coursesService.syncCourseDuration(lesson.courseId);
+    }
+
+    return lesson;
   }
 
   async findAllByCourseId(query: GetLessonsQueryDto): Promise<PaginatedResponseDto<Lesson>> {
@@ -65,13 +75,25 @@ export class LessonsService {
   }
 
   async update(id: number, updateLessonDto: UpdateLessonDto): Promise<Lesson> {
-    const lesson = await this.findOne(id); // Gọi hàm trên để check tồn tại
-    return await lesson.update(updateLessonDto);
+    const lesson = await this.findOne(id);
+    const updated = await lesson.update(updateLessonDto);
+
+    // Sync in case duration or courseId changed
+    if (updated.courseId) {
+      await this.coursesService.syncCourseDuration(updated.courseId);
+    }
+
+    return updated;
   }
 
   // Soft Delete
-  async remove(id: number): Promise<void> {
+   async remove(id: number): Promise<void> {
     const lesson = await this.findOne(id);
     await lesson.update({ status: LessonStatus.REMOVED });
+
+    // Sync after soft-deleting so removed lesson is excluded
+    if (lesson.courseId) {
+      await this.coursesService.syncCourseDuration(lesson.courseId);
+    }
   }
 }

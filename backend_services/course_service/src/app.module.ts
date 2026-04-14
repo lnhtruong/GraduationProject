@@ -15,6 +15,8 @@ import { CoursesModule } from './course/course.module';
 import { RoadmapsModule } from './roadmaps/roadmaps.module';
 import { FeedbacksModule } from './feedbacks/feedbacks.module';
 import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions.module';
+import { EnrollsModule } from './enrolls/enrolls.module';
+import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions
     RoadmapsModule,
     FeedbacksModule,
     FeedbackReactionsModule,
+    EnrollsModule,
+    LessonProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
