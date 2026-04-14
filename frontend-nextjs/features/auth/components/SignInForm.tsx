@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -26,8 +27,20 @@ import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signInSchema, type SignInFormData } from "../schemas";
 
+function getSafeReturnUrl(value: string | null): string | null {
+  if (!value) return null;
+
+  const decoded = decodeURIComponent(value);
+  if (!decoded.startsWith("/")) return null;
+  if (decoded.startsWith("//")) return null;
+
+  return decoded;
+}
+
 export default function SignInForm() {
   const { login } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,6 +57,9 @@ export default function SignInForm() {
 
     try {
       await login(data);
+
+      const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
+      router.push(returnUrl ?? "/");
     } catch (err: unknown) {
       // Parse error message from backend
       let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";

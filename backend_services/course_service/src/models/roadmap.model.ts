@@ -2,7 +2,7 @@ import { Column, DataType, HasMany, Model, Table } from 'sequelize-typescript';
 import { RoadMapCourse } from './roadmap-course.model';
 
 @Table({
-  tableName: 'RoadMaps',
+  tableName: 'roadmaps',
   timestamps: false,
 })
 export class RoadMap extends Model {

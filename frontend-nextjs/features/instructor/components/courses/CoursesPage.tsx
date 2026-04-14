@@ -1,0 +1,273 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { BookOpen, CirclePlus, Filter, FileClock, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { CourseManageCard } from "./CourseManageCard";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import {
+  useDeleteCourse,
+  useInstructorCourses,
+} from "../../course-management/api/course-management.hooks";
+
+export default function CoursesPage() {
+  const { user } = useAuth();
+  const { data: courses, isLoading } = useInstructorCourses(
+    {
+      userId: user?.id,
+    },
+    Boolean(user?.id),
+  );
+  const deleteCourseMutation = useDeleteCourse();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "publish" | "draft" | "pending"
+  >("all");
+
+  const handleDelete = async (id: number) => {
+    await deleteCourseMutation.mutateAsync(id);
+    toast.success("Đã xóa khóa học");
+  };
+
+  const stats = useMemo(() => {
+    const list = courses ?? [];
+    const published = list.filter(
+      (course) => course.status === "publish",
+    ).length;
+    const draft = list.filter((course) => course.status === "draft").length;
+    const pending = list.filter((course) => course.status === "pending").length;
+    return {
+      total: list.length,
+      published,
+      draft,
+      pending,
+    };
+  }, [courses]);
+
+  const filteredCourses = useMemo(() => {
+    return (courses ?? []).filter((course) => {
+      const keyword = search.trim().toLowerCase();
+      const bySearch =
+        !keyword ||
+        course.name.toLowerCase().includes(keyword) ||
+        course.description.toLowerCase().includes(keyword) ||
+        course.categories.some((category) =>
+          category.toLowerCase().includes(keyword),
+        );
+      const byStatus = statusFilter === "all" || course.status === statusFilter;
+      return bySearch && byStatus;
+    });
+  }, [courses, search, statusFilter]);
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-border/60 shadow-sm">
+        <CardContent className="space-y-5 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">
+                Quản lý khóa học
+              </h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Tổ chức và vận hành toàn bộ khóa học của bạn trong một workspace
+                gọn, rõ và dễ mở rộng.
+              </p>
+            </div>
+            <Button asChild className="shadow-sm">
+              <Link href="/instructor/courses/new">
+                <CirclePlus className="mr-2 h-4 w-4" />
+                Tạo khóa học
+              </Link>
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Tổng khóa học
+              </p>
+              <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Published
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-600">
+                {stats.published}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Pending
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-amber-600">
+                {stats.pending}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Draft
+              </p>
+              <p className="mt-1 text-2xl font-semibold">{stats.draft}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm theo tên, mô tả hoặc danh mục..."
+            className="pl-9"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" />
+            Lọc:
+          </span>
+          {[
+            { key: "all", label: "Tất cả" },
+            { key: "publish", label: "Published" },
+            { key: "pending", label: "Pending" },
+            { key: "draft", label: "Draft" },
+          ].map((item) => (
+            <Button
+              key={item.key}
+              size="sm"
+              variant={statusFilter === item.key ? "default" : "outline"}
+              className={cn(statusFilter === item.key && "shadow-sm")}
+              onClick={() =>
+                setStatusFilter(
+                  item.key as "all" | "publish" | "draft" | "pending",
+                )
+              }
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-linear-to-br from-background via-card to-primary/5 shadow-sm">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-16 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute right-0 top-24 h-32 w-32 rounded-full bg-amber-400/10 blur-3xl" />
+        </div>
+
+        <div className="relative border-b border-border/60 px-5 py-4 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                Danh sách khóa học
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">
+                Các khóa học đang vận hành
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Hiển thị {filteredCourses.length} / {stats.total} khóa học
+            </p>
+          </div>
+        </div>
+
+        <div className="relative p-5 sm:p-6">
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl border border-border/60 bg-background/80 shadow-sm"
+                >
+                  <Skeleton className="h-28 w-full" />
+                  <div className="space-y-2 p-4">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                    <Skeleton className="mt-3 h-8 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !courses?.length ? (
+            <Card className="border-dashed border-border/60 bg-background/80 shadow-sm">
+              <CardContent className="flex min-h-110 flex-col items-center justify-center space-y-5 p-8 text-center">
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-primary">
+                  <BookOpen className="h-9 w-9" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold">
+                    Bạn chưa có khóa học nào
+                  </h3>
+                  <p className="max-w-xl text-sm text-muted-foreground">
+                    Hiện chưa có dữ liệu khóa học để quản lý. Bắt đầu bằng cách
+                    tạo khóa học đầu tiên của bạn.
+                  </p>
+                </div>
+                <Button asChild>
+                  <Link href="/instructor/courses/new">
+                    <CirclePlus className="mr-2 h-4 w-4" />
+                    Tạo khóa học đầu tiên
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : !filteredCourses.length ? (
+            <Card className="border-border/60 bg-background/80 shadow-sm">
+              <CardContent className="flex min-h-70 flex-col items-center justify-center space-y-3 text-center">
+                <div className="rounded-full bg-muted p-3 text-muted-foreground">
+                  <FileClock className="h-5 w-5" />
+                </div>
+                <p className="font-medium">Không có khóa học phù hợp bộ lọc</p>
+                <p className="text-sm text-muted-foreground">
+                  Thử đổi từ khóa tìm kiếm hoặc chọn trạng thái khác.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Xóa bộ lọc
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Hiển thị{" "}
+                  <span className="font-medium text-foreground">
+                    {filteredCourses.length}
+                  </span>{" "}
+                  khóa học
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredCourses.map((course) => (
+                  <CourseManageCard
+                    key={course.id}
+                    course={course}
+                    onDelete={(courseId) => {
+                      void handleDelete(courseId);
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}

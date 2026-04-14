@@ -4,6 +4,8 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import databaseConfig from '../config/database.config';
 import { User } from '../users/user.model';
 import { Video } from '../models/video.model';
+import { Cart } from '../models/cart.model';
+import { CartItem } from '../models/cart-item.model';
 import { Course } from '../models/course.model';
 import { RoadMap } from '../models/roadmap.model';
 import { RoadMapCourse } from '../models/roadmap-course.model';
@@ -26,9 +28,10 @@ import { LessonProgress } from '../models/lesson-progress.model';
             RoadMapCourse,
             Enroll,
             LessonProgress,
+            Cart, CartItem
           ],
           autoLoadModels: true,
-          synchronize: false, // Set to true only for development
+          synchronize: false, // Set to true to create new tables (carts, cart_items)
         };
       },
       inject: [ConfigService],

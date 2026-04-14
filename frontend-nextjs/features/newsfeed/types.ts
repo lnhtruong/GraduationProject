@@ -9,17 +9,18 @@ export type NewsfeedActionType =
 
 export interface NewsfeedCourseInfo {
 	id: number;
-	title: string;
-	instructor: string;
-	category: string;
+	name: string;
 	level: "Beginner" | "Intermediate" | "Advanced";
-	durationLabel: string;
-	totalLessons: number;
+	duration: string;
+	language: string;
+	price: number;
+	userId: number;
+	status: "draft" | "published" | "archived" | string;
+	categories: string[];
 	thumbnail: string | null;
 	description: string;
-	tags: string[];
-	students: number;
-	rating: number;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface NewsfeedVideoStats {
