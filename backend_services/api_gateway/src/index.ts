@@ -122,8 +122,25 @@ const PUBLIC_ROUTES = [
   '/api/payment/payos-callback',
   '/api/payment/return',
   '/api/payment/cancel',
-  '/api/feed', // GET /feed is public
 ];
+
+const PUBLIC_GET_PREFIXES = [
+  '/api/feed',
+  '/api/course/feedbacks',
+  '/api/course/feedback-reactions',
+];
+
+function isPublicRequest(req: Request): boolean {
+  if (PUBLIC_ROUTES.includes(req.path)) {
+    return true;
+  }
+
+  if (req.method === 'GET') {
+    return PUBLIC_GET_PREFIXES.some((prefix) => req.path.startsWith(prefix));
+  }
+
+  return false;
+}
 
 app.use((req, res, next) => {
   if (req.path.includes('course')) {
@@ -142,15 +159,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return next();
   }
 
-  if (PUBLIC_ROUTES.includes(req.path)) {
-    // Allow GET requests on public routes (like GET /api/feed for viewing)
-    if (req.method === 'GET') {
-      return next();
-    }
-    // But block POST/PUT/DELETE on public feed route unless authenticated
-    if (req.path === '/api/feed' && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE')) {
-      return authMiddleware(req as AuthRequest, res, next);
-    }
+  if (isPublicRequest(req)) {
     return next();
   }
 
@@ -161,6 +170,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use((req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user?.userId) {
     req.headers['x-user-id'] = String(req.user.userId);
+    req.headers['x-user-role'] = String(req.user.role);
   }
   next();
 });

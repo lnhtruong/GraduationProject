@@ -9,6 +9,8 @@ import { CartItem } from '../models/cart-item.model';
 import { Course } from '../models/course.model';
 import { RoadMap } from '../models/roadmap.model';
 import { RoadMapCourse } from '../models/roadmap-course.model';
+import { Feedback } from '../models/feedback.model';
+import { FeedbackReaction } from '../models/feedback-reaction.model';
 import { Enroll } from '../models/enroll.model';
 import { LessonProgress } from '../models/lesson-progress.model';
 
@@ -26,9 +28,12 @@ import { LessonProgress } from '../models/lesson-progress.model';
             Course,
             RoadMap,
             RoadMapCourse,
+            Cart,
+            CartItem,
+            Feedback,
+            FeedbackReaction,
             Enroll,
             LessonProgress,
-            Cart, CartItem
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
