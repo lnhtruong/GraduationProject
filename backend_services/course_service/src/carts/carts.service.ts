@@ -109,7 +109,7 @@ export class CartsService {
   async getCart(userId: number): Promise<any> {
     const itemInclude = {
       model: CartItem,
-      attributes: ['course_id', 'created_at'],
+      attributes: ['id', 'courseId', 'created_at'],
     };
 
     let cart = await this.cartModel.findOne({
@@ -130,6 +130,7 @@ export class CartsService {
     return {
       ...plain,
       items: (plain.items ?? []).map((item: any) => ({
+        id: item.id,
         courseId: item.courseId,
         created_at: item.created_at,
       })),
