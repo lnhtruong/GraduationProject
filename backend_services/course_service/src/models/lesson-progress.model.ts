@@ -7,7 +7,7 @@ export enum LessonProgressStatus {
 }
 
 @Table({
-  tableName: 'LessonProgress',
+  tableName: 'lesson_progress',
   timestamps: false,
 })
 export class LessonProgress extends Model {

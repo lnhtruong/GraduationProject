@@ -4,7 +4,7 @@
  */
 exports.up = async function (knex) {
   await knex.raw(`
-    CREATE TABLE IF NOT EXISTS Enrolls (
+    CREATE TABLE IF NOT EXISTS enrolls (
       id INTEGER NOT NULL AUTO_INCREMENT,
       user_id INTEGER NOT NULL,
       course_id INTEGER NOT NULL,
@@ -17,7 +17,7 @@ exports.up = async function (knex) {
       CONSTRAINT fk_enrolls_course FOREIGN KEY (course_id) REFERENCES Courses (id) ON DELETE CASCADE ON UPDATE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-    CREATE TABLE IF NOT EXISTS LessonProgress (
+    CREATE TABLE IF NOT EXISTS lesson_progress (
       id INTEGER NOT NULL AUTO_INCREMENT,
       user_id INTEGER NOT NULL,
       course_id INTEGER NOT NULL,

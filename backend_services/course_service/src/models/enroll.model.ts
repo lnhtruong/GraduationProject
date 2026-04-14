@@ -7,7 +7,7 @@ export enum EnrollStatus {
 }
 
 @Table({
-  tableName: 'Enrolls',
+  tableName: 'enrolls',
   timestamps: false,
 })
 export class Enroll extends Model {
