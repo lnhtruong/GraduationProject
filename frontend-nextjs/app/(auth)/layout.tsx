@@ -19,21 +19,22 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-background overflow-hidden">
-      {/* --- BACKGROUND EFFECTS --- */}
-      {/* 1. Ánh sáng Spotlight hắt từ trên xuống giữa màn hình */}
-      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-200 h-150 pointer-events-none select-none">
-        <div className="absolute inset-0 bg-primary/20 dark:bg-primary/10 blur-[120px] rounded-full"></div>
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-background">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-10%] h-150 w-200 -translate-x-1/2 select-none"
+      >
+        <div className="absolute inset-0 rounded-full bg-primary/20 blur-[120px] dark:bg-primary/10" />
       </div>
 
-      {/* 2. Nền lưới (Grid) hiển thị rõ ở giữa và mờ dần ra 4 góc */}
-      <div className="absolute inset-0 bg-grid-slate-900/[0.04] dark:bg-grid-slate-100/[0.02] mask-[radial-gradient(ellipse_at_center,black_50%,transparent_100%)] pointer-events-none select-none"></div>
-      {/* --------------------------- */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 select-none bg-grid-slate-900/[0.04] mask-[radial-gradient(ellipse_at_center,black_50%,transparent_100%)] dark:bg-grid-slate-100/[0.02]"
+      />
 
-      {/* Brand header */}
       <div className="container relative z-10 mx-auto px-4 pt-8">
         <Link href="/" className="inline-flex items-center gap-2 group">
-          <div className="relative flex items-center justify-center transform group-hover:scale-105 transition-transform">
+          <div className="relative flex items-center justify-center transition-transform group-hover:scale-105">
             <Image
               src="/logo.png"
               alt="LearnHub Logo"
@@ -51,17 +52,14 @@ export default function AuthLayout({
         </Link>
       </div>
 
-      {/* Main content (Form sẽ nằm ngay giữa luồng sáng) */}
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        {/* Bọc thêm một lớp animte nhẹ để form trồi lên mượt mà */}
         <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
           <Suspense fallback={<PageLoader />}>{children}</Suspense>
         </div>
       </div>
 
-      {/* Footer */}
       <div className="container relative z-10 mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
           <p>© 2026 LearnHub. All rights reserved.</p>
           <div className="flex gap-6">
             <Link

@@ -104,7 +104,7 @@ export function Header() {
 
   return (
     <motion.header
-      className="sticky top-0 z-50 w-full border-b border-primary/50 bg-primary/60 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-primary/30 dark:bg-primary/18"
+      className="sticky top-0 z-50 w-full border-b border-primary/50 bg-primary/85 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
