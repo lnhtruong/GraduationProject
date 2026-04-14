@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   UnauthorizedException,
 } from '@nestjs/common';
 import { CreateFeedbackReactionDto } from './dto/create-feedback-reaction.dto';
@@ -14,7 +15,7 @@ import { FeedbackReactionsService } from './feedback-reactions.service';
 
 @Controller('feedback-reactions')
 export class FeedbackReactionsController {
-  constructor(private readonly feedbackReactionsService: FeedbackReactionsService) {}
+  constructor(private readonly feedbackReactionsService: FeedbackReactionsService) { }
 
   private parseRequiredUserId(userIdHeader?: string): number {
     if (!userIdHeader) {
@@ -44,7 +45,8 @@ export class FeedbackReactionsController {
     @Body() payload: CreateFeedbackReactionDto,
   ) {
     const userId = this.parseRequiredUserId(userIdHeader);
-    return await this.feedbackReactionsService.createOrUpdate(userId, payload);
+    console.log('check 1: ', userId);
+    // return await this.feedbackReactionsService.createOrUpdate(userId, payload);
   }
 
   @Delete('feedback/:feedbackId')
@@ -60,7 +62,7 @@ export class FeedbackReactionsController {
   @Get('feedback/:feedbackId')
   async getSummary(
     @Param('feedbackId', ParseIntPipe) feedbackId: number,
-    @Headers('x-user-id') userIdHeader?: string,
+    @Query('userId') userIdHeader?: string,
   ) {
     const currentUserId = this.parseOptionalUserId(userIdHeader);
     return await this.feedbackReactionsService.getSummary(feedbackId, currentUserId);

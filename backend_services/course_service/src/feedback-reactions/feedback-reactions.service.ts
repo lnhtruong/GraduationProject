@@ -11,7 +11,7 @@ export class FeedbackReactionsService {
     private readonly reactionModel: typeof FeedbackReaction,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
-  ) {}
+  ) { }
 
   async createOrUpdate(userId: number, payload: CreateFeedbackReactionDto): Promise<FeedbackReaction> {
     const feedback = await this.feedbackModel.findByPk(payload.feedbackId);
