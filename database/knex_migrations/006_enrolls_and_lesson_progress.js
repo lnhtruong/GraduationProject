@@ -14,7 +14,7 @@ exports.up = async function (knex) {
       completed_at DATETIME NULL,
       PRIMARY KEY (id),
       CONSTRAINT fk_enrolls_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT fk_enrolls_course FOREIGN KEY (course_id) REFERENCES Courses (id) ON DELETE CASCADE ON UPDATE CASCADE
+      CONSTRAINT fk_enrolls_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE ON UPDATE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     CREATE TABLE IF NOT EXISTS lesson_progress (
@@ -25,7 +25,7 @@ exports.up = async function (knex) {
       progress ENUM('not_started', 'in_progress', 'completed') NOT NULL DEFAULT 'not_started' COMMENT 'not_started, in_progress, completed',
       PRIMARY KEY (id),
       CONSTRAINT fk_lesson_progress_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT fk_lesson_progress_course FOREIGN KEY (course_id) REFERENCES Courses (id) ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT fk_lesson_progress_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE ON UPDATE CASCADE,
       CONSTRAINT fk_lesson_progress_lesson FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE ON UPDATE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);

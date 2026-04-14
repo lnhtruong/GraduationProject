@@ -58,6 +58,31 @@ const removePurchasedCoursesFromCart = async (userId, courseItems) => {
 };
 
 // ============================================================
+// HELPER: Enroll user vào các khóa học sau khi thanh toán thành công
+// ============================================================
+const enrollUserInCourses = async (userId, courseItems) => {
+  if (!userId || !Array.isArray(courseItems) || courseItems.length === 0) return;
+  
+  console.log(`🚀 Đang tiến hành enroll ${courseItems.length} khóa học cho user ${userId}`);
+  
+  await Promise.allSettled(
+    courseItems.map((item) =>
+      axios.post(
+        `${COURSE_SERVICE_URL}/enroll`,
+        { courseId: item.course_id },
+        { headers: { "x-user-id": String(userId) } }
+      ).then(res => {
+        console.log(`✅ Enroll thành công khóa học ${item.course_id}`);
+        return res;
+      }).catch(err => {
+        console.error(`❌ Lỗi enroll khóa học ${item.course_id}:`, err.message);
+        throw err;
+      })
+    )
+  );
+};
+
+// ============================================================
 // VALIDATE: Kiểm tra courseIds có trong giỏ hàng của user không
 // ============================================================
 const validateCoursesInCart = async (userId, courseIds) => {
@@ -390,6 +415,11 @@ const payosCallback = async (req) => {
           user_id: oldData.user_id,
           transaction_id: oldData.transaction_id,
           courseItems: oldData.courseItems || [],
+        });
+
+        // Tự động enroll user vào khóa học
+        enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(err => {
+          console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
         });
 
       } else {
