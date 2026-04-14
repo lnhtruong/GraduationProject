@@ -13,6 +13,8 @@ import { QuizzesModule } from './quizzes/quizzes.module';
 import { CartsModule } from './carts/carts.module';
 import { CoursesModule } from './course/course.module';
 import { RoadmapsModule } from './roadmaps/roadmaps.module';
+import { FeedbacksModule } from './feedbacks/feedbacks.module';
+import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { RoadmapsModule } from './roadmaps/roadmaps.module';
     QuizzesModule,
     CartsModule,
     RoadmapsModule,
+    FeedbacksModule,
+    FeedbackReactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

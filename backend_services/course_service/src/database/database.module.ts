@@ -9,6 +9,8 @@ import { CartItem } from '../models/cart-item.model';
 import { Course } from '../models/course.model';
 import { RoadMap } from '../models/roadmap.model';
 import { RoadMapCourse } from '../models/roadmap-course.model';
+import { Feedback } from '../models/feedback.model';
+import { FeedbackReaction } from '../models/feedback-reaction.model';
 
 @Module({
   imports: [
@@ -18,7 +20,17 @@ import { RoadMapCourse } from '../models/roadmap-course.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, Video, Course, RoadMap, RoadMapCourse, Cart, CartItem],
+          models: [
+            User,
+            Video,
+            Course,
+            RoadMap,
+            RoadMapCourse,
+            Cart,
+            CartItem,
+            Feedback,
+            FeedbackReaction,
+          ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
         };

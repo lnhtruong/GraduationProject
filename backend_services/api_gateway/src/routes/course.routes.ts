@@ -27,6 +27,7 @@ router.use(
       if (req.user) {
         proxyReq.setHeader('X-User-Id', req.user.userId.toString());
         proxyReq.setHeader('X-User-Email', req.user.email);
+        proxyReq.setHeader('X-User-Role', req.user.role.toString());
       }
 
       if (req.body && Object.keys(req.body).length > 0) {
