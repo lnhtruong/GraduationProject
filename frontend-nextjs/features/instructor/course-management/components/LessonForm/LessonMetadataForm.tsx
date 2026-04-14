@@ -65,21 +65,7 @@ export function LessonMetadataForm({
             />
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-col items-center gap-2 pt-1">
-        <Badge variant="outline" className="shrink-0 text-[11px]">
-          {isEdit ? "Editing" : "New lesson"}
-        </Badge>
-        <Button
-          type="submit"
-          className="h-9 px-4 shadow-md whitespace-nowrap"
-          onClick={onSubmit}
-          disabled={isSubmitting}
-        >
-          {isEdit ? "Lưu bài học" : "Tạo bài học"}
-        </Button>
-      </div>
+      ) : null}
     </div>
   );
 }

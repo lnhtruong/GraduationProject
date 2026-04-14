@@ -41,7 +41,7 @@ export function QuizEditor({ quiz, onSave }: Props) {
   return (
     <div className="space-y-4">
       <Card className="border-border/60 bg-muted/15">
-        <CardContent className="space-y-4 p-5">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <QuestionList
               questions={state.questions}

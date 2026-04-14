@@ -32,11 +32,11 @@ export function CourseManagementHeader({
   action,
 }: Props) {
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-linear-to-br from-background via-card to-muted/20 p-5 shadow-sm lg:p-6">
+    <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-linear-to-br from-background via-card to-muted/20 p-4 shadow-sm sm:p-5 lg:p-5">
       <div className="flex flex-wrap items-center gap-3">
         {leadingAction && <div className="shrink-0">{leadingAction}</div>}
-        <Breadcrumb>
-          <BreadcrumbList>
+        <Breadcrumb className="min-w-0 flex-1 overflow-x-auto">
+          <BreadcrumbList className="w-max min-w-full flex-nowrap sm:w-auto sm:min-w-0 sm:flex-wrap">
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link href="/instructor/dashboard">Instructor</Link>
@@ -66,7 +66,7 @@ export function CourseManagementHeader({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight lg:text-[1.75rem]">
               {title}
             </h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">

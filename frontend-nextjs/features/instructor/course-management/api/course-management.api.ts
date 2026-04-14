@@ -3,6 +3,9 @@ import {
   withQueryPath,
 } from "@/features/_shared/crud-factories";
 import type {
+  CourseFeedCreatePayload,
+  CourseFeedItem,
+  CourseFeedUpsertPayload,
   CourseFormValues,
   CourseStatus,
   InstructorCourse,
@@ -33,6 +36,10 @@ export type QuizListParams = {
   lessonActivityId?: number;
 };
 
+export type CourseFeedListParams = {
+  courseId?: number;
+};
+
 type QuizListResponse = {
   data?: InstructorQuiz[];
 };
@@ -43,6 +50,11 @@ type LessonListResponse = {
 
 type CourseListResponse = {
   data?: InstructorCourse[];
+};
+
+type FeedListResponse = {
+  data?: CourseFeedItem[];
+  next_cursor?: number | null;
 };
 
 function toQuizPayload(payload: QuizEditorState) {
@@ -154,5 +166,30 @@ const quizCrudApi = createResourceApi<
 });
 
 export const quizApi = quizCrudApi;
+
+const courseFeedCrudApi = createResourceApi<
+  CourseFeedItem,
+  CourseFeedItem,
+  CourseFeedCreatePayload,
+  CourseFeedUpsertPayload,
+  number,
+  CourseFeedListParams,
+  { message?: string },
+  FeedListResponse | CourseFeedItem[]
+>({
+  basePath: "/media/feed",
+  mapItem: (item) => item,
+  mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
+  getListPath: (params) =>
+    withQueryPath("/media/feed", {
+      courseId: params?.courseId,
+      limit: 100,
+    }),
+  getOnePath: (id) => `/media/feed/${id}`,
+  getUpdatePath: (id) => `/media/feed/${id}`,
+  getDeletePath: (id) => `/media/feed/${id}`,
+});
+
+export const courseFeedApi = courseFeedCrudApi;
 
 export type { CourseListParams };

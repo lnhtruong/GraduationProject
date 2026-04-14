@@ -89,6 +89,8 @@ export function createQuizPayload(
   quizMode: "in_video" | "outside_video",
   quizTimestamp: string,
 ): QuizEditorState {
+  const normalizedTimestamp = (quizTimestamp || "00:00:00.000").trim();
+
   return {
     ...state,
     lessonActivityId,
@@ -97,7 +99,7 @@ export function createQuizPayload(
       quizMode === "in_video"
         ? state.questions.map((question) => ({
             ...question,
-            videoTimestamp: question.videoTimestamp || quizTimestamp,
+            videoTimestamp: normalizedTimestamp,
           }))
         : state.questions.map((question) => ({
             ...question,

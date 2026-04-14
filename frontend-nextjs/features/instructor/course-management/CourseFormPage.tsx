@@ -28,7 +28,7 @@ export default function CourseFormPage({ courseId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
+      <div className="p-4 text-sm text-muted-foreground sm:p-5">
         Đang tải khóa học...
       </div>
     );
@@ -54,7 +54,7 @@ export default function CourseFormPage({ courseId }: Props) {
           </Button>
         }
       >
-        <div className="p-6 text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground sm:p-5">
           Vui lòng chọn một khóa học hợp lệ.
         </div>
       </ManagementPageShell>

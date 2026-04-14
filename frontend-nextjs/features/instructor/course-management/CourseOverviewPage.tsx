@@ -6,6 +6,7 @@ import {
   BookOpen,
   Layers3,
   PencilLine,
+  Clapperboard,
   Clock3,
   BadgeCheck,
   ArrowUpRight,
@@ -64,7 +65,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
           { label: "Chi tiết khóa học" },
         ]}
       >
-        <div className="space-y-4 p-6">
+        <div className="space-y-4 p-4 sm:p-5">
           <Skeleton className="h-24 w-full rounded-2xl" />
           <Skeleton className="h-48 w-full rounded-2xl" />
         </div>
@@ -82,7 +83,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
           { label: "Chi tiết khóa học" },
         ]}
       >
-        <div className="p-6 text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground sm:p-5">
           Quay lại danh sách khóa học để chọn khóa học khác.
         </div>
       </ManagementPageShell>
@@ -98,14 +99,20 @@ export default function CourseOverviewPage({ courseId }: Props) {
         { label: course.name },
       ]}
       action={
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={`/instructor/courses/${course.id}/edit`}>
               <PencilLine className="mr-2 h-4 w-4" />
               Sửa khóa học
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={`/instructor/courses/${course.id}/feed`}>
+              <Clapperboard className="mr-2 h-4 w-4" />
+              Quản lý feed
+            </Link>
+          </Button>
+          <Button asChild className="w-full sm:w-auto">
             <Link href={`/instructor/courses/${course.id}/lessons`}>
               <Layers3 className="mr-2 h-4 w-4" />
               Quản lý bài học
@@ -114,10 +121,10 @@ export default function CourseOverviewPage({ courseId }: Props) {
         </div>
       }
     >
-      <div className="space-y-6 p-6">
+      <div className="space-y-5 p-3 sm:space-y-5 sm:p-4 lg:p-5">
         <div className="grid gap-4 lg:grid-cols-12">
           <Card className="border-border/60 bg-linear-to-br from-background via-background to-muted/20 lg:col-span-12">
-            <CardContent className="space-y-5 p-5">
+            <CardContent className="space-y-5 p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -193,7 +200,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -215,7 +222,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                 paginatedLessons.map((lesson, index) => (
                   <div
                     key={lesson.id}
-                    className="rounded-2xl border border-border/60 bg-background p-4 transition-colors hover:border-primary/30"
+                    className="rounded-2xl border border-border/60 bg-background p-3 transition-colors hover:border-primary/30 sm:p-4"
                   >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div className="space-y-1">
@@ -260,13 +267,13 @@ export default function CourseOverviewPage({ courseId }: Props) {
             </div>
 
             {lessonCount > LESSONS_PER_PAGE ? (
-              <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background px-4 py-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
                 <p className="text-sm text-muted-foreground">
                   Hiển thị {(safeCurrentPage - 1) * LESSONS_PER_PAGE + 1} -{" "}
                   {Math.min(safeCurrentPage * LESSONS_PER_PAGE, lessonCount)} /{" "}
                   {lessonCount} bài học
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -301,7 +308,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
 
           <div className={cn("space-y-4")}>
             <Card className="border-border/60 bg-muted/10">
-              <CardContent className="space-y-3 p-5">
+              <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Thông tin khóa học
                 </p>
@@ -326,7 +333,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
             </Card>
 
             <Card className="border-border/60 bg-background">
-              <CardContent className="space-y-4 p-5">
+              <CardContent className="space-y-4 p-4 sm:p-5">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Insights nhanh
                 </p>
@@ -354,7 +361,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
             </Card>
 
             <Card className="border-border/60 bg-primary/5">
-              <CardContent className="space-y-3 p-5">
+              <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Hành động nhanh
                 </p>
@@ -366,6 +373,11 @@ export default function CourseOverviewPage({ courseId }: Props) {
                 <Button asChild variant="outline" className="w-full">
                   <Link href={`/instructor/courses/${course.id}/lessons`}>
                     Đi đến danh sách bài học
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/instructor/courses/${course.id}/feed`}>
+                    Đi đến quản lý feed
                   </Link>
                 </Button>
               </CardContent>
