@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 import { Course } from 'src/models/course.model';
 import { Feedback } from 'src/models/feedback.model';
+import { FeedbackReaction, FeedbackReactionType } from 'src/models/feedback-reaction.model';
 import { User } from 'src/users/user.model';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import { UpdateFeedbackDto } from './dto/update-feedback.dto';
@@ -17,7 +18,9 @@ export class FeedbacksService {
   constructor(
     @InjectModel(Feedback) private readonly feedbackModel: typeof Feedback,
     @InjectModel(Course) private readonly courseModel: typeof Course,
-  ) {}
+    @InjectModel(FeedbackReaction)
+    private readonly feedbackReactionModel: typeof FeedbackReaction,
+  ) { }
 
   async create(userId: number, payload: CreateFeedbackDto): Promise<Feedback> {
     const course = await this.courseModel.findByPk(payload.courseId, {
@@ -46,7 +49,7 @@ export class FeedbacksService {
     });
   }
 
-  async listByCourse(courseId: number, page = 1, limit = 10) {
+  async listByCourse(courseId: number, page = 1, limit = 10, currentUserId?: number) {
     if (!Number.isInteger(courseId) || courseId <= 0) {
       throw new BadRequestException('courseId must be a positive integer');
     }
@@ -67,6 +70,64 @@ export class FeedbacksService {
       order: [['id', 'DESC']],
       offset,
       limit: safeLimit,
+    });
+
+    const feedbackIds = rows.map((feedback) => feedback.id);
+    const reactions = feedbackIds.length
+      ? await this.feedbackReactionModel.findAll({
+        where: { feedbackId: feedbackIds },
+        attributes: ['feedbackId', 'userId', 'reactionType'],
+      })
+      : [];
+
+    const currentUserReactionMap = new Map<number, FeedbackReactionType | null>();
+    if (currentUserId && feedbackIds.length) {
+      const currentUserReactions = await this.feedbackReactionModel.findAll({
+        where: { feedbackId: feedbackIds, userId: currentUserId },
+        attributes: ['feedbackId', 'reactionType'],
+      });
+
+      for (const reaction of currentUserReactions) {
+        currentUserReactionMap.set(reaction.feedbackId, reaction.reactionType);
+      }
+    }
+
+    const reactionSummaryMap = new Map<
+      number,
+      { total: number; byTypeMap: Map<FeedbackReactionType, number> }
+    >();
+    for (const reaction of reactions) {
+      const existing =
+        reactionSummaryMap.get(reaction.feedbackId) ?? {
+          total: 0,
+          byTypeMap: new Map<FeedbackReactionType, number>(),
+        };
+      existing.total += 1;
+      existing.byTypeMap.set(
+        reaction.reactionType,
+        (existing.byTypeMap.get(reaction.reactionType) ?? 0) + 1,
+      );
+      reactionSummaryMap.set(reaction.feedbackId, existing);
+    }
+
+    const items = rows.map((feedback) => {
+      const base = feedback.get({ plain: true });
+      const reactionStats = reactionSummaryMap.get(feedback.id);
+
+      return {
+        ...base,
+        reactionSummary: {
+          feedbackId: feedback.id,
+          total: reactionStats?.total ?? 0,
+          byType: Array.from(reactionStats?.byTypeMap.entries() ?? []).map(
+            ([reactionType, count]) => ({
+              reactionType,
+              count,
+            }),
+          ),
+          currentUserReactionType: currentUserReactionMap.get(feedback.id) ?? null,
+        },
+      };
     });
 
     const allRatings = await this.feedbackModel.findAll({
@@ -101,7 +162,7 @@ export class FeedbacksService {
         totalReviews,
         distribution,
       },
-      items: rows,
+      items,
       pagination: {
         page: safePage,
         limit: safeLimit,

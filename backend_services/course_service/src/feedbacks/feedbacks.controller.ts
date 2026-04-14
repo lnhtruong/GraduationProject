@@ -32,6 +32,17 @@ export class FeedbacksController {
     return userId;
   }
 
+  private parseOptionalUserId(userIdHeader?: string): number | undefined {
+    if (!userIdHeader) {
+      return undefined;
+    }
+    const userId = Number(userIdHeader);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return undefined;
+    }
+    return userId;
+  }
+
   private assertAdmin(roleHeader?: string): void {
     const role = Number(roleHeader);
     console.log("check role: ", role);
@@ -46,15 +57,17 @@ export class FeedbacksController {
     return await this.feedbacksService.create(userId, payload);
   }
 
-  @Get('course/:courseId')
+  @Get(':courseId')
   async listByCourse(
     @Param('courseId', ParseIntPipe) courseId: number,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('userId') userIdHeader?: string,
   ) {
     const parsedPage = page ? Number(page) : undefined;
     const parsedLimit = limit ? Number(limit) : undefined;
-    return await this.feedbacksService.listByCourse(courseId, parsedPage, parsedLimit);
+    const currentUserId = this.parseOptionalUserId(userIdHeader);
+    return await this.feedbacksService.listByCourse(courseId, parsedPage, parsedLimit, currentUserId);
   }
 
   @Patch(':id')
