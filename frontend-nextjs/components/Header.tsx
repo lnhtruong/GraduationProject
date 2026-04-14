@@ -13,11 +13,13 @@ import {
   FolderOpen,
   BookOpen,
   GraduationCap,
+  ShoppingCart,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCartStore } from "@/features/cart/hooks/useCartStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +39,12 @@ export function Header() {
   const [isDesktopSearchVisible, setIsDesktopSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // [MOCK] lấy count từ local Zustand store
+  // [SWAP] Dùng useCartSummary() từ cart.hooks.ts khi backend sẵn sàng:
+  //   const { data } = useCartSummary();
+  //   const cartCount = data?.itemCount ?? 0;
+  const cartCount = useCartStore((state) => state.getItemCount());
 
   useEffect(() => {
     if (isDesktopSearchVisible && desktopSearchInputRef.current) {
@@ -158,6 +166,22 @@ export function Header() {
             >
               <Search className="h-5 w-5" />
             </Button>
+          )}
+
+          {/* Cart icon — chỉ hiện khi đã đăng nhập */}
+          {isAuthenticated && (
+            <div className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}>
+              <Link href="/cart" aria-label="Giỏ hàng">
+                <Button variant="ghost" size="icon" className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+            </div>
           )}
 
           <div
