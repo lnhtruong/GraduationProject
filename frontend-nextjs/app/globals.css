@@ -240,3 +240,166 @@
     linear-gradient(to bottom, rgb(241 245 249 / 0.03) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+/* CKEditor theme mapped to system tokens */
+.system-ckeditor {
+  --ck-color-base-background: hsl(var(--card));
+  --ck-color-base-foreground: hsl(var(--foreground));
+  --ck-color-base-text: hsl(var(--foreground));
+  --ck-color-text: hsl(var(--foreground));
+  --ck-color-toolbar-background: hsl(var(--muted) / 0.35);
+  --ck-color-toolbar-border: hsl(var(--border));
+  --ck-color-base-border: hsl(var(--border));
+  --ck-color-focus-border: hsl(var(--ring));
+  --ck-color-focus-outer-shadow: 0 0 0 2px hsl(var(--ring) / 0.18);
+  --ck-color-button-default-hover-background: hsl(var(--muted) / 0.65);
+  --ck-color-button-default-active-background: hsl(var(--muted) / 0.8);
+  --ck-color-button-default-active-shadow: none;
+  --ck-color-button-on-background: hsl(var(--primary) / 0.16);
+  --ck-color-button-on-hover-background: hsl(var(--primary) / 0.24);
+  --ck-color-button-on-active-background: hsl(var(--primary) / 0.28);
+  --ck-color-button-on-color: hsl(var(--foreground));
+  --ck-color-button-default-color: hsl(var(--foreground));
+  --ck-color-button-action-background: hsl(var(--primary));
+  --ck-color-button-action-hover-background: hsl(var(--primary));
+  --ck-color-button-action-text: hsl(var(--primary-foreground));
+  --ck-color-button-action-disabled-background: hsl(var(--muted));
+  --ck-color-button-action-disabled-text: hsl(var(--muted-foreground));
+  --ck-color-list-button-hover-background: hsl(var(--muted) / 0.7);
+  --ck-color-list-button-on-background: hsl(var(--primary) / 0.2);
+  --ck-color-panel-background: hsl(var(--popover));
+  --ck-color-panel-border: hsl(var(--border));
+  --ck-color-dropdown-panel-background: hsl(var(--popover));
+  --ck-color-dropdown-panel-border: hsl(var(--border));
+  --ck-color-dropdown-panel-text: hsl(var(--popover-foreground));
+  --ck-color-input-background: hsl(var(--background));
+  --ck-color-input-border: hsl(var(--border));
+  --ck-color-input-text: hsl(var(--foreground));
+  --ck-color-labeled-field-label-background: hsl(var(--card));
+  --ck-color-labeled-field-label-text: hsl(var(--muted-foreground));
+  --ck-color-icon-normal: hsl(var(--foreground));
+  --ck-color-icon-disabled: hsl(var(--muted-foreground));
+  --ck-border-radius: 0;
+}
+
+.system-ckeditor .ck.ck-editor__main > .ck-editor__editable {
+  min-height: 220px;
+  border: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.system-ckeditor .ck.ck-editor__main > .ck-editor__editable:not(.ck-focused) {
+  border: 0;
+}
+
+.system-ckeditor .ck.ck-editor__main > .ck-editor__editable.ck-focused {
+  outline: 2px solid hsl(var(--ring) / 0.35);
+  outline-offset: -2px;
+}
+
+.system-ckeditor .ck.ck-content p,
+.system-ckeditor .ck.ck-content li,
+.system-ckeditor .ck.ck-content blockquote,
+.system-ckeditor .ck.ck-content td,
+.system-ckeditor .ck.ck-content th {
+  color: hsl(var(--foreground));
+}
+
+.system-ckeditor .ck.ck-content ul {
+  list-style: disc;
+}
+
+.system-ckeditor .ck.ck-content ol {
+  list-style: decimal;
+}
+
+.system-ckeditor .ck.ck-content ul,
+.system-ckeditor .ck.ck-content ol {
+  padding-left: 1.25rem;
+}
+
+.system-ckeditor .ck.ck-content li::marker {
+  color: hsl(var(--foreground));
+}
+
+.system-ckeditor .ck.ck-content .todo-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.system-ckeditor .ck.ck-content .todo-list li::marker {
+  content: "";
+}
+
+.system-ckeditor .ck.ck-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+.system-ckeditor .ck.ck-content table td,
+.system-ckeditor .ck.ck-content table th {
+  border: 1px solid hsl(var(--foreground) / 0.35);
+  min-height: 36px;
+  min-width: 96px;
+}
+
+.system-ckeditor .ck.ck-content table th {
+  background: hsl(var(--muted) / 0.45);
+}
+
+.system-ckeditor .ck.ck-toolbar {
+  border: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.35);
+}
+
+.system-ckeditor .ck.ck-toolbar .ck.ck-toolbar__separator {
+  background: hsl(var(--border));
+}
+
+.system-ckeditor .ck.ck-button,
+.system-ckeditor .ck.ck-button .ck-button__label,
+.system-ckeditor .ck.ck-icon {
+  color: hsl(var(--foreground)) !important;
+  fill: hsl(var(--foreground)) !important;
+}
+
+.system-ckeditor .ck.ck-toolbar .ck.ck-button,
+.system-ckeditor .ck.ck-toolbar .ck.ck-button .ck-button__label,
+.system-ckeditor .ck.ck-toolbar .ck.ck-dropdown__button .ck-button__label,
+.system-ckeditor .ck.ck-dropdown .ck-button .ck-button__label {
+  color: hsl(var(--foreground)) !important;
+}
+
+.system-ckeditor .ck.ck-button.ck-disabled,
+.system-ckeditor .ck.ck-button.ck-disabled .ck-button__label,
+.system-ckeditor .ck.ck-button.ck-disabled .ck-icon {
+  color: hsl(var(--muted-foreground)) !important;
+  fill: hsl(var(--muted-foreground)) !important;
+  opacity: 0.6;
+}
+
+.system-ckeditor .ck.ck-button.ck-on {
+  background: hsl(var(--primary) / 0.16);
+}
+
+.system-ckeditor .ck.ck-button:not(.ck-disabled):hover,
+.system-ckeditor .ck.ck-button:not(.ck-disabled):focus-visible {
+  background: hsl(var(--muted) / 0.65);
+}
+
+.system-ckeditor .ck.ck-list,
+.system-ckeditor .ck.ck-dropdown__panel,
+.system-ckeditor .ck.ck-balloon-panel {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border-color: hsl(var(--border));
+}
+
+.system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button,
+.system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button .ck-button__label {
+  color: hsl(var(--popover-foreground)) !important;
+}
