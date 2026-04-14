@@ -5,44 +5,73 @@ const paymentService = require("../services/payment.service");
 // ============================================================
 /**
  * POST /payment/create-payment
- * Body: { user_id: number, courseItems: [{course_id, price}], totalAmount: number }
+ * Body: { courseIds: number[] }
+ * Header: x-user-id (set by Gateway)
  */
 const createPaymentLink = async (req, res) => {
     try {
         const { courseIds } = req.body;
-        const userId = req.headers['x-user-id']; // Lấy từ Gateway (Auth Token)
+        const userId = req.headers['x-user-id'];
 
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập" });
         }
         if (!Array.isArray(courseIds) || courseIds.length === 0) {
-            return res.status(400).json({ error: "courseIds là bắt buộc và phải là mảng" });
+            return res.status(400).json({ error: "courseIds là bắt buộc và phải là mảng không rỗng" });
         }
 
         const result = await paymentService.createPaymentLink(courseIds, Number(userId));
         res.json(result);
     } catch (err) {
         console.error("Lỗi khi tạo đơn hàng: ", err.message);
-        res.status(500).json({ error: err.message || "Không thể tạo đơn hàng" });
+        res.status(err.status || 500).json({ error: err.message || "Không thể tạo đơn hàng" });
     }
 };
 
 // ============================================================
-// READ: Lấy danh sách transactions của một user
+// BUY NOW: Mua ngay không qua giỏ hàng
 // ============================================================
 /**
- * GET /payment/transactions?user_id=1
+ * POST /payment/buy-now
+ * Body: { courseIds: number[] }
+ * Header: x-user-id (set by Gateway)
+ */
+const buyNow = async (req, res) => {
+    try {
+        const { courseId } = req.body;
+        const userId = req.headers['x-user-id'];
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập" });
+        }
+        if (!courseId || !Number.isInteger(Number(courseId)) || Number(courseId) <= 0) {
+            return res.status(400).json({ error: "courseId không hợp lệ" });
+        }
+
+        const result = await paymentService.buyNow(Number(courseId), Number(userId));
+        res.status(201).json(result);
+    } catch (err) {
+        console.error("Lỗi buy now:", err.message);
+        res.status(err.status || 500).json({ error: err.message || "Không thể tạo đơn hàng" });
+    }
+};
+
+// ============================================================
+// READ: Lấy danh sách transactions của user hiện tại
+// ============================================================
+/**
+ * GET /payment/transactions
+ * Header: x-user-id (set by Gateway — bắt buộc)
  */
 const getTransactionsByUser = async (req, res) => {
     try {
-        const userId = req.headers['x-user-id'] || req.query.user_id;
+        const userId = req.headers['x-user-id'];
 
         if (!userId) {
-            return res.status(400).json({ error: "Thiếu thông tin người dùng (x-user-id or user_id)" });
+            return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập" });
         }
-        const transactions = await paymentService.getTransactionsByUser(
-            Number(userId)
-        );
+
+        const transactions = await paymentService.getTransactionsByUser(Number(userId));
         res.json({ data: transactions });
     } catch (err) {
         console.error("Lỗi getTransactionsByUser:", err.message);
@@ -51,15 +80,22 @@ const getTransactionsByUser = async (req, res) => {
 };
 
 // ============================================================
-// READ: Lấy chi tiết một transaction
+// READ: Lấy chi tiết một transaction (chỉ của chính user)
 // ============================================================
 /**
  * GET /payment/transactions/:id
+ * Header: x-user-id (set by Gateway — bắt buộc)
  */
 const getTransactionById = async (req, res) => {
     try {
         const { id } = req.params;
-        const transaction = await paymentService.getTransactionById(Number(id));
+        const userId = req.headers['x-user-id'];
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập" });
+        }
+
+        const transaction = await paymentService.getTransactionById(Number(id), Number(userId));
         res.json({ data: transaction });
     } catch (err) {
         console.error("Lỗi getTransactionById:", err.message);
@@ -106,6 +142,7 @@ const payosCallback = async (req, res) => {
 
 module.exports = {
     createPaymentLink,
+    buyNow,
     getTransactionsByUser,
     getTransactionById,
     getOrderStatus,

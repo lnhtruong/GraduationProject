@@ -39,7 +39,8 @@ export function InstructorNav() {
   };
 
   const getUserDisplayName = () => {
-    if (user?.firstName && user?.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user?.firstName && user?.lastName)
+      return `${user.firstName} ${user.lastName}`;
     if (user?.firstName) return user.firstName;
     return user?.email ?? "Giảng viên";
   };
@@ -62,7 +63,7 @@ export function InstructorNav() {
           />
           <span className="hidden font-bold sm:inline">LearnHub</span>
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-            Creator
+            Teacher
           </span>
         </Link>
 

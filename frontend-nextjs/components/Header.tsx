@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Search,
   X,
+  Menu,
   User,
   LogOut,
   Settings,
@@ -29,16 +31,48 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { canAccessInstructor } from "@/lib/roles";
+import { useUiModeStore } from "@/store/ui-mode";
+
+const LEARNER_NAV_ITEMS = [
+  { label: "Home", href: "/" },
+  { label: "Video AI", href: "/upload" },
+];
+
+const TEACHER_NAV_ITEMS = [
+  { label: "Dashboard", href: "/instructor/dashboard" },
+  { label: "Courses", href: "/instructor/courses" },
+  { label: "Shorts Feed", href: "/instructor/shorts" },
+  { label: "Q&A", href: "/instructor/qa" },
+  { label: "Analytics", href: "/instructor/analytics" },
+];
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { viewMode, setViewMode } = useUiModeStore();
   const [isDesktopSearchVisible, setIsDesktopSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+  const canUseTeacherMode = canAccessInstructor(user?.role);
+  const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
+
+  useEffect(() => {
+    if (
+      pathname.startsWith("/instructor") &&
+      canUseTeacherMode &&
+      useUiModeStore.getState().viewMode !== "teacher"
+    ) {
+      setViewMode("teacher");
+    }
+  }, [pathname, canUseTeacherMode, setViewMode]);
+
+  const navItems = isTeacherMode ? TEACHER_NAV_ITEMS : LEARNER_NAV_ITEMS;
 
   // [MOCK] lấy count từ local Zustand store
   // [SWAP] Dùng useCartSummary() từ cart.hooks.ts khi backend sẵn sàng:
@@ -78,60 +112,101 @@ export function Header() {
 
   return (
     <motion.header
-      className="sticky top-0 z-50 w-full border-b bg-accent shadow-sm"
+      className="sticky top-0 z-50 w-full border-b border-primary/50 bg-primary/60 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-primary/30 dark:bg-primary/18"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
-      <div className="flex h-16 items-center justify-between px-4 md:px-6">
-        {/* Logo and Title */}
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Link href="/" className="flex items-center gap-2 mr-6">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={40}
-              height={40}
-              className="rounded"
-            />
-            <span
-              className={cn(
-                "font-bold",
-                isDesktopSearchVisible
-                  ? "hidden sm:inline-block"
-                  : "hidden sm:inline-block",
-              )}
+      <div className="flex h-16 w-full items-center justify-between gap-3 px-2 sm:px-3 lg:px-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Logo and Title */}
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+            <Link
+              href="/"
+              className="mr-1 flex items-center gap-2 rounded-lg px-1 py-1"
             >
-              LearnHub
-            </span>
-          </Link>
-        </motion.div>
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={44}
+                height={44}
+                className="rounded"
+              />
+              <span className="hidden text-base font-semibold tracking-tight sm:inline">
+                LearnHub
+              </span>
+            </Link>
+          </motion.div>
 
-        {/* Desktop Navigation */}
-        <nav
-          className={cn(
-            "items-center gap-4 lg:gap-6",
-            isDesktopSearchVisible ? "hidden" : "hidden md:flex",
+          {/* Desktop Navigation */}
+          <nav
+            className={cn(
+              "hidden items-center gap-1 rounded-xl border border-primary/20 bg-background/80 p-1 shadow-sm md:flex",
+              isDesktopSearchVisible ? "hidden" : "hidden md:flex",
+            )}
+          >
+            {navItems.map((item) => {
+              const isActive =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Button
+                  key={item.href}
+                  variant="ghost"
+                  asChild
+                  className={cn(
+                    "h-8 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                    isActive &&
+                      "bg-primary/15 text-primary shadow-sm ring-1 ring-primary/30",
+                  )}
+                >
+                  <Link href={item.href}>{item.label}</Link>
+                </Button>
+              );
+            })}
+          </nav>
+
+          {/* Mobile Navigation */}
+          {!isDesktopSearchVisible && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full border border-border/70 md:hidden"
+                  aria-label="Mở điều hướng"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52 md:hidden">
+                <DropdownMenuLabel>
+                  {isTeacherMode ? "Teacher Navigation" : "Main Navigation"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {navItems.map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link href={item.href}>{item.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        >
-          <Button variant="ghost" asChild>
-            <Link href="/">Home</Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/upload">Video AI</Link>
-          </Button>
-        </nav>
+        </div>
 
         {/* Right Side Controls */}
-        <div className={cn("flex flex-1 items-center justify-end gap-2")}>
+        <div className={cn("flex items-center justify-end gap-2")}>
           {/* Desktop Search Form */}
           {isDesktopSearchVisible && (
-            <form className="hidden md:flex flex-1 items-center gap-1 max-w-sm lg:max-w-md ml-auto">
+            <form className="ml-auto hidden items-center gap-1 md:flex md:w-72 lg:w-96">
               <Input
                 ref={desktopSearchInputRef}
                 type="search"
                 placeholder="Tìm kiếm mọi thứ..."
-                className="h-9 flex-1 bg-background text-foreground"
+                className="h-9 flex-1 rounded-full bg-background"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label="Tìm kiếm"
@@ -160,7 +235,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden md:inline-flex"
+              className="hidden rounded-full border border-border/70 md:inline-flex"
               onClick={() => setIsDesktopSearchVisible(true)}
               aria-label="Toggle search"
             >
@@ -200,12 +275,12 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <motion.div
-                    whileHover={{ scale: 1.1 }}
+                    whileHover={{ scale: 1.06 }}
                     whileTap={{ scale: 0.9 }}
                   >
                     <Button
                       variant="ghost"
-                      className="relative h-9 w-9 rounded-full"
+                      className="relative h-9 w-9 rounded-full border border-border/70"
                     >
                       <Avatar className="h-9 w-9">
                         <AvatarFallback>{getUserInitials()}</AvatarFallback>
@@ -237,15 +312,35 @@ export function Header() {
                       <span>Thư viện video & ảnh</span>
                     </Link>
                   </DropdownMenuItem>
-                  {/* Creator Studio — chỉ hiện với LECTURER và ADMIN */}
+                  {/* Teacher Mode — chỉ hiện với LECTURER và ADMIN */}
                   {canAccessInstructor(user?.role) && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/instructor/dashboard" className="cursor-pointer">
-                          <GraduationCap className="mr-2 h-4 w-4 text-primary" />
-                          <span className="font-medium text-primary">Creator Studio</span>
-                        </Link>
+                      <DropdownMenuItem
+                        onSelect={(event) => event.preventDefault()}
+                        className="mx-1.5 my-1 flex w-[calc(100%-0.75rem)] cursor-default items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 focus:bg-primary/10"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <GraduationCap className="mt-0.5 h-4 w-4 text-primary" />
+                          <div className="leading-tight">
+                            <p className="text-sm font-semibold text-primary">
+                              Teacher Mode
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Chuyển sang không gian giảng viên
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isTeacherMode}
+                          onCheckedChange={(checked) => {
+                            setViewMode(checked ? "teacher" : "learner");
+                            router.push(
+                              checked ? "/instructor/dashboard" : "/",
+                            );
+                          }}
+                          aria-label="Teacher mode switch"
+                        />
                       </DropdownMenuItem>
                     </>
                   )}

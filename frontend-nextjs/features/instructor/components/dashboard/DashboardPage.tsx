@@ -33,7 +33,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <p className="mb-1 text-sm text-muted-foreground">
-          {today} · Creator Studio
+          {today} · Teacher Mode
         </p>
         <h1 className="text-2xl font-bold">
           Welcome back,{" "}

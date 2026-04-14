@@ -16,7 +16,7 @@ export enum RoadMapCourseStatus {
 }
 
 @Table({
-  tableName: 'RoadMap_Course',
+  tableName: 'roadmap_course',
   timestamps: false,
 })
 export class RoadMapCourse extends Model {

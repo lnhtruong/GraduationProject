@@ -4,12 +4,15 @@ import { Op } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course, CourseStatus } from 'src/models/course.model';
+import { Lesson, LessonStatus } from 'src/models/lesson.model';
 
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectModel(Course)
     private readonly courseModel: typeof Course,
+     @InjectModel(Lesson)
+    private readonly lessonModel: typeof Lesson,
   ) {}
 
   async create(createCourseDto: CreateCourseDto): Promise<Course> {
@@ -96,5 +99,35 @@ export class CoursesService {
   async remove(id: number): Promise<void> {
     const course = await this.findOne(id);
     await course.destroy();
+  }
+  async syncCourseDuration(courseId: number): Promise<void> {
+    // Sum duration of all non-removed lessons belonging to this course
+    const lessons = await this.lessonModel.findAll({
+      where: {
+        courseId,
+        status: { [Op.ne]: LessonStatus.REMOVED },
+      },
+      attributes: ['duration'],
+    });
+    console.log(`Syncing course ${courseId} duration, found ${lessons.length} lessons, total duration: ${lessons.reduce((sum, l) => sum + (l.duration ?? 0), 0)} seconds`);
+    // Total duration in seconds (assuming lesson.duration is in seconds)
+    const totalSeconds = lessons.reduce(
+      (sum, lesson) => sum + (lesson.duration ?? 0),
+      0,
+    );
+
+    // Convert total seconds → "HH:MM:SS" to match the TIME column type
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const formatted = [hours, minutes, seconds]
+      .map((unit) => String(unit).padStart(2, '0'))
+      .join(':');
+
+    // Update course duration
+    await this.courseModel.update(
+      { duration: formatted },
+      { where: { id: courseId } },
+    );
   }
 }

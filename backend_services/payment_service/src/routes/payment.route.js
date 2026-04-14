@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const {
     createPaymentLink,
+    buyNow,
     getTransactionsByUser,
     getTransactionById,
     getOrderStatus,
@@ -14,6 +15,7 @@ const router = Router();
 // POST  /payment/create-payment
 //   body: { user_id, courseItems: [{course_id, price}], totalAmount }
 router.post("/create-payment", createPaymentLink);
+router.post("/buy-now", buyNow);
 
 // POST  /payment/payos-callback  (webhook từ PayOS)
 router.post("/payos-callback", payosCallback);

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS transaction_items (
     course_id INT NOT NULL,
     price DOUBLE NOT NULL COMMENT 'Giá course tại thời điểm mua (snapshot)',
     CONSTRAINT fk_txitems_transaction_id_transactions FOREIGN KEY (transaction_id) REFERENCES transactions (id) ON DELETE CASCADE ON UPDATE NO ACTION,
-    CONSTRAINT fk_txitems_course_id_courses FOREIGN KEY (course_id) REFERENCES Courses (id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT fk_txitems_course_id_courses FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE NO ACTION ON UPDATE NO ACTION,
     UNIQUE KEY uq_transaction_course (transaction_id, course_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 

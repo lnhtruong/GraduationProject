@@ -15,7 +15,7 @@ export enum CourseStatus {
 }
 
 @Table({
-  tableName: 'Courses',
+  tableName: 'courses',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
