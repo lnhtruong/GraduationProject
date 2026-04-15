@@ -130,13 +130,13 @@ export class EnrollsService {
         dto.courseId,
         transaction,
       );
-      await this.syncEnrollProgress(userId, dto.courseId, transaction);
+      // await this.syncEnrollProgress(userId, dto.courseId, transaction);
 
-      const fresh = await this.enrollModel.findByPk(enroll.id, { transaction });
-      if (!fresh) {
-        throw new BadRequestException('Failed to load enroll after create');
-      }
-      return fresh;
+      // const fresh = await this.enrollModel.findByPk(enroll.id, { transaction });
+      // if (!fresh) {
+      //   throw new BadRequestException('Failed to load enroll after create');
+      // }
+      return enroll;
     });
   }
 
@@ -161,24 +161,26 @@ export class EnrollsService {
 
     const { rows, count } = await this.enrollModel.findAndCountAll({
       where,
+      include: [{ model: Course }],
       limit,
       offset,
       order: [['id', 'DESC']],
     });
 
-    for (const row of rows) {
-      await this.syncEnrollProgress(row.userId, row.courseId);
-    }
+    // for (const row of rows) {
+    //   await this.syncEnrollProgress(row.userId, row.courseId);
+    // }
 
-    const refreshedRows = await this.enrollModel.findAll({
-      where,
-      limit,
-      offset,
-      order: [['id', 'DESC']],
-    });
+    // const refreshedRows = await this.enrollModel.findAll({
+    //   where,
+    //   limit,
+    //   offset,
+    //   order: [['id', 'DESC']],
+    // });
 
     return new PaginatedResponseDto(
-      refreshedRows,
+      // refreshedRows,
+      rows,
       new PaginationMetaDto(page, limit, count),
     );
   }
@@ -188,12 +190,12 @@ export class EnrollsService {
     if (!enroll) {
       throw new NotFoundException(`Enroll with ID ${id} not found`);
     }
-    await this.syncEnrollProgress(enroll.userId, enroll.courseId);
-    const reloaded = await this.enrollModel.findByPk(id);
-    if (!reloaded) {
-      throw new NotFoundException(`Enroll with ID ${id} not found`);
-    }
-    return reloaded;
+    // await this.syncEnrollProgress(enroll.userId, enroll.courseId);
+    // const reloaded = await this.enrollModel.findByPk(id);
+    // if (!reloaded) {
+    //   throw new NotFoundException(`Enroll with ID ${id} not found`);
+    // }
+    return enroll;
   }
 
   async update(id: number, dto: UpdateEnrollDto): Promise<Enroll> {

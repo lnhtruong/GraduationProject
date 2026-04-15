@@ -110,7 +110,9 @@ export class LessonProgressService {
   ): Promise<LessonProgress> {
     const row = await this.findOne(id);
     await row.update(dto);
-    await this.enrollsService.syncEnrollProgress(row.userId, row.courseId);
+    if (dto.progress === LessonProgressStatus.COMPLETED) {
+      await this.enrollsService.syncEnrollProgress(row.userId, row.courseId);
+    }
     return this.findOne(id);
   }
 
@@ -120,8 +122,8 @@ export class LessonProgressService {
       throw new NotFoundException(`Lesson progress with ID ${id} not found`);
     }
     const { userId, courseId } = row;
-    await row.destroy();
     await this.enrollsService.syncEnrollProgress(userId, courseId);
+    await row.destroy();
   }
 
   private async assertCourseExists(courseId: number): Promise<void> {

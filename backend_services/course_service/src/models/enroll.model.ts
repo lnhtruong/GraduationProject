@@ -1,4 +1,5 @@
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { Course } from './course.model';
 
 export enum EnrollStatus {
   ACTIVE = 'active',
@@ -26,12 +27,16 @@ export class Enroll extends Model {
   })
   declare userId: number;
 
+  @ForeignKey(() => Course)
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
     field: 'course_id',
   })
   declare courseId: number;
+
+  @BelongsTo(() => Course)
+  course: Course;
 
   /** Completion ratio 0–100 (from LessonProgress). */
   @Column({
