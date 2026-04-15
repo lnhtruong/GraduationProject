@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Headers } from '@nestjs/common';
 import { CoursesService } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -6,27 +6,33 @@ import { CourseStatus } from 'src/models/course.model';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(private readonly coursesService: CoursesService) { }
 
   @Post()
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  create(@Body() createCourseDto: CreateCourseDto, @Headers('x-user-id') userIdHeader?: string) {
+    const user_id =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+    return this.coursesService.create(createCourseDto, user_id);
   }
 
   @Get()
   findAll(
-    @Query('userId') userId?: string,
     @Query('status') status?: CourseStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Headers('x-user-id') userIdHeader?: string,
   ) {
-    const parsedUserId =
-      userId !== undefined ? Number(userId) : undefined;
+    const user_id =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
     const parsedPage = page !== undefined ? Number(page) : undefined;
     const parsedLimit = limit !== undefined ? Number(limit) : undefined;
 
     return this.coursesService.findAll(
-      parsedUserId,
+      user_id,
       status,
       parsedPage,
       parsedLimit,

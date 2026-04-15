@@ -38,9 +38,6 @@ export class CreateCourseDto {
   @IsNumber()
   price: number;
 
-  @IsInt()
-  userId: number;
-
   @IsEnum(CourseStatus)
   @IsOptional()
   status?: CourseStatus;

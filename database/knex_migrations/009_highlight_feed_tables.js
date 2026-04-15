@@ -1,5 +1,5 @@
-exports.up = function(knex) {
-    return knex.raw(`
+exports.up = function (knex) {
+  return knex.raw(`
         CREATE TABLE \`highlight_feed\` (
             \`id\` INT(11) NOT NULL AUTO_INCREMENT,
             \`video_id\` INT(11) NOT NULL,
@@ -50,8 +50,8 @@ exports.up = function(knex) {
     `);
 };
 
-exports.down = function(knex) {
-    return knex.raw(`
+exports.down = function (knex) {
+  return knex.raw(`
         DROP TABLE IF EXISTS \`feed_views\`;
         DROP TABLE IF EXISTS \`feed_interactions\`;
         DROP TABLE IF EXISTS \`highlight_feed\`;

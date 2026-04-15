@@ -5,7 +5,7 @@ const { runLegacySqlFiles } = require("../helpers/_legacy_sql");
  * Chạy file SQL 009_transaction_tables.sql
  */
 exports.up = async function (knex) {
-  if (!(await knex.schema.hasTable("Transactions"))) {
+  if (!(await knex.schema.hasTable("transactions"))) {
     await runLegacySqlFiles(knex, ["transaction_tables.sql"]);
   }
 };
