@@ -95,7 +95,7 @@ export default function Home() {
                   className="px-8 rounded-full shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                   asChild
                 >
-                  <Link href="/upload">Bắt đầu học</Link>
+                  <Link href="/newsfeed">Bắt đầu học</Link>
                 </Button>
                 <Button
                   size="lg"

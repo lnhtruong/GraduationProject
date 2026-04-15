@@ -45,6 +45,19 @@ type CourseListResponse = {
   data?: InstructorCourse[];
 };
 
+function toCoursePayload(payload: CourseFormValues) {
+  return {
+    name: payload.name,
+    description: payload.description,
+    categories: payload.categories,
+    level: payload.level,
+    duration: payload.duration,
+    language: payload.language,
+    price: payload.price,
+    status: payload.status,
+  };
+}
+
 function toQuizPayload(payload: QuizEditorState) {
   return {
     lessonActivityId: payload.lessonActivityId as number,
@@ -86,6 +99,9 @@ const courseCrudApi = createResourceApi<
   basePath: "/course/courses",
   mapItem: (item) => item,
   mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
+  toCreatePayload: toCoursePayload,
+  toUpdatePayload: toCoursePayload,
+  toPatchPayload: toCoursePayload,
   getListPath: (params) => withQueryPath("/course/courses", params),
 });
 
