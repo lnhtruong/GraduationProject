@@ -79,7 +79,7 @@ export class QuizQuestion extends Model {
   orderIndex: number;
 
   @Column({
-    type: DataType.TIME,
+    type: 'TIME(3)' as any,
     allowNull: true,
     field: 'video_timestamp',
   })
