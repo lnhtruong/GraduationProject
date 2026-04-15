@@ -52,7 +52,7 @@ export function QuestionEditor({
   return (
     <Card className="border-border/60">
       <CardContent className="space-y-4 p-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="font-semibold">Chỉnh câu hỏi</h4>
           <Badge variant="outline">ID {question.id}</Badge>
         </div>
@@ -73,7 +73,7 @@ export function QuestionEditor({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">Các lựa chọn</p>
             <Button
               type="button"

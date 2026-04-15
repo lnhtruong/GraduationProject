@@ -66,12 +66,12 @@ export default function CoursesPage() {
   }, [courses, search, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       <Card className="border-border/60 shadow-sm">
-        <CardContent className="space-y-5 p-6">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-[2rem]">
                 Quản lý khóa học
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
@@ -87,40 +87,40 @@ export default function CoursesPage() {
             </Button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Tổng khóa học
               </p>
-              <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
+              <p className="mt-0.5 text-xl font-semibold">{stats.total}</p>
             </div>
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Published
               </p>
-              <p className="mt-1 text-2xl font-semibold text-emerald-600">
+              <p className="mt-0.5 text-xl font-semibold text-emerald-600">
                 {stats.published}
               </p>
             </div>
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Pending
               </p>
-              <p className="mt-1 text-2xl font-semibold text-amber-600">
+              <p className="mt-0.5 text-xl font-semibold text-amber-600">
                 {stats.pending}
               </p>
             </div>
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Draft
               </p>
-              <p className="mt-1 text-2xl font-semibold">{stats.draft}</p>
+              <p className="mt-0.5 text-xl font-semibold">{stats.draft}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full lg:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -158,13 +158,13 @@ export default function CoursesPage() {
         </div>
       </div>
 
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-linear-to-br from-background via-card to-primary/5 shadow-sm">
+      <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-linear-to-br from-background via-card to-primary/5 shadow-sm">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-16 top-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
           <div className="absolute right-0 top-24 h-32 w-32 rounded-full bg-amber-400/10 blur-3xl" />
         </div>
 
-        <div className="relative border-b border-border/60 px-5 py-4 sm:px-6">
+        <div className="relative border-b border-border/60 px-4 py-3.5 sm:px-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -180,15 +180,15 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        <div className="relative p-5 sm:p-6">
+        <div className="relative p-4 sm:p-5">
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
                   className="overflow-hidden rounded-2xl border border-border/60 bg-background/80 shadow-sm"
                 >
-                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-24 w-full" />
                   <div className="space-y-2 p-4">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-full" />
@@ -200,7 +200,7 @@ export default function CoursesPage() {
             </div>
           ) : !courses?.length ? (
             <Card className="border-dashed border-border/60 bg-background/80 shadow-sm">
-              <CardContent className="flex min-h-110 flex-col items-center justify-center space-y-5 p-8 text-center">
+              <CardContent className="flex min-h-96 flex-col items-center justify-center space-y-5 p-7 text-center">
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-primary">
                   <BookOpen className="h-9 w-9" />
                 </div>
@@ -223,7 +223,7 @@ export default function CoursesPage() {
             </Card>
           ) : !filteredCourses.length ? (
             <Card className="border-border/60 bg-background/80 shadow-sm">
-              <CardContent className="flex min-h-70 flex-col items-center justify-center space-y-3 text-center">
+              <CardContent className="flex min-h-64 flex-col items-center justify-center space-y-3 p-6 text-center">
                 <div className="rounded-full bg-muted p-3 text-muted-foreground">
                   <FileClock className="h-5 w-5" />
                 </div>
@@ -253,7 +253,7 @@ export default function CoursesPage() {
                   khóa học
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredCourses.map((course) => (
                   <CourseManageCard
                     key={course.id}

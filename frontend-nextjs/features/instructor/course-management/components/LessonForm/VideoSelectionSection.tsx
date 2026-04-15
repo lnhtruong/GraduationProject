@@ -4,17 +4,12 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import {
-  formatDuration,
-  getVideoCardTitle,
-} from "../../utils/lesson-form.utils";
+import { getVideoCardTitle } from "../../utils/lesson-form.utils";
 
 interface Video {
   id: number;
   thumbnail?: string | null;
   name?: string | null;
-  duration?: number | null;
-  type?: string;
 }
 
 interface Props {
@@ -72,10 +67,7 @@ export function VideoSelectionSection({
                   <p className="line-clamp-2 text-xs font-medium">
                     {getVideoCardTitle(video.name, video.id)}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDuration(video.duration)} • {video.type}
-                    </span>
+                  <div className="flex items-center justify-end">
                     {isSelected ? (
                       <Badge variant="default" className="h-5 px-2 text-[10px]">
                         Đã chọn

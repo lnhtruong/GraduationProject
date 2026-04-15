@@ -36,7 +36,6 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
       updateTitle,
       updateDescription,
       updatePassingScore,
-      updateTimeLimitMinutes,
     } = useQuizEditor(null);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,24 +137,13 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="grid gap-3">
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Mô tả</label>
                 <Textarea
                   className="min-h-20"
                   value={state.description}
                   onChange={(event) => updateDescription(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Thời gian (phút)</label>
-                <Input
-                  type="number"
-                  className="w-28"
-                  value={state.timeLimitMinutes}
-                  onChange={(event) =>
-                    updateTimeLimitMinutes(Number(event.target.value || 0))
-                  }
                 />
               </div>
             </div>
@@ -168,7 +156,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold">
             Bộ câu hỏi ({state.questions.length})
           </h3>
@@ -182,7 +170,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
           {state.questions.map((question, index) => (
             <Card key={question.id} className="border-border/60">
               <CardContent className="space-y-4 p-4">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold">Câu {index + 1}</p>
                   <Button
                     type="button"
@@ -212,7 +200,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">Lựa chọn</p>
                     <Button
                       type="button"
@@ -262,7 +250,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                         type="button"
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-destructive"
+                        className="h-8 w-8 justify-self-start text-destructive md:justify-self-auto"
                         onClick={() => removeOption(question.id, option.id)}
                       >
                         <Trash2 className="h-4 w-4" />

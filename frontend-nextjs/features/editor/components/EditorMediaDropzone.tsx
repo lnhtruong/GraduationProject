@@ -70,6 +70,7 @@ export default function EditorMediaDropzone({
   const [files, setFiles] = React.useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
+  const inFlightUploadKeyRef = React.useRef<string | null>(null);
 
   const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
     setUploadProgress(percent),
@@ -203,6 +204,14 @@ export default function EditorMediaDropzone({
     setFiles(selectedFiles);
     if (selectedFiles.length > 0) {
       const file = selectedFiles[0];
+      const uploadKey = `${file.name}:${file.size}:${file.lastModified}`;
+
+      // Guard against duplicated callback emissions from the dropzone value pipeline.
+      if (inFlightUploadKeyRef.current === uploadKey) {
+        return;
+      }
+
+      inFlightUploadKeyRef.current = uploadKey;
       console.log("[EditorMediaDropzone] File selected:", {
         name: file.name,
         size: file.size,
@@ -213,6 +222,7 @@ export default function EditorMediaDropzone({
       const isValidDuration = await validateVideoDuration(file);
       if (!isValidDuration) {
         setFiles([]);
+        inFlightUploadKeyRef.current = null;
         return;
       }
 
@@ -231,6 +241,8 @@ export default function EditorMediaDropzone({
         onUploadComplete?.();
       } catch (error) {
         console.error("[EditorMediaDropzone] Upload failed:", error);
+      } finally {
+        inFlightUploadKeyRef.current = null;
       }
     }
   };

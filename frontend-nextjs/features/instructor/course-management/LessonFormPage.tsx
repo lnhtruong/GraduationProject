@@ -38,7 +38,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
 
   if (courseLoading || lessonLoading) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
+      <div className="p-4 text-sm text-muted-foreground sm:p-5">
         Đang tải bài học...
       </div>
     );
@@ -54,7 +54,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           { label: "Bài học" },
         ]}
       >
-        <div className="p-6 text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground sm:p-5">
           Khóa học không hợp lệ.
         </div>
       </ManagementPageShell>
@@ -81,7 +81,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           </Button>
         }
       >
-        <div className="p-6 text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground sm:p-5">
           Vui lòng chọn một bài học hợp lệ.
         </div>
       </ManagementPageShell>
@@ -99,14 +99,21 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         { label: isEdit ? (lesson?.title ?? "Chỉnh sửa") : "Tạo mới" },
       ]}
       action={
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
           {isEdit ? (
-            <Button onClick={() => setActivityDialogOpen(true)}>
+            <Button
+              onClick={() => setActivityDialogOpen(true)}
+              className="w-full sm:w-auto"
+            >
               <Sparkles className="mr-2 h-4 w-4" />
               Tạo hoạt động
             </Button>
           ) : null}
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="w-full sm:w-auto"
+          >
             Quay lại
           </Button>
         </div>
@@ -140,7 +147,6 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         <ActivityCreationDialog
           open={activityDialogOpen}
           onOpenChange={setActivityDialogOpen}
-          courseId={course.id}
           lessonId={lesson.id}
           lessonTitle={lesson.title}
           lessonVideoId={lesson.videoId}

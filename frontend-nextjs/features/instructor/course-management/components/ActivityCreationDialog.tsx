@@ -36,7 +36,6 @@ import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  courseId: number;
   lessonId: number;
   lessonTitle: string;
   lessonVideoId?: number | null;
@@ -46,7 +45,6 @@ interface Props {
 export function ActivityCreationDialog({
   open,
   onOpenChange,
-  courseId,
   lessonId,
   lessonTitle,
   lessonVideoId,
@@ -117,27 +115,24 @@ export function ActivityCreationDialog({
       quizTimestamp,
     );
 
-    const createdQuiz = await createQuizMutation.mutateAsync(payload);
+    await createQuizMutation.mutateAsync(payload);
     toast.success("Đã tạo quiz từ popup");
     onOpenChange(false);
-
-    router.push(
-      `/instructor/courses/${courseId}/lessons/${lessonId}/quiz?activityId=${createdActivity.id}&quizId=${createdQuiz.id}`,
-    );
+    router.refresh();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="h-[90vh] w-[96vw] max-w-none overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl sm:w-[94vw] lg:w-7xl">
         <div className="flex h-full min-h-0 flex-col">
-          <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-6 py-4 text-left">
+          <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
             <DialogTitle className="text-xl">Tạo hoạt động mới</DialogTitle>
             <DialogDescription>
               Tạo quiz đầy đủ ngay trong popup hoặc tạo activity bài tập.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
             <Tabs
               value={activityTab}
               onValueChange={(value) =>
@@ -158,10 +153,11 @@ export function ActivityCreationDialog({
                 <QuizModeSection
                   quizMode={quizMode}
                   onQuizModeChange={setQuizMode}
-                  timestampOptions={timestampOptions}
                   quizTimestamp={quizTimestamp}
                   onTimestampChange={setQuizTimestamp}
                   canUseInVideoQuiz={canUseInVideoQuiz}
+                  lessonVideoUrl={lessonVideo?.url}
+                  lessonVideoDuration={Number(lessonVideo?.duration ?? 0)}
                 />
 
                 <InvalidVideoWarning
