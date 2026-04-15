@@ -25,7 +25,7 @@ export function ManagementPageShell({
   children,
 }: Props) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <CourseManagementHeader
         title={title}
         description={description}

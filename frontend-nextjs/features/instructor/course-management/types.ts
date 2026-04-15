@@ -136,3 +136,54 @@ export interface QuizEditorState {
   isInVideo: boolean;
   questions: QuizEditorQuestion[];
 }
+
+export interface CourseFeedVideo {
+  id: number;
+  url: string;
+  thumbnail?: string | null;
+  duration?: number | null;
+  type?: string;
+}
+
+export interface CourseFeedItem {
+  feed_id: number;
+  title: string;
+  hashtags?: string[] | null;
+  video_type?: string;
+  video: CourseFeedVideo;
+  course: {
+    id: number;
+    name?: string;
+  };
+  lecturer?: {
+    id: number;
+    firstName?: string;
+    lastName?: string;
+  };
+  stats?: {
+    views?: number;
+    likes?: number;
+    saves?: number;
+  };
+  is_liked?: boolean;
+  is_saved?: boolean;
+}
+
+export interface CourseFeedUpsertPayload {
+  title: string;
+  hashtags: string[];
+}
+
+export interface CourseFeedCreatePayload extends CourseFeedUpsertPayload {
+  video_id: number;
+  course_id: number;
+}
+
+export interface CourseFeedCandidateVideo {
+  id: number;
+  name: string;
+  url: string;
+  thumbnail?: string | null;
+  duration?: number | null;
+  type: string;
+}

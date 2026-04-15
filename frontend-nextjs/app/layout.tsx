@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider } from "../components/providers/ThemeProvider";
 import { QueryProvider } from "../components/providers/QueryProvider";
 import { AuthProvider } from "../components/providers/AuthProvider";
-import { LayoutWrapper } from "../components/LayoutWrapper";
 import { Toaster } from "../components/ui/sonner";
 
 const inter = Inter({
@@ -28,7 +27,7 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider defaultTheme="system" storageKey="datn-theme">
             <AuthProvider>
-              <LayoutWrapper>{children}</LayoutWrapper>
+              {children}
               <Toaster richColors closeButton position="top-right" />
             </AuthProvider>
           </ThemeProvider>

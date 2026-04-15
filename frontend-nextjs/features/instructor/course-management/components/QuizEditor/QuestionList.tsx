@@ -39,13 +39,13 @@ export function QuestionList({
         </Button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-2">
         {questions.map((question, index) => (
           <div
             key={question.id}
             role="button"
             tabIndex={0}
-            className={`min-w-55 rounded-xl border px-3 py-2 text-left transition ${
+            className={`w-58 shrink-0 rounded-xl border px-3 py-2 text-left transition sm:w-62 ${
               selectedQuestionId === question.id
                 ? "border-primary bg-primary/5"
                 : "border-border/60 bg-background hover:border-primary/40"

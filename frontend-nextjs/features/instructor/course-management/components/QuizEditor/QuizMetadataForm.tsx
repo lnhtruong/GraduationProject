@@ -34,24 +34,22 @@ export function QuizMetadataForm({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="grid gap-2">
-            <Label className="text-sm font-medium">Tiêu đề quiz</Label>
-            <Input
-              value={title}
-              onChange={(event) => onTitleChange(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label className="text-sm font-medium">Điểm đạt</Label>
-            <Input
-              type="number"
-              value={passingScore}
-              onChange={(event) =>
-                onPassingScoreChange(Number(event.target.value || 0))
-              }
-            />
-          </div>
+        <div className="grid gap-2">
+          <Label className="text-sm font-medium">Tiêu đề quiz</Label>
+          <Input
+            value={title}
+            onChange={(event) => onTitleChange(event.target.value)}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label className="text-sm font-medium">Điểm đạt</Label>
+          <Input
+            type="number"
+            value={passingScore}
+            onChange={(event) =>
+              onPassingScoreChange(Number(event.target.value || 0))
+            }
+          />
         </div>
       </div>
 
@@ -72,7 +70,7 @@ export function QuizMetadataForm({
             onChange={(event) =>
               onTimeLimitChange(Number(event.target.value || 0))
             }
-            className="w-28"
+            className="w-full md:w-28"
           />
         </div>
       </div>

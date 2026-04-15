@@ -63,7 +63,9 @@ export default function QuizEditorPage({
     quizByIdLoading
   ) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">Đang tải quiz...</div>
+      <div className="p-4 text-sm text-muted-foreground sm:p-5">
+        Đang tải quiz...
+      </div>
     );
   }
 
@@ -77,7 +79,7 @@ export default function QuizEditorPage({
           { label: "Quiz" },
         ]}
       >
-        <div className="p-6 text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground sm:p-5">
           Không thể mở quiz editor.
         </div>
       </ManagementPageShell>
@@ -138,12 +140,16 @@ export default function QuizEditorPage({
         { label: "Quiz" },
       ]}
       action={
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="w-full sm:w-auto"
+        >
           Quay lại
         </Button>
       }
     >
-      <div className="p-6">
+      <div className="p-3 sm:p-4 lg:p-5">
         <QuizEditor
           key={buildQuizEditorKey(
             editorState.lessonActivityId ?? null,
