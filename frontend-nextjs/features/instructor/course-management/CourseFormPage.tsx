@@ -90,7 +90,7 @@ export default function CourseFormPage({ courseId }: Props) {
           if (isEdit && course) {
             await updateCourseMutation.mutateAsync({
               id: course.id,
-              data: { ...payload, userId: course.userId },
+              data: payload,
             });
             router.push(`/instructor/courses/${course.id}`);
             router.refresh();
@@ -101,10 +101,7 @@ export default function CourseFormPage({ courseId }: Props) {
             return;
           }
 
-          const created = await createCourseMutation.mutateAsync({
-            ...payload,
-            userId: user.id,
-          });
+          const created = await createCourseMutation.mutateAsync(payload);
           router.push(`/instructor/courses/${created.id}`);
           router.refresh();
         }}
