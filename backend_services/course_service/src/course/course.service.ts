@@ -23,7 +23,7 @@ export class CoursesService {
       ...createCourseDto,
       userId: userId,
       level: createCourseDto.level ?? undefined,
-      status: createCourseDto.status ?? CourseStatus.DRAFT,
+      status: CourseStatus.DRAFT,
     });
   }
 
@@ -107,6 +107,33 @@ export class CoursesService {
     const course = await this.findOne(id);
     await course.destroy();
   }
+
+  private parseTimeToMilliseconds(value: string | null | undefined): number {
+    if (!value) return 0;
+
+    const match = value.match(/^(\d+):([0-5]\d):([0-5]\d)(?:\.(\d{1,3}))?$/);
+    if (!match) return 0;
+
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const seconds = Number(match[3]);
+    const milliseconds = Number((match[4] ?? '0').padEnd(3, '0'));
+
+    return (((hours * 60 + minutes) * 60 + seconds) * 1000) + milliseconds;
+  }
+
+  private formatMillisecondsToTime(value: number): string {
+    const safeValue = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+    const totalSeconds = Math.floor(safeValue / 1000);
+    const milliseconds = safeValue % 1000;
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+  }
+
   async syncCourseDuration(courseId: number): Promise<void> {
     // Sum duration of all non-removed lessons belonging to this course
     const lessons = await this.lessonModel.findAll({
@@ -116,25 +143,55 @@ export class CoursesService {
       },
       attributes: ['duration'],
     });
-    console.log(`Syncing course ${courseId} duration, found ${lessons.length} lessons, total duration: ${lessons.reduce((sum, l) => sum + (l.duration ?? 0), 0)} seconds`);
-    // Total duration in seconds (assuming lesson.duration is in seconds)
-    const totalSeconds = lessons.reduce(
-      (sum, lesson) => sum + (lesson.duration ?? 0),
+    const totalMilliseconds = lessons.reduce(
+      (sum, lesson) => sum + this.parseTimeToMilliseconds(lesson.duration),
       0,
     );
-
-    // Convert total seconds → "HH:MM:SS" to match the TIME column type
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const formatted = [hours, minutes, seconds]
-      .map((unit) => String(unit).padStart(2, '0'))
-      .join(':');
+    console.log(
+      `Syncing course ${courseId} duration, found ${lessons.length} lessons, total duration: ${totalMilliseconds}ms`,
+    );
+    const formatted = this.formatMillisecondsToTime(totalMilliseconds);
 
     // Update course duration
     await this.courseModel.update(
       { duration: formatted },
       { where: { id: courseId } },
     );
+  }
+
+  async submitForReview(id: number): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.DRAFT) {
+      throw new BadRequestException(
+        `Course must be in DRAFT status to submit for review. Current status: ${course.status}`,
+      );
+    }
+    return await course.update({ status: CourseStatus.PENDING });
+  }
+
+  async review(
+    id: number,
+    status: 'accepted' | 'rejected',
+  ): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.PENDING) {
+      throw new BadRequestException(
+        `Course must be in PENDING status to review. Current status: ${course.status}`,
+      );
+    }
+
+    const newStatus =
+      status === 'accepted' ? CourseStatus.APPROVED : CourseStatus.REJECTED;
+    return await course.update({ status: newStatus });
+  }
+
+  async publish(id: number): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.APPROVED) {
+      throw new BadRequestException(
+        `Course must be in APPROVED status to publish. Current status: ${course.status}`,
+      );
+    }
+    return await course.update({ status: CourseStatus.PUBLISH });
   }
 }

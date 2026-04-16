@@ -56,4 +56,22 @@ export class CoursesController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.coursesService.remove(id);
   }
+
+  @Post(':id/submit-for-review')
+  submitForReview(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.submitForReview(id);
+  }
+
+  @Post(':id/review')
+  review(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: 'accepted' | 'rejected' },
+  ) {
+    return this.coursesService.review(id, body.status);
+  }
+
+  @Post(':id/publish')
+  publish(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.publish(id);
+  }
 }

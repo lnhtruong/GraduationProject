@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Query,
@@ -32,12 +33,14 @@ export class FeedController {
   async getFeed(
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('courseId') courseId?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : 10;
+    const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
-    return this.feedService.getFeed(cursorId, limitNum, userId);
+    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum);
   }
 
   @Post(':id/interact')
@@ -64,5 +67,18 @@ export class FeedController {
       throw new BadRequestException('User not authenticated');
     }
     return this.feedService.recordView(userId, feedId, body.watch_duration, body.completed);
+  }
+
+  @Put(':id')
+  async updateFeed(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Headers('x-user-id') userIdHeader: string,
+    @Body() body: { title?: string; hashtags?: string[]; status?: string },
+  ) {
+    const userId = parseInt(userIdHeader, 10);
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException('User not authenticated');
+    }
+    return this.feedService.updateFeed(userId, feedId, body.title, body.hashtags, body.status);
   }
 }

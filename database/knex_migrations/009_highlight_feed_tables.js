@@ -6,7 +6,7 @@ exports.up = function (knex) {
             \`course_id\` INT(11) NOT NULL,
             \`title\` VARCHAR(255) NULL,
             \`hashtags\` JSON NULL,
-            \`status\` ENUM('active','hidden','removed') DEFAULT 'active',
+            \`status\` ENUM('active','hidden','removed') DEFAULT 'hidden',
             \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
             \`updated_at\` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (\`id\`),

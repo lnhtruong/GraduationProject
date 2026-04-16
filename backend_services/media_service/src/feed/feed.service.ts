@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { HighlightFeed, HighlightFeedStatus } from '../models/highlight_feed.model';
+import { CourseStatus } from '../models/course.model';
 import { FeedInteraction, FeedInteractionType } from '../models/feed_interactions.model';
 import { FeedView } from '../models/feed_views.model';
 import { Video } from '../videos/video.model';
@@ -67,12 +68,13 @@ export class FeedService {
     return feedItem;
   }
 
-  async getFeed(cursor?: number, limit = 10, userId?: number) {
+  async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number) {
   // Query feeds với cursor-based pagination, eager load video + course + lecturer
   const feeds = await this.highlightFeedModel.findAll({
     where: {
       status: HighlightFeedStatus.ACTIVE,
       ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
+      ...(courseId && { course_id: courseId }), // filter by course_id nếu có
     },
     include: [
       { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
@@ -192,5 +194,39 @@ export class FeedService {
     });
 
     return { recorded: true };
+  }
+
+  async updateFeed(userId: number, feedId: number, title?: string, hashtags?: string[], status?: string) {
+    // Get feed with course info
+    const feed = await this.highlightFeedModel.findByPk(feedId, {
+      include: [{ model: Course }],
+    });
+    if (!feed) {
+      throw new NotFoundException('Feed item not found');
+    }
+
+    // Check ownership - user must own the course
+    if (feed.course.userId !== userId) {
+      throw new ForbiddenException('You do not own this feed');
+    }
+
+    // If updating to ACTIVE status, course must be PUBLISHED
+    if (status && status === HighlightFeedStatus.ACTIVE && feed.course.status !== CourseStatus.PUBLISH) {
+      throw new BadRequestException('Course must be published to activate feed item');
+    }
+
+    // Update feed fields
+    if (title !== undefined) {
+      feed.title = title;
+    }
+    if (hashtags !== undefined) {
+      feed.hashtags = hashtags;
+    }
+    if (status !== undefined) {
+      feed.status = status as HighlightFeedStatus;
+    }
+
+    await feed.save();
+    return feed;
   }
 }

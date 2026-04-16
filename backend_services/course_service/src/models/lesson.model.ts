@@ -64,10 +64,10 @@ export class Lesson extends Model {
   declare content: Record<string, any>;
 
   @Column({
-    type: DataType.FLOAT,
+    type: 'TIME(3)' as any,
     allowNull: true,
   })
-  declare duration: number;
+  declare duration: string | null;
 
   @Column({
     type: DataType.ENUM(...Object.values(LessonStatus)),

@@ -27,9 +27,6 @@ export class CreateCourseDto {
   @IsOptional()
   level?: CourseLevel;
 
-  @IsString()
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/)
-  duration: string;
 
   @IsString()
   @MaxLength(255)
@@ -38,7 +35,6 @@ export class CreateCourseDto {
   @IsNumber()
   price: number;
 
-  @IsEnum(CourseStatus)
-  @IsOptional()
-  status?: CourseStatus;
+  // @IsInt()
+  // userId: number;
 }

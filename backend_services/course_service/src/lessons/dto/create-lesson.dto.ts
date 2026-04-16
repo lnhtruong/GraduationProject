@@ -1,5 +1,5 @@
 // src/models/lessons/dto/create-lesson.dto.ts
-import { IsString, IsInt, IsEnum, IsObject, IsNumber, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsInt, IsEnum, IsObject, IsOptional, MaxLength, Matches } from 'class-validator';
 import { ContentType, LessonStatus } from 'src/models/lesson.model';
 // import { LessonStatus, ContentType } from '../enums/lesson.enum';
 
@@ -22,9 +22,9 @@ export class CreateLessonDto {
   @IsObject()
   content: Record<string, any>;
 
-  @IsNumber()
+  @Matches(/^\d{2,3}:[0-5]\d:[0-5]\d(\.\d{1,3})?$/)
   @IsOptional()
-  duration?: number;
+  duration?: string;
 
   @IsEnum(LessonStatus)
   @IsOptional()
