@@ -9,11 +9,11 @@ exports.up = async function (knex) {
       description VARCHAR(255),
       categories JSON NOT NULL,
       level ENUM('Beginner', 'Intermediate', 'Advanced') NOT NULL DEFAULT 'Beginner' COMMENT 'Beginner, Intermediate, Advanced',
-      duration TIME NOT NULL,
+      duration TIME,
       language VARCHAR(255) NOT NULL,
       price DOUBLE NOT NULL,
       user_id INTEGER NOT NULL,
-      status ENUM('draft', 'pending', 'approved', 'rejected', 'publish') NOT NULL COMMENT 'draft, pending, approved, rejected, publish',
+      status ENUM('draft', 'pending', 'approved', 'rejected', 'publish') NOT NULL DEFAULT 'draft' COMMENT 'draft, pending, approved, rejected, publish',
       created_at DATETIME,
       updated_at DATETIME,
       PRIMARY KEY(id)

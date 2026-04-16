@@ -23,7 +23,7 @@ export class CoursesService {
       ...createCourseDto,
       userId: userId,
       level: createCourseDto.level ?? undefined,
-      status: createCourseDto.status ?? CourseStatus.DRAFT,
+      status: CourseStatus.DRAFT,
     });
   }
 
@@ -136,5 +136,41 @@ export class CoursesService {
       { duration: formatted },
       { where: { id: courseId } },
     );
+  }
+
+  async submitForReview(id: number): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.DRAFT) {
+      throw new BadRequestException(
+        `Course must be in DRAFT status to submit for review. Current status: ${course.status}`,
+      );
+    }
+    return await course.update({ status: CourseStatus.PENDING });
+  }
+
+  async review(
+    id: number,
+    status: 'accepted' | 'rejected',
+  ): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.PENDING) {
+      throw new BadRequestException(
+        `Course must be in PENDING status to review. Current status: ${course.status}`,
+      );
+    }
+
+    const newStatus =
+      status === 'accepted' ? CourseStatus.APPROVED : CourseStatus.REJECTED;
+    return await course.update({ status: newStatus });
+  }
+
+  async publish(id: number): Promise<Course> {
+    const course = await this.findOne(id);
+    if (course.status !== CourseStatus.APPROVED) {
+      throw new BadRequestException(
+        `Course must be in APPROVED status to publish. Current status: ${course.status}`,
+      );
+    }
+    return await course.update({ status: CourseStatus.PUBLISH });
   }
 }
