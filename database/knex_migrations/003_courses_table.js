@@ -9,7 +9,7 @@ exports.up = async function (knex) {
       description VARCHAR(255),
       categories JSON NOT NULL,
       level ENUM('Beginner', 'Intermediate', 'Advanced') NOT NULL DEFAULT 'Beginner' COMMENT 'Beginner, Intermediate, Advanced',
-      duration TIME,
+      duration TIME(3) NULL,
       language VARCHAR(255) NOT NULL,
       price DOUBLE NOT NULL,
       user_id INTEGER NOT NULL,

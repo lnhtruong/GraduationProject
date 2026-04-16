@@ -27,6 +27,7 @@ export class CreateCourseDto {
   @IsOptional()
   level?: CourseLevel;
 
+
   @IsString()
   @MaxLength(255)
   language: string;
@@ -34,6 +35,6 @@ export class CreateCourseDto {
   @IsNumber()
   price: number;
 
-  @IsInt()
-  userId: number;
+  // @IsInt()
+  // userId: number;
 }

@@ -55,8 +55,8 @@ export class Course extends Model {
   declare level: CourseLevel;
 
   @Column({
-    type: DataType.TIME,
-    allowNull: false,
+    type: 'TIME(3)' as any,
+    allowNull: true,
   })
   declare duration: string;
 

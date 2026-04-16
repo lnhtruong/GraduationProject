@@ -126,7 +126,7 @@ CREATE TABLE `lessons` (
     title VARCHAR(255) NOT NULL,
     contentType ENUM('video', 'text', 'quiz') NOT NULL,
     content JSON NULL,
-    duration FLOAT NULL,
+    duration TIME(3) NULL,
     status ENUM(
         'active',
         'removed',
@@ -188,7 +188,7 @@ CREATE TABLE quiz_questions (
     point DECIMAL(10, 2) NULL,
     correct_ans TEXT NULL,
     order_index INT NULL,
-    video_timestamp TIME NULL,
+    video_timestamp TIME(3) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_quiz_questions_quiz_id (quiz_id),
