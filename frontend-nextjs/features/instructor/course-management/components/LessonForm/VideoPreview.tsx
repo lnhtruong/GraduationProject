@@ -1,10 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Flag, Pause, Play } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { QuizEditor } from "../QuizEditor";
+import { useQuizById, useUpdateQuiz } from "../../api/course-management.hooks";
+import type { QuizEditorState } from "../../types";
+import { mapQuizToEditorState } from "../../utils/quiz-editor.utils";
 import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
 
 interface Props {
@@ -24,6 +37,7 @@ export function VideoPreview({
   videoLoading,
   timelineMarkers = [],
 }: Props) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineTrackRef = useRef<HTMLDivElement>(null);
   const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -32,6 +46,12 @@ export function VideoPreview({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredMarkerKey, setHoveredMarkerKey] = useState<string | null>(null);
+  const [editingMarker, setEditingMarker] = useState<QuizTimelineMarker | null>(
+    null,
+  );
+  const [draftQuizState, setDraftQuizState] = useState<QuizEditorState | null>(
+    null,
+  );
 
   const clearTooltipHideTimeout = () => {
     if (tooltipHideTimeoutRef.current) {
@@ -129,6 +149,35 @@ export function VideoPreview({
       ) ?? null,
     [timelineMarkers, hoveredMarkerKey],
   );
+
+  const { data: editingQuiz } = useQuizById(editingMarker?.quizId ?? null);
+  const updateQuizMutation = useUpdateQuiz();
+
+  const editingQuizState = useMemo(() => {
+    if (!editingMarker || !editingQuiz) {
+      return null;
+    }
+
+    return mapQuizToEditorState(
+      editingQuiz,
+      editingMarker.lessonActivityId,
+      editingMarker.quizName,
+    );
+  }, [editingMarker, editingQuiz]);
+
+  const handleSaveQuiz = async (state: QuizEditorState) => {
+    if (!editingQuiz) {
+      return;
+    }
+
+    await updateQuizMutation.mutateAsync({
+      id: editingQuiz.id,
+      data: state,
+    });
+
+    setEditingMarker(null);
+    router.refresh();
+  };
 
   const hoveredLeft = useMemo(() => {
     if (!hoveredMarker || safeDuration <= 0) {
@@ -244,7 +293,7 @@ export function VideoPreview({
                         onMouseLeave={scheduleTooltipHide}
                         onClick={(event) => {
                           event.stopPropagation();
-                          seekTo(marker.timestampSeconds);
+                          setEditingMarker(marker);
                         }}
                       />
                     );
@@ -274,18 +323,24 @@ export function VideoPreview({
                       <Flag className="h-3 w-3 text-primary" />
                       {hoveredMarker.timestampLabel}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      asChild
-                      className="pointer-events-auto h-7 px-2 text-[11px]"
-                    >
-                      <Link
-                        href={`/instructor/courses/${courseId}/lessons/${lessonId}/quiz?activityId=${hoveredMarker.lessonActivityId}&mode=in_video`}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="pointer-events-auto h-7 px-2 text-[11px]"
+                        onClick={() => seekTo(hoveredMarker.timestampSeconds)}
                       >
-                        Mở quiz
-                      </Link>
-                    </Button>
+                        Tới mốc
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="pointer-events-auto h-7 px-2 text-[11px]"
+                        onClick={() => setEditingMarker(hoveredMarker)}
+                      >
+                        Sửa ngay
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -304,6 +359,70 @@ export function VideoPreview({
           </div>
         ) : null}
       </CardContent>
+
+      <Dialog
+        open={Boolean(editingMarker)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingMarker(null);
+            setDraftQuizState(null);
+          }
+        }}
+      >
+        <DialogContent className="h-[92vh] w-[96vw] max-w-none overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl sm:w-[92vw] lg:w-7xl">
+          <div className="flex h-full min-h-0 flex-col">
+            <DialogHeader className="border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
+              <DialogTitle className="text-xl">
+                Chỉnh quiz trong video
+              </DialogTitle>
+              <DialogDescription>
+                Chỉnh trực tiếp quiz gắn với mốc đang chọn mà không cần chuyển
+                trang.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
+              {editingQuizState ? (
+                <QuizEditor
+                  quiz={editingQuizState}
+                  showSaveButton={false}
+                  onStateChange={setDraftQuizState}
+                />
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+                  Đang tải quiz...
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="border-t border-border/70 bg-background px-4 py-3 sm:px-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditingMarker(null);
+                  setDraftQuizState(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const stateToSave = draftQuizState ?? editingQuizState;
+                  if (!stateToSave) {
+                    return;
+                  }
+                  void handleSaveQuiz(stateToSave);
+                }}
+                disabled={!editingQuizState || updateQuizMutation.isPending}
+              >
+                {updateQuizMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

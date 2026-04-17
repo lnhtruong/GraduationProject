@@ -57,6 +57,43 @@ type FeedListResponse = {
   next_cursor?: number | null;
 };
 
+const DURATION_TIME_REGEX = /^\d{2,3}:[0-5]\d:[0-5]\d(\.\d{1,3})?$/;
+
+function toTimeDuration(value?: number | string | null): string {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (DURATION_TIME_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return "00:00:00";
+    }
+
+    value = parsed;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return "00:00:00";
+  }
+
+  // Current lesson form stores duration in minutes, convert it to HH:MM:SS.
+  const totalSeconds = Math.max(0, Math.round(value * 60));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function toLessonPayload(payload: LessonFormValues) {
+  return {
+    ...payload,
+    duration: toTimeDuration(payload.duration),
+  };
+}
+
 function toCoursePayload(payload: CourseFormValues) {
   return {
     name: payload.name,
@@ -132,6 +169,9 @@ const lessonCrudApi = createResourceApi<
   basePath: "/course/lessons",
   mapItem: (item) => item,
   mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
+  toCreatePayload: toLessonPayload,
+  toUpdatePayload: toLessonPayload,
+  toPatchPayload: toLessonPayload,
   getListPath: (params) =>
     withQueryPath("/course/lessons/course", {
       courseId: params?.courseId,
