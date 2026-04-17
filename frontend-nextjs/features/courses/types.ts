@@ -62,6 +62,36 @@ export interface Enrollment {
   lastLessonId?: number;
 }
 
+export interface FeedbackItem {
+  id: number;
+  courseId: number;
+  userId: number;
+  rating: number;
+  reviewText: string;
+  isVisible: boolean;
+  created_at: string;
+  updated_at: string;
+  user: { id: number; firstName: string; lastName: string };
+}
+
+export interface FeedbackSummary {
+  averageRating: number;
+  totalReviews: number;
+  distribution: { rating: number; count: number; percentage: number }[];
+}
+
+export interface FeedbackListResponse {
+  summary: FeedbackSummary;
+  items: FeedbackItem[];
+  pagination: { page: number; limit: number; totalItems: number; totalPages: number };
+}
+
+export interface CreateFeedbackPayload {
+  courseId: number;
+  rating: number;
+  reviewText: string;
+}
+
 export interface CourseDetail {
   id: number;
   name: string;
