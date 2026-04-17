@@ -12,7 +12,30 @@ import type {
   ForgotPasswordResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  User,
 } from "../types";
+
+function readNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function normalizeAuthUser(raw: unknown): User {
+  const source = (raw ?? {}) as Record<string, unknown>;
+
+  return {
+    id: Number(source.id ?? source.userId ?? 0),
+    email: typeof source.email === "string" ? source.email : "",
+    role: Number(source.role ?? 0),
+    firstName:
+      readNullableString(source.firstName) ??
+      readNullableString(source.first_name),
+    lastName:
+      readNullableString(source.lastName) ??
+      readNullableString(source.last_name),
+  };
+}
 
 // ============================================================================
 // AUTH API
@@ -25,12 +48,17 @@ export const authApi = createApi({
       data,
     );
 
+    const normalizedUser = normalizeAuthUser(response.user);
+
     syncAuthSession({
       accessToken: response.accessToken,
-      user: response.user,
+      user: normalizedUser,
     });
 
-    return response;
+    return {
+      ...response,
+      user: normalizedUser,
+    };
   },
 
   register: async (data: RegisterRequest) => {
@@ -39,14 +67,19 @@ export const authApi = createApi({
       data,
     );
 
+    const normalizedUser = normalizeAuthUser(response.user);
+
     if (response.accessToken) {
       syncAuthSession({
         accessToken: response.accessToken,
-        user: response.user,
+        user: normalizedUser,
       });
     }
 
-    return response;
+    return {
+      ...response,
+      user: normalizedUser,
+    };
   },
 
   refreshToken: async () => {
