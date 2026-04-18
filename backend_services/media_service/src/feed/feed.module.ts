@@ -5,6 +5,7 @@ import { FeedService } from './feed.service';
 import { HighlightFeed } from '../models/highlight_feed.model';
 import { FeedInteraction } from '../models/feed_interactions.model';
 import { FeedView } from '../models/feed_views.model';
+import { FeedComment } from '../models/feed_comments.model';
 import { Video } from '../videos/video.model';
 import { Course } from '../models/course.model';
 import { User } from '../models/user.model';
@@ -15,6 +16,7 @@ import { User } from '../models/user.model';
       HighlightFeed,
       FeedInteraction,
       FeedView,
+      FeedComment,
       Video,
       Course,
       User,

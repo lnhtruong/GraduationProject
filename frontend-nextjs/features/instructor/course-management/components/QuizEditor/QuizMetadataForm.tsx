@@ -9,8 +9,6 @@ interface Props {
   onTitleChange: (title: string) => void;
   passingScore: number;
   onPassingScoreChange: (score: number) => void;
-  timeLimitMinutes: number;
-  onTimeLimitChange: (minutes: number) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
   isInVideo: boolean;
@@ -23,8 +21,6 @@ export function QuizMetadataForm({
   onTitleChange,
   passingScore,
   onPassingScoreChange,
-  timeLimitMinutes,
-  onTimeLimitChange,
   description,
   onDescriptionChange,
   isInVideo,
@@ -53,26 +49,13 @@ export function QuizMetadataForm({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="grid gap-2">
-          <Label className="text-sm font-medium">Mô tả</Label>
-          <Textarea
-            value={description}
-            onChange={(event) => onDescriptionChange(event.target.value)}
-            className="min-h-20"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label className="text-sm font-medium">Thời gian (phút)</Label>
-          <Input
-            type="number"
-            value={timeLimitMinutes}
-            onChange={(event) =>
-              onTimeLimitChange(Number(event.target.value || 0))
-            }
-            className="w-full md:w-28"
-          />
-        </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium">Mô tả</Label>
+        <Textarea
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          className="min-h-20"
+        />
       </div>
 
       <label className="flex items-center gap-2 text-sm text-muted-foreground">

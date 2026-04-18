@@ -134,6 +134,9 @@ function isPublicRequest(req: Request): boolean {
   if (PUBLIC_ROUTES.includes(req.path)) {
     return true;
   }
+  if (req.path.includes('feedbacks/check')) {
+    return false;
+  }
 
   if (req.method === 'GET') {
     return PUBLIC_GET_PREFIXES.some((prefix) => req.path.startsWith(prefix));

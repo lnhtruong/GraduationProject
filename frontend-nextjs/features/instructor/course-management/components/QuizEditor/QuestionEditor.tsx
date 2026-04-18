@@ -5,13 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { QuizEditorQuestion, QuizEditorOption } from "../../types";
 
 interface Props {
   question: QuizEditorQuestion | null;
-  isInVideo: boolean;
   onUpdateQuestion: (
     questionId: number,
     updater: (question: QuizEditorQuestion) => QuizEditorQuestion,
@@ -22,7 +20,6 @@ interface Props {
 
 export function QuestionEditor({
   question,
-  isInVideo,
   onUpdateQuestion,
   onAddOption,
   onRemoveOption,
@@ -54,7 +51,6 @@ export function QuestionEditor({
       <CardContent className="space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="font-semibold">Chỉnh câu hỏi</h4>
-          <Badge variant="outline">ID {question.id}</Badge>
         </div>
 
         <div className="grid gap-2">
@@ -145,24 +141,6 @@ export function QuestionEditor({
             className="min-h-20"
           />
         </div>
-
-        {isInVideo && (
-          <div className="grid gap-2">
-            <Label className="text-sm font-medium">
-              Mốc thời gian video (HH:MM:SS.mmm)
-            </Label>
-            <Input
-              value={question.videoTimestamp ?? ""}
-              onChange={(event) =>
-                onUpdateQuestion(question.id, (current) => ({
-                  ...current,
-                  videoTimestamp: event.target.value,
-                }))
-              }
-              placeholder="00:00:10.000"
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   );

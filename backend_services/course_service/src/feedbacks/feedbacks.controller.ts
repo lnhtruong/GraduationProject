@@ -57,6 +57,16 @@ export class FeedbacksController {
     return await this.feedbacksService.create(userId, payload);
   }
 
+  @Get('check/:courseId')
+  async hasUserReviewedCourse(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @Headers('x-user-id') userIdHeader: string,
+  ) {
+    console.log("check userIdHeader: ", userIdHeader);
+    const userId = this.parseUserId(userIdHeader);
+    return await this.feedbacksService.hasUserReviewedCourse(userId, courseId);
+  }
+
   @Get(':courseId')
   async listByCourse(
     @Param('courseId', ParseIntPipe) courseId: number,
