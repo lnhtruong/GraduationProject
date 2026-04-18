@@ -8,13 +8,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CourseManageCard } from "./CourseManageCard";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { cn } from "@/lib/utils";
 import {
   useDeleteCourse,
   useInstructorCourses,
 } from "../../course-management/api/course-management.hooks";
+
+type StatusFilter = "all" | "publish" | "draft" | "pending";
 
 export default function CoursesPage() {
   const { user } = useAuth();
@@ -26,9 +34,7 @@ export default function CoursesPage() {
   );
   const deleteCourseMutation = useDeleteCourse();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "publish" | "draft" | "pending"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const handleDelete = async (id: number) => {
     await deleteCourseMutation.mutateAsync(id);
@@ -135,26 +141,20 @@ export default function CoursesPage() {
             <Filter className="h-3.5 w-3.5" />
             Lọc:
           </span>
-          {[
-            { key: "all", label: "Tất cả" },
-            { key: "publish", label: "Published" },
-            { key: "pending", label: "Pending" },
-            { key: "draft", label: "Draft" },
-          ].map((item) => (
-            <Button
-              key={item.key}
-              size="sm"
-              variant={statusFilter === item.key ? "default" : "outline"}
-              className={cn(statusFilter === item.key && "shadow-sm")}
-              onClick={() =>
-                setStatusFilter(
-                  item.key as "all" | "publish" | "draft" | "pending",
-                )
-              }
-            >
-              {item.label}
-            </Button>
-          ))}
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger size="sm" className="w-[170px] bg-background">
+              <SelectValue placeholder="Chọn trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả</SelectItem>
+              <SelectItem value="publish">Published</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
