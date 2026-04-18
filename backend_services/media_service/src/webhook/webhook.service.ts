@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
 import { WebsocketService } from 'src/websocket/websocket.service';
+import { BunnyService } from 'src/bunny/bunny.service';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -43,7 +44,135 @@ export class WebhookService {
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
         private readonly websocketService: WebsocketService,
+        private readonly bunnyService: BunnyService,
     ) { }
+
+    /**
+     * Bunny Stream status webhook: payload uses PascalCase (`VideoGuid`, `Status`).
+     * On encode finished (3) or playable (4), pull play data and persist HLS / fallback URL.
+     */
+    async handleBunnyStream(payload: Record<string, unknown>) {
+        const videoGuid =
+            typeof payload.VideoGuid === 'string'
+                ? payload.VideoGuid
+                : typeof payload.videoGuid === 'string'
+                    ? payload.videoGuid
+                    : undefined;
+
+        const status =
+            typeof payload.Status === 'number'
+                ? payload.Status
+                : typeof payload.status === 'number'
+                    ? payload.status
+                    : undefined;
+
+        const libraryId = payload.VideoLibraryId ?? payload.videoLibraryId;
+
+        this.logger.log(
+            `[BunnyStream] webhook VideoGuid=${videoGuid} Status=${status} VideoLibraryId=${libraryId}`,
+        );
+
+        if (!videoGuid) {
+            this.logger.warn('[BunnyStream] missing VideoGuid');
+            return { ok: false, ignored: true, reason: 'missing_video_guid' };
+        }
+
+        const row = await this.videoModel.findOne({
+            where: { bunny_video_guid: videoGuid, type: VideoType.LONG },
+        });
+
+        if (!row) {
+            this.logger.warn(
+                `[BunnyStream] no DB row for bunny_video_guid=${videoGuid} (init-upload must run first)`,
+            );
+            return { ok: true, ignored: true, reason: 'unknown_video_guid' };
+        }
+
+        if (status !== 3 && status !== 4) {
+            this.logger.log(
+                `[BunnyStream] status=${status} — skip play fetch (only 3=finished, 4=playable)`,
+            );
+            return { ok: true, skipped: true, status, videoId: row.id };
+        }
+
+        let play: Record<string, unknown>;
+        let meta: Record<string, unknown>;
+        try {
+            play = (await this.bunnyService.getPlayData(videoGuid)) as Record<string, unknown>;
+            meta = (await this.bunnyService.getVideoStatus(videoGuid)) as Record<string, unknown>;
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`[BunnyStream] Bunny API error: ${message}`);
+            throw error;
+        }
+
+        this.logger.log(
+            `[BunnyStream] play response isPlayable=${String(play.isPlayable)} keys=${Object.keys(play).join(',')}`,
+        );
+
+        const videoPlaylistUrl =
+            typeof play.videoPlaylistUrl === 'string' ? play.videoPlaylistUrl : undefined;
+        const fallbackUrl = typeof play.fallbackUrl === 'string' ? play.fallbackUrl : undefined;
+        const originalUrl = typeof play.originalUrl === 'string' ? play.originalUrl : undefined;
+        const thumb =
+            typeof play.thumbnailUrl === 'string'
+                ? play.thumbnailUrl
+                : typeof play.previewUrl === 'string'
+                    ? play.previewUrl
+                    : undefined;
+
+        const videoMeta =
+            play.video !== null &&
+            typeof play.video === 'object' &&
+            !Array.isArray(play.video)
+                ? (play.video as Record<string, unknown>)
+                : undefined;
+        const titleFromPlay =
+            typeof videoMeta?.title === 'string' && videoMeta.title.trim().length > 0
+                ? videoMeta.title.trim()
+                : undefined;
+
+        const url = videoPlaylistUrl ?? fallbackUrl ?? originalUrl ?? null;
+
+        if (!url) {
+            this.logger.warn('[BunnyStream] no playback URL in play response');
+            return { ok: false, reason: 'no_playback_url', videoId: row.id };
+        }
+
+        const durationRaw = meta.length ?? meta.duration ?? videoMeta?.length;
+        const duration =
+            typeof durationRaw === 'number' && !Number.isNaN(durationRaw)
+                ? durationRaw
+                : row.duration;
+
+        await row.update({
+            url,
+            thumbnail: thumb ?? row.thumbnail,
+            duration,
+            ...(titleFromPlay ? { name: titleFromPlay } : {}),
+        });
+
+        this.logger.log(
+            `[BunnyStream] updated video id=${row.id} url stored (HLS preferred): ${url.substring(0, 80)}…`,
+        );
+
+        await row.reload();
+
+        this.websocketService.notifyUploadCompleted(row.user_id, {
+            id: row.id,
+            url,
+            type: VideoType.LONG,
+            duration: duration ?? undefined,
+            name: row.name ?? undefined,
+        });
+
+        return {
+            ok: true,
+            id: row.id,
+            status,
+            urlKind: videoPlaylistUrl ? 'hls' : fallbackUrl ? 'mp4_fallback' : 'original',
+        };
+    }
 
     /**
      * Cloudinary notifications for `resource_type: video` (MP4) and `resource_type: raw` (.srt).
@@ -278,14 +407,21 @@ export class WebhookService {
         const duration = payload.duration;
         const display_name = payload.display_name;
 
+        const rawType = payload.type?.toString().toLowerCase();
         const type: VideoType | undefined =
-            payload.type?.toString().toLowerCase() === VideoType.MASCOT
+            rawType === VideoType.MASCOT
                 ? VideoType.MASCOT
-                : payload.type?.toString().toLowerCase() === VideoType.HIGHLIGHT
+                : rawType === VideoType.HIGHLIGHT
                     ? VideoType.HIGHLIGHT
-                    : undefined;
+                    : rawType === VideoType.LONG
+                        ? VideoType.LONG
+                        : undefined;
 
-        if (type !== VideoType.MASCOT && type !== VideoType.HIGHLIGHT) {
+        if (
+            type !== VideoType.MASCOT &&
+            type !== VideoType.HIGHLIGHT &&
+            type !== VideoType.LONG
+        ) {
             this.logger.debug(`Ignoring non-video type=${type}`);
             return { ignored: true };
         }

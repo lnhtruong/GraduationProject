@@ -119,6 +119,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/check-otp',
   '/api/media/webhooks/cloudinary/upload',
   '/api/media/webhooks/ai-model/result',
+  '/api/media/webhooks/bunny-stream',
   '/api/payment/payos-callback',
   '/api/payment/return',
   '/api/payment/cancel',
