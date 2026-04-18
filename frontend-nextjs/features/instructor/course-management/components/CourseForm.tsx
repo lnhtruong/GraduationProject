@@ -51,6 +51,12 @@ const LEVEL_OPTIONS: CourseFormValues["level"][] = [
   "Advanced",
 ];
 
+const LEVEL_LABELS: Record<CourseFormValues["level"], string> = {
+  Beginner: "Sơ cấp",
+  Intermediate: "Trung cấp",
+  Advanced: "Cao cấp",
+};
+
 const DEFAULT_DURATION = "00:00:00";
 
 export function CourseForm({ course, onSave }: Props) {
@@ -73,6 +79,10 @@ export function CourseForm({ course, onSave }: Props) {
   const getLanguageLabel = (value?: string) => {
     return LANGUAGE_OPTIONS.find((item) => item.value === value)?.label ??
       "Tiếng Việt (vi)";
+  };
+
+  const getLevelLabel = (value?: CourseFormValues["level"]) => {
+    return value ? LEVEL_LABELS[value] : LEVEL_LABELS.Beginner;
   };
 
   const initialValues = useMemo<CourseFormValues>(
@@ -292,7 +302,7 @@ export function CourseForm({ course, onSave }: Props) {
                       <SelectContent>
                         {LEVEL_OPTIONS.map((level) => (
                           <SelectItem key={level} value={level}>
-                            {level}
+                            {getLevelLabel(level)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -376,7 +386,7 @@ export function CourseForm({ course, onSave }: Props) {
                               );
                             }
                           }}
-                          placeholder="Nhập category rồi nhấn Enter"
+                          placeholder="Nhập danh mục rồi nhấn Enter"
                           className="h-10"
                         />
                         <Button
@@ -492,7 +502,7 @@ export function CourseForm({ course, onSave }: Props) {
                       "border-destructive/30 bg-destructive/10 text-destructive",
                   )}
                 >
-                  {levelValue || "Beginner"}
+                  {getLevelLabel(levelValue)}
                 </span>
               </span>
               <span className="flex items-center gap-1.5">
