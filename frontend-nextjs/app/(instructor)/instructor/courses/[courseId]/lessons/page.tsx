@@ -1,4 +1,4 @@
-import LessonListPage from "@/features/instructor/course-management/LessonListPage";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "Bài học — Teacher Mode" };
 
@@ -8,5 +8,5 @@ interface Props {
 
 export default async function Page({ params }: Props) {
   const { courseId } = await params;
-  return <LessonListPage courseId={Number(courseId)} />;
+  redirect(`/instructor/courses/${courseId}`);
 }
