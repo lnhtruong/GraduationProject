@@ -25,6 +25,7 @@ export interface CrudApi<
   TDelete = unknown,
 > {
   list?: (params?: TListParams) => Promise<TItem[]>;
+  listPaginated?: (params?: TListParams) => Promise<PaginatedResponse<TItem>>;
   listByParent?: (parentId: TParentId) => Promise<TItem[]>;
   getOne: (id: TId) => Promise<TItem>;
   create: (data: TCreate) => Promise<TItem>;
@@ -72,14 +73,86 @@ export interface ResourceApiConfig<
   basePath: string;
   mapItem: (raw: TRaw) => TItem;
   mapListResponse?: (raw: TListResponse) => TItem[];
+  mapPaginatedResponse?: (
+    raw: TListResponse,
+    params?: TListParams,
+  ) => PaginatedResponse<TItem>;
   toCreatePayload?: (payload: TCreate) => unknown;
   toUpdatePayload?: (payload: TUpdate) => unknown;
   toPatchPayload?: (payload: TUpdate) => unknown;
+  getCreatePath?: (payload: TCreate) => string;
   getListPath?: (params?: TListParams) => string;
   getOnePath?: (id: TId) => string;
   getUpdatePath?: (id: TId) => string;
   getDeletePath?: (id: TId) => string;
   updateMethod?: "patch" | "put";
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<TItem> {
+  data: TItem[];
+  pagination: PaginationMeta;
+}
+
+type PaginatedEnvelope<TItem> = {
+  data?: TItem[];
+  pagination?: Partial<PaginationMeta>;
+};
+
+export function normalizePaginatedResponse<TItem>(
+  raw: PaginatedEnvelope<TItem> | TItem[],
+  params?: { page?: number; limit?: number },
+): PaginatedResponse<TItem> {
+  if (Array.isArray(raw)) {
+    const fallbackLimit = params?.limit ?? raw.length;
+    return {
+      data: raw,
+      pagination: {
+        page: params?.page ?? 1,
+        limit: fallbackLimit,
+        totalItems: raw.length,
+        totalPages: 1,
+      },
+    };
+  }
+
+  const items = raw.data ?? [];
+  const fallbackLimit = params?.limit ?? items.length;
+
+  return {
+    data: items,
+    pagination: {
+      page: raw.pagination?.page ?? params?.page ?? 1,
+      limit: raw.pagination?.limit ?? fallbackLimit,
+      totalItems: raw.pagination?.totalItems ?? items.length,
+      totalPages: raw.pagination?.totalPages ?? 1,
+    },
+  };
+}
+
+export function createPaginatedListApi<TItem, TListParams>(
+  getPath: (params?: TListParams) => string,
+) {
+  return {
+    getPaginated: async (
+      params?: TListParams & { page?: number; limit?: number },
+    ) => {
+      const { data } = await apiHttpClient.get<
+        PaginatedEnvelope<TItem> | TItem[]
+      >(getPath(params));
+
+      return normalizePaginatedResponse<TItem>(data, {
+        page: params?.page,
+        limit: params?.limit,
+      });
+    },
+  };
 }
 
 export function buildQueryString(
@@ -128,9 +201,11 @@ export function createResourceApi<
     basePath,
     mapItem,
     mapListResponse,
+    mapPaginatedResponse,
     toCreatePayload,
     toUpdatePayload,
     toPatchPayload,
+    getCreatePath = () => `${basePath}`,
     getListPath = () => `${basePath}`,
     getOnePath = (id) => `${basePath}/${id}`,
     getUpdatePath = (id) => `${basePath}/${id}`,
@@ -138,13 +213,56 @@ export function createResourceApi<
     updateMethod = "patch",
   } = config;
 
+  const mapListItems = (data: TListResponse): TItem[] => {
+    if (mapListResponse) return mapListResponse(data);
+    return (data as unknown as TRaw[]).map(mapItem);
+  };
+
+  const getPageLimitParams = (
+    params?: TListParams,
+  ): { page?: number; limit?: number } => {
+    if (!params || typeof params !== "object") return {};
+
+    const raw = params as Record<string, unknown>;
+    return {
+      page: typeof raw.page === "number" ? raw.page : undefined,
+      limit: typeof raw.limit === "number" ? raw.limit : undefined,
+    };
+  };
+
   return createApi({
     list: async (params?: TListParams) => {
       const { data } = await apiHttpClient.get<TListResponse>(
         getListPath(params),
       );
-      if (mapListResponse) return mapListResponse(data);
-      return (data as unknown as TRaw[]).map(mapItem);
+      return mapListItems(data);
+    },
+    listPaginated: async (params?: TListParams) => {
+      const { data } = await apiHttpClient.get<TListResponse>(
+        getListPath(params),
+      );
+
+      if (mapPaginatedResponse) {
+        return mapPaginatedResponse(data, params);
+      }
+
+      const pagingParams = getPageLimitParams(params);
+      if (Array.isArray(data)) {
+        return normalizePaginatedResponse(mapListItems(data), pagingParams);
+      }
+
+      const envelope = data as unknown as PaginatedEnvelope<TRaw>;
+      if (Array.isArray(envelope?.data)) {
+        return normalizePaginatedResponse(
+          {
+            data: envelope.data.map(mapItem),
+            pagination: envelope.pagination,
+          },
+          pagingParams,
+        );
+      }
+
+      return normalizePaginatedResponse(mapListItems(data), pagingParams);
     },
     getOne: async (id: TId) => {
       const { data } = await apiHttpClient.get<TRaw>(getOnePath(id));
@@ -152,7 +270,10 @@ export function createResourceApi<
     },
     create: async (payload: TCreate) => {
       const body = toCreatePayload ? toCreatePayload(payload) : payload;
-      const { data } = await apiHttpClient.post<TRaw>(`${basePath}`, body);
+      const { data } = await apiHttpClient.post<TRaw>(
+        getCreatePath(payload),
+        body,
+      );
       return mapItem(data);
     },
     update: async (id: TId, payload: TUpdate) => {

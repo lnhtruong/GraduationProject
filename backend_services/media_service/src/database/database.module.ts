@@ -9,6 +9,7 @@ import { Project } from 'src/projects/project.model';
 import { HighlightFeed } from 'src/models/highlight_feed.model';
 import { FeedInteraction } from 'src/models/feed_interactions.model';
 import { FeedView } from 'src/models/feed_views.model';
+import { FeedComment } from 'src/models/feed_comments.model';
 import { Course } from 'src/models/course.model';
 import { User } from 'src/models/user.model';
 
@@ -20,7 +21,17 @@ import { User } from 'src/models/user.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [MascotImage, Video, Project, HighlightFeed, FeedInteraction, FeedView, Course, User],
+          models: [
+            MascotImage,
+            Video,
+            Project,
+            HighlightFeed,
+            FeedInteraction,
+            FeedView,
+            FeedComment,
+            Course,
+            User,
+          ],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };

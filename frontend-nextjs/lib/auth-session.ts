@@ -1,5 +1,24 @@
 import { useAuthStore, authStorageHelper, type User } from "@/store/auth";
 
+function readNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function mergeUserProfile(user: User): User {
+  const currentUser = useAuthStore.getState().user;
+  if (!currentUser || currentUser.id !== user.id) {
+    return user;
+  }
+
+  return {
+    ...user,
+    firstName: user.firstName ?? currentUser.firstName ?? null,
+    lastName: user.lastName ?? currentUser.lastName ?? null,
+  };
+}
+
 export function decodeJwt(token: string): {
   exp?: number;
   [key: string]: unknown;
@@ -34,8 +53,12 @@ export function buildUserFromToken(token: string): User | null {
     id: userId,
     email,
     role,
-    firstName: null,
-    lastName: null,
+    firstName:
+      readNullableString(payload.firstName) ??
+      readNullableString(payload.first_name),
+    lastName:
+      readNullableString(payload.lastName) ??
+      readNullableString(payload.last_name),
   };
 }
 
@@ -48,13 +71,13 @@ export function syncAuthSession(options: {
   authStorageHelper.setAccessToken(accessToken);
 
   if (user) {
-    authStorageHelper.setUser(user);
+    authStorageHelper.setUser(mergeUserProfile(user));
     return;
   }
 
   const parsedUser = buildUserFromToken(accessToken);
   if (parsedUser) {
-    authStorageHelper.setUser(parsedUser);
+    authStorageHelper.setUser(mergeUserProfile(parsedUser));
   }
 }
 

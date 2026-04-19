@@ -3,6 +3,7 @@ import {
   buildUserFromToken,
   clearAuthSession,
   decodeJwt,
+  syncAuthSession,
 } from "@/lib/auth-session";
 import { authClient } from "./auth-client";
 import type { RefreshTokenResponse } from "../types";
@@ -33,11 +34,7 @@ export async function initializeAuth() {
     );
 
     if (response.accessToken) {
-      state.setAccessToken(response.accessToken);
-      const refreshedUser = buildUserFromToken(response.accessToken);
-      if (refreshedUser) {
-        state.setUser(refreshedUser);
-      }
+      syncAuthSession({ accessToken: response.accessToken });
     }
   } catch {
     clearAuthSession();

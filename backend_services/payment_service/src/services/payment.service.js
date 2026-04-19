@@ -62,9 +62,9 @@ const removePurchasedCoursesFromCart = async (userId, courseItems) => {
 // ============================================================
 const enrollUserInCourses = async (userId, courseItems) => {
   if (!userId || !Array.isArray(courseItems) || courseItems.length === 0) return;
-  
+
   console.log(`🚀 Đang tiến hành enroll ${courseItems.length} khóa học cho user ${userId}`);
-  
+
   await Promise.allSettled(
     courseItems.map((item) =>
       axios.post(
@@ -123,6 +123,16 @@ const createPaymentLink = async (courseIds, userId) => {
     const notFound = courseIds.filter((id) => !foundIds.includes(id));
     const err = new Error(`Không tìm thấy khóa học với ID: ${notFound.join(", ")}`);
     err.status = 404;
+    throw err;
+  }
+
+  // Check course service on by get hello
+  try {
+    const healthRes = await axios.get(`${COURSE_SERVICE_URL}/`);
+    if (healthRes.status !== 200) throw new Error();
+  } catch {
+    const err = new Error("Course service is not available -> Enroll service is not available");
+    err.status = 503;
     throw err;
   }
 
@@ -210,6 +220,16 @@ const createPaymentLink = async (courseIds, userId) => {
 // BUY NOW: Mua ngay, không qua giỏ hàng
 // ============================================================
 const buyNow = async (courseId, userId) => {
+  // Check course service on by get hello
+  try {
+    const healthRes = await axios.get(`${COURSE_SERVICE_URL}/`);
+    if (healthRes.status !== 200) throw new Error();
+  } catch {
+    const err = new Error("Course service is not available -> Enroll service is not available");
+    err.status = 503;
+    throw err;
+  }
+
   const course = await Course.findByPk(courseId);
   if (!course) {
     const err = new Error(`Không tìm thấy khóa học ID: ${courseId}`);

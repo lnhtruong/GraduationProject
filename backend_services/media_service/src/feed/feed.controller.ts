@@ -3,6 +3,8 @@ import {
   Get,
   Post,
   Put,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -34,13 +36,14 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('courseId') courseId?: string,
+    @Query('mode') mode?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : 10;
     const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
-    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum);
+    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode);
   }
 
   @Post(':id/interact')
@@ -80,5 +83,58 @@ export class FeedController {
       throw new BadRequestException('User not authenticated');
     }
     return this.feedService.updateFeed(userId, feedId, body.title, body.hashtags, body.status);
+  }
+
+  @Post(':id/comments')
+  async createComment(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Headers('x-user-id') userIdHeader: string,
+    @Body() body: { content: string },
+  ) {
+    const userId = parseInt(userIdHeader, 10);
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException('User not authenticated');
+    }
+    return this.feedService.createComment(userId, feedId, body.content);
+  }
+
+  @Get(':id/comments')
+  async getComments(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    const cursorId = cursor ? parseInt(cursor, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
+    return this.feedService.getComments(feedId, cursorId, limitNum, userId);
+  }
+
+  @Patch(':id/comments/:commentId')
+  async updateComment(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Param('commentId', ParseIntPipe) commentId: number,
+    @Headers('x-user-id') userIdHeader: string,
+    @Body() body: { content: string },
+  ) {
+    const userId = parseInt(userIdHeader, 10);
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException('User not authenticated');
+    }
+    return this.feedService.updateComment(userId, feedId, commentId, body.content);
+  }
+
+  @Delete(':id/comments/:commentId')
+  async deleteComment(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Param('commentId', ParseIntPipe) commentId: number,
+    @Headers('x-user-id') userIdHeader: string,
+  ) {
+    const userId = parseInt(userIdHeader, 10);
+    if (!userId || isNaN(userId)) {
+      throw new BadRequestException('User not authenticated');
+    }
+    return this.feedService.deleteComment(userId, feedId, commentId);
   }
 }
