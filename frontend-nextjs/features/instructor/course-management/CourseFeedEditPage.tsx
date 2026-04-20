@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, Tag, Video, X } from "lucide-react";
+import { ArrowLeft, Eye, Heart, Loader2, Plus, Tag, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
+  useCourseFeed,
   useCourseFeedById,
   useInstructorCourseById,
   useUpdateCourseFeed,
@@ -32,14 +34,25 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const router = useRouter();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  const { data: feed, isLoading: feedLoading } = useCourseFeedById(feedId);
+  const { data: feedDetail, isLoading: feedDetailLoading } =
+    useCourseFeedById(feedId);
+  const { data: feeds, isLoading: feedListLoading } = useCourseFeed(courseId);
   const updateFeedMutation = useUpdateCourseFeed();
+
+  const feed = useMemo(() => {
+    if (feedDetail?.feed_id) {
+      return feedDetail;
+    }
+
+    return (feeds ?? []).find((item) => item.feed_id === feedId) ?? null;
+  }, [feedDetail, feeds, feedId]);
 
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [hashtagsDraft, setHashtagsDraft] = useState<string[] | null>(null);
   const [hashtagDraft, setHashtagDraft] = useState("");
 
-  const isReady = !courseLoading && !feedLoading && Boolean(course && feed);
+  const isFeedLoading = feedDetailLoading || feedListLoading;
+  const isReady = !courseLoading && !isFeedLoading && Boolean(course && feed);
 
   const title = titleDraft ?? feed?.title ?? "";
   const hashtags = hashtagsDraft ?? feed?.hashtags ?? [];
@@ -89,7 +102,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
     router.refresh();
   };
 
-  if (courseLoading || feedLoading) {
+  if (courseLoading || isFeedLoading) {
     return (
       <ManagementPageShell
         title="Đang tải feed..."
@@ -154,36 +167,61 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
       }
     >
       <div className="space-y-4 p-3 sm:p-4 lg:p-5">
-        <div className="rounded-2xl border border-border/60 bg-background p-3 shadow-sm sm:p-4">
-          <div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
-            <div className="overflow-hidden rounded-xl border border-border/60 bg-black">
-              <video
-                className="block h-auto w-full max-h-80 bg-black object-contain"
-                src={feed.video?.url}
-                poster={feed.video?.thumbnail ?? undefined}
-                controls
-                preload="metadata"
-                playsInline
-              >
-                Trình duyệt không hỗ trợ phát video.
-              </video>
-            </div>
-
+        <div className="rounded-2xl border border-border/60 bg-linear-to-br from-background via-background to-muted/20 p-3 shadow-sm sm:p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_340px] xl:items-start">
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Feed #{feed.feed_id}</Badge>
-                <Badge variant="secondary">
-                  {feed.video_type ?? "unknown"}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="inline-flex items-center gap-1"
+              <div className="overflow-hidden rounded-xl border border-border/60 bg-black">
+                <video
+                  className="block h-auto w-full max-h-[62vh] bg-black object-contain"
+                  src={feed.video?.url}
+                  poster={feed.video?.thumbnail ?? undefined}
+                  controls
+                  preload="metadata"
+                  playsInline
                 >
-                  <Video className="h-3.5 w-3.5" />
-                  Video giữ nguyên
-                </Badge>
+                  Trình duyệt không hỗ trợ phát video.
+                </video>
               </div>
 
+              <div className="rounded-xl border border-border/60 bg-background p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">Feed #{feed.feed_id}</Badge>
+                  <Badge variant="secondary">{feed.video_type ?? "unknown"}</Badge>
+                  <Badge
+                    variant="outline"
+                    className="inline-flex items-center gap-1"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    Video giữ nguyên
+                  </Badge>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Lượt xem
+                    </p>
+                    <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold">
+                      <Eye className="h-4 w-4" />
+                      {feed.stats?.views ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Lượt thích
+                    </p>
+                    <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold">
+                      <Heart className="h-4 w-4" />
+                      {feed.stats?.likes ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-border/60 bg-background p-3 sm:p-4 xl:sticky xl:top-5">
               <div className="space-y-2">
                 <Label htmlFor="feed-title">Tiêu đề</Label>
                 <Input
@@ -197,7 +235,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
               <div className="space-y-2">
                 <Label htmlFor="feed-hashtags">Hashtags</Label>
                 <div className="space-y-3 rounded-lg border border-input bg-background p-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex min-h-7 flex-wrap items-center gap-2">
                     {hashtags.map((hashtag, index) => (
                       <Badge
                         key={`${hashtag}-${index}`}
