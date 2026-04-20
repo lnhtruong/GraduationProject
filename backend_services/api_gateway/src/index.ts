@@ -2,7 +2,10 @@ import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { config } from './config';
-import { rateLimitMiddleware } from './middleware/rate-limit.middleware';
+import {
+  authMutatingRateLimitMiddleware,
+  mediaMutatingRateLimitMiddleware,
+} from './middleware/rate-limit.middleware';
 import { loggingMiddleware, requestLogger } from './middleware/logging.middleware';
 import { authMiddleware, AuthRequest } from './middleware/auth.middleware';
 import authRoutes from './routes/auth.routes';
@@ -97,8 +100,9 @@ app.use(cookieParser());
 // Socket.IO handshake + polling/websocket transport forwarding to media service.
 app.use('/socket.io', mediaWebSocketProxy);
 
-// Apply rate limiting to all routes
-// app.use(rateLimitMiddleware);
+// Rate limit: chỉ POST/PATCH/PUT/DELETE trên /api/auth và /api/media (trừ webhooks). GET không áp dụng.
+app.use(authMutatingRateLimitMiddleware);
+app.use(mediaMutatingRateLimitMiddleware);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -145,16 +149,16 @@ function isPublicRequest(req: Request): boolean {
   return false;
 }
 
-app.use((req, res, next) => {
-  if (req.path.includes('course')) {
-    console.log('==== WEBHOOK HIT ====');
-    console.log('URL:', req.originalUrl);
-    console.log('METHOD:', req.method);
-    console.log('HEADERS:', req.headers);
-    console.log('BODY:', req.body);
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (req.path.includes('course')) {
+//     console.log('==== WEBHOOK HIT ====');
+//     console.log('URL:', req.originalUrl);
+//     console.log('METHOD:', req.method);
+//     console.log('HEADERS:', req.headers);
+//     console.log('BODY:', req.body);
+//   }
+//   next();
+// });
 
 // Global auth middleware for all other routes
 app.use((req: Request, res: Response, next: NextFunction) => {
