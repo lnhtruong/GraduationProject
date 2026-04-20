@@ -25,6 +25,7 @@ import {
   useDeleteLesson,
   useInstructorCourseById,
   useLessonsByCourseId,
+  useQuickPublishCourse,
 } from "./api/course-management.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDuration, formatPrice } from "@/features/courses/utils";
 
 interface Props {
   courseId: number;
@@ -44,11 +46,44 @@ export default function CourseOverviewPage({ courseId }: Props) {
   const LESSONS_PER_PAGE = 10;
   type LessonStatusFilter = "all" | "active" | "blocked";
 
+  const toSeconds = (duration?: number | string | null) => {
+    if (typeof duration === "number" && Number.isFinite(duration)) {
+      // Existing lesson forms store duration in minutes.
+      return Math.max(0, Math.round(duration * 60));
+    }
+
+    if (typeof duration === "string") {
+      const normalized = duration.trim();
+      const parts = normalized.split(":");
+      if (parts.length >= 2 && parts.length <= 3) {
+        const [h = "0", m = "0", s = "0"] = parts;
+        const parsedH = Number(h);
+        const parsedM = Number(m);
+        const parsedS = Number(s);
+        if (
+          Number.isFinite(parsedH) &&
+          Number.isFinite(parsedM) &&
+          Number.isFinite(parsedS)
+        ) {
+          return Math.max(0, parsedH * 3600 + parsedM * 60 + parsedS);
+        }
+      }
+
+      const numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return Math.max(0, Math.round(numeric * 60));
+      }
+    }
+
+    return 0;
+  };
+
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: lessons, isLoading: lessonsLoading } =
     useLessonsByCourseId(courseId);
   const deleteLessonMutation = useDeleteLesson();
+  const quickPublishCourseMutation = useQuickPublishCourse();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -59,10 +94,10 @@ export default function CourseOverviewPage({ courseId }: Props) {
     (lesson) => String(lesson.status).toLowerCase() === "active",
   ).length;
   const totalLessonMinutes = (lessons ?? []).reduce(
-    (sum, lesson) => sum + Number(lesson.duration ?? 0),
+    (sum, lesson) => sum + toSeconds(lesson.duration),
     0,
   );
-  const avgLessonMinutes =
+  const avgLessonSeconds =
     lessonCount > 0 ? Math.round(totalLessonMinutes / lessonCount) : 0;
 
   const filteredLessons = useMemo(() => {
@@ -98,6 +133,23 @@ export default function CourseOverviewPage({ courseId }: Props) {
     await deleteLessonMutation.mutateAsync(lessonId);
     toast.success("Đã xóa bài học");
     setCurrentPage(1);
+  };
+
+  const handleQuickPublishCourse = async () => {
+    if (!course || course.status === "publish") {
+      return;
+    }
+
+    try {
+      await quickPublishCourseMutation.mutateAsync({
+        id: course.id,
+        status: course.status,
+      });
+      toast.success("Đã public khóa học");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Public thất bại";
+      toast.error(message);
+    }
   };
 
   if (courseLoading) {
@@ -157,12 +209,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
               Sửa khóa học
             </Link>
           </Button>
-          {/* <Button asChild className="w-full sm:w-auto">
-            <Link href={`/instructor/courses/${course.id}/lessons`}>
-              <Layers3 className="mr-2 h-4 w-4" />
-              Quản lý bài học
-            </Link>
-          </Button> */}
         </div>
       }
     >
@@ -177,9 +223,25 @@ export default function CourseOverviewPage({ courseId }: Props) {
                   </p>
                   <h2 className="mt-1 text-xl font-semibold">{course.name}</h2>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {String(course.status).toUpperCase()}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {String(course.status).toUpperCase()}
+                  </Badge>
+                  {course.status !== "publish" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={quickPublishCourseMutation.isPending}
+                      onClick={() => {
+                        void handleQuickPublishCourse();
+                      }}
+                    >
+                      {quickPublishCourseMutation.isPending
+                        ? "Đang public..."
+                        : "Public khóa học"}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="max-w-3xl rounded-xl border border-border/60 bg-background/70 p-3">
@@ -207,12 +269,12 @@ export default function CourseOverviewPage({ courseId }: Props) {
                   },
                   {
                     label: "Trung bình / bài",
-                    value: `${avgLessonMinutes} phút`,
+                    value: formatDuration(avgLessonSeconds),
                     icon: Clock3,
                   },
                   {
                     label: "Giá bán",
-                    value: `${course.price.toLocaleString("vi-VN")}đ`,
+                    value: formatPrice(course.price),
                     icon: ArrowUpRight,
                   },
                 ].map((item) => (
@@ -346,7 +408,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                           {lesson.description ?? "Chưa có mô tả"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {lesson.duration ?? 0} phút • {lesson.contentType}
+                          {formatDuration(toSeconds(lesson.duration))} • {lesson.contentType}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
