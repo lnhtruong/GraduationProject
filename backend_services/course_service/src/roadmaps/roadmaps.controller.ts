@@ -9,8 +9,10 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { AddManyRoadMapCoursesDto } from './dto/add-many-roadmap-courses.dto';
 import { AddRoadMapCourseDto } from './dto/add-roadmap-course.dto';
 import { CreateRoadMapDto } from './dto/create-roadmap.dto';
+import { ReorderRoadMapCoursesDto } from './dto/reorder-roadmap-courses.dto';
 import { UpdateRoadMapCourseDto } from './dto/update-roadmap-course.dto';
 import { UpdateRoadMapDto } from './dto/update-roadmap.dto';
 import { RoadmapsService } from './roadmaps.service';
@@ -61,6 +63,28 @@ export class RoadmapsController {
     @Body() addRoadMapCourseDto: AddRoadMapCourseDto,
   ) {
     return this.roadmapsService.addCourse(roadMapId, addRoadMapCourseDto);
+  }
+
+  @Post(':id/courses/bulk')
+  addCoursesBulk(
+    @Param('id', ParseIntPipe) roadMapId: number,
+    @Body() addManyRoadMapCoursesDto: AddManyRoadMapCoursesDto,
+  ) {
+    return this.roadmapsService.addCoursesBulk(
+      roadMapId,
+      addManyRoadMapCoursesDto,
+    );
+  }
+
+  @Patch(':id/courses/reorder')
+  reorderCourses(
+    @Param('id', ParseIntPipe) roadMapId: number,
+    @Body() reorderRoadMapCoursesDto: ReorderRoadMapCoursesDto,
+  ) {
+    return this.roadmapsService.reorderCourses(
+      roadMapId,
+      reorderRoadMapCoursesDto,
+    );
   }
 
   @Patch(':id/courses/:courseId')

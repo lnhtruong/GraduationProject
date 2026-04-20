@@ -7,7 +7,8 @@ import {
   mediaMutatingRateLimitMiddleware,
 } from './middleware/rate-limit.middleware';
 import { loggingMiddleware, requestLogger } from './middleware/logging.middleware';
-import { authMiddleware, AuthRequest } from './middleware/auth.middleware';
+import { AuthRequest } from './middleware/auth.middleware';
+import { authorizationMiddleware } from './middleware/authorization.middleware';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
@@ -113,66 +114,19 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// Public routes that DON'T require authentication
-const PUBLIC_ROUTES = [
-  '/health',
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/auth/refresh',
-  '/api/auth/forgot-password',
-  '/api/auth/check-otp',
-  '/api/media/webhooks/cloudinary/upload',
-  '/api/media/webhooks/ai-model/result',
-  '/api/media/webhooks/bunny-stream',
-  '/api/payment/payos-callback',
-  '/api/payment/return',
-  '/api/payment/cancel',
-];
-
-const PUBLIC_GET_PREFIXES = [
-  '/api/feed',
-  '/api/course/feedbacks',
-  '/api/course/feedback-reactions',
-];
-
-function isPublicRequest(req: Request): boolean {
-  if (PUBLIC_ROUTES.includes(req.path)) {
-    return true;
+app.use((req, res, next) => {
+  if (req.path.includes('course')) {
+    console.log('==== WEBHOOK HIT ====');
+    console.log('URL:', req.originalUrl);
+    console.log('METHOD:', req.method);
+    console.log('HEADERS:', req.headers);
+    console.log('BODY:', req.body);
   }
-  if (req.path.includes('feedbacks/check')) {
-    return false;
-  }
-
-  if (req.method === 'GET') {
-    return PUBLIC_GET_PREFIXES.some((prefix) => req.path.startsWith(prefix));
-  }
-
-  return false;
-}
-
-// app.use((req, res, next) => {
-//   if (req.path.includes('course')) {
-//     console.log('==== WEBHOOK HIT ====');
-//     console.log('URL:', req.originalUrl);
-//     console.log('METHOD:', req.method);
-//     console.log('HEADERS:', req.headers);
-//     console.log('BODY:', req.body);
-//   }
-//   next();
-// });
-
-// Global auth middleware for all other routes
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path.startsWith('/socket.io')) {
-    return next();
-  }
-
-  if (isPublicRequest(req)) {
-    return next();
-  }
-
-  return authMiddleware(req as AuthRequest, res, next);
+  next();
 });
+
+// Global authorization middleware
+app.use(authorizationMiddleware);
 
 // Middleware to forward user ID to downstream services
 app.use((req: AuthRequest, res: Response, next: NextFunction) => {

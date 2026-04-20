@@ -65,7 +65,7 @@ export class FeedService {
       course_id: courseId,
       title: title || video.name,
       hashtags,
-      status: HighlightFeedStatus.ACTIVE,
+      status: HighlightFeedStatus.HIDDEN,
     });
 
     return feedItem;
