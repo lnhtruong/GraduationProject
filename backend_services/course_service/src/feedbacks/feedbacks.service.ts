@@ -49,6 +49,79 @@ export class FeedbacksService {
     });
   }
 
+  async hasUserReviewedCourse(userId: number, courseId: number): Promise<{
+    checked: boolean;
+    data: {
+      id: number;
+      courseId: number;
+      userId: number;
+      rating: number;
+      reviewText: string;
+      isVisible: boolean;
+      createdAt?: Date;
+      updatedAt?: Date;
+      reactionSummary: {
+        feedbackId: number;
+        total: number;
+        helpfulCount: number;
+        byType: Array<{ reactionType: FeedbackReactionType; count: number }>;
+      };
+    } | null;
+  }> {
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      throw new BadRequestException('courseId must be a positive integer');
+    }
+
+    const feedback = await this.feedbackModel.findOne({
+      where: { courseId, userId },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'firstName', 'lastName'],
+          required: false,
+        },
+      ],
+    });
+
+    if (!feedback) {
+      return {
+        checked: false,
+        data: null,
+      };
+    }
+
+    const reactions = await this.feedbackReactionModel.findAll({
+      where: { feedbackId: feedback.id },
+      attributes: ['reactionType'],
+    });
+
+    const byTypeMap = new Map<FeedbackReactionType, number>();
+    for (const reaction of reactions) {
+      byTypeMap.set(
+        reaction.reactionType,
+        (byTypeMap.get(reaction.reactionType) ?? 0) + 1,
+      );
+    }
+
+    const helpfulCount = byTypeMap.get(FeedbackReactionType.HELPFUL) ?? 0;
+
+    return {
+      checked: true,
+      data: {
+        ...(feedback.get({ plain: true }) as Omit<Feedback, 'reactionSummary'>),
+        reactionSummary: {
+          feedbackId: feedback.id,
+          total: reactions.length,
+          helpfulCount,
+          byType: Array.from(byTypeMap.entries()).map(([reactionType, count]) => ({
+            reactionType,
+            count,
+          })),
+        },
+      },
+    };
+  }
+
   async listByCourse(courseId: number, page = 1, limit = 10, currentUserId?: number) {
     if (!Number.isInteger(courseId) || courseId <= 0) {
       throw new BadRequestException('courseId must be a positive integer');

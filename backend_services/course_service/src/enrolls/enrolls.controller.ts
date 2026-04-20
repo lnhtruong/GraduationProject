@@ -14,6 +14,7 @@ import { EnrollsService } from './enrolls.service';
 import { CreateEnrollDto } from './dto/create-enroll.dto';
 import { UpdateEnrollDto } from './dto/update-enroll.dto';
 import { GetEnrollsQueryDto } from './dto/get-enrolls-query.dto';
+import { CheckEnrollExistsDto } from './dto/check-enroll-exists.dto';
 
 @Controller('enroll')
 export class EnrollsController {
@@ -39,10 +40,16 @@ export class EnrollsController {
     return this.enrollsService.findAll(query, user_id);
   }
 
+  @Get('check-mine-exists')
+  checkMineExists(@Query() dto: CheckEnrollExistsDto) {
+    return this.enrollsService.checkEnrollExists(dto);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.enrollsService.findOne(id);
   }
+
 
   @Patch(':id')
   update(

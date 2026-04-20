@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { CourseForm } from "./components/CourseForm";
 import {
   useCreateCourse,
   useInstructorCourseById,
+  useQuickPublishCourse,
   useUpdateCourse,
 } from "./api/course-management.hooks";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -25,6 +27,25 @@ export default function CourseFormPage({ courseId }: Props) {
   );
   const createCourseMutation = useCreateCourse();
   const updateCourseMutation = useUpdateCourse();
+  const quickPublishCourseMutation = useQuickPublishCourse();
+
+  const handleQuickPublishCourse = async () => {
+    if (!course || course.status === "publish") {
+      return;
+    }
+
+    try {
+      await quickPublishCourseMutation.mutateAsync({
+        id: course.id,
+        status: course.status,
+      });
+      toast.success("Đã public khóa học");
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Public thất bại";
+      toast.error(message);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -82,6 +103,22 @@ export default function CourseFormPage({ courseId }: Props) {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
+      }
+      action={
+        isEdit && course && course.status !== "publish" ? (
+          <Button
+            type="button"
+            disabled={quickPublishCourseMutation.isPending}
+            onClick={() => {
+              void handleQuickPublishCourse();
+            }}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {quickPublishCourseMutation.isPending
+              ? "Đang public..."
+              : "Public khóa học"}
+          </Button>
+        ) : null
       }
     >
       <CourseForm

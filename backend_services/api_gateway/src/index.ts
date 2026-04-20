@@ -2,7 +2,10 @@ import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { config } from './config';
-import { rateLimitMiddleware } from './middleware/rate-limit.middleware';
+import {
+  authMutatingRateLimitMiddleware,
+  mediaMutatingRateLimitMiddleware,
+} from './middleware/rate-limit.middleware';
 import { loggingMiddleware, requestLogger } from './middleware/logging.middleware';
 import { AuthRequest } from './middleware/auth.middleware';
 import { authorizationMiddleware } from './middleware/authorization.middleware';
@@ -98,8 +101,9 @@ app.use(cookieParser());
 // Socket.IO handshake + polling/websocket transport forwarding to media service.
 app.use('/socket.io', mediaWebSocketProxy);
 
-// Apply rate limiting to all routes
-// app.use(rateLimitMiddleware);
+// Rate limit: chỉ POST/PATCH/PUT/DELETE trên /api/auth và /api/media (trừ webhooks). GET không áp dụng.
+app.use(authMutatingRateLimitMiddleware);
+app.use(mediaMutatingRateLimitMiddleware);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
