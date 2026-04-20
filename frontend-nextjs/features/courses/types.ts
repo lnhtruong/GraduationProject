@@ -94,3 +94,46 @@ export interface CourseDetail {
   lastUpdatedAt: string;
   createdAt: string;
 }
+
+// Instructor/CMS API contract types
+export type CourseStatus =
+  | "draft"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "publish";
+
+export type CourseReviewAction = "accepted" | "rejected";
+
+export interface Course {
+  id: number;
+  name: string;
+  description: string;
+  categories: string[];
+  level: CourseLevel;
+  duration?: string;
+  language: string;
+  price: number;
+  userId: number;
+  status: CourseStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateCoursePayload {
+  name: string;
+  description?: string;
+  categories: string[];
+  level?: CourseLevel;
+  language: string;
+  price: number;
+}
+
+export type UpdateCoursePayload = Partial<CreateCoursePayload>;
+
+export type CourseListParams = {
+  userId?: number;
+  status?: CourseStatus;
+  page?: number;
+  limit?: number;
+};
