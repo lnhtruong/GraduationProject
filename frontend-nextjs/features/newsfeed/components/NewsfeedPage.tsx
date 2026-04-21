@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { useNewsfeed } from "../hooks/useNewsfeed";
+import { NewsfeedCommentsSheet } from "./NewsfeedCommentsSheet";
 import { NewsfeedCoursePanel } from "./NewsfeedCoursePanel";
 import { NewsfeedMenuSheet } from "./NewsfeedMenuSheet";
 import { NewsfeedOverlayHud } from "./NewsfeedOverlayHud";
@@ -26,6 +27,7 @@ export function NewsfeedPage() {
 		onWheelCapture,
 		goNext,
 		goPrev,
+		endReached,
 		closeCoursePanel,
 		toggleCoursePanel,
 		toggleMenu,
@@ -45,6 +47,7 @@ export function NewsfeedPage() {
 	const [volume, setVolume] = useState(0.7);
 	const [isPlayerHovered, setIsPlayerHovered] = useState(false);
 	const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+	const [isCommentOpen, setIsCommentOpen] = useState(false);
 
 	useEffect(() => {
 		const videoElement = videoRef.current;
@@ -56,6 +59,7 @@ export function NewsfeedPage() {
 		setDuration(0);
 		setCurrentTime(0);
 		setVideoAspectRatio(16 / 9);
+		setIsDescriptionOpen(false);
 		videoElement.currentTime = 0;
 		videoElement.muted = isMuted;
 		videoElement.volume = volume;
@@ -176,19 +180,19 @@ export function NewsfeedPage() {
 
 	if (isLoading) {
 		return (
-			<div className="h-screen bg-background">
-				<PageLoader message="Dang tai video cho newsfeed demo..." className="h-full" />
+			<div className="h-screen bg-[#0f0f0f]">
+				<PageLoader message="Đang tải video cho Newsfeed..." className="h-full" />
 			</div>
 		);
 	}
 
 	if (error) {
-		const message = error instanceof Error ? error.message : "Khong the tai newsfeed";
+		const message = error instanceof Error ? error.message : "Không thể tải Newsfeed";
 
 		return (
-			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="h-screen bg-[#0f0f0f] text-white flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-destructive" />
-				<h2 className="text-2xl font-bold">Tai newsfeed that bai</h2>
+				<h2 className="text-2xl font-bold">Tải Newsfeed thất bại</h2>
 				<p className="text-muted-foreground max-w-xl">
 					{message}
 				</p>
@@ -198,10 +202,10 @@ export function NewsfeedPage() {
 							void refetch();
 						}}
 					>
-						Thu lai
+						Thử lại
 					</Button>
 					<Button asChild variant="outline">
-						<Link href="/">Ve trang chu</Link>
+						<Link href="/">Về trang chủ</Link>
 					</Button>
 				</div>
 			</div>
@@ -210,15 +214,15 @@ export function NewsfeedPage() {
 
 	if (!activeVideo) {
 		return (
-			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="h-screen bg-[#0f0f0f] text-white flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-primary" />
-				<h2 className="text-2xl font-bold">Chua co video de demo</h2>
+				<h2 className="text-2xl font-bold">Chưa có video để hiển thị</h2>
 				<p className="text-muted-foreground max-w-xl">
-					Hay upload it nhat mot video, newsfeed se lay du lieu tu API getAllByUser de
-					tao trai nghiem luot vo tan tam thoi.
+					Hãy tải lên ít nhất một video, Newsfeed sẽ lấy dữ liệu từ API feed để
+					tạo trải nghiệm lướt dọc liên tục.
 				</p>
 				<Button asChild>
-					<Link href="/upload">Di den trang upload</Link>
+					<Link href="/upload">Đi đến trang tải video</Link>
 				</Button>
 			</div>
 		);
@@ -228,7 +232,7 @@ export function NewsfeedPage() {
 
 	return (
 		<div
-			className="relative h-screen overflow-hidden bg-background text-foreground"
+			className="relative h-screen overflow-hidden bg-[#0f0f0f] text-white"
 			onMouseMove={wakeHud}
 			onWheel={onWheelCapture}
 			onTouchStart={onTouchStart}
@@ -253,6 +257,7 @@ export function NewsfeedPage() {
 				onVolumeChange={handleVolumeChange}
 				onSeek={handleSeek}
 				onToggleCoursePanel={toggleCoursePanel}
+				onOpenComments={() => setIsCommentOpen(true)}
 				onDescriptionOpenChange={setIsDescriptionOpen}
 				onVideoMetadataLoaded={(event) => {
 					const { duration: mediaDuration, videoWidth, videoHeight } = event.currentTarget;
@@ -278,6 +283,18 @@ export function NewsfeedPage() {
 
 			<NewsfeedCoursePanel video={activeVideo} isOpen={isCoursePanelOpen} onClose={closeCoursePanel} />
 			<NewsfeedMenuSheet isOpen={isMenuOpen} onOpen={openMenu} onClose={closeMenu} />
+			<NewsfeedCommentsSheet
+				isOpen={isCommentOpen}
+				onClose={() => setIsCommentOpen(false)}
+				video={activeVideo}
+				viewerName={user?.firstName ?? user?.email ?? "ban"}
+			/>
+
+			{endReached ? (
+				<div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/75 px-4 py-2 text-xs text-white shadow-lg backdrop-blur">
+					Bạn đã xem hết toàn bộ video được đề xuất trong hôm nay.
+				</div>
+			) : null}
 		</div>
 	);
 }

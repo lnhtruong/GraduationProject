@@ -39,7 +39,7 @@ export function NewsfeedCoursePanel({ video, isOpen, onClose }: NewsfeedCoursePa
 
 			<div className="h-full flex flex-col gap-5">
 				<div className="flex items-center justify-between">
-					<h3 className="text-xl font-bold">Thong tin khoa hoc</h3>
+					<h3 className="text-xl font-bold">Thông tin khóa học</h3>
 					<Button variant="ghost" size="icon" onClick={onClose}>
 						<ChevronRight className="h-5 w-5" />
 					</Button>
@@ -53,7 +53,7 @@ export function NewsfeedCoursePanel({ video, isOpen, onClose }: NewsfeedCoursePa
 					</Avatar>
 					<div className="min-w-0 flex-1">
 						<p className="font-semibold text-base truncate">{video.course.name}</p>
-						<p className="text-sm text-muted-foreground">ID khoa hoc: {video.course.id}</p>
+						<p className="text-sm text-muted-foreground">ID khóa học: {video.course.id}</p>
 						<div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
 							<span>{video.course.level}</span>
 							<span>{video.course.duration}</span>
@@ -73,20 +73,20 @@ export function NewsfeedCoursePanel({ video, isOpen, onClose }: NewsfeedCoursePa
 				</div>
 				<div className="grid grid-cols-2 gap-3 text-sm">
 					<div className="rounded-xl border border-border p-3 bg-card">
-						<p className="text-muted-foreground">Gia khoa hoc</p>
+						<p className="text-muted-foreground">Giá khóa học</p>
 						<p className="font-semibold">{video.course.price.toLocaleString("vi-VN")} VND</p>
 					</div>
 					<div className="rounded-xl border border-border p-3 bg-card">
-						<p className="text-muted-foreground">Ngon ngu</p>
+						<p className="text-muted-foreground">Ngôn ngữ</p>
 						<p className="font-semibold uppercase">{video.course.language}</p>
 					</div>
 					<div className="rounded-xl border border-border p-3 bg-card col-span-2">
-						<p className="text-muted-foreground">Thoi gian cap nhat</p>
+						<p className="text-muted-foreground">Thời gian cập nhật</p>
 						<p className="font-semibold">{formatIsoDate(video.course.updated_at)}</p>
 					</div>
 				</div>
 				<Button className="mt-auto" asChild>
-					<Link href="/courses">Kham pha khoa hoc day du</Link>
+					<Link href="/courses">Khám phá khóa học đầy đủ</Link>
 				</Button>
 			</div>
 		</div>

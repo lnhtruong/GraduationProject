@@ -24,10 +24,10 @@ export function NewsfeedMenuSheet({ isOpen, onOpen, onClose }: NewsfeedMenuSheet
 				<SheetHeader>
 					<SheetTitle className="flex items-center gap-2">
 						<Image src="/logo.png" alt="LearnHub" width={28} height={28} />
-						LearnHub Menu
+						Menu LearnHub
 					</SheetTitle>
 					<SheetDescription>
-						Menu demo cho trang luot video. Sau nay co the doi sang menu thuc.
+						Menu tạm cho trang lướt video. Có thể thay bằng menu chính sau.
 					</SheetDescription>
 				</SheetHeader>
 				<div className="px-4 pb-6 space-y-2">
@@ -45,15 +45,15 @@ export function NewsfeedMenuSheet({ isOpen, onOpen, onClose }: NewsfeedMenuSheet
 						);
 					})}
 					<Button asChild className="w-full mt-3">
-						<Link href="/">Ve trang chu</Link>
+						<Link href="/">Về trang chủ</Link>
 					</Button>
 					<Button variant="outline" asChild className="w-full">
-						<Link href="/courses">Kham pha khoa hoc</Link>
+						<Link href="/courses">Khám phá khóa học</Link>
 					</Button>
 					<Button variant="ghost" asChild className="w-full">
 						<Link href="/profile">
 							<Info className="h-4 w-4" />
-							Thong tin tai khoan
+							Thông tin tài khoản
 						</Link>
 					</Button>
 				</div>

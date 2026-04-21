@@ -29,6 +29,23 @@ import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
 import { getInitials } from "./newsfeed-ui";
 
+function sanitizeDescriptionHtml(input?: string) {
+	if (!input) {
+		return "";
+	}
+
+	return input
+		.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+		.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+		.replace(/\son\w+=("[^"]*"|'[^']*')/gi, "")
+		.replace(/javascript:/gi, "");
+}
+
+function stripHtml(input?: string) {
+	const safeHtml = sanitizeDescriptionHtml(input);
+	return safeHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 interface NewsfeedVideoStageProps {
 	video: NewsfeedItem;
 	isCoursePanelOpen: boolean;
@@ -46,6 +63,7 @@ interface NewsfeedVideoStageProps {
 	onVolumeChange: (value: number) => void;
 	onSeek: (value: number) => void;
 	onToggleCoursePanel: () => void;
+	onOpenComments: () => void;
 	onDescriptionOpenChange: (open: boolean) => void;
 	onVideoMetadataLoaded: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
 	onVideoTimeUpdate: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
@@ -69,6 +87,7 @@ export function NewsfeedVideoStage({
 	onVolumeChange,
 	onSeek,
 	onToggleCoursePanel,
+	onOpenComments,
 	onDescriptionOpenChange,
 	onVideoMetadataLoaded,
 	onVideoTimeUpdate,
@@ -76,15 +95,26 @@ export function NewsfeedVideoStage({
 }: NewsfeedVideoStageProps) {
 	const seekTrackRef = useRef<HTMLDivElement | null>(null);
 	const [isSeeking, setIsSeeking] = useState(false);
+    const channelName = useMemo(() => {
+		const first = video.lecturer?.firstName?.trim();
+		const last = video.lecturer?.lastName?.trim();
+		const full = `${first ?? ""} ${last ?? ""}`.trim();
+		return full || video.course.name;
+	}, [video.course.name, video.lecturer?.firstName, video.lecturer?.lastName]);
 
 	const isPortraitVideo = videoAspectRatio < 1;
+	const descriptionText = useMemo(() => stripHtml(video.description), [video.description]);
+	const safeDescriptionHtml = useMemo(
+		() => sanitizeDescriptionHtml(video.description),
+		[video.description],
+	);
 	const shortDescription = useMemo(() => {
-		const desc = video.description ?? "";
+		const desc = descriptionText;
 		if (desc.length <= 90) {
 			return desc;
 		}
 		return `${desc.slice(0, 90)}...`;
-	}, [video.description]);
+	}, [descriptionText]);
 
 	const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
 
@@ -133,17 +163,17 @@ export function NewsfeedVideoStage({
 					isCoursePanelOpen ? "right-[min(42vw,520px)]" : "right-0",
 				)}
 			>
-				<div className="absolute inset-0 flex items-center justify-center px-4 md:px-8 pt-20 pb-5">
+				<div className="absolute inset-0 flex items-center justify-center px-4 md:px-8 pt-20 pb-6">
 					<div
 						className={cn(
 							"relative",
 							isPortraitVideo
-								? "h-[calc(100vh-6rem)] aspect-[9/16]"
-								: "w-[min(63vw,100%)] max-w-[min(63vw,100%)] aspect-video",
+								? "h-[calc(100vh-6.8rem)] aspect-[9/16]"
+								: "w-[min(58vw,980px)] max-w-[min(58vw,980px)] aspect-video",
 						)}
 					>
 						<div
-							className="group relative h-full w-full overflow-hidden rounded-2xl border border-border/70 bg-background/70 shadow-2xl"
+							className="group relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
 							onMouseEnter={() => onHoverChange(true)}
 							onMouseLeave={() => onHoverChange(false)}
 							onClick={onTogglePlay}
@@ -161,7 +191,7 @@ export function NewsfeedVideoStage({
 								onTimeUpdate={onVideoTimeUpdate}
 							/>
 
-							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-background/55" />
+							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
 							<div
 								className={cn(
@@ -170,13 +200,13 @@ export function NewsfeedVideoStage({
 								)}
 							>
 								<div
-									className="flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-2.5 py-1.5"
+									className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-2.5 py-1.5"
 									onClick={(event) => event.stopPropagation()}
 								>
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-6 w-6 text-foreground hover:bg-accent/70"
+										className="h-6 w-6 text-white hover:bg-white/10"
 										onClick={(event) => {
 											event.stopPropagation();
 											onToggleMute();
@@ -192,7 +222,7 @@ export function NewsfeedVideoStage({
 										value={isMuted ? 0 : volume}
 										onChange={(event) => onVolumeChange(Number(event.target.value))}
 										className={cn(
-											"h-1 accent-primary transition-all duration-200",
+											"h-1 accent-red-500 transition-all duration-200",
 											isHovered ? "w-24 opacity-100" : "w-0 opacity-0",
 										)}
 									/>
@@ -203,23 +233,23 @@ export function NewsfeedVideoStage({
 										<Button
 											variant="ghost"
 											size="icon"
-											className="h-8 w-8 rounded-full border border-border/70 bg-background/75 text-foreground hover:bg-accent/70"
+											className="h-8 w-8 rounded-full border border-white/15 bg-black/60 text-white hover:bg-white/10"
 											onClick={(event) => event.stopPropagation()}
 										>
 											<Ellipsis className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-56" onClick={(event) => event.stopPropagation()}>
-										<DropdownMenuLabel>Tuy chon video</DropdownMenuLabel>
+										<DropdownMenuLabel>Tùy chọn video</DropdownMenuLabel>
 										<DropdownMenuSeparator />
-										<DropdownMenuItem><Settings2 className="h-4 w-4" />Chat luong</DropdownMenuItem>
-										<DropdownMenuItem><Gauge className="h-4 w-4" />Toc do phat</DropdownMenuItem>
-										<DropdownMenuItem><Subtitles className="h-4 w-4" />Phu de</DropdownMenuItem>
-										<DropdownMenuItem><Volume className="h-4 w-4" />Cuon tu dong</DropdownMenuItem>
+										<DropdownMenuItem><Settings2 className="h-4 w-4" />Chất lượng</DropdownMenuItem>
+										<DropdownMenuItem><Gauge className="h-4 w-4" />Tốc độ phát</DropdownMenuItem>
+										<DropdownMenuItem><Subtitles className="h-4 w-4" />Phụ đề</DropdownMenuItem>
+										<DropdownMenuItem><Volume className="h-4 w-4" />Tự động cuộn</DropdownMenuItem>
 										<DropdownMenuItem><PictureInPicture2 className="h-4 w-4" />Picture in Picture</DropdownMenuItem>
 										<DropdownMenuSeparator />
-										<DropdownMenuItem><XCircle className="h-4 w-4" />Khong quan tam</DropdownMenuItem>
-										<DropdownMenuItem variant="destructive"><Flag className="h-4 w-4" />Bao cao</DropdownMenuItem>
+										<DropdownMenuItem><XCircle className="h-4 w-4" />Không quan tâm</DropdownMenuItem>
+										<DropdownMenuItem variant="destructive"><Flag className="h-4 w-4" />Báo cáo</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
 							</div>
@@ -227,30 +257,55 @@ export function NewsfeedVideoStage({
 							<div
 								className={cn(
 									"absolute left-0 right-0 bottom-2 px-4 transition-all duration-200",
-									isDescriptionOpen ? "backdrop-blur-sm bg-background/50 pt-3 pb-10" : "pb-10",
+									isDescriptionOpen ? "backdrop-blur-sm bg-black/55 pt-3 pb-10" : "pb-10",
 								)}
 								onClick={(event) => {
 									event.stopPropagation();
 								}}
 							>
-								<p className="text-lg md:text-2xl font-extrabold leading-tight text-foreground drop-shadow-md line-clamp-1">
-									{video.course.name}
+								<div className="flex items-center gap-2 text-sm text-white/95">
+									<p className="font-semibold">@{channelName}</p>
+									<Button
+										type="button"
+										size="sm"
+										className="h-8 rounded-full bg-white text-black hover:bg-white/90"
+										onClick={(event) => event.stopPropagation()}
+									>
+										Đăng ký
+									</Button>
+								</div>
+								<p className="mt-1 text-lg md:text-xl font-bold leading-tight text-white line-clamp-1">
+									{video.title}
 								</p>
-								<p className={cn("mt-1 text-sm md:text-base text-foreground/90 leading-relaxed drop-shadow-sm", isDescriptionOpen ? "line-clamp-none" : "line-clamp-2") }>
-									{isDescriptionOpen ? video.description : shortDescription}
-									{(video.description?.length ?? 0) > 90 ? (
+								{isDescriptionOpen ? (
+									<div
+										className="mt-2 max-h-36 overflow-y-auto pr-1 text-sm leading-relaxed text-white/90 [&_a]:text-red-300 [&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-2 [&_strong]:font-semibold [&_ul]:list-disc"
+										dangerouslySetInnerHTML={{ __html: safeDescriptionHtml }}
+									/>
+								) : (
+									<p className="mt-2 text-sm md:text-base text-white/90 leading-relaxed line-clamp-2">
+										{shortDescription}
+									</p>
+								)}
+								{descriptionText.length > 90 ? (
 										<button
 											type="button"
 											onClick={(event) => {
 												event.stopPropagation();
 												onDescriptionOpenChange(!isDescriptionOpen);
 											}}
-											className="ml-1 inline-flex text-primary font-semibold"
+											className="mt-1 inline-flex text-sm text-red-300 font-semibold"
 										>
-											{isDescriptionOpen ? "an bot" : "...xem them"}
+											{isDescriptionOpen ? "Ẩn bớt" : "Xem thêm"}
 										</button>
 									) : null}
-								</p>
+								<div className="mt-2 flex flex-wrap gap-1.5">
+									{video.hashtags.slice(0, 4).map((tag) => (
+										<span key={tag} className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/90">
+											#{tag}
+										</span>
+									))}
+								</div>
 							</div>
 
 							<div
@@ -266,11 +321,11 @@ export function NewsfeedVideoStage({
 									seekFromClientX(event.clientX);
 								}}
 							>
-								<div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-muted/80" />
-								<div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary" style={{ width: `${progressPercent}%` }} />
+								<div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/30" />
+								<div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-red-500" style={{ width: `${progressPercent}%` }} />
 								<div
 									className={cn(
-										"absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-primary shadow transition-opacity",
+										"absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-red-500 shadow transition-opacity",
 										isHovered ? "opacity-100" : "opacity-0",
 									)}
 									style={{ left: `calc(${progressPercent}% - 6px)` }}
@@ -281,7 +336,7 @@ export function NewsfeedVideoStage({
 						<div
 							className={cn(
 								"absolute z-20 flex flex-col items-center gap-3",
-								isPortraitVideo ? "-right-16 bottom-4" : "-right-18 bottom-6",
+								isPortraitVideo ? "-right-16 bottom-8" : "-right-18 bottom-8",
 							)}
 						>
 							<Button
@@ -289,35 +344,42 @@ export function NewsfeedVideoStage({
 									event.stopPropagation();
 									onToggleCoursePanel();
 								}}
-								className="h-14 w-14 rounded-full border-2 border-border/80 bg-background/60 hover:bg-accent/70 transition shadow-xl shadow-background/30"
+								className="h-12 w-12 rounded-full border border-white/20 bg-black/65 hover:bg-white/10 transition"
 							>
-								<Avatar className="h-12 w-12 border border-border/80">
+								<Avatar className="h-10 w-10 border border-white/20">
 									<AvatarImage src={video.course.thumbnail ?? undefined} />
-									<AvatarFallback className="bg-primary/25 text-foreground text-sm font-semibold">
+									<AvatarFallback className="bg-white/15 text-white text-sm font-semibold">
 										{getInitials(video.course.name)}
 									</AvatarFallback>
 								</Avatar>
 							</Button>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-11 w-11 rounded-full bg-black/65 text-white hover:bg-white/10" onClick={(event) => event.stopPropagation()}>
 								<Heart className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.likes.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.likes.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
+							<Button
+								variant="ghost"
+								className="h-11 w-11 rounded-full bg-black/65 text-white hover:bg-white/10"
+								onClick={(event) => {
+									event.stopPropagation();
+									onOpenComments();
+								}}
+							>
 								<MessageCircle className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.comments.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.comments.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-11 w-11 rounded-full bg-black/65 text-white hover:bg-white/10" onClick={(event) => event.stopPropagation()}>
 								<Bookmark className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.saves.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.saves.toLocaleString("vi-VN")}</span>
 
-							<Button variant="ghost" className="h-12 w-12 rounded-full bg-background/60 text-foreground hover:bg-accent/70" onClick={(event) => event.stopPropagation()}>
+							<Button variant="ghost" className="h-11 w-11 rounded-full bg-black/65 text-white hover:bg-white/10" onClick={(event) => event.stopPropagation()}>
 								<Share2 className="h-5 w-5" />
 							</Button>
-							<span className="text-xs text-foreground/90 font-semibold -mt-2">{video.stats.shares.toLocaleString("vi-VN")}</span>
+							<span className="text-xs text-white/90 font-semibold -mt-2">{video.stats.shares.toLocaleString("vi-VN")}</span>
 						</div>
 					</div>
 				</div>

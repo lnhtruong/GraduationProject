@@ -40,34 +40,34 @@ export function NewsfeedOverlayHud({
 					hudBaseOpacity,
 				)}
 			>
-				<div className="pointer-events-auto rounded-2xl bg-background/45 border border-border/70 backdrop-blur-md px-3 md:px-4 h-14 flex items-center gap-3">
+				<div className="pointer-events-auto rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md px-3 md:px-4 h-14 flex items-center gap-3">
 					<Button
 						variant="ghost"
 						size="icon"
-						className="text-foreground/90 hover:text-foreground hover:bg-accent/70"
+						className="text-white/90 hover:text-white hover:bg-white/10"
 						onClick={onOpenMenu}
 					>
 						<PanelLeftOpen className="h-5 w-5" />
 					</Button>
 
 					<div className="hidden md:flex items-center gap-2 flex-1 max-w-sm">
-						<Search className="h-4 w-4 text-muted-foreground" />
+						<Search className="h-4 w-4 text-white/60" />
 						<Input
-							placeholder="Tim khoa hoc..."
-							className="h-9 bg-background/60 border-border/70 text-foreground placeholder:text-muted-foreground"
+							placeholder="Tìm video, khóa học..."
+							className="h-9 bg-white/5 border-white/10 text-white placeholder:text-white/50"
 						/>
 					</div>
 
 					<div className="mx-auto">
-						<Button asChild className="rounded-full px-6 font-semibold">
-							<Link href="/">Ve trang chu</Link>
+						<Button asChild className="rounded-full px-6 font-semibold bg-white text-black hover:bg-white/90">
+							<Link href="/">Về trang chủ</Link>
 						</Button>
 					</div>
 
 					<div className="ml-auto flex items-center gap-2">
-						<Avatar className="h-8 w-8 border border-border/70">
+						<Avatar className="h-8 w-8 border border-white/20">
 							<AvatarImage src={undefined} />
-							<AvatarFallback className="text-xs bg-muted text-foreground">
+							<AvatarFallback className="text-xs bg-white/10 text-white">
 								{userInitials}
 							</AvatarFallback>
 						</Avatar>
@@ -94,16 +94,16 @@ export function NewsfeedOverlayHud({
 					size="icon"
 					variant="ghost"
 					onClick={onToggleMenu}
-					className="pointer-events-auto h-10 w-10 rounded-full border border-border/70 text-foreground/80 bg-background/60 hover:bg-accent/70 hover:text-foreground hover:scale-110 transition"
+					className="pointer-events-auto h-10 w-10 rounded-full border border-white/20 text-white/90 bg-black/50 hover:bg-white/10 hover:text-white hover:scale-110 transition"
 				>
 					<ChevronRight className="h-5 w-5" />
 				</Button>
 			</div>
 
-			<div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3 pointer-events-auto">
+			<div className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3 pointer-events-auto">
 				<Button
 					size="icon"
-					className="h-12 w-12 rounded-full bg-background/65 hover:bg-accent/80 text-foreground border border-border/70"
+					className="h-11 w-11 rounded-full bg-black/60 hover:bg-white/10 text-white border border-white/15"
 					onClick={() => {
 						onInteract();
 						onPrev();
@@ -113,7 +113,7 @@ export function NewsfeedOverlayHud({
 				</Button>
 				<Button
 					size="icon"
-					className="h-12 w-12 rounded-full bg-background/65 hover:bg-accent/80 text-foreground border border-border/70"
+					className="h-11 w-11 rounded-full bg-black/60 hover:bg-white/10 text-white border border-white/15"
 					onClick={() => {
 						onInteract();
 						onNext();

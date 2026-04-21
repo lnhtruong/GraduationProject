@@ -1,5 +1,3 @@
-import type { Video } from "@/features/video";
-
 export type NewsfeedActionType =
 	| "course"
 	| "like"
@@ -10,7 +8,7 @@ export type NewsfeedActionType =
 export interface NewsfeedCourseInfo {
 	id: number;
 	name: string;
-	level: "Beginner" | "Intermediate" | "Advanced";
+	level: string;
 	duration: string;
 	language: string;
 	price: number;
@@ -28,18 +26,83 @@ export interface NewsfeedVideoStats {
 	comments: number;
 	saves: number;
 	shares: number;
+	views: number;
+}
+
+export interface NewsfeedVideoData {
+	id: number;
+	user_id?: number;
+	name?: string | null;
+	url: string;
+	thumbnail?: string | null;
+	duration?: number | null;
+	type?: string;
+	created_at?: string;
+	updated_at?: string;
+}
+
+export interface NewsfeedLecturer {
+	id: number;
+	firstName?: string;
+	lastName?: string;
+}
+
+export interface NewsfeedRawItem {
+	feed_id: number;
+	title?: string;
+	hashtags?: string[] | null;
+	video_type?: string;
+	video: NewsfeedVideoData;
+	course: NewsfeedCourseInfo;
+	lecturer?: NewsfeedLecturer;
+	stats?: {
+		views?: number;
+		likes?: number;
+		saves?: number;
+		comments?: number;
+	};
+	is_liked?: boolean;
+	is_saved?: boolean;
+}
+
+export interface NewsfeedPageResponse {
+	data: NewsfeedRawItem[];
+	next_cursor: number | null;
 }
 
 export interface NewsfeedItem {
 	id: number;
+	feedId: number;
 	title: string;
 	description: string;
 	videoUrl: string;
 	thumbnail: string | null;
-	type: Video["type"];
+	type: string;
+	hashtags: string[];
+	lecturer?: NewsfeedLecturer;
 	stats: NewsfeedVideoStats;
-	sourceVideo: Video;
+	isLiked: boolean;
+	isSaved: boolean;
+	video: NewsfeedVideoData;
 	course: NewsfeedCourseInfo;
+}
+
+export interface NewsfeedCommentItem {
+	id: number;
+	content: string;
+	created_at: string;
+	updated_at: string;
+	commenter?: {
+		id: number;
+		firstName?: string;
+		lastName?: string;
+	};
+	is_owner: boolean;
+}
+
+export interface NewsfeedCommentPageResponse {
+	data: NewsfeedCommentItem[];
+	next_cursor: number | null;
 }
 
 export interface NewsfeedNavItem {
