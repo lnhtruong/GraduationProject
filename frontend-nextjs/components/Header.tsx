@@ -38,6 +38,7 @@ import { useUiModeStore } from "@/store/ui-mode";
 
 const LEARNER_NAV_ITEMS = [
   { label: "Home", href: "/" },
+  { label: "Newsfeed", href: "/newsfeed" },
   { label: "Video AI", href: "/upload" },
 ];
 
