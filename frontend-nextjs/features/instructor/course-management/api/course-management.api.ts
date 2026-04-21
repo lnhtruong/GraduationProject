@@ -44,6 +44,8 @@ type FeedListResponse = {
   next_cursor?: number | null;
 };
 
+type FeedItemResponse = CourseFeedItem | { data?: CourseFeedItem | null };
+
 const DURATION_TIME_REGEX = /^\d{2,3}:[0-5]\d:[0-5]\d(\.\d{1,3})?$/;
 
 function toTimeDuration(value?: number | string | null): string {
@@ -211,7 +213,7 @@ export const quizApi = {
 };
 
 const courseFeedCrudApi = createResourceApi<
-  CourseFeedItem,
+  FeedItemResponse,
   CourseFeedItem,
   CourseFeedCreatePayload,
   CourseFeedUpsertPayload,
@@ -221,7 +223,12 @@ const courseFeedCrudApi = createResourceApi<
   FeedListResponse | CourseFeedItem[]
 >({
   basePath: "/media/feed",
-  mapItem: (item) => item,
+  mapItem: (item) => {
+    if ("feed_id" in item) {
+      return item;
+    }
+    return item.data ?? ({} as CourseFeedItem);
+  },
   mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
   getListPath: (params) =>
     withQueryPath("/media/feed", {

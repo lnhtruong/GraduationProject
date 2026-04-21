@@ -168,10 +168,13 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                 descriptionRegister={register("description", {
                   required: true,
                 })}
-                durationRegister={register("duration", {
+              />
+
+              <input
+                type="hidden"
+                {...register("duration", {
                   setValueAs: (value: string) => Number(value || 0),
                 })}
-                showMediaFields={isEdit}
               />
             </div>
 
