@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CourseStatusBadge } from "../CourseStatusBadge";
 import {
   useApproveCourse,
@@ -243,8 +242,8 @@ export function AdminCourseReviewModal({ course, open, onClose, onReviewed }: Pr
         {/* Top stripe */}
         <div className="h-1 shrink-0 bg-linear-to-r from-primary/80 via-amber-400/80 to-primary/20" />
 
-        {/* Scrollable content — flex-1 + min-h-0 để shrink đúng trong flex column */}
-        <ScrollArea className="min-h-0 flex-1">
+        {/* Scrollable content */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="p-6">
             {course && (
               <>
@@ -323,7 +322,7 @@ export function AdminCourseReviewModal({ course, open, onClose, onReviewed }: Pr
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Action footer — always visible */}
         {course && (
