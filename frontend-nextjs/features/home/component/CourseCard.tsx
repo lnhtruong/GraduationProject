@@ -13,14 +13,20 @@ export function CourseCard({ course }: CourseCardProps) {
     <Link href={`/courses/${course.id}`}>
       <Card className="group overflow-hidden border-border/60 hover:border-primary/40 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 cursor-pointer h-full">
         <div className="relative aspect-video overflow-hidden bg-muted">
-          <Image
-            src={course.thumbnail}
-            alt={course.title}
-            fill
-            unoptimized
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+          {course.thumbnail ? (
+            <Image
+              src={course.thumbnail}
+              alt={course.title}
+              fill
+              unoptimized
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-primary/10">
+              <GraduationCap className="h-12 w-12 text-primary/40" />
+            </div>
+          )}
           <span className="absolute top-2 left-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
             {course.category}
           </span>

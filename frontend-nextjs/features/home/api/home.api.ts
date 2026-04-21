@@ -1,52 +1,49 @@
-﻿/**
- * Home API
- * Endpoints for homepage data (featured courses, stats)
- *
- * TODO: Switch to real backend response when endpoint is ready.
- * Endpoint: GET /courses?featured=true&limit=4
- */
-
-import { createApi } from "@/features/_shared/api-factories";
+import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
 import type { FeaturedCourse } from "../types";
-import { MOCK_FEATURED_COURSES } from "../data/mock_data";
 
-// ─── Response shape from backend (map to FeaturedCourse) ─────────────────────
-// Adjust field names here when real API is available.
-//
-// type CourseApiResponse = {
-//   id: number;
-//   title: string;
-//   instructor_name: string;
-//   instructor_avatar: string | null;
-//   avg_rating: number;
-//   review_count: number;
-//   price: number | null;
-//   category_name: string;
-//   thumbnail_url: string;
-// };
-//
-// function mapCourse(raw: CourseApiResponse): FeaturedCourse {
-//   return {
-//     id: raw.id,
-//     title: raw.title,
-//     instructor: raw.instructor_name,
-//     instructorAvatar: raw.instructor_avatar,
-//     rating: raw.avg_rating,
-//     reviewCount: raw.review_count,
-//     price: raw.price,
-//     category: raw.category_name,
-//     thumbnail: raw.thumbnail_url,
-//   };
-// }
-// ─────────────────────────────────────────────────────────────────────────────
+// Shape BE hiện trả về từ GET /course/courses
+type CourseApiResponse = {
+  id: number;
+  name: string;
+  description?: string;
+  categories: { id: number; name: string }[] | string | unknown;
+  level: string;
+  duration: string;
+  language: string;
+  price: number;
+  userId: number;
+  status: string;
+};
+
+function mapCourse(raw: CourseApiResponse): FeaturedCourse {
+  // categories lưu dạng JSON array [{id, name}] hoặc string
+  const cats = Array.isArray(raw.categories)
+    ? (raw.categories as { name: string }[])
+    : [];
+  const category = cats[0]?.name ?? "Khoá học";
+
+  return {
+    id: raw.id,
+    title: raw.name,
+    instructor: "",           // BE chưa join user — hiển thị trống tạm thời
+    instructorAvatar: null,
+    rating: 0,                // BE chưa có avg_rating
+    reviewCount: 0,
+    price: raw.price === 0 ? null : raw.price,
+    category,
+    thumbnail: "",            // BE chưa có thumbnail_url
+  };
+}
 
 export const homeApi = createApi({
   getFeaturedCourses: async (): Promise<FeaturedCourse[]> => {
-    // TODO: Replace with real API call:
-    // const { data } = await apiClient.get<CourseApiResponse[]>("/courses", {
-    //   params: { featured: true, limit: 4 },
-    // });
-    // return data.map(mapCourse);
-    return MOCK_FEATURED_COURSES;
+    const { data } = await apiHttpClient.get<
+      { data: CourseApiResponse[]; pagination: unknown } | CourseApiResponse[]
+    >("/course/courses", {
+      params: { limit: 8, page: 1 },
+    });
+
+    const courses = Array.isArray(data) ? data : data.data;
+    return courses.map(mapCourse);
   },
 });
