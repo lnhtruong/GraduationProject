@@ -23,6 +23,25 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  vi: "Tiếng Việt",
+  en: "Tiếng Anh",
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  beginner: "Sơ cấp",
+  intermediate: "Trung cấp",
+  advanced: "Cao cấp",
+};
+
+function getLanguageLabel(language: string) {
+  return LANGUAGE_LABELS[language.toLowerCase()] ?? language;
+}
+
+function getLevelLabel(level: string) {
+  return LEVEL_LABELS[level.toLowerCase()] ?? level;
+}
+
 function StatusBadge({ status }: { status: CourseStatus }) {
   const config: Record<CourseStatus, { label: string; className: string }> = {
     publish: {
@@ -63,9 +82,6 @@ export function CourseManageCard({ course, onDelete }: Props) {
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="line-clamp-1 font-semibold">{course.name}</h3>
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-              {course.description}
-            </p>
           </div>
           <StatusBadge status={course.status} />
         </div>
@@ -85,11 +101,11 @@ export function CourseManageCard({ course, onDelete }: Props) {
           </span>
           <span className="flex items-center gap-1">
             <Languages className="h-3.5 w-3.5" />
-            {course.language}
+            {getLanguageLabel(course.language)}
           </span>
           <span className="flex items-center gap-1">
             <BadgeCheck className="h-3.5 w-3.5" />
-            {course.level}
+            {getLevelLabel(course.level)}
           </span>
           <span className="flex items-center gap-1">
             <BookOpen className="h-3.5 w-3.5" />
@@ -98,22 +114,15 @@ export function CourseManageCard({ course, onDelete }: Props) {
         </div>
 
         <div className="mt-4 grid gap-2">
-          <Button size="sm" className="w-full gap-1.5" asChild>
-            <Link href={`/instructor/courses/${course.id}`}>
-              <FolderKanban className="h-3.5 w-3.5" />
-              Quản lý khóa học
-            </Link>
-          </Button>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="outline"
               className="flex-1 gap-1.5"
               asChild
             >
-              <Link href={`/instructor/courses/${course.id}/lessons`}>
-                <Layers3 className="h-3.5 w-3.5" />
-                Bài học
+              <Link href={`/instructor/courses/${course.id}`}>
+                <FolderKanban className="h-3.5 w-3.5" />
+                Quản lý khóa học
               </Link>
             </Button>
             <Button

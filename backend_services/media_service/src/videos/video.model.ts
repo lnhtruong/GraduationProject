@@ -14,6 +14,8 @@ import { MascotImage } from 'src/images_mascot/images.model';
 export enum VideoType {
   HIGHLIGHT = 'highlight',
   MASCOT = 'mascot',
+  /** Bunny Stream: long / course source video */
+  LONG = 'long',
 }
 
 @Table({
@@ -27,6 +29,15 @@ export class Video extends Model {
   @AutoIncrement
   @Column(DataType.INTEGER)
   declare id: number;
+
+  /** Bunny Stream video GUID; matches webhook `VideoGuid` and TUS `VideoId`. */
+  @Index({ unique: true, name: 'uq_videos_bunny_video_guid' })
+  @Column({
+    type: DataType.STRING(64),
+    allowNull: true,
+    field: 'bunny_video_guid',
+  })
+  declare bunny_video_guid: string | null;
 
   /** Correlates Cloudinary webhooks (video + raw SRT) from one Colab run. */
   @Index({ unique: true, name: 'uq_videos_job_id' })

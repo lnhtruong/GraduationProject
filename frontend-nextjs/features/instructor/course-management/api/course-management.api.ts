@@ -1,4 +1,24 @@
 import {
+  type Course,
+  type CreateCoursePayload,
+  type CourseListParams,
+  type CourseReviewAction,
+  courseApi as baseCourseApi,
+  courseWorkflowApi as baseCourseWorkflowApi,
+} from "@/features/courses/api/course.api";
+import {
+  type CreateLessonPayload,
+  type LessonActivityListParams,
+  type LessonListParams,
+  lessonActivityApi,
+  lessonApi as baseLessonApi,
+} from "@/features/lessons/api/lesson.api";
+import {
+  type CreateQuizPayload,
+  type QuizListParams,
+  quizApi as baseQuizApi,
+} from "@/features/quizzes/api/quizz.api";
+import {
   createResourceApi,
   withQueryPath,
 } from "@/features/_shared/crud-factories";
@@ -7,49 +27,16 @@ import type {
   CourseFeedItem,
   CourseFeedUpsertPayload,
   CourseFormValues,
-  CourseStatus,
   InstructorCourse,
   InstructorLesson,
-  InstructorLessonActivity,
   InstructorQuiz,
   QuizQuestionType,
   LessonFormValues,
   QuizEditorState,
 } from "../types";
 
-type CourseListParams = {
-  userId?: number;
-  status?: CourseStatus;
-  page?: number;
-  limit?: number;
-};
-
-export type LessonListParams = {
-  courseId?: number;
-};
-
-export type LessonActivityListParams = {
-  lessonId?: number;
-};
-
-export type QuizListParams = {
-  lessonActivityId?: number;
-};
-
 export type CourseFeedListParams = {
   courseId?: number;
-};
-
-type QuizListResponse = {
-  data?: InstructorQuiz[];
-};
-
-type LessonListResponse = {
-  data?: InstructorLesson[];
-};
-
-type CourseListResponse = {
-  data?: InstructorCourse[];
 };
 
 type FeedListResponse = {
@@ -91,7 +78,7 @@ function toLessonPayload(payload: LessonFormValues) {
   return {
     ...payload,
     duration: toTimeDuration(payload.duration),
-  };
+  } satisfies CreateLessonPayload;
 }
 
 function toCoursePayload(payload: CourseFormValues) {
@@ -100,11 +87,9 @@ function toCoursePayload(payload: CourseFormValues) {
     description: payload.description,
     categories: payload.categories,
     level: payload.level,
-    duration: payload.duration,
     language: payload.language,
     price: payload.price,
-    status: payload.status,
-  };
+  } satisfies CreateCoursePayload;
 }
 
 function toQuizPayload(payload: QuizEditorState) {
@@ -132,96 +117,98 @@ function toQuizPayload(payload: QuizEditorState) {
         orderIndex: optionIndex + 1,
       })),
     })),
+  } satisfies CreateQuizPayload;
+}
+
+function toInstructorCourse(item: Course): InstructorCourse {
+  return {
+    ...item,
+    duration: item.duration ?? "00:00:00",
   };
 }
 
-const courseCrudApi = createResourceApi<
-  InstructorCourse,
-  InstructorCourse,
-  CourseFormValues,
-  CourseFormValues,
-  number,
-  CourseListParams,
-  { message?: string },
-  CourseListResponse | InstructorCourse[]
->({
-  basePath: "/course/courses",
-  mapItem: (item) => item,
-  mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
-  toCreatePayload: toCoursePayload,
-  toUpdatePayload: toCoursePayload,
-  toPatchPayload: toCoursePayload,
-  getListPath: (params) => withQueryPath("/course/courses", params),
-});
+export const courseApi = {
+  list: (params?: CourseListParams): Promise<InstructorCourse[]> =>
+    (baseCourseApi.list?.(params) ?? Promise.resolve([])).then((items) =>
+      items.map(toInstructorCourse),
+    ),
+  getOne: (id: number): Promise<InstructorCourse> =>
+    baseCourseApi.getOne(id).then(toInstructorCourse),
+  create: (payload: CourseFormValues): Promise<InstructorCourse> =>
+    baseCourseApi.create(toCoursePayload(payload)).then(toInstructorCourse),
+  update: (id: number, payload: CourseFormValues): Promise<InstructorCourse> =>
+    baseCourseApi
+      .update(id, toCoursePayload(payload))
+      .then(toInstructorCourse),
+  updatePatch: (
+    id: number,
+    payload: CourseFormValues,
+  ): Promise<InstructorCourse> =>
+    baseCourseApi.updatePatch
+      ? baseCourseApi
+          .updatePatch(id, toCoursePayload(payload))
+          .then(toInstructorCourse)
+      : baseCourseApi
+          .update(id, toCoursePayload(payload))
+          .then(toInstructorCourse),
+  delete: (id: number) => baseCourseApi.delete(id),
+};
 
-export const courseApi = courseCrudApi;
+export const courseWorkflowApi = {
+  submitForReview: async (courseId: number): Promise<InstructorCourse> => {
+    const updated = await baseCourseWorkflowApi.submitForReview(courseId);
+    return toInstructorCourse(updated);
+  },
+  review: async (
+    courseId: number,
+    status: CourseReviewAction,
+  ): Promise<InstructorCourse> => {
+    const updated = await baseCourseWorkflowApi.review(courseId, status);
+    return toInstructorCourse(updated);
+  },
+  publish: async (courseId: number): Promise<InstructorCourse> => {
+    const updated = await baseCourseWorkflowApi.publish(courseId);
+    return toInstructorCourse(updated);
+  },
+};
 
-const lessonCrudApi = createResourceApi<
-  InstructorLesson,
-  InstructorLesson,
-  LessonFormValues,
-  LessonFormValues,
-  number,
-  LessonListParams,
-  { success?: boolean },
-  LessonListResponse | InstructorLesson[]
->({
-  basePath: "/course/lessons",
-  mapItem: (item) => item,
-  mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
-  toCreatePayload: toLessonPayload,
-  toUpdatePayload: toLessonPayload,
-  toPatchPayload: toLessonPayload,
-  getListPath: (params) =>
-    withQueryPath("/course/lessons/course", {
-      courseId: params?.courseId,
-      page: 1,
-      limit: 100,
-    }),
-});
+export const lessonApi = {
+  list: (params?: LessonListParams): Promise<InstructorLesson[]> =>
+    baseLessonApi.list?.(params) ?? Promise.resolve([]),
+  getOne: (id: number): Promise<InstructorLesson> => baseLessonApi.getOne(id),
+  create: (payload: LessonFormValues): Promise<InstructorLesson> =>
+    baseLessonApi.create(toLessonPayload(payload)),
+  update: (id: number, payload: LessonFormValues): Promise<InstructorLesson> =>
+    baseLessonApi.update(id, toLessonPayload(payload)),
+  updatePatch: (
+    id: number,
+    payload: LessonFormValues,
+  ): Promise<InstructorLesson> =>
+    baseLessonApi.updatePatch
+      ? baseLessonApi.updatePatch(id, toLessonPayload(payload))
+      : baseLessonApi.update(id, toLessonPayload(payload)),
+  delete: (id: number) => baseLessonApi.delete(id),
+};
 
-export const lessonApi = lessonCrudApi;
-
-const lessonActivityCrudApi = createResourceApi<
-  InstructorLessonActivity,
-  InstructorLessonActivity,
-  Omit<InstructorLessonActivity, "id">,
-  Partial<InstructorLessonActivity>,
-  number,
-  LessonActivityListParams,
-  { success?: boolean }
->({
-  basePath: "/course/lesson-activities",
-  mapItem: (item) => item,
-  getListPath: (params) => withQueryPath("/course/lesson-activities", params),
-});
-
-export const lessonActivityApi = lessonActivityCrudApi;
-
-const quizCrudApi = createResourceApi<
-  InstructorQuiz,
-  InstructorQuiz,
-  QuizEditorState,
-  QuizEditorState,
-  number,
-  QuizListParams,
-  { success?: boolean },
-  QuizListResponse | InstructorQuiz[]
->({
-  basePath: "/course/quizzes",
-  mapItem: (item) => item,
-  mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
-  toCreatePayload: (payload) => {
+export const quizApi = {
+  list: (params?: QuizListParams): Promise<InstructorQuiz[]> =>
+    baseQuizApi.list?.(params) ?? Promise.resolve([]),
+  getOne: (id: number): Promise<InstructorQuiz> => baseQuizApi.getOne(id),
+  create: (payload: QuizEditorState): Promise<InstructorQuiz> => {
     if (!payload.lessonActivityId) {
       throw new Error("Missing lessonActivityId when creating quiz");
     }
-    return toQuizPayload(payload);
+    return baseQuizApi.create(toQuizPayload(payload));
   },
-  toPatchPayload: toQuizPayload,
-  getListPath: (params) => withQueryPath("/course/quizzes", params),
-});
-
-export const quizApi = quizCrudApi;
+  update: (id: number, payload: QuizEditorState): Promise<InstructorQuiz> =>
+    baseQuizApi.update(id, toQuizPayload(payload)),
+  updatePatch: (id: number, payload: QuizEditorState): Promise<InstructorQuiz> =>
+    baseQuizApi.updatePatch
+      ? baseQuizApi.updatePatch(id, toQuizPayload(payload))
+      : baseQuizApi.update(id, toQuizPayload(payload)),
+  delete: (id: number) => baseQuizApi.delete(id),
+  listByLesson: baseQuizApi.listByLesson,
+};
 
 const courseFeedCrudApi = createResourceApi<
   CourseFeedItem,
@@ -247,5 +234,6 @@ const courseFeedCrudApi = createResourceApi<
 });
 
 export const courseFeedApi = courseFeedCrudApi;
+export { lessonActivityApi };
 
-export type { CourseListParams };
+export type { CourseListParams, CourseReviewAction, LessonActivityListParams, LessonListParams, QuizListParams };

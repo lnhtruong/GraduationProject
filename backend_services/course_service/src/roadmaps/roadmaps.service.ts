@@ -14,8 +14,10 @@ import {
 } from 'src/models/roadmap-course.model';
 import { RoadMap } from 'src/models/roadmap.model';
 import { User } from 'src/users/user.model';
+import { AddManyRoadMapCoursesDto } from './dto/add-many-roadmap-courses.dto';
 import { AddRoadMapCourseDto } from './dto/add-roadmap-course.dto';
 import { CreateRoadMapDto } from './dto/create-roadmap.dto';
+import { ReorderRoadMapCoursesDto } from './dto/reorder-roadmap-courses.dto';
 import { UpdateRoadMapCourseDto } from './dto/update-roadmap-course.dto';
 import { UpdateRoadMapDto } from './dto/update-roadmap.dto';
 
@@ -207,6 +209,66 @@ export class RoadmapsService {
     });
   }
 
+  async addCoursesBulk(
+    roadMapId: number,
+    addManyRoadMapCoursesDto: AddManyRoadMapCoursesDto,
+  ): Promise<RoadMap> {
+    await this.sequelize.transaction(async (transaction) => {
+      const roadMap = await this.getRoadMapOrThrow(roadMapId, transaction);
+
+      const existingRoadMapCourses = await this.roadMapCourseModel.findAll({
+        where: { roadmapId: roadMap.id },
+        attributes: ['courseId'],
+        transaction,
+      });
+
+      const existingCourseIds = new Set<number>(
+        existingRoadMapCourses
+          .map((roadMapCourse) => roadMapCourse.courseId)
+          .filter((courseId): courseId is number => typeof courseId === 'number'),
+      );
+
+      for (const course of addManyRoadMapCoursesDto.courses) {
+        if (existingCourseIds.has(course.courseId)) {
+          continue;
+        }
+
+        await this.ensureCourseExists(course.courseId, transaction);
+
+        const nextOrderIndex = await this.getNextOrderIndex(
+          roadMap.id,
+          transaction,
+        );
+        const targetOrderIndex = this.normalizeOrderIndex(
+          course.orderIndex ?? nextOrderIndex,
+          nextOrderIndex,
+        );
+
+        await this.shiftOrderIndexOnInsert(
+          roadMap.id,
+          targetOrderIndex,
+          transaction,
+        );
+
+        await this.roadMapCourseModel.create(
+          {
+            roadmapId: roadMap.id,
+            courseId: course.courseId,
+            orderIndex: targetOrderIndex,
+            status: course.status ?? null,
+          },
+          { transaction },
+        );
+
+        existingCourseIds.add(course.courseId);
+      }
+
+      await this.syncRoadMapCounters(roadMap.id, transaction);
+    });
+
+    return await this.findOne(roadMapId);
+  }
+
   async updateCourse(
     roadMapId: number,
     courseId: number,
@@ -280,6 +342,59 @@ export class RoadmapsService {
 
       await this.syncRoadMapCounters(roadMapId, transaction);
     });
+  }
+
+  async reorderCourses(
+    roadMapId: number,
+    reorderRoadMapCoursesDto: ReorderRoadMapCoursesDto,
+  ): Promise<RoadMap> {
+    await this.sequelize.transaction(async (transaction) => {
+      await this.getRoadMapOrThrow(roadMapId, transaction);
+
+      const roadMapCourses = await this.roadMapCourseModel.findAll({
+        where: { roadmapId: roadMapId },
+        transaction,
+      });
+
+      const currentCourseIds = roadMapCourses
+        .map((roadMapCourse) => roadMapCourse.courseId)
+        .filter((courseId): courseId is number => typeof courseId === 'number');
+
+      this.validateReorderCourseIds(
+        currentCourseIds,
+        reorderRoadMapCoursesDto.courseIds,
+      );
+
+      const orderIndexMap = new Map<number, number>(
+        reorderRoadMapCoursesDto.courseIds.map((courseId, index) => [
+          courseId,
+          index + 1,
+        ]),
+      );
+
+      for (const roadMapCourse of roadMapCourses) {
+        const courseId = roadMapCourse.courseId;
+        if (typeof courseId !== 'number') {
+          continue;
+        }
+
+        const targetOrderIndex = orderIndexMap.get(courseId);
+        if (targetOrderIndex === undefined) {
+          continue;
+        }
+
+        if (roadMapCourse.orderIndex === targetOrderIndex) {
+          continue;
+        }
+
+        roadMapCourse.orderIndex = targetOrderIndex;
+        await roadMapCourse.save({ transaction });
+      }
+
+      await this.syncRoadMapCounters(roadMapId, transaction);
+    });
+
+    return await this.findOne(roadMapId);
   }
 
   private getRoadMapInclude() {
@@ -472,5 +587,37 @@ export class RoadmapsService {
         transaction,
       },
     );
+  }
+
+  private validateReorderCourseIds(
+    currentCourseIds: number[],
+    incomingCourseIds: number[],
+  ): void {
+    if (currentCourseIds.length !== incomingCourseIds.length) {
+      throw new BadRequestException(
+        'courseIds must include all courses currently attached to the roadmap',
+      );
+    }
+
+    const currentCourseIdSet = new Set(currentCourseIds);
+    const incomingCourseIdSet = new Set(incomingCourseIds);
+
+    const hasUnknownCourseId = incomingCourseIds.some(
+      (courseId) => !currentCourseIdSet.has(courseId),
+    );
+    if (hasUnknownCourseId) {
+      throw new BadRequestException(
+        'courseIds contains courses not attached to this roadmap',
+      );
+    }
+
+    const hasMissingCourseId = currentCourseIds.some(
+      (courseId) => !incomingCourseIdSet.has(courseId),
+    );
+    if (hasMissingCourseId) {
+      throw new BadRequestException(
+        'courseIds is missing courses currently attached to this roadmap',
+      );
+    }
   }
 }

@@ -69,11 +69,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         breadcrumbs={[
           { label: "Quản lý khóa học", href: "/instructor/courses" },
           { label: course.name, href: `/instructor/courses/${course.id}` },
-          {
-            label: "Bài học",
-            href: `/instructor/courses/${course.id}/lessons`,
-          },
-          { label: "Chỉnh sửa" },
+          { label: "Chỉnh sửa bài học" },
         ]}
         action={
           <Button variant="outline" onClick={() => router.back()}>
@@ -95,8 +91,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name, href: `/instructor/courses/${course.id}` },
-        { label: "Bài học", href: `/instructor/courses/${course.id}/lessons` },
-        { label: isEdit ? (lesson?.title ?? "Chỉnh sửa") : "Tạo mới" },
+        { label: isEdit ? "Chỉnh sửa bài học" : "Tạo mới bài học" },
       ]}
       action={
         <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
@@ -129,7 +124,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
               id: lesson.id,
               data: payload,
             });
-            router.push(`/instructor/courses/${course.id}/lessons`);
+            router.push(`/instructor/courses/${course.id}`);
             router.refresh();
             return;
           }
@@ -138,7 +133,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
             ...payload,
             courseId,
           });
-          router.push(`/instructor/courses/${course.id}/lessons`);
+          router.push(`/instructor/courses/${course.id}`);
           router.refresh();
         }}
       />

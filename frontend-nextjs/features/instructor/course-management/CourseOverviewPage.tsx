@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   BookOpen,
-  Layers3,
   PencilLine,
   Clapperboard,
   Clock3,
@@ -12,17 +11,32 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  CirclePlus,
+  Search,
+  Filter,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
+  useDeleteLesson,
   useInstructorCourseById,
   useLessonsByCourseId,
+  useQuickPublishCourse,
 } from "./api/course-management.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatDuration, formatPrice } from "@/features/courses/utils";
 
 interface Props {
   courseId: number;
@@ -30,30 +44,113 @@ interface Props {
 
 export default function CourseOverviewPage({ courseId }: Props) {
   const LESSONS_PER_PAGE = 10;
+  type LessonStatusFilter = "all" | "active" | "blocked";
+
+  const toSeconds = (duration?: number | string | null) => {
+    if (typeof duration === "number" && Number.isFinite(duration)) {
+      // Existing lesson forms store duration in minutes.
+      return Math.max(0, Math.round(duration * 60));
+    }
+
+    if (typeof duration === "string") {
+      const normalized = duration.trim();
+      const parts = normalized.split(":");
+      if (parts.length >= 2 && parts.length <= 3) {
+        const [h = "0", m = "0", s = "0"] = parts;
+        const parsedH = Number(h);
+        const parsedM = Number(m);
+        const parsedS = Number(s);
+        if (
+          Number.isFinite(parsedH) &&
+          Number.isFinite(parsedM) &&
+          Number.isFinite(parsedS)
+        ) {
+          return Math.max(0, parsedH * 3600 + parsedM * 60 + parsedS);
+        }
+      }
+
+      const numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return Math.max(0, Math.round(numeric * 60));
+      }
+    }
+
+    return 0;
+  };
+
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: lessons, isLoading: lessonsLoading } =
     useLessonsByCourseId(courseId);
+  const deleteLessonMutation = useDeleteLesson();
+  const quickPublishCourseMutation = useQuickPublishCourse();
+
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LessonStatusFilter>("all");
 
   const lessonCount = lessons?.length ?? 0;
   const readyLessons = (lessons ?? []).filter(
     (lesson) => String(lesson.status).toLowerCase() === "active",
   ).length;
   const totalLessonMinutes = (lessons ?? []).reduce(
-    (sum, lesson) => sum + Number(lesson.duration ?? 0),
+    (sum, lesson) => sum + toSeconds(lesson.duration),
     0,
   );
-  const avgLessonMinutes =
+  const avgLessonSeconds =
     lessonCount > 0 ? Math.round(totalLessonMinutes / lessonCount) : 0;
 
-  const totalPages = Math.max(1, Math.ceil(lessonCount / LESSONS_PER_PAGE));
+  const filteredLessons = useMemo(() => {
+    return (lessons ?? []).filter((lesson) => {
+      const keyword = search.trim().toLowerCase();
+      const bySearch =
+        !keyword ||
+        lesson.title.toLowerCase().includes(keyword) ||
+        (lesson.description ?? "").toLowerCase().includes(keyword);
+
+      const lessonStatus = String(lesson.status).toLowerCase();
+      const byStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && lessonStatus === "active") ||
+        (statusFilter === "blocked" && lessonStatus === "blocked");
+
+      return bySearch && byStatus;
+    });
+  }, [lessons, search, statusFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredLessons.length / LESSONS_PER_PAGE),
+  );
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedLessons = useMemo(() => {
     const start = (safeCurrentPage - 1) * LESSONS_PER_PAGE;
     const end = start + LESSONS_PER_PAGE;
-    return (lessons ?? []).slice(start, end);
-  }, [lessons, safeCurrentPage]);
+    return filteredLessons.slice(start, end);
+  }, [filteredLessons, safeCurrentPage]);
+
+  const handleDeleteLesson = async (lessonId: number) => {
+    await deleteLessonMutation.mutateAsync(lessonId);
+    toast.success("Đã xóa bài học");
+    setCurrentPage(1);
+  };
+
+  const handleQuickPublishCourse = async () => {
+    if (!course || course.status === "publish") {
+      return;
+    }
+
+    try {
+      await quickPublishCourseMutation.mutateAsync({
+        id: course.id,
+        status: course.status,
+      });
+      toast.success("Đã public khóa học");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Public thất bại";
+      toast.error(message);
+    }
+  };
 
   if (courseLoading) {
     return (
@@ -93,7 +190,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
   return (
     <ManagementPageShell
       title={course.name}
-      description={course.description}
+      description="Theo dõi tổng quan khóa học và quản lý bài học ngay trong một màn hình."
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name },
@@ -101,21 +198,15 @@ export default function CourseOverviewPage({ courseId }: Props) {
       action={
         <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={`/instructor/courses/${course.id}/edit`}>
-              <PencilLine className="mr-2 h-4 w-4" />
-              Sửa khóa học
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={`/instructor/courses/${course.id}/feed`}>
               <Clapperboard className="mr-2 h-4 w-4" />
               Quản lý feed
             </Link>
           </Button>
           <Button asChild className="w-full sm:w-auto">
-            <Link href={`/instructor/courses/${course.id}/lessons`}>
-              <Layers3 className="mr-2 h-4 w-4" />
-              Quản lý bài học
+            <Link href={`/instructor/courses/${course.id}/edit`}>
+              <PencilLine className="mr-2 h-4 w-4" />
+              Sửa khóa học
             </Link>
           </Button>
         </div>
@@ -128,18 +219,41 @@ export default function CourseOverviewPage({ courseId }: Props) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Course Snapshot
+                    Tổng quan khóa học
                   </p>
                   <h2 className="mt-1 text-xl font-semibold">{course.name}</h2>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {String(course.status).toUpperCase()}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {String(course.status).toUpperCase()}
+                  </Badge>
+                  {course.status !== "publish" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={quickPublishCourseMutation.isPending}
+                      onClick={() => {
+                        void handleQuickPublishCourse();
+                      }}
+                    >
+                      {quickPublishCourseMutation.isPending
+                        ? "Đang public..."
+                        : "Public khóa học"}
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                {course.description}
-              </p>
+              <div className="max-w-3xl rounded-xl border border-border/60 bg-background/70 p-3">
+                <div
+                  className="course-overview-description prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-a:text-primary"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      course.description?.trim() ||
+                      "<p>Chưa có mô tả cho khóa học này.</p>",
+                  }}
+                />
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
@@ -154,13 +268,13 @@ export default function CourseOverviewPage({ courseId }: Props) {
                     icon: BadgeCheck,
                   },
                   {
-                    label: "TB / bài",
-                    value: `${avgLessonMinutes} phút`,
+                    label: "Trung bình / bài",
+                    value: formatDuration(avgLessonSeconds),
                     icon: Clock3,
                   },
                   {
                     label: "Giá bán",
-                    value: `${course.price.toLocaleString("vi-VN")}đ`,
+                    value: formatPrice(course.price),
                     icon: ArrowUpRight,
                   },
                 ].map((item) => (
@@ -200,15 +314,65 @@ export default function CourseOverviewPage({ courseId }: Props) {
           </Card>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="gap-5">
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">Lesson Stream</h2>
+                <h2 className="text-lg font-semibold">Danh sách bài học</h2>
                 <p className="text-sm text-muted-foreground">
-                  Danh sách bài học theo luồng biên tập. Vào trang bài học để
-                  tạo hoạt động.
+                  Quản lý toàn bộ bài học ngay tại đây: tìm kiếm, lọc, thêm,
+                  sửa và xóa.
                 </p>
+              </div>
+              <Button asChild className="hidden sm:inline-flex">
+                <Link href={`/instructor/courses/${course.id}/lessons/new`}>
+                  <CirclePlus className="mr-2 h-4 w-4" />
+                  Thêm bài học
+                </Link>
+              </Button>
+            </div>
+
+            <Button asChild className="w-full sm:hidden">
+              <Link href={`/instructor/courses/${course.id}/lessons/new`}>
+                <CirclePlus className="mr-2 h-4 w-4" />
+                Thêm bài học
+              </Link>
+            </Button>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-3 sm:p-4 md:flex-row md:items-center md:justify-between">
+              <div className="relative w-full md:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm bài học theo tên hoặc mô tả..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Filter className="h-3.5 w-3.5" />
+                  Lọc:
+                </span>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    setStatusFilter(value as LessonStatusFilter);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-[170px] bg-background">
+                    <SelectValue placeholder="Trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -218,7 +382,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                   <Skeleton className="h-24 w-full rounded-2xl" />
                   <Skeleton className="h-24 w-full rounded-2xl" />
                 </div>
-              ) : lessons?.length ? (
+              ) : paginatedLessons.length ? (
                 paginatedLessons.map((lesson, index) => (
                   <div
                     key={lesson.id}
@@ -234,7 +398,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                               1}
                           </Badge>
                           <Badge variant="secondary" className="text-[11px]">
-                            {lesson.status}
+                            {String(lesson.status)}
                           </Badge>
                           <span className="text-sm font-medium">
                             {lesson.title}
@@ -244,7 +408,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                           {lesson.description ?? "Chưa có mô tả"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {lesson.duration ?? 0} phút • {lesson.contentType}
+                          {formatDuration(toSeconds(lesson.duration))} • {lesson.contentType}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -255,23 +419,36 @@ export default function CourseOverviewPage({ courseId }: Props) {
                             Sửa bài học
                           </Link>
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => {
+                            void handleDeleteLesson(lesson.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-                  Chưa có bài học nào trong khóa học này.
+                  Không có bài học nào phù hợp bộ lọc hiện tại.
                 </div>
               )}
             </div>
 
-            {lessonCount > LESSONS_PER_PAGE ? (
+            {filteredLessons.length > LESSONS_PER_PAGE ? (
               <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
                 <p className="text-sm text-muted-foreground">
                   Hiển thị {(safeCurrentPage - 1) * LESSONS_PER_PAGE + 1} -{" "}
-                  {Math.min(safeCurrentPage * LESSONS_PER_PAGE, lessonCount)} /{" "}
-                  {lessonCount} bài học
+                  {Math.min(
+                    safeCurrentPage * LESSONS_PER_PAGE,
+                    filteredLessons.length,
+                  )}{" "}
+                  / {filteredLessons.length} bài học
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -305,86 +482,39 @@ export default function CourseOverviewPage({ courseId }: Props) {
               </div>
             ) : null}
           </div>
-
-          <div className={cn("space-y-4")}>
-            <Card className="border-border/60 bg-muted/10">
-              <CardContent className="space-y-3 p-4 sm:p-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Thông tin khóa học
-                </p>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="font-medium">Ngôn ngữ:</span>{" "}
-                    {course.language}
-                  </p>
-                  <p>
-                    <span className="font-medium">Cấp độ:</span> {course.level}
-                  </p>
-                  <p>
-                    <span className="font-medium">Giá:</span>{" "}
-                    {course.price.toLocaleString("vi-VN")}đ
-                  </p>
-                  <p>
-                    <span className="font-medium">Mô tả:</span>{" "}
-                    {course.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60 bg-background">
-              <CardContent className="space-y-4 p-4 sm:p-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Insights nhanh
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-border/60 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      Tổng bài học
-                    </p>
-                    <p className="text-lg font-semibold">{lessonCount}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 p-3">
-                    <p className="text-xs text-muted-foreground">Đã publish</p>
-                    <p className="text-lg font-semibold">{readyLessons}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 p-3">
-                    <p className="text-xs text-muted-foreground">Ngôn ngữ</p>
-                    <p className="text-lg font-semibold">{course.language}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Gợi ý: vào từng bài học để tạo activity (quiz hoặc bài tập)
-                  theo đúng luồng nội dung.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60 bg-primary/5">
-              <CardContent className="space-y-3 p-4 sm:p-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Hành động nhanh
-                </p>
-                <Button asChild className="w-full">
-                  <Link href={`/instructor/courses/${course.id}/edit`}>
-                    Chỉnh sửa thông tin khóa học
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/instructor/courses/${course.id}/lessons`}>
-                    Đi đến danh sách bài học
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/instructor/courses/${course.id}/feed`}>
-                    Đi đến quản lý feed
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .course-overview-description :where(h1, h2, h3, h4, h5, h6) {
+          margin: 0.4rem 0;
+          font-weight: 600;
+          color: hsl(var(--foreground));
+        }
+
+        .course-overview-description :where(p, ul, ol, blockquote) {
+          margin: 0.35rem 0;
+        }
+
+        .course-overview-description blockquote {
+          border-left: 3px solid hsl(var(--primary));
+          background: hsl(var(--muted) / 0.3);
+          padding: 0.35rem 0.75rem;
+          border-radius: 0.375rem;
+        }
+
+        .course-overview-description :where(ul, ol) {
+          padding-left: 1rem;
+        }
+
+        .course-overview-description ul {
+          list-style: disc;
+        }
+
+        .course-overview-description ol {
+          list-style: decimal;
+        }
+      `}</style>
     </ManagementPageShell>
   );
 }
