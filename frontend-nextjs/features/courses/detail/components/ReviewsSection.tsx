@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star, ThumbsUp } from "lucide-react";
+import { Star, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,8 +9,12 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getInitials } from "../../utils";
 import { WriteReviewForm, type ReviewSubmitPayload } from "./WriteReviewForm";
-import { useFeedbackList } from "../../api/feedback.hooks";
-import type { FeedbackItem } from "../../types";
+import {
+  useFeedbackList,
+  useCheckUserReview,
+  useToggleReaction,
+} from "../../api/feedback.hooks";
+import type { FeedbackItem, FeedbackReactionType } from "../../types";
 
 interface Props {
   courseId: number;
@@ -21,39 +25,31 @@ interface Props {
 export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
   const [page, setPage] = useState(1);
   const [allItems, setAllItems] = useState<FeedbackItem[]>([]);
-  const [hasReviewed, setHasReviewed] = useState(false);
-  const [checkedReview, setCheckedReview] = useState(false); // trang đầu đã load xong chưa
 
   const { data, isLoading, isError } = useFeedbackList(courseId, page, currentUserId);
+
+  // Check if current user has reviewed — only when logged in
+  const {
+    data: checkData,
+    isLoading: isCheckLoading,
+  } = useCheckUserReview(courseId, !!currentUserId);
+
+  const hasReviewed = !!checkData?.checked;
+  const ownReview = checkData?.data ?? null;
 
   useEffect(() => {
     if (!data?.items) return;
     const incoming = data.items;
-    setAllItems((prev) => (page === 1 ? incoming : [...prev, ...incoming]));
-    if (page === 1) {
-      // Sau khi trang đầu load: kiểm tra user đã review chưa
-      // BE trả toàn bộ items khi gọi kèm userId, nếu có item của user → đã review
-      if (currentUserId && incoming.some((i) => i.userId === currentUserId)) {
-        setHasReviewed(true);
-      }
-      setCheckedReview(true);
-    }
-  }, [data, page, currentUserId]);
+    // Filter out the own review from list — it'll be pinned at top
+    const others = ownReview
+      ? incoming.filter((i) => i.id !== ownReview.id)
+      : incoming;
+    setAllItems((prev) => (page === 1 ? others : [...prev, ...others]));
+  }, [data, page, ownReview]);
 
-  const handleReviewSuccess = ({ rating, reviewText }: ReviewSubmitPayload) => {
-    const optimistic: FeedbackItem = {
-      id: Date.now(),
-      courseId,
-      userId: currentUserId ?? 0,
-      rating,
-      reviewText,
-      isVisible: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      user: { id: currentUserId ?? 0, firstName: "Bạn", lastName: "" },
-    };
-    setAllItems((prev) => [optimistic, ...prev]);
-    setHasReviewed(true);
+  const handleReviewSuccess = (_payload: ReviewSubmitPayload) => {
+    // Real data arrives via query invalidation triggered by useCreateFeedback
+    setAllItems((prev) => prev.filter((i) => i.userId !== currentUserId));
   };
 
   const summary = data?.summary;
@@ -61,11 +57,12 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
   const hasMore = !!pagination && page < pagination.totalPages;
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
 
+  const checkedReview = !isCheckLoading;
+
   return (
     <section>
       <h2 className="mb-5 text-xl font-bold">Đánh giá học viên</h2>
 
-      {/* Điều kiện: đã enroll (bypass tạm) + trang đầu đã load + chưa review */}
       {isEnrolled && checkedReview && !hasReviewed && (
         <WriteReviewForm courseId={courseId} onSuccess={handleReviewSuccess} />
       )}
@@ -121,6 +118,21 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
         </div>
       )}
 
+      {/* Pinned own review */}
+      {ownReview && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary/70">
+            Đánh giá của bạn
+          </p>
+          <ReviewCard
+            item={ownReview}
+            isOwn
+            currentUserId={currentUserId}
+            courseId={courseId}
+          />
+        </div>
+      )}
+
       {/* Review list */}
       {isLoading && allItems.length === 0 ? (
         <ReviewSkeleton />
@@ -128,7 +140,7 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
         <p className="py-6 text-center text-sm text-muted-foreground">
           Không thể tải đánh giá. Vui lòng thử lại.
         </p>
-      ) : allItems.length === 0 ? (
+      ) : allItems.length === 0 && !ownReview ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!
         </p>
@@ -138,7 +150,9 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
             <ReviewCard
               key={item.id}
               item={item}
-              isOwn={currentUserId === item.userId}
+              isOwn={false}
+              currentUserId={currentUserId}
+              courseId={courseId}
             />
           ))}
         </div>
@@ -160,7 +174,14 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
   );
 }
 
-function ReviewCard({ item, isOwn }: { item: FeedbackItem; isOwn: boolean }) {
+interface ReviewCardProps {
+  item: FeedbackItem;
+  isOwn: boolean;
+  currentUserId?: number;
+  courseId: number;
+}
+
+function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
   const fullName = item.user
     ? `${item.user.firstName} ${item.user.lastName}`.trim()
     : "Học viên";
@@ -173,6 +194,24 @@ function ReviewCard({ item, isOwn }: { item: FeedbackItem; isOwn: boolean }) {
     year: "numeric",
   });
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
+
+  const reaction = item.reactionSummary;
+  const currentReaction = reaction?.currentUserReactionType ?? null;
+  const helpfulCount =
+    reaction?.byType.find((r) => r.reactionType === "help_ful")?.count ?? 0;
+  const dislikeCount =
+    reaction?.byType.find((r) => r.reactionType === "dislike")?.count ?? 0;
+
+  const { mutate: toggleReaction, isPending } = useToggleReaction(courseId);
+
+  const handleReaction = (type: FeedbackReactionType) => {
+    if (!currentUserId) return;
+    toggleReaction({
+      feedbackId: item.id,
+      reactionType: type,
+      currentReaction,
+    });
+  };
 
   return (
     <div className={cn("flex gap-4 py-5", isOwn && "rounded-lg bg-primary/5 px-3")}>
@@ -206,10 +245,49 @@ function ReviewCard({ item, isOwn }: { item: FeedbackItem; isOwn: boolean }) {
         </div>
         <p className="text-xs text-muted-foreground">{date}</p>
         <p className="text-sm leading-relaxed text-foreground">{item.reviewText}</p>
-        <button className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
-          <ThumbsUp className="h-3.5 w-3.5" />
-          Hữu ích
-        </button>
+
+        {/* Reaction buttons — hidden on own review */}
+        {!isOwn && (
+          <div className="flex items-center gap-3 pt-1">
+            <span className="text-xs text-muted-foreground">Đánh giá hữu ích?</span>
+            <button
+              onClick={() => handleReaction("help_ful")}
+              disabled={isPending || !currentUserId}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                currentReaction === "help_ful"
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                !currentUserId && "cursor-default opacity-50",
+              )}
+              title={!currentUserId ? "Đăng nhập để đánh giá" : undefined}
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+              <span>Có ích</span>
+              {helpfulCount > 0 && (
+                <span className="font-medium">({helpfulCount})</span>
+              )}
+            </button>
+            <button
+              onClick={() => handleReaction("dislike")}
+              disabled={isPending || !currentUserId}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                currentReaction === "dislike"
+                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                !currentUserId && "cursor-default opacity-50",
+              )}
+              title={!currentUserId ? "Đăng nhập để đánh giá" : undefined}
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+              <span>Không</span>
+              {dislikeCount > 0 && (
+                <span className="font-medium">({dislikeCount})</span>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

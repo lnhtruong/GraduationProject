@@ -1,5 +1,10 @@
 import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
-import type { FeedbackListResponse, CreateFeedbackPayload } from "../types";
+import type {
+  FeedbackListResponse,
+  CreateFeedbackPayload,
+  CheckFeedbackResponse,
+  FeedbackReactionType,
+} from "../types";
 
 export const feedbackApi = createApi({
   listByCourse: async (
@@ -19,5 +24,28 @@ export const feedbackApi = createApi({
 
   create: async (payload: CreateFeedbackPayload): Promise<void> => {
     await apiHttpClient.post("/course/feedbacks", payload);
+  },
+
+  checkUserReview: async (courseId: number): Promise<CheckFeedbackResponse> => {
+    const { data } = await apiHttpClient.get<CheckFeedbackResponse>(
+      `/course/feedbacks/check/${courseId}`,
+    );
+    return data;
+  },
+
+  toggleReaction: async (
+    feedbackId: number,
+    reactionType: FeedbackReactionType,
+  ): Promise<void> => {
+    await apiHttpClient.post("/course/feedback-reactions", {
+      feedbackId,
+      reactionType,
+    });
+  },
+
+  removeReaction: async (feedbackId: number): Promise<void> => {
+    await apiHttpClient.delete(
+      `/course/feedback-reactions/feedback/${feedbackId}`,
+    );
   },
 });

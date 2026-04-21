@@ -62,6 +62,16 @@ export interface Enrollment {
   lastLessonId?: number;
 }
 
+export type FeedbackReactionType = "help_ful" | "dislike";
+
+export interface ReactionSummary {
+  feedbackId: number;
+  total: number;
+  helpfulCount?: number;
+  byType: { reactionType: FeedbackReactionType; count: number }[];
+  currentUserReactionType?: FeedbackReactionType | null;
+}
+
 export interface FeedbackItem {
   id: number;
   courseId: number;
@@ -72,6 +82,12 @@ export interface FeedbackItem {
   created_at: string;
   updated_at: string;
   user: { id: number; firstName: string; lastName: string };
+  reactionSummary?: ReactionSummary;
+}
+
+export interface CheckFeedbackResponse {
+  checked: boolean;
+  data: (FeedbackItem & { reactionSummary: ReactionSummary }) | null;
 }
 
 export interface FeedbackSummary {
