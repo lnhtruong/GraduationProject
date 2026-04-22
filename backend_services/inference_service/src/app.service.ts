@@ -18,6 +18,26 @@ function getStringField(obj: unknown, key: string): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
+function getBoolField(obj: unknown, key: string): boolean | undefined {
+  if (!isRecord(obj)) return undefined;
+  const v = obj[key];
+  if (typeof v === 'boolean') return v;
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  return undefined;
+}
+
+function getIntField(obj: unknown, key: string): number | undefined {
+  if (!isRecord(obj)) return undefined;
+  const v = obj[key];
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
+  if (typeof v === 'string') {
+    const n = parseInt(v, 10);
+    return isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}
+
 @Injectable()
 export class AppService {
   private colabUrl: string;
@@ -31,38 +51,52 @@ export class AppService {
 
   // 1. Tạo Highlight Reel
   async createHighlightReel(
-    video: Express.Multer.File,
     body: unknown,
     userIdFromHeader?: number,
   ): Promise<unknown> {
     try {
-      const formData = new FormData();
-      formData.append('video', video.buffer, {
-        filename: video.originalname,
-        contentType: video.mimetype,
-      });
+      const videoUrl = getStringField(body, 'video_url');
+      if (!videoUrl || videoUrl.trim().length === 0) {
+        throw new HttpException('video_url is required', 400);
+      }
+
       const topic = getStringField(body, 'topic');
+      if (!topic || topic.trim().length === 0) {
+        throw new HttpException('topic is required', 400);
+      }
+
       const includeKeywords = getStringField(body, 'include_keywords');
-      const excludeKeywords = getStringField(body, 'exclude_keywords');
-      const isOpenAI = getStringField(body, 'isOpenAI');
-      formData.append('user_id', String(userIdFromHeader ?? ''));
-      if (topic) formData.append('topic', topic);
-      if (includeKeywords) formData.append('include_keywords', includeKeywords);
-      if (excludeKeywords) formData.append('exclude_keywords', excludeKeywords);
-      if (isOpenAI) formData.append('isOpenAI', isOpenAI);
+      if (!includeKeywords || includeKeywords.trim().length === 0) {
+        throw new HttpException('include_keywords is required', 400);
+      }
+
+      const excludeKeywords = getStringField(body, 'exclude_keywords') ?? '';
+      const isOpenAI = getBoolField(body, 'isOpenAI') ?? false;
+      const targetMin = getIntField(body, 'target_min') ?? 120;
+      const targetMax = getIntField(body, 'target_max') ?? 200;
+
+      const payload: Record<string, unknown> = {
+        user_id: String(userIdFromHeader ?? ''),
+        video_url: videoUrl,
+        topic,
+        include_keywords: includeKeywords,
+        exclude_keywords: excludeKeywords,
+        isOpenAI,
+        target_min: targetMin,
+        target_max: targetMax,
+      };
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
           `${this.colabUrl}/highlight-reel`,
-          formData,
-          {
-            headers: formData.getHeaders(),
-          },
+          payload,
+          { headers: { 'Content-Type': 'application/json' } },
         ),
       );
 
       return response.data;
     } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
       const axiosError = error as AxiosError<unknown> | undefined;
       const payload = axiosError?.response?.data ?? 'Colab Error';
       const status = axiosError?.response?.status ?? 500;

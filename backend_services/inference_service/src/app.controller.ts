@@ -28,18 +28,15 @@ export class AppController {
 
   // Map với /highlight-reel
   @Post('highlight-reel')
-  @UseInterceptors(FileInterceptor('video'))
   async createHighlightReel(
-    @UploadedFile() video: Express.Multer.File,
     @Body() body: unknown,
     @Headers('x-user-id') userIdHeader?: string,
   ): Promise<unknown> {
-    if (!video) throw new BadRequestException('Video file is required');
     const userId =
       typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
         ? Number(userIdHeader)
         : undefined;
-    return this.appService.createHighlightReel(video, body, userId);
+    return this.appService.createHighlightReel(body, userId);
   }
 
   // Map với /mascot
