@@ -159,8 +159,24 @@ export class CoursesService {
     );
   }
 
+  private async ensureCourseHasLessons(courseId: number): Promise<void> {
+    const lessonCount = await this.lessonModel.count({
+      where: {
+        courseId,
+        status: { [Op.ne]: LessonStatus.REMOVED },
+      },
+    });
+
+    if (lessonCount === 0) {
+      throw new BadRequestException(
+        'Course must have at least one lesson before requesting review.',
+      );
+    }
+  }
+
   async submitForReview(id: number): Promise<Course> {
     const course = await this.findOne(id);
+    await this.ensureCourseHasLessons(id);
     if (course.status !== CourseStatus.DRAFT) {
       throw new BadRequestException(
         `Course must be in DRAFT status to submit for review. Current status: ${course.status}`,
@@ -174,6 +190,7 @@ export class CoursesService {
     status: 'accepted' | 'rejected',
   ): Promise<Course> {
     const course = await this.findOne(id);
+    await this.ensureCourseHasLessons(id);
     if (course.status !== CourseStatus.PENDING) {
       throw new BadRequestException(
         `Course must be in PENDING status to review. Current status: ${course.status}`,
