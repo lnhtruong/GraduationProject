@@ -14,6 +14,11 @@ module.exports = (sequelize) => {
         price: {
             type: DataTypes.DOUBLE,
             allowNull: false,
+        },
+        status: {
+            type: DataTypes.ENUM('draft', 'pending', 'approved', 'rejected', 'publish'),
+            allowNull: false,
+            defaultValue: 'draft',
         }
     }, {
         tableName: 'courses',

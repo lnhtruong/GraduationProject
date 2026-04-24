@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -9,6 +9,7 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
 import { GetLessonsQueryDto } from './dto/get-lessons-query.dto';
 import { CoursesService } from 'src/course/course.service';
+import { CourseStatus } from 'src/models/course.model';
 
 @Injectable()
 export class LessonsService {
@@ -18,7 +19,20 @@ export class LessonsService {
     private readonly coursesService: CoursesService,
   ) { }
 
+  private async assertCourseNotPublished(courseId: number): Promise<void> {
+    const course = await this.coursesService.findOne(courseId);
+    if (course.status === CourseStatus.PUBLISH) {
+      throw new BadRequestException(
+        'Cannot modify lessons of a published course. Only quiz edits are allowed after publishing.',
+      );
+    }
+  }
+
   async create(createLessonDto: CreateLessonDto): Promise<Lesson> {
+    if (createLessonDto.courseId) {
+      await this.assertCourseNotPublished(createLessonDto.courseId);
+    }
+
     const lesson = await this.lessonModel.create({ ...createLessonDto });
 
     // Sync course duration after adding a new lesson
@@ -76,6 +90,9 @@ export class LessonsService {
 
   async update(id: number, updateLessonDto: UpdateLessonDto): Promise<Lesson> {
     const lesson = await this.findOne(id);
+    if (lesson.courseId) {
+      await this.assertCourseNotPublished(lesson.courseId);
+    }
     const updated = await lesson.update(updateLessonDto);
 
     // Sync in case duration or courseId changed
@@ -89,6 +106,9 @@ export class LessonsService {
   // Soft Delete
    async remove(id: number): Promise<void> {
     const lesson = await this.findOne(id);
+    if (lesson.courseId) {
+      await this.assertCourseNotPublished(lesson.courseId);
+    }
     await lesson.update({ status: LessonStatus.REMOVED });
 
     // Sync after soft-deleting so removed lesson is excluded

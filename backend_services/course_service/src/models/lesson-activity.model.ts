@@ -34,46 +34,46 @@ export class LessonActivity extends Model {
     allowNull: true,
     field: 'lesson_id',
   })
-  lessonId: number;
+  declare lessonId: number;
 
   @Column({
     type: DataType.ENUM(...Object.values(ActivityType)),
     allowNull: true,
     field: 'activity_type',
   })
-  activityType: ActivityType;
+  declare activityType: ActivityType;
 
   @Column({
     type: DataType.TEXT,
     allowNull: true,
   })
-  title: string;
+  declare title: string;
 
   @Column({
     type: DataType.TEXT,
     allowNull: true,
   })
-  description: string;
+  declare description: string;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'order_index',
   })
-  orderIndex: number;
+  declare orderIndex: number;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'max_attempts',
   })
-  maxAttempts: number;
+  declare maxAttempts: number;
 
   @Column({
     type: DataType.ENUM(...Object.values(ActivityStatus)),
     defaultValue: ActivityStatus.DRAFT,
   })
-  status: ActivityStatus;
+  declare status: ActivityStatus;
 
   @Index('idx_lesson_activities_created_by')
   @Column({
@@ -81,5 +81,5 @@ export class LessonActivity extends Model {
     allowNull: true,
     field: 'created_by',
   })
-  createdBy: number;
+  declare createdBy: number;
 }

@@ -24,6 +24,7 @@ export class CoursesService {
       userId: userId,
       level: createCourseDto.level ?? undefined,
       status: CourseStatus.DRAFT,
+      duration: '00:00:00.000',
     });
   }
 
@@ -100,7 +101,12 @@ export class CoursesService {
 
   async update(id: number, updateCourseDto: UpdateCourseDto): Promise<Course> {
     const course = await this.findOne(id);
-    return await course.update(updateCourseDto);
+    if (course.status === CourseStatus.PUBLISH) {
+      throw new BadRequestException(
+        'Cannot edit a published course. Only quiz edits are allowed after publishing.',
+      );
+    }
+    return await course.update({ ...updateCourseDto, status: CourseStatus.DRAFT });
   }
 
   async remove(id: number): Promise<void> {
