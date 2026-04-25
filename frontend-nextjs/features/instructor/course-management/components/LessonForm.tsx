@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import { ActivitiesDisplay } from "./LessonForm/ActivitiesDisplay";
 import { LessonMetadataForm } from "./LessonForm/LessonMetadataForm";
 import { VideoPreview } from "./LessonForm/VideoPreview";
 import { VideoSelectionSection } from "./LessonForm/VideoSelectionSection";
+import { OutsideQuizEditorDialog } from "./LessonForm/OutsideQuizEditorDialog";
 
 interface Props {
   lesson?: InstructorLesson | null;
@@ -38,6 +39,8 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
   const { user } = useAuth();
   const isEdit = isLessonEditMode(lesson);
   const lessonId = lesson?.id ?? null;
+  const [editingOutsideQuizActivityId, setEditingOutsideQuizActivityId] =
+    useState<number | null>(null);
 
   const { data: userVideos, isLoading: videosLoading } = useVideosByUser(
     "highlight",
@@ -79,13 +82,12 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
       return;
     }
 
-    const seconds = Number(selectedVideo?.duration ?? 0);
-    if (seconds <= 0) {
+    const durationSeconds = Number(selectedVideo?.duration ?? 0);
+    if (durationSeconds <= 0) {
       return;
     }
 
-    const durationMinutes = Math.max(1, Math.ceil(seconds / 60));
-    setValue("duration", durationMinutes, {
+    setValue("duration", durationSeconds, {
       shouldDirty: true,
       shouldValidate: true,
     });
@@ -192,19 +194,6 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
         </Card>
       </form>
 
-      {/* Activities Section */}
-      {lessonId && (
-        <ActivitiesDisplay
-          courseId={courseId}
-          lessonId={lessonId}
-          activities={displayActivities}
-          isLoading={
-            activitiesLoading || quizzesLoading || outVideoQuizzesLoading
-          }
-          timelineCount={timelineMarkers.length}
-        />
-      )}
-
       {/* Video Preview - Edit Page Only */}
       {isEdit && (
         <VideoPreview
@@ -216,6 +205,33 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
           timelineMarkers={timelineMarkers}
         />
       )}
+
+      {/* Activities Section */}
+      {lessonId && (
+        <ActivitiesDisplay
+          activities={displayActivities}
+          isLoading={
+            activitiesLoading || quizzesLoading || outVideoQuizzesLoading
+          }
+          timelineCount={timelineMarkers.length}
+          onEditQuiz={(activityId) => {
+            setEditingOutsideQuizActivityId(activityId);
+          }}
+        />
+      )}
+
+      {lessonId ? (
+        <OutsideQuizEditorDialog
+          open={editingOutsideQuizActivityId !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingOutsideQuizActivityId(null);
+            }
+          }}
+          lessonTitle={lesson?.title ?? "Bài học"}
+          lessonActivityId={editingOutsideQuizActivityId}
+        />
+      ) : null}
     </div>
   );
 }

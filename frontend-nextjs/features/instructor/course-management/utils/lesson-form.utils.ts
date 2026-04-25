@@ -29,7 +29,7 @@ export function buildInitialLessonValues(
     title: lesson?.title ?? "",
     description: lesson?.description ?? "",
     contentType: lesson?.contentType ?? "video",
-    duration: lesson?.duration ?? 10,
+    duration: lesson?.duration ?? 0,
     content: lesson?.content ?? { summary: "" },
     videoId: lesson?.videoId ?? null,
   };

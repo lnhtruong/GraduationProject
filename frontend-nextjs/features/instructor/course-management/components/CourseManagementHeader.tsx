@@ -32,7 +32,7 @@ export function CourseManagementHeader({
   action,
 }: Props) {
   return (
-    <div className="sticky top-0 z-40 flex flex-col gap-4 rounded-2xl border border-border/60 bg-linear-to-br from-background/95 via-card/95 to-muted/20 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:p-5 lg:p-5">
+    <div className="sticky top-16 z-40 flex flex-col gap-4 rounded-2xl border border-border/60 bg-linear-to-br from-background/95 via-card/95 to-muted/20 p-4 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/80 sm:p-5 lg:p-5">
       <div className="flex flex-wrap items-center gap-3">
         {leadingAction && <div className="shrink-0">{leadingAction}</div>}
         <Breadcrumb className="min-w-0 flex-1 overflow-x-auto">
