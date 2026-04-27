@@ -50,7 +50,20 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
 
   // Course service - public reads
-  { method: 'GET', pattern: '/api/course/courses', access: 'authenticated' },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/stats/overview',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/:id/stats/overview',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
+    { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'public' },
@@ -430,6 +443,24 @@ const ACCESS_RULES: AccessRule[] = [
   },
 
   // Feed
+  {
+    method: 'GET',
+    pattern: '/api/media/feed/stats/creator',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/feed/stats/trending',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/feed/:id/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
   {
     method: '*',
