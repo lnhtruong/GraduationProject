@@ -464,8 +464,9 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
   {
     method: '*',
-    pattern: '/api/feed/**',
-    access: 'authenticated',
+    pattern: '/api/media/feed/**',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
 
   // Payment

@@ -19,7 +19,7 @@ import { FeedInteractionType } from '../models/feed_interactions.model';
 
 @Controller('feed')
 export class FeedController {
-  constructor(private readonly feedService: FeedService) {}
+  constructor(private readonly feedService: FeedService) { }
 
   private parseRequiredUserId(userIdHeader?: string): number {
     const userId = Number(userIdHeader);
@@ -150,26 +150,46 @@ export class FeedController {
   async createComment(
     @Param('id', ParseIntPipe) feedId: number,
     @Headers('x-user-id') userIdHeader: string,
-    @Body() body: { content: string },
+    @Body() body: { content: string; origin_cmt?: number | null },
   ) {
     const userId = parseInt(userIdHeader, 10);
     if (!userId || isNaN(userId)) {
       throw new BadRequestException('User not authenticated');
     }
-    return this.feedService.createComment(userId, feedId, body.content);
+    return this.feedService.createComment(userId, feedId, body.content, body.origin_cmt);
   }
 
   @Get(':id/comments')
   async getComments(
     @Param('id', ParseIntPipe) feedId: number,
     @Query('cursor') cursor?: string,
+    @Query('userId') userId?: number,
     @Query('limit') limit?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
-    return this.feedService.getComments(feedId, cursorId, limitNum, userId);
+    const user_id = userId ? userId : userIdHeader ? parseInt(userIdHeader, 10) : undefined;
+    return this.feedService.getComments(feedId, cursorId, limitNum, user_id);
+  }
+
+  @Get(':id/comment/detail')
+  async getCommentDetail(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Query('origin_cmt') originCmt?: string,
+    @Query('userId') userId?: number,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    const originCmtNum = originCmt ? parseInt(originCmt, 10) : undefined;
+    if (!originCmtNum || Number.isNaN(originCmtNum)) {
+      throw new BadRequestException('origin_cmt is required');
+    }
+    const cursorId = cursor ? parseInt(cursor, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const user_id = userId ? userId : userIdHeader ? parseInt(userIdHeader, 10) : undefined;
+    return this.feedService.getCommentDetail(feedId, originCmtNum, cursorId, limitNum, user_id);
   }
 
   @Patch(':id/comments/:commentId')
