@@ -27,7 +27,7 @@ export class FeedService {
     private courseModel: typeof Course,
     @InjectModel(User)
     private userModel: typeof User,
-  ) {}
+  ) { }
 
   async addToFeed(userId: number, videoId: number, courseId: number, title?: string, hashtags?: string[]) {
     // Check if video exists and user owns it
@@ -72,68 +72,68 @@ export class FeedService {
   }
 
   async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number, mode?: string) {
-  if (mode === 'recommended') {
-    return this.getRecommendedFeed(cursor, limit, userId, courseId);
-  }
+    if (mode === 'recommended') {
+      return this.getRecommendedFeed(cursor, limit, userId, courseId);
+    }
 
-  // Query feeds với cursor-based pagination, eager load video + course + lecturer
-  const feeds = await this.highlightFeedModel.findAll({
-    where: {
-      status: HighlightFeedStatus.ACTIVE,
-      ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
-      ...(courseId && { course_id: courseId }), // filter by course_id nếu có
-    },
-    include: [
-      { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
-      {
-        model: Course,
-        include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
+    // Query feeds với cursor-based pagination, eager load video + course + lecturer
+    const feeds = await this.highlightFeedModel.findAll({
+      where: {
+        status: HighlightFeedStatus.ACTIVE,
+        ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
+        ...(courseId && { course_id: courseId }), // filter by course_id nếu có
       },
-    ],
-    order: [['id', 'DESC']], // mới nhất trước
-    limit,
-  });
+      include: [
+        { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+        {
+          model: Course,
+          include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
+        },
+      ],
+      order: [['id', 'DESC']], // mới nhất trước
+      limit,
+    });
 
-  const data = await Promise.all(
-    feeds.map(async (feed) => {
-      // Fetch stats + interaction status của user song song để tối ưu performance
-      const [stats, liked, saved] = await Promise.all([
-        this.getFeedStats(feed.id),
-        userId
-          ? this.feedInteractionModel.findOne({
+    const data = await Promise.all(
+      feeds.map(async (feed) => {
+        // Fetch stats + interaction status của user song song để tối ưu performance
+        const [stats, liked, saved] = await Promise.all([
+          this.getFeedStats(feed.id),
+          userId
+            ? this.feedInteractionModel.findOne({
               where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.LIKE },
             })
-          : null,
-        userId
-          ? this.feedInteractionModel.findOne({
+            : null,
+          userId
+            ? this.feedInteractionModel.findOne({
               where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.SAVE },
             })
-          : null,
-      ]);
+            : null,
+        ]);
 
-      // Tách user (lecturer) ra khỏi course object trước khi return
-      const { user, ...courseData } = feed.course!.toJSON();
+        // Tách user (lecturer) ra khỏi course object trước khi return
+        const { user, ...courseData } = feed.course!.toJSON();
 
-      return {
-        feed_id: feed.id,
-        title: feed.title,
-        hashtags: feed.hashtags,
-        video_type: feed.video!.type,
-        video: feed.video!.toJSON(),  // plain object, bỏ Sequelize metadata
-        course: courseData,           // full course info, không kèm user
-        lecturer: user,               // lecturer tách riêng cho FE dễ dùng
-        stats,
-        is_liked: !!liked,
-        is_saved: !!saved,
-      };
-    }),
-  );
+        return {
+          feed_id: feed.id,
+          title: feed.title,
+          hashtags: feed.hashtags,
+          video_type: feed.video!.type,
+          video: feed.video!.toJSON(),  // plain object, bỏ Sequelize metadata
+          course: courseData,           // full course info, không kèm user
+          lecturer: user,               // lecturer tách riêng cho FE dễ dùng
+          stats,
+          is_liked: !!liked,
+          is_saved: !!saved,
+        };
+      }),
+    );
 
-  return {
-    data,
-    // Nếu còn data thì trả cursor, FE dùng để load trang tiếp
-    next_cursor: data.length === limit ? data[data.length - 1].feed_id : null,
-  };
+    return {
+      data,
+      // Nếu còn data thì trả cursor, FE dùng để load trang tiếp
+      next_cursor: data.length === limit ? data[data.length - 1].feed_id : null,
+    };
   }
 
   private async getRecommendedFeed(cursor?: number, limit = 10, userId?: number, courseId?: number) {
@@ -334,6 +334,26 @@ export class FeedService {
     return { views, likes, saves };
   }
 
+  private async validateFeedCommentTarget(feedId: number): Promise<void> {
+    const feed = await this.highlightFeedModel.findByPk(feedId);
+    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
+      throw new NotFoundException('Feed item not found');
+    }
+  }
+
+  private mapCommentResponse(comment: FeedComment, userId?: number, totalNestedCmt?: number) {
+    return {
+      id: comment.id,
+      content: comment.content,
+      origin_cmt: comment.origin_cmt ?? null,
+      created_at: comment.get('created_at'),
+      updated_at: comment.get('updated_at'),
+      commenter: comment.user,
+      is_owner: !!userId && comment.user_id === userId,
+      ...(typeof totalNestedCmt === 'number' ? { total_nested_cmt: totalNestedCmt } : {}),
+    };
+  }
+
   async interactWithFeed(userId: number, feedId: number, type: FeedInteractionType) {
     const feed = await this.highlightFeedModel.findByPk(feedId);
     if (!feed || feed.status !== HighlightFeedStatus.ACTIVE) {
@@ -421,11 +441,8 @@ export class FeedService {
     return feed;
   }
 
-  async createComment(userId: number, feedId: number, content: string) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+  async createComment(userId: number, feedId: number, content: string, originCmt?: number | null) {
+    await this.validateFeedCommentTarget(feedId);
 
     const trimmedContent = content?.trim();
     if (!trimmedContent) {
@@ -435,37 +452,42 @@ export class FeedService {
       throw new BadRequestException('Comment content must be 1000 characters or less');
     }
 
+    let normalizedOriginCmt: number | null = null;
+    if (Number.isInteger(originCmt) && (originCmt as number) > 0) {
+      const parentComment = await this.feedCommentModel.findByPk(originCmt as number);
+      if (!parentComment || parentComment.highlight_id !== feedId) {
+        throw new NotFoundException('Parent comment not found');
+      }
+      if (parentComment.origin_cmt !== null) {
+        throw new BadRequestException('Only 2 comment levels are supported');
+      }
+      normalizedOriginCmt = parentComment.id;
+    }
+
     const comment = await this.feedCommentModel.create({
       user_id: userId,
       highlight_id: feedId,
       content: trimmedContent,
+      origin_cmt: normalizedOriginCmt,
     });
 
     const user = await this.userModel.findByPk(userId, {
       attributes: ['id', 'firstName', 'lastName'],
     });
 
-    return {
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.get('created_at'),
-      updated_at: comment.get('updated_at'),
-      commenter: user,
-      is_owner: true,
-    };
+    comment.user = user as User;
+    return this.mapCommentResponse(comment, userId, 0);
   }
 
   async getComments(feedId: number, cursor?: number, limit = 20, userId?: number) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+    await this.validateFeedCommentTarget(feedId);
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 20;
 
     const comments = await this.feedCommentModel.findAll({
       where: {
         highlight_id: feedId,
+        origin_cmt: null,
         ...(cursor && { id: { [Op.lt]: cursor } }),
       },
       include: [
@@ -478,14 +500,27 @@ export class FeedService {
       limit: safeLimit,
     });
 
-    const data = comments.map((comment) => ({
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.get('created_at'),
-      updated_at: comment.get('updated_at'),
-      commenter: comment.user,
-      is_owner: !!userId && comment.user_id === userId,
-    }));
+    const parentIds = comments.map((comment) => comment.id);
+    const nestedCountRows =
+      parentIds.length > 0
+        ? ((await this.feedCommentModel.findAll({
+          where: {
+            highlight_id: feedId,
+            origin_cmt: { [Op.in]: parentIds },
+          },
+          attributes: ['origin_cmt', [fn('COUNT', col('id')), 'total_nested_cmt']],
+          group: ['origin_cmt'],
+          raw: true,
+        })) as unknown as Array<{ origin_cmt: number; total_nested_cmt: string | number }>)
+        : [];
+
+    const nestedCountMap = new Map<number, number>(
+      nestedCountRows.map((row) => [Number(row.origin_cmt), Number(row.total_nested_cmt || 0)]),
+    );
+
+    const data = comments.map((comment) =>
+      this.mapCommentResponse(comment, userId, nestedCountMap.get(comment.id) ?? 0),
+    );
 
     return {
       data,
@@ -493,11 +528,48 @@ export class FeedService {
     };
   }
 
-  async updateComment(userId: number, feedId: number, commentId: number, content: string) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
+  async getCommentDetail(
+    feedId: number,
+    originCmt: number,
+    cursor?: number,
+    limit = 20,
+    userId?: number,
+  ) {
+    await this.validateFeedCommentTarget(feedId);
+
+    const parentComment = await this.feedCommentModel.findByPk(originCmt);
+    if (!parentComment || parentComment.highlight_id !== feedId || parentComment.origin_cmt !== null) {
+      throw new NotFoundException('Origin comment not found');
     }
+
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 20;
+    const comments = await this.feedCommentModel.findAll({
+      where: {
+        highlight_id: feedId,
+        origin_cmt: originCmt,
+        ...(cursor && { id: { [Op.lt]: cursor } }),
+      },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'firstName', 'lastName'],
+        },
+      ],
+      order: [['id', 'DESC']],
+      limit: safeLimit,
+    });
+
+    const data = comments.map((comment) => this.mapCommentResponse(comment, userId));
+
+    return {
+      origin_cmt: originCmt,
+      data,
+      next_cursor: data.length === safeLimit ? data[data.length - 1].id : null,
+    };
+  }
+
+  async updateComment(userId: number, feedId: number, commentId: number, content: string) {
+    await this.validateFeedCommentTarget(feedId);
 
     const comment = await this.feedCommentModel.findByPk(commentId);
     if (!comment || comment.highlight_id !== feedId) {
@@ -521,6 +593,7 @@ export class FeedService {
     return {
       id: comment.id,
       content: comment.content,
+      origin_cmt: comment.origin_cmt ?? null,
       created_at: comment.get('created_at'),
       updated_at: comment.get('updated_at'),
       is_owner: true,
@@ -528,10 +601,7 @@ export class FeedService {
   }
 
   async deleteComment(userId: number, feedId: number, commentId: number) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+    await this.validateFeedCommentTarget(feedId);
 
     const comment = await this.feedCommentModel.findByPk(commentId);
     if (!comment || comment.highlight_id !== feedId) {
