@@ -216,7 +216,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'POST',
     pattern: '/api/course/lesson-progress',
     access: 'roles',
-    roles: [UserRole.STUDENT],
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   {
     method: 'GET',
@@ -232,13 +232,13 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'PATCH',
     pattern: '/api/course/lesson-progress/:id',
     access: 'roles',
-    roles: [UserRole.STUDENT],
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   {
     method: 'DELETE',
     pattern: '/api/course/lesson-progress/:id',
     access: 'roles',
-    roles: [UserRole.STUDENT],
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   {
     method: 'POST',

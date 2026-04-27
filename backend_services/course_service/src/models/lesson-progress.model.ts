@@ -4,6 +4,7 @@ export enum LessonProgressStatus {
   NOT_STARTED = 'not_started',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
+  VIDEO_COMPLETE = 'video-completed',
 }
 
 @Table({

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  BarChart3,
   Bookmark,
   ChevronLeft,
   Eye,
@@ -63,6 +64,16 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
       return text.includes(query);
     });
   }, [feeds, search]);
+
+  const stats = useMemo(() => {
+    const source = feeds ?? [];
+    return {
+      total: source.length,
+      views: source.reduce((sum, item) => sum + Number(item.stats?.views ?? 0), 0),
+      likes: source.reduce((sum, item) => sum + Number(item.stats?.likes ?? 0), 0),
+      saves: source.reduce((sum, item) => sum + Number(item.stats?.saves ?? 0), 0),
+    };
+  }, [feeds]);
 
   const handleDelete = async (feedId: number) => {
     await deleteFeedMutation.mutateAsync(feedId);
@@ -135,12 +146,51 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
       }
     >
       <div className="space-y-3 p-3 sm:p-4 lg:p-5">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/60 bg-background p-3">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tổng feed
+            </p>
+            <p className="mt-1 text-xl font-semibold">{stats.total}</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background p-3">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tổng lượt xem
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 text-xl font-semibold">
+              <Eye className="h-4 w-4" />
+              {stats.views}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background p-3">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tổng lượt thích
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 text-xl font-semibold">
+              <Heart className="h-4 w-4" />
+              {stats.likes}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background p-3">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tổng lượt lưu
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 text-xl font-semibold">
+              <Bookmark className="h-4 w-4" />
+              {stats.saves}
+            </p>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border/60 bg-background p-2.5 sm:p-3">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Tìm theo tiêu đề, hashtag hoặc feed id..."
           />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Hiển thị {filteredFeeds.length}/{feeds?.length ?? 0} feed
+          </p>
         </div>
 
         <div className="space-y-2.5">
@@ -149,125 +199,134 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
               Đang tải danh sách feed...
             </div>
           ) : filteredFeeds.length ? (
-            filteredFeeds.map((feed) => (
-              <div
-                key={feed.feed_id}
-                className="group relative flex flex-col gap-2.5 rounded-xl border border-border/40 bg-card p-2.5 transition-all duration-200 hover:border-primary/30 hover:shadow-md sm:flex-row sm:gap-3 sm:p-3"
-              >
-                <div className="relative h-44 w-24 shrink-0 overflow-hidden rounded-lg border border-border/50 bg-black shadow-sm">
-                  {feed.video?.url ? (
-                    <video
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      src={feed.video.url}
-                      poster={feed.video.thumbnail ?? undefined}
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                      onMouseEnter={(event) => {
-                        void event.currentTarget.play().catch(() => undefined);
-                      }}
-                      onMouseLeave={(event) => {
-                        event.currentTarget.pause();
-                        event.currentTarget.currentTime = 0;
-                      }}
-                    >
-                      Trình duyệt không hỗ trợ phát video.
-                    </video>
-                  ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center bg-muted text-muted-foreground">
-                      <VideoOff className="mb-2 h-6 w-6 opacity-50" />
-                      <span className="text-[10px]">No video</span>
+            <div className="grid gap-3 xl:grid-cols-2">
+              {filteredFeeds.map((feed) => (
+                <div
+                  key={feed.feed_id}
+                  className="group relative flex flex-col gap-2.5 rounded-xl border border-border/40 bg-card p-2.5 transition-all duration-200 hover:border-primary/30 hover:shadow-md sm:flex-row sm:gap-3 sm:p-3"
+                >
+                  <div className="relative h-44 w-24 shrink-0 overflow-hidden rounded-lg border border-border/50 bg-black shadow-sm">
+                    {feed.video?.url ? (
+                      <video
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        src={feed.video.url}
+                        poster={feed.video.thumbnail ?? undefined}
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        onMouseEnter={(event) => {
+                          void event.currentTarget.play().catch(() => undefined);
+                        }}
+                        onMouseLeave={(event) => {
+                          event.currentTarget.pause();
+                          event.currentTarget.currentTime = 0;
+                        }}
+                      >
+                        Trình duyệt không hỗ trợ phát video.
+                      </video>
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-muted text-muted-foreground">
+                        <VideoOff className="mb-2 h-6 w-6 opacity-50" />
+                        <span className="text-[10px]">No video</span>
+                      </div>
+                    )}
+
+                    <div className="absolute left-2 top-2 flex items-center gap-1">
+                      <Badge
+                        variant="secondary"
+                        className="border-none bg-black/60 px-1.5 py-0 text-[10px] text-white backdrop-blur-md hover:bg-black/60"
+                      >
+                        {feed.video_type ?? "Feed"}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className="border-none bg-black/60 px-1.5 py-0 text-[10px] text-white backdrop-blur-md hover:bg-black/60"
+                      >
+                        #{feed.feed_id}
+                      </Badge>
                     </div>
-                  )}
-
-                  <div className="absolute left-2 top-2">
-                    <Badge
-                      variant="secondary"
-                      className="border-none bg-black/60 px-1.5 py-0 text-[10px] text-white backdrop-blur-md hover:bg-black/60"
-                    >
-                      {feed.video_type ?? "Feed"}
-                    </Badge>
                   </div>
-                </div>
 
-                <div className="flex min-w-0 flex-1 flex-col py-0.5">
-                  <div className="space-y-2.5">
-                    <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
-                      <div className="min-w-0 space-y-1">
-                        <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-                          {feed.title}
-                        </h3>
+                  <div className="flex min-w-0 flex-1 flex-col py-0.5">
+                    <div className="space-y-2.5">
+                      <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+                        <div className="min-w-0 space-y-1">
+                          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                            {feed.title}
+                          </h3>
+                        </div>
+
+                        <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+                          <Button
+                            asChild
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 flex-1 px-3 sm:flex-none"
+                          >
+                            <Link
+                              href={`/instructor/courses/${course.id}/feed/${feed.feed_id}/edit`}
+                            >
+                              <PencilLine className="mr-2 h-3.5 w-3.5" />
+                              Sửa
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              setPendingDeleteFeed({
+                                id: feed.feed_id,
+                                title: feed.title,
+                              });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
-                        <Button
-                          asChild
-                          variant="secondary"
-                          size="sm"
-                          className="h-8 flex-1 px-3 sm:flex-none"
-                        >
-                          <Link
-                            href={`/instructor/courses/${course.id}/feed/${feed.feed_id}/edit`}
-                          >
-                            <PencilLine className="mr-2 h-3.5 w-3.5" />
-                            Sửa
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => {
-                            setPendingDeleteFeed({
-                              id: feed.feed_id,
-                              title: feed.title,
-                            });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex min-h-6 flex-wrap gap-1.5">
+                        {(feed.hashtags ?? []).length ? (
+                          (feed.hashtags ?? []).map((tag) => (
+                            <Badge
+                              key={`${feed.feed_id}-${tag}`}
+                              variant="outline"
+                              className="bg-muted/30 text-xs font-normal"
+                            >
+                              #{tag}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs italic text-muted-foreground">
+                            Chưa có hashtags
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      {(feed.hashtags ?? []).length ? (
-                        (feed.hashtags ?? []).map((tag) => (
-                          <Badge
-                            key={`${feed.feed_id}-${tag}`}
-                            variant="outline"
-                            className="bg-muted/30 text-xs font-normal"
-                          >
-                            #{tag}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs italic text-muted-foreground">
-                          Chưa có hashtags
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-2.5 flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground sm:mt-3 sm:gap-4">
-                    <div className="flex items-center gap-1.5">
-                      <Eye className="h-4 w-4" />
-                      {feed.stats?.views ?? 0} lượt xem
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Heart className="h-4 w-4" />
-                      {feed.stats?.likes ?? 0} thích
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Bookmark className="h-4 w-4" />
-                      {feed.stats?.saves ?? 0} lưu
+                    <div className="mt-2.5 flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground sm:mt-3 sm:gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <Eye className="h-4 w-4" />
+                        {feed.stats?.views ?? 0} lượt xem
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Heart className="h-4 w-4" />
+                        {feed.stats?.likes ?? 0} thích
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Bookmark className="h-4 w-4" />
+                        {feed.stats?.saves ?? 0} lưu
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
             <div className="rounded-xl border border-dashed border-border/60 bg-background p-8 text-center text-sm text-muted-foreground">
+              <BarChart3 className="mx-auto mb-3 h-7 w-7 opacity-60" />
               Chưa có feed nào cho course này.
             </div>
           )}

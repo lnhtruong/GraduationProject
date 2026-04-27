@@ -7,7 +7,7 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Course } from 'src/models/course.model';
+import { Course, CourseStatus } from 'src/models/course.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { LessonProgress, LessonProgressStatus } from 'src/models/lesson-progress.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
@@ -102,6 +102,11 @@ export class EnrollsService {
     const course = await this.courseModel.findByPk(dto.courseId);
     if (!course) {
       throw new NotFoundException(`Course with ID ${dto.courseId} not found`);
+    }
+
+    const status = course.status as CourseStatus;
+    if (status !== CourseStatus.PUBLISH) {
+      throw new ConflictException(`User only enroll published course!`);
     }
 
     const existing = await this.enrollModel.findOne({
