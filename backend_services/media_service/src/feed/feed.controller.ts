@@ -1,4 +1,6 @@
 import {
+  UnauthorizedException,
+  ForbiddenException,
   Controller,
   Get,
   Post,
@@ -18,6 +20,25 @@ import { FeedInteractionType } from '../models/feed_interactions.model';
 @Controller('feed')
 export class FeedController {
   constructor(private readonly feedService: FeedService) {}
+
+  private parseRequiredUserId(userIdHeader?: string): number {
+    const userId = Number(userIdHeader);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return userId;
+  }
+
+  private parseAnalyticsRole(roleHeader?: string): number {
+    const role = Number(roleHeader);
+    if (!Number.isInteger(role)) {
+      throw new UnauthorizedException('User role is required');
+    }
+    if (role !== 1 && role !== 3) {
+      throw new ForbiddenException('Lecturer or admin permission required');
+    }
+    return role;
+  }
 
   @Post()
   async addToFeed(
@@ -44,6 +65,46 @@ export class FeedController {
     const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
     return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode);
+  }
+
+  @Get('stats/creator')
+  async getCreatorStats(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+    @Query('period') period?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    const role = this.parseAnalyticsRole(roleHeader);
+    const limitNum = limit ? Number(limit) : undefined;
+
+    return this.feedService.getCreatorStats(userId, role, period, limitNum);
+  }
+
+  @Get('stats/trending')
+  async getTrendingStats(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+    @Query('period') period?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    const role = this.parseAnalyticsRole(roleHeader);
+    const limitNum = limit ? Number(limit) : undefined;
+
+    return this.feedService.getTrendingStats(userId, role, period, limitNum);
+  }
+
+  @Get(':id/stats')
+  async getFeedDetailStats(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    const role = this.parseAnalyticsRole(roleHeader);
+
+    return this.feedService.getFeedDetailStats(feedId, userId, role);
   }
 
   @Post(':id/interact')
