@@ -1,13 +1,16 @@
 import { createCrudHooks } from "@/features/_shared/crud-factories";
 import { apiHttpClient } from "@/features/_shared/api-factories";
+import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { useQuery } from "@tanstack/react-query";
 import {
   courseFeedApi,
   courseApi,
+  courseWorkflowApi,
   lessonActivityApi,
   lessonApi,
   quizApi,
+  type CourseReviewAction,
   type CourseFeedListParams,
   type CourseListParams,
   type LessonActivityListParams,
@@ -124,6 +127,102 @@ export const {
   useDelete: useDeleteCourseFeed,
 } = courseFeedHooks;
 
+const instructorCourseKeys = createKeyFactory("instructor-course");
+
+function invalidateCourseCache(
+  queryClient: {
+    invalidateQueries: (input: { queryKey: readonly unknown[] }) => void;
+  },
+  courseId?: number,
+) {
+  queryClient.invalidateQueries({ queryKey: instructorCourseKeys.root });
+  if (typeof courseId === "number") {
+    queryClient.invalidateQueries({
+      queryKey: instructorCourseKeys.detail(courseId),
+    });
+  }
+}
+
+export const useSubmitCourseForReview = createMutationHooks<
+  InstructorCourse,
+  number
+>(
+  "instructor-course",
+  "submitForReview",
+  (courseId) => courseWorkflowApi.submitForReview(courseId),
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      invalidateCourseCache(queryClient, data.id);
+    },
+  },
+);
+
+export const useReviewCourse = createMutationHooks<
+  InstructorCourse,
+  { courseId: number; status: CourseReviewAction }
+>(
+  "instructor-course",
+  "review",
+  ({ courseId, status }) => courseWorkflowApi.review(courseId, status),
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      invalidateCourseCache(queryClient, data.id);
+    },
+  },
+);
+
+export const usePublishCourse = createMutationHooks<InstructorCourse, number>(
+  "instructor-course",
+  "publish",
+  (courseId) => courseWorkflowApi.publish(courseId),
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      invalidateCourseCache(queryClient, data.id);
+    },
+  },
+);
+
+export const useQuickPublishCourse = createMutationHooks<
+  InstructorCourse,
+  Pick<InstructorCourse, "id" | "status">
+>(
+  "instructor-course",
+  "quickPublish",
+  async ({ id, status }) => {
+    if (status === "publish") {
+      return courseWorkflowApi.publish(id);
+    }
+
+    if (status === "approved") {
+      return courseWorkflowApi.publish(id);
+    }
+
+    if (status === "pending") {
+      await courseWorkflowApi.review(id, "accepted");
+      return courseWorkflowApi.publish(id);
+    }
+
+    if (status === "draft") {
+      await courseWorkflowApi.submitForReview(id);
+      await courseWorkflowApi.review(id, "accepted");
+      return courseWorkflowApi.publish(id);
+    }
+
+    throw new Error(
+      "Khóa học đang ở trạng thái rejected. Vui lòng chỉnh sửa và gửi duyệt lại.",
+    );
+  },
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      invalidateCourseCache(queryClient, data.id);
+    },
+  },
+);
+
 type LessonQuizTypeFilter = "in_video" | "after_video";
 
 const lessonQuizKeys = createKeyFactory("lesson-quizzes");
@@ -136,15 +235,7 @@ export function useQuizzesByLessonId(
 ) {
   return useQuery({
     queryKey: lessonQuizKeys.custom("by-lesson", lessonId, type),
-    queryFn: async () => {
-      const { data } = await apiHttpClient.get<InstructorQuiz[]>(
-        `/course/quizzes/lesson/${lessonId}`,
-        {
-          params: { type },
-        },
-      );
-      return data;
-    },
+    queryFn: () => quizApi.listByLesson(lessonId as number, type),
     enabled: enabled && lessonId !== null,
     staleTime: 60 * 1000,
   });

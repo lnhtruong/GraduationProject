@@ -23,10 +23,18 @@ export const config = {
     },
     mascot_colab: { url: process.env.MASCOT_COLAB_SERVICE_URL || 'http://localhost:3005' },
   },
-  // trong 15p 1 ip dc gửi tối đa 100 request
+  // GET không qua rate limit; POST/PATCH/PUT/DELETE trên /api/auth và /api/media (trừ webhooks) mới bị giới hạn.
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10), // 100 requests
+    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10), // fallback chung
+    authMutatingMax: parseInt(
+      process.env.RATE_LIMIT_AUTH_MUTATING_MAX || process.env.RATE_LIMIT_MAX || '100',
+      10,
+    ),
+    mediaMutatingMax: parseInt(
+      process.env.RATE_LIMIT_MEDIA_MUTATING_MAX || process.env.RATE_LIMIT_MAX || '100',
+      10,
+    ),
   },
 };
 

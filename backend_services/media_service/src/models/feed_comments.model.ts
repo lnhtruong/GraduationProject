@@ -42,4 +42,17 @@ export class FeedComment extends Model {
     allowNull: false,
   })
   declare content: string;
+
+  @ForeignKey(() => FeedComment)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+  })
+  declare origin_cmt: number | null;
+
+  @BelongsTo(() => FeedComment, {
+    foreignKey: 'origin_cmt',
+    constraints: false,
+  })
+  declare origin_comment?: FeedComment;
 }

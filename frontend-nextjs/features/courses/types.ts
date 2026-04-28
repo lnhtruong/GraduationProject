@@ -62,6 +62,52 @@ export interface Enrollment {
   lastLessonId?: number;
 }
 
+export type FeedbackReactionType = "help_ful" | "dislike";
+
+export interface ReactionSummary {
+  feedbackId: number;
+  total: number;
+  helpfulCount?: number;
+  byType: { reactionType: FeedbackReactionType; count: number }[];
+  currentUserReactionType?: FeedbackReactionType | null;
+}
+
+export interface FeedbackItem {
+  id: number;
+  courseId: number;
+  userId: number;
+  rating: number;
+  reviewText: string;
+  isVisible: boolean;
+  created_at: string;
+  updated_at: string;
+  user: { id: number; firstName: string; lastName: string };
+  reactionSummary?: ReactionSummary;
+}
+
+export interface CheckFeedbackResponse {
+  checked: boolean;
+  data: (FeedbackItem & { reactionSummary: ReactionSummary }) | null;
+}
+
+export interface FeedbackSummary {
+  averageRating: number;
+  totalReviews: number;
+  distribution: { rating: number; count: number; percentage: number }[];
+}
+
+export interface FeedbackListResponse {
+  summary: FeedbackSummary;
+  items: FeedbackItem[];
+  pagination: { page: number; limit: number; totalItems: number; totalPages: number };
+}
+
+export interface CreateFeedbackPayload {
+  courseId: number;
+  rating: number;
+  reviewText: string;
+}
+
 export interface CourseDetail {
   id: number;
   name: string;
@@ -94,3 +140,46 @@ export interface CourseDetail {
   lastUpdatedAt: string;
   createdAt: string;
 }
+
+// Instructor/CMS API contract types
+export type CourseStatus =
+  | "draft"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "publish";
+
+export type CourseReviewAction = "accepted" | "rejected";
+
+export interface Course {
+  id: number;
+  name: string;
+  description: string;
+  categories: string[];
+  level: CourseLevel;
+  duration?: string;
+  language: string;
+  price: number;
+  userId: number;
+  status: CourseStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateCoursePayload {
+  name: string;
+  description?: string;
+  categories: string[];
+  level?: CourseLevel;
+  language: string;
+  price: number;
+}
+
+export type UpdateCoursePayload = Partial<CreateCoursePayload>;
+
+export type CourseListParams = {
+  userId?: number;
+  status?: CourseStatus;
+  page?: number;
+  limit?: number;
+};

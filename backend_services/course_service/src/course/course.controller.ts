@@ -1,4 +1,18 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Headers } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Headers,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CoursesService } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -7,6 +21,25 @@ import { CourseStatus } from 'src/models/course.model';
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) { }
+
+  private parseRequiredUserId(userIdHeader?: string): number {
+    const userId = Number(userIdHeader);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return userId;
+  }
+
+  private parseRequiredRole(roleHeader?: string): number {
+    const role = Number(roleHeader);
+    if (!Number.isInteger(role)) {
+      throw new UnauthorizedException('User role is required');
+    }
+    if (role !== 1 && role !== 3) {
+      throw new ForbiddenException('Lecturer or admin permission required');
+    }
+    return role;
+  }
 
   @Post()
   create(@Body() createCourseDto: CreateCourseDto, @Headers('x-user-id') userIdHeader?: string) {
@@ -17,8 +50,8 @@ export class CoursesController {
     return this.coursesService.create(createCourseDto, user_id);
   }
 
-  @Get()
-  findAll(
+  @Get('mine')
+  findAllMine(
     @Query('status') status?: CourseStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -37,6 +70,43 @@ export class CoursesController {
       parsedPage,
       parsedLimit,
     );
+  }
+
+  @Get()
+  findAll(
+    @Query('status') status?: CourseStatus,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedPage = page !== undefined ? Number(page) : undefined;
+    const parsedLimit = limit !== undefined ? Number(limit) : undefined;
+
+    return this.coursesService.findAllPublic(
+      status,
+      parsedPage,
+      parsedLimit,
+    );
+  }
+
+  @Get('stats/overview')
+  getOverviewStats(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    const role = this.parseRequiredRole(roleHeader);
+    return this.coursesService.getOverviewStats(userId, role);
+  }
+
+  @Get(':id/stats/overview')
+  getCourseStats(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    const role = this.parseRequiredRole(roleHeader);
+    return this.coursesService.getCourseStatsOverview(id, userId, role);
   }
 
   @Get(':id')

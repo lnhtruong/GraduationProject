@@ -15,6 +15,7 @@ import { WebsocketModule } from './websocket/websocket.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { FeedModule } from './feed/feed.module';
+import { BunnyModule } from './bunny/bunny.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { FeedModule } from './feed/feed.module';
     WebsocketModule,
     WebhookModule,
     CloudinaryModule,
+    BunnyModule,
     FeedModule,
   ],
   controllers: [AppController],

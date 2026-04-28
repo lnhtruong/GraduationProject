@@ -29,6 +29,149 @@ export class FeedService {
     private userModel: typeof User,
   ) {}
 
+  private readonly ADMIN_ROLE = 1;
+  private readonly LECTURER_ROLE = 3;
+
+  private parseNumberValue(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private normalizePercentage(value: number): number {
+    if (!Number.isFinite(value) || value <= 0) {
+      return 0;
+    }
+    return Number(value.toFixed(2));
+  }
+
+  private resolvePeriodStart(period?: string): Date | undefined {
+    if (!period || period === 'all') {
+      return undefined;
+    }
+
+    const now = Date.now();
+    const normalized = period.toLowerCase();
+    if (normalized === '7d') {
+      return new Date(now - 7 * 24 * 60 * 60 * 1000);
+    }
+    if (normalized === '30d') {
+      return new Date(now - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    throw new BadRequestException("Invalid period. Supported values: '7d', '30d', 'all'");
+  }
+
+  private async assertFeedStatsAccess(
+    feedId: number,
+    requesterUserId: number,
+    requesterRole: number,
+  ): Promise<HighlightFeed> {
+    if (requesterRole !== this.ADMIN_ROLE && requesterRole !== this.LECTURER_ROLE) {
+      throw new ForbiddenException('Lecturer or admin permission required');
+    }
+
+    const feed = await this.highlightFeedModel.findByPk(feedId, {
+      include: [{ model: Course, attributes: ['id', 'name', 'userId'] }],
+    });
+    if (!feed || !feed.course) {
+      throw new NotFoundException('Feed item not found');
+    }
+
+    if (requesterRole === this.ADMIN_ROLE) {
+      return feed;
+    }
+
+    if (feed.course.userId !== requesterUserId) {
+      throw new ForbiddenException('You are not allowed to access this feed statistics');
+    }
+
+    return feed;
+  }
+
+  private buildFeedStatsMap(
+    interactionRows: Array<Record<string, unknown>>,
+    viewRows: Array<Record<string, unknown>>,
+    commentRows: Array<Record<string, unknown>>,
+  ): Map<number, {
+    views: number;
+    uniqueViewers: number;
+    completedViews: number;
+    avgWatchDuration: number;
+    likes: number;
+    saves: number;
+    shares: number;
+    comments: number;
+  }> {
+    const map = new Map<number, {
+      views: number;
+      uniqueViewers: number;
+      completedViews: number;
+      avgWatchDuration: number;
+      likes: number;
+      saves: number;
+      shares: number;
+      comments: number;
+    }>();
+
+    for (const row of interactionRows) {
+      const feedId = this.parseNumberValue(row.highlight_id);
+      const current = map.get(feedId) ?? {
+        views: 0,
+        uniqueViewers: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        comments: 0,
+      };
+
+      current.likes = this.parseNumberValue(row.likes);
+      current.saves = this.parseNumberValue(row.saves);
+      current.shares = this.parseNumberValue(row.shares);
+      map.set(feedId, current);
+    }
+
+    for (const row of viewRows) {
+      const feedId = this.parseNumberValue(row.highlight_id);
+      const current = map.get(feedId) ?? {
+        views: 0,
+        uniqueViewers: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        comments: 0,
+      };
+
+      current.views = this.parseNumberValue(row.views);
+      current.uniqueViewers = this.parseNumberValue(row.uniqueViewers);
+      current.completedViews = this.parseNumberValue(row.completedViews);
+      current.avgWatchDuration = this.parseNumberValue(row.avgWatchDuration);
+      map.set(feedId, current);
+    }
+
+    for (const row of commentRows) {
+      const feedId = this.parseNumberValue(row.highlight_id);
+      const current = map.get(feedId) ?? {
+        views: 0,
+        uniqueViewers: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        comments: 0,
+      };
+
+      current.comments = this.parseNumberValue(row.comments);
+      map.set(feedId, current);
+    }
+
+    return map;
+  }
+
   async addToFeed(userId: number, videoId: number, courseId: number, title?: string, hashtags?: string[]) {
     // Check if video exists and user owns it
     const video = await this.videoModel.findByPk(videoId);
@@ -65,75 +208,75 @@ export class FeedService {
       course_id: courseId,
       title: title || video.name,
       hashtags,
-      status: HighlightFeedStatus.ACTIVE,
+      status: HighlightFeedStatus.HIDDEN,
     });
 
     return feedItem;
   }
 
   async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number, mode?: string) {
-  if (mode === 'recommended') {
-    return this.getRecommendedFeed(cursor, limit, userId, courseId);
-  }
+    if (mode === 'recommended') {
+      return this.getRecommendedFeed(cursor, limit, userId, courseId);
+    }
 
-  // Query feeds với cursor-based pagination, eager load video + course + lecturer
-  const feeds = await this.highlightFeedModel.findAll({
-    where: {
-      status: HighlightFeedStatus.ACTIVE,
-      ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
-      ...(courseId && { course_id: courseId }), // filter by course_id nếu có
-    },
-    include: [
-      { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
-      {
-        model: Course,
-        include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
+    // Query feeds với cursor-based pagination, eager load video + course + lecturer
+    const feeds = await this.highlightFeedModel.findAll({
+      where: {
+        status: HighlightFeedStatus.ACTIVE,
+        ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
+        ...(courseId && { course_id: courseId }), // filter by course_id nếu có
       },
-    ],
-    order: [['id', 'DESC']], // mới nhất trước
-    limit,
-  });
+      include: [
+        { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+        {
+          model: Course,
+          include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
+        },
+      ],
+      order: [['id', 'DESC']], // mới nhất trước
+      limit,
+    });
 
   const data = await Promise.all(
     feeds.map(async (feed) => {
       // Fetch stats + interaction status của user song song để tối ưu performance
       const [stats, liked, saved] = await Promise.all([
-        this.getFeedStats(feed.id),
+        this.getFeedBasicStats(feed.id),
         userId
           ? this.feedInteractionModel.findOne({
               where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.LIKE },
             })
-          : null,
-        userId
-          ? this.feedInteractionModel.findOne({
+            : null,
+          userId
+            ? this.feedInteractionModel.findOne({
               where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.SAVE },
             })
-          : null,
-      ]);
+            : null,
+        ]);
 
-      // Tách user (lecturer) ra khỏi course object trước khi return
-      const { user, ...courseData } = feed.course!.toJSON();
+        // Tách user (lecturer) ra khỏi course object trước khi return
+        const { user, ...courseData } = feed.course!.toJSON();
 
-      return {
-        feed_id: feed.id,
-        title: feed.title,
-        hashtags: feed.hashtags,
-        video_type: feed.video!.type,
-        video: feed.video!.toJSON(),  // plain object, bỏ Sequelize metadata
-        course: courseData,           // full course info, không kèm user
-        lecturer: user,               // lecturer tách riêng cho FE dễ dùng
-        stats,
-        is_liked: !!liked,
-        is_saved: !!saved,
-      };
-    }),
-  );
+        return {
+          feed_id: feed.id,
+          title: feed.title,
+          hashtags: feed.hashtags,
+          video_type: feed.video!.type,
+          video: feed.video!.toJSON(),  // plain object, bỏ Sequelize metadata
+          course: courseData,           // full course info, không kèm user
+          lecturer: user,               // lecturer tách riêng cho FE dễ dùng
+          stats,
+          is_liked: !!liked,
+          is_saved: !!saved,
+        };
+      }),
+    );
 
-  return {
-    data,
-    // Nếu còn data thì trả cursor, FE dùng để load trang tiếp
-    next_cursor: data.length === limit ? data[data.length - 1].feed_id : null,
-  };
+    return {
+      data,
+      // Nếu còn data thì trả cursor, FE dùng để load trang tiếp
+      next_cursor: data.length === limit ? data[data.length - 1].feed_id : null,
+    };
   }
 
   private async getRecommendedFeed(cursor?: number, limit = 10, userId?: number, courseId?: number) {
@@ -319,7 +462,7 @@ export class FeedService {
       .filter((tag) => tag.length > 0);
   }
 
-  private async getFeedStats(feedId: number) {
+  private async getFeedBasicStats(feedId: number) {
     const [likes, saves, views] = await Promise.all([
       this.feedInteractionModel.count({
         where: { highlight_id: feedId, type: FeedInteractionType.LIKE },
@@ -332,6 +475,407 @@ export class FeedService {
       }),
     ]);
     return { views, likes, saves };
+  }
+
+  async getFeedDetailStats(feedId: number, requesterUserId: number, requesterRole: number) {
+    const feed = await this.assertFeedStatsAccess(feedId, requesterUserId, requesterRole);
+
+    const [interactionRows, viewAgg, commentCount] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: { highlight_id: feedId },
+        attributes: [
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
+        ],
+        raw: true,
+      }),
+      this.feedViewModel.findOne({
+        where: { highlight_id: feedId },
+        attributes: [
+          [fn('COUNT', col('id')), 'views'],
+          [fn('COUNT', fn('DISTINCT', col('user_id'))), 'uniqueViewers'],
+          [fn('SUM', literal('CASE WHEN completed = true THEN 1 ELSE 0 END')), 'completedViews'],
+          [fn('AVG', col('watch_duration')), 'avgWatchDuration'],
+        ],
+        raw: true,
+      }),
+      this.feedCommentModel.count({ where: { highlight_id: feedId } }),
+    ]);
+
+    const interactionAgg = (interactionRows[0] ?? {}) as unknown as Record<string, unknown>;
+    const views = this.parseNumberValue((viewAgg as Record<string, unknown> | null)?.views);
+    const completedViews = this.parseNumberValue(
+      (viewAgg as Record<string, unknown> | null)?.completedViews,
+    );
+
+    const completionRate = views > 0 ? (completedViews / views) * 100 : 0;
+    const likes = this.parseNumberValue(interactionAgg.likes);
+    const saves = this.parseNumberValue(interactionAgg.saves);
+    const shares = this.parseNumberValue(interactionAgg.shares);
+
+    return {
+      feedId: feed.id,
+      title: feed.title,
+      course: {
+        id: feed.course.id,
+        name: feed.course.name,
+      },
+      stats: {
+        views,
+        uniqueViewers: this.parseNumberValue(
+          (viewAgg as Record<string, unknown> | null)?.uniqueViewers,
+        ),
+        completedViews,
+        completionRate: this.normalizePercentage(completionRate),
+        averageWatchDuration: this.normalizePercentage(
+          this.parseNumberValue((viewAgg as Record<string, unknown> | null)?.avgWatchDuration),
+        ),
+        likes,
+        saves,
+        shares,
+        comments: commentCount,
+      },
+    };
+  }
+
+  async getCreatorStats(
+    requesterUserId: number,
+    requesterRole: number,
+    period?: string,
+    limit?: number,
+  ) {
+    if (requesterRole !== this.ADMIN_ROLE && requesterRole !== this.LECTURER_ROLE) {
+      throw new ForbiddenException('Lecturer or admin permission required');
+    }
+
+    const safeLimit = Number.isInteger(limit) && (limit as number) > 0
+      ? Math.min(limit as number, 100)
+      : 20;
+    const startDate = this.resolvePeriodStart(period);
+
+    const feeds = await this.highlightFeedModel.findAll({
+      where: {
+        ...(startDate && { created_at: { [Op.gte]: startDate } }),
+      } as any,
+      include: [
+        {
+          model: Course,
+          attributes: ['id', 'name', 'userId'],
+          where: requesterRole === this.LECTURER_ROLE ? { userId: requesterUserId } : undefined,
+          required: true,
+        },
+      ],
+      order: [['id', 'DESC']],
+      limit: safeLimit,
+    });
+
+    const feedIds = feeds.map((feed) => feed.id);
+    if (feedIds.length === 0) {
+      return {
+        summary: {
+          totalFeeds: 0,
+          views: 0,
+          likes: 0,
+          saves: 0,
+          shares: 0,
+          comments: 0,
+          completionRate: 0,
+        },
+        data: [],
+      };
+    }
+
+    const interactionWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { created_at: { [Op.gte]: startDate } }),
+    };
+    const viewWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { viewed_at: { [Op.gte]: startDate } }),
+    };
+    const commentWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { created_at: { [Op.gte]: startDate } }),
+    };
+
+    const [interactionRows, viewRows, commentRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: interactionWhere as any,
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: viewWhere as any,
+        attributes: [
+          'highlight_id',
+          [fn('COUNT', col('id')), 'views'],
+          [fn('COUNT', fn('DISTINCT', col('user_id'))), 'uniqueViewers'],
+          [fn('SUM', literal('CASE WHEN completed = true THEN 1 ELSE 0 END')), 'completedViews'],
+          [fn('AVG', col('watch_duration')), 'avgWatchDuration'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedCommentModel.findAll({
+        where: commentWhere as any,
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+    ]);
+
+    const statsMap = this.buildFeedStatsMap(
+      interactionRows as unknown as Array<Record<string, unknown>>,
+      viewRows as unknown as Array<Record<string, unknown>>,
+      commentRows as unknown as Array<Record<string, unknown>>,
+    );
+
+    const data = feeds.map((feed) => {
+      const stats = statsMap.get(feed.id) ?? {
+        views: 0,
+        uniqueViewers: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        comments: 0,
+      };
+      const completionRate =
+        stats.views > 0 ? (stats.completedViews / stats.views) * 100 : 0;
+      const engagementRate =
+        stats.views > 0
+          ? ((stats.likes + stats.saves + stats.shares + stats.comments) / stats.views) * 100
+          : 0;
+
+      return {
+        feedId: feed.id,
+        title: feed.title,
+        course: {
+          id: feed.course.id,
+          name: feed.course.name,
+        },
+        stats: {
+          views: stats.views,
+          uniqueViewers: stats.uniqueViewers,
+          completedViews: stats.completedViews,
+          completionRate: this.normalizePercentage(completionRate),
+          averageWatchDuration: this.normalizePercentage(stats.avgWatchDuration),
+          likes: stats.likes,
+          saves: stats.saves,
+          shares: stats.shares,
+          comments: stats.comments,
+          engagementRate: this.normalizePercentage(engagementRate),
+        },
+      };
+    });
+
+    const summary = data.reduce(
+      (acc, item) => {
+        acc.views += item.stats.views;
+        acc.likes += item.stats.likes;
+        acc.saves += item.stats.saves;
+        acc.shares += item.stats.shares;
+        acc.comments += item.stats.comments;
+        acc.completedViews += item.stats.completedViews;
+        return acc;
+      },
+      {
+        totalFeeds: data.length,
+        views: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        comments: 0,
+        completedViews: 0,
+      },
+    );
+
+    return {
+      summary: {
+        totalFeeds: summary.totalFeeds,
+        views: summary.views,
+        likes: summary.likes,
+        saves: summary.saves,
+        shares: summary.shares,
+        comments: summary.comments,
+        completionRate: this.normalizePercentage(
+          summary.views > 0 ? (summary.completedViews / summary.views) * 100 : 0,
+        ),
+      },
+      data,
+    };
+  }
+
+  async getTrendingStats(
+    requesterUserId: number,
+    requesterRole: number,
+    period?: string,
+    limit?: number,
+  ) {
+    if (requesterRole !== this.ADMIN_ROLE && requesterRole !== this.LECTURER_ROLE) {
+      throw new ForbiddenException('Lecturer or admin permission required');
+    }
+
+    const safeLimit = Number.isInteger(limit) && (limit as number) > 0
+      ? Math.min(limit as number, 100)
+      : 20;
+    const startDate = this.resolvePeriodStart(period);
+
+    const feeds = await this.highlightFeedModel.findAll({
+      where: { status: HighlightFeedStatus.ACTIVE },
+      include: [
+        {
+          model: Course,
+          attributes: ['id', 'name', 'userId'],
+          where: requesterRole === this.LECTURER_ROLE ? { userId: requesterUserId } : undefined,
+          required: true,
+        },
+      ],
+      order: [['id', 'DESC']],
+      limit: safeLimit * 3,
+    });
+
+    const feedIds = feeds.map((feed) => feed.id);
+    if (feedIds.length === 0) {
+      return {
+        period: period ?? 'all',
+        data: [],
+      };
+    }
+
+    const interactionWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { created_at: { [Op.gte]: startDate } }),
+    };
+    const viewWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { viewed_at: { [Op.gte]: startDate } }),
+    };
+    const commentWhere = {
+      highlight_id: { [Op.in]: feedIds },
+      ...(startDate && { created_at: { [Op.gte]: startDate } }),
+    };
+
+    const [interactionRows, viewRows, commentRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: interactionWhere as any,
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: viewWhere as any,
+        attributes: [
+          'highlight_id',
+          [fn('COUNT', col('id')), 'views'],
+          [fn('COUNT', fn('DISTINCT', col('user_id'))), 'uniqueViewers'],
+          [fn('SUM', literal('CASE WHEN completed = true THEN 1 ELSE 0 END')), 'completedViews'],
+          [fn('AVG', col('watch_duration')), 'avgWatchDuration'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedCommentModel.findAll({
+        where: commentWhere as any,
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+    ]);
+
+    const statsMap = this.buildFeedStatsMap(
+      interactionRows as unknown as Array<Record<string, unknown>>,
+      viewRows as unknown as Array<Record<string, unknown>>,
+      commentRows as unknown as Array<Record<string, unknown>>,
+    );
+
+    const ranked = feeds
+      .map((feed) => {
+        const stats = statsMap.get(feed.id) ?? {
+          views: 0,
+          uniqueViewers: 0,
+          completedViews: 0,
+          avgWatchDuration: 0,
+          likes: 0,
+          saves: 0,
+          shares: 0,
+          comments: 0,
+        };
+        const completionRate =
+          stats.views > 0 ? (stats.completedViews / stats.views) * 100 : 0;
+        const score =
+          stats.likes * 3 +
+          stats.saves * 4 +
+          stats.shares * 5 +
+          stats.comments * 2 +
+          stats.views * 0.5 +
+          completionRate * 2;
+
+        return {
+          feedId: feed.id,
+          title: feed.title,
+          course: {
+            id: feed.course.id,
+            name: feed.course.name,
+          },
+          stats: {
+            views: stats.views,
+            uniqueViewers: stats.uniqueViewers,
+            completedViews: stats.completedViews,
+            completionRate: this.normalizePercentage(completionRate),
+            averageWatchDuration: this.normalizePercentage(stats.avgWatchDuration),
+            likes: stats.likes,
+            saves: stats.saves,
+            shares: stats.shares,
+            comments: stats.comments,
+            score: this.normalizePercentage(score),
+          },
+        };
+      })
+      .sort((a, b) => b.stats.score - a.stats.score)
+      .slice(0, safeLimit)
+      .map((item, index) => ({
+        ...item,
+        rank: index + 1,
+      }));
+
+    return {
+      period: period ?? 'all',
+      data: ranked,
+    };
+  }
+
+  private async validateFeedCommentTarget(feedId: number): Promise<void> {
+    const feed = await this.highlightFeedModel.findByPk(feedId);
+    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
+      throw new NotFoundException('Feed item not found');
+    }
+  }
+
+  private mapCommentResponse(comment: FeedComment, userId?: number, totalNestedCmt?: number) {
+    return {
+      id: comment.id,
+      content: comment.content,
+      origin_cmt: comment.origin_cmt ?? null,
+      created_at: comment.get('created_at'),
+      updated_at: comment.get('updated_at'),
+      commenter: comment.user,
+      is_owner: !!userId && comment.user_id === userId,
+      ...(typeof totalNestedCmt === 'number' ? { total_nested_cmt: totalNestedCmt } : {}),
+    };
   }
 
   async interactWithFeed(userId: number, feedId: number, type: FeedInteractionType) {
@@ -421,11 +965,8 @@ export class FeedService {
     return feed;
   }
 
-  async createComment(userId: number, feedId: number, content: string) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+  async createComment(userId: number, feedId: number, content: string, originCmt?: number | null) {
+    await this.validateFeedCommentTarget(feedId);
 
     const trimmedContent = content?.trim();
     if (!trimmedContent) {
@@ -435,37 +976,42 @@ export class FeedService {
       throw new BadRequestException('Comment content must be 1000 characters or less');
     }
 
+    let normalizedOriginCmt: number | null = null;
+    if (Number.isInteger(originCmt) && (originCmt as number) > 0) {
+      const parentComment = await this.feedCommentModel.findByPk(originCmt as number);
+      if (!parentComment || parentComment.highlight_id !== feedId) {
+        throw new NotFoundException('Parent comment not found');
+      }
+      if (parentComment.origin_cmt !== null) {
+        throw new BadRequestException('Only 2 comment levels are supported');
+      }
+      normalizedOriginCmt = parentComment.id;
+    }
+
     const comment = await this.feedCommentModel.create({
       user_id: userId,
       highlight_id: feedId,
       content: trimmedContent,
+      origin_cmt: normalizedOriginCmt,
     });
 
     const user = await this.userModel.findByPk(userId, {
       attributes: ['id', 'firstName', 'lastName'],
     });
 
-    return {
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.get('created_at'),
-      updated_at: comment.get('updated_at'),
-      commenter: user,
-      is_owner: true,
-    };
+    comment.user = user as User;
+    return this.mapCommentResponse(comment, userId, 0);
   }
 
   async getComments(feedId: number, cursor?: number, limit = 20, userId?: number) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+    await this.validateFeedCommentTarget(feedId);
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 20;
 
     const comments = await this.feedCommentModel.findAll({
       where: {
         highlight_id: feedId,
+        origin_cmt: null,
         ...(cursor && { id: { [Op.lt]: cursor } }),
       },
       include: [
@@ -478,14 +1024,27 @@ export class FeedService {
       limit: safeLimit,
     });
 
-    const data = comments.map((comment) => ({
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.get('created_at'),
-      updated_at: comment.get('updated_at'),
-      commenter: comment.user,
-      is_owner: !!userId && comment.user_id === userId,
-    }));
+    const parentIds = comments.map((comment) => comment.id);
+    const nestedCountRows =
+      parentIds.length > 0
+        ? ((await this.feedCommentModel.findAll({
+          where: {
+            highlight_id: feedId,
+            origin_cmt: { [Op.in]: parentIds },
+          },
+          attributes: ['origin_cmt', [fn('COUNT', col('id')), 'total_nested_cmt']],
+          group: ['origin_cmt'],
+          raw: true,
+        })) as unknown as Array<{ origin_cmt: number; total_nested_cmt: string | number }>)
+        : [];
+
+    const nestedCountMap = new Map<number, number>(
+      nestedCountRows.map((row) => [Number(row.origin_cmt), Number(row.total_nested_cmt || 0)]),
+    );
+
+    const data = comments.map((comment) =>
+      this.mapCommentResponse(comment, userId, nestedCountMap.get(comment.id) ?? 0),
+    );
 
     return {
       data,
@@ -493,11 +1052,48 @@ export class FeedService {
     };
   }
 
-  async updateComment(userId: number, feedId: number, commentId: number, content: string) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
+  async getCommentDetail(
+    feedId: number,
+    originCmt: number,
+    cursor?: number,
+    limit = 20,
+    userId?: number,
+  ) {
+    await this.validateFeedCommentTarget(feedId);
+
+    const parentComment = await this.feedCommentModel.findByPk(originCmt);
+    if (!parentComment || parentComment.highlight_id !== feedId || parentComment.origin_cmt !== null) {
+      throw new NotFoundException('Origin comment not found');
     }
+
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 20;
+    const comments = await this.feedCommentModel.findAll({
+      where: {
+        highlight_id: feedId,
+        origin_cmt: originCmt,
+        ...(cursor && { id: { [Op.lt]: cursor } }),
+      },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'firstName', 'lastName'],
+        },
+      ],
+      order: [['id', 'DESC']],
+      limit: safeLimit,
+    });
+
+    const data = comments.map((comment) => this.mapCommentResponse(comment, userId));
+
+    return {
+      origin_cmt: originCmt,
+      data,
+      next_cursor: data.length === safeLimit ? data[data.length - 1].id : null,
+    };
+  }
+
+  async updateComment(userId: number, feedId: number, commentId: number, content: string) {
+    await this.validateFeedCommentTarget(feedId);
 
     const comment = await this.feedCommentModel.findByPk(commentId);
     if (!comment || comment.highlight_id !== feedId) {
@@ -521,6 +1117,7 @@ export class FeedService {
     return {
       id: comment.id,
       content: comment.content,
+      origin_cmt: comment.origin_cmt ?? null,
       created_at: comment.get('created_at'),
       updated_at: comment.get('updated_at'),
       is_owner: true,
@@ -528,10 +1125,7 @@ export class FeedService {
   }
 
   async deleteComment(userId: number, feedId: number, commentId: number) {
-    const feed = await this.highlightFeedModel.findByPk(feedId);
-    if (!feed || feed.status === HighlightFeedStatus.REMOVED) {
-      throw new NotFoundException('Feed item not found');
-    }
+    await this.validateFeedCommentTarget(feedId);
 
     const comment = await this.feedCommentModel.findByPk(commentId);
     if (!comment || comment.highlight_id !== feedId) {

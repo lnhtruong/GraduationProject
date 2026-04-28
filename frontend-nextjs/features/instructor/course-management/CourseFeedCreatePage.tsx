@@ -248,8 +248,8 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       <div className="min-h-[calc(100vh-11rem)] bg-linear-to-br from-background via-background to-muted/20 p-3 sm:p-5">
         <div className="mx-auto max-w-6xl space-y-5">
           <section className="overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
-            <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
-              <div className="flex h-full flex-col space-y-3 border-b border-border/60 px-5 py-5 sm:px-6 lg:border-b-0 lg:border-r">
+            <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr] xl:items-stretch">
+              <div className="flex h-full flex-col space-y-3 border-b border-border/60 px-5 py-5 sm:px-6 xl:border-b-0 xl:border-r">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="rounded-full">
                     Tạo mới
@@ -266,16 +266,14 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                   và hashtag.
                 </p>
 
-                <div className="overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
+                <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/10">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="rounded-full px-2 py-0.5 text-[11px]"
-                      >
-                        Live preview
-                      </Badge>
-                    </div>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full px-2 py-0.5 text-[11px]"
+                    >
+                      Live preview nội dung feed
+                    </Badge>
                   </div>
 
                   <div className="p-4">
@@ -320,6 +318,11 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
 
               <div className="space-y-4 bg-muted/10 px-5 py-5 sm:px-6">
                 <div className="overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
+                  <div className="border-b border-border/60 px-3 py-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Preview video đã chọn
+                    </p>
+                  </div>
                   <div ref={previewVideoRef} className="relative bg-black">
                     {selectedVideo ? (
                       <video
@@ -349,6 +352,11 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                     </div>
                   </div>
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Mẹo: Chọn video ở danh sách bên dưới để cập nhật preview và
+                  metadata ngay lập tức.
+                </p>
               </div>
             </div>
           </section>

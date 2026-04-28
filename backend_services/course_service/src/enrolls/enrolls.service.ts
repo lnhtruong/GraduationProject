@@ -7,7 +7,7 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Course } from 'src/models/course.model';
+import { Course, CourseStatus } from 'src/models/course.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { LessonProgress, LessonProgressStatus } from 'src/models/lesson-progress.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
@@ -15,6 +15,7 @@ import { CreateEnrollDto } from './dto/create-enroll.dto';
 import { UpdateEnrollDto } from './dto/update-enroll.dto';
 import { GetEnrollsQueryDto } from './dto/get-enrolls-query.dto';
 import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
+import { CheckEnrollExistsDto } from './dto/check-enroll-exists.dto';
 
 @Injectable()
 export class EnrollsService {
@@ -101,6 +102,11 @@ export class EnrollsService {
     const course = await this.courseModel.findByPk(dto.courseId);
     if (!course) {
       throw new NotFoundException(`Course with ID ${dto.courseId} not found`);
+    }
+
+    const status = course.status as CourseStatus;
+    if (status !== CourseStatus.PUBLISH) {
+      throw new ConflictException(`User only enroll published course!`);
     }
 
     const existing = await this.enrollModel.findOne({
@@ -196,6 +202,24 @@ export class EnrollsService {
     //   throw new NotFoundException(`Enroll with ID ${id} not found`);
     // }
     return enroll;
+  }
+
+  async checkEnrollExists(dto: CheckEnrollExistsDto): Promise<{
+    check: boolean;
+    data: Enroll | null;
+  }> {
+    const enroll = await this.enrollModel.findOne({
+      where: {
+        userId: dto.userId,
+        courseId: dto.courseId,
+      },
+      include: [{ model: Course }],
+    });
+
+    return {
+      check: !!enroll,
+      data: enroll,
+    };
   }
 
   async update(id: number, dto: UpdateEnrollDto): Promise<Enroll> {

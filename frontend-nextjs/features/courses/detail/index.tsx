@@ -16,6 +16,8 @@ import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { getCourseById, MOCK_ENROLLMENT } from "../mock-data";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth";
+import { useEnrollmentCheck } from "../api/enrollment.api";
 import type { Enrollment } from "../types";
 
 
@@ -78,9 +80,14 @@ interface Props {
 export default function CourseDetail({ courseId }: Props) {
   const course = getCourseById(courseId);
 
+  const { user } = useAuthStore();
+  const { data: enrollmentData } = useEnrollmentCheck(courseId, user?.id);
+
   // Auth & enrollment state — swap with real hooks when backend is ready
   const [isAuthenticated] = useState(true);
-  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [mockEnrollment, setMockEnrollment] = useState<Enrollment | null>(null);
+  // Prefer real enrollment data from API; fall back to mock state for demo toggle
+  const enrollment: Enrollment | null = enrollmentData ?? mockEnrollment;
 
   if (!course) {
     return (
@@ -99,11 +106,11 @@ export default function CourseDetail({ courseId }: Props) {
 
   const handleEnroll = () => {
     if (course.price === 0 || true /* mock: always succeed */) {
-      setEnrollment(MOCK_ENROLLMENT);
+      setMockEnrollment(MOCK_ENROLLMENT);
     }
   };
 
-  const handleUnenroll = () => setEnrollment(null);
+  const handleUnenroll = () => setMockEnrollment(null);
 
   return (
     <div className="min-h-screen bg-background">
@@ -141,8 +148,9 @@ export default function CourseDetail({ courseId }: Props) {
             <InstructorSection instructor={course.instructor} />
 
             <ReviewsSection
-              ratingSummary={course.ratingSummary}
-              reviews={course.reviews}
+              courseId={courseId}
+              isEnrolled={isEnrolled}
+              currentUserId={user?.id}
             />
           </div>
 

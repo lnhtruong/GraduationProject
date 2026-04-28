@@ -26,11 +26,14 @@ const CANCEL_URL =
 const RETURN_URL =
   process.env.PAYOS_RETURN_URL || `http://localhost:${PORT}/payment/return`;
 const WEBHOOK_URL = process.env.PAYOS_WEBHOOK_URL;
-const COURSE_SERVICE_URL = process.env.COURSE_SERVICE_URL || "http://localhost:8008";
+const COURSE_SERVICE_URL =
+  process.env.COURSE_SERVICE_URL || "http://localhost:8008";
 
 const setupWebhookUrl = async () => {
   if (!WEBHOOK_URL) {
-    console.warn("⚠️ PAYOS_WEBHOOK_URL chưa được cấu hình, bỏ qua đăng ký webhook");
+    console.warn(
+      "⚠️ PAYOS_WEBHOOK_URL chưa được cấu hình, bỏ qua đăng ký webhook",
+    );
     return;
   }
   try {
@@ -47,13 +50,14 @@ setupWebhookUrl();
 // HELPER: Xóa các course đã mua khỏi giỏ hàng
 // ============================================================
 const removePurchasedCoursesFromCart = async (userId, courseItems) => {
-  if (!userId || !Array.isArray(courseItems) || courseItems.length === 0) return;
+  if (!userId || !Array.isArray(courseItems) || courseItems.length === 0)
+    return;
   await Promise.allSettled(
     courseItems.map((item) =>
       axios.delete(`${COURSE_SERVICE_URL}/carts/items/${item.course_id}`, {
         headers: { "x-user-id": String(userId) },
-      })
-    )
+      }),
+    ),
   );
 };
 
@@ -61,24 +65,33 @@ const removePurchasedCoursesFromCart = async (userId, courseItems) => {
 // HELPER: Enroll user vào các khóa học sau khi thanh toán thành công
 // ============================================================
 const enrollUserInCourses = async (userId, courseItems) => {
-  if (!userId || !Array.isArray(courseItems) || courseItems.length === 0) return;
+  if (!userId || !Array.isArray(courseItems) || courseItems.length === 0)
+    return;
 
-  console.log(`🚀 Đang tiến hành enroll ${courseItems.length} khóa học cho user ${userId}`);
+  console.log(
+    `🚀 Đang tiến hành enroll ${courseItems.length} khóa học cho user ${userId}`,
+  );
 
   await Promise.allSettled(
     courseItems.map((item) =>
-      axios.post(
-        `${COURSE_SERVICE_URL}/enroll`,
-        { courseId: item.course_id },
-        { headers: { "x-user-id": String(userId) } }
-      ).then(res => {
-        console.log(`✅ Enroll thành công khóa học ${item.course_id}`);
-        return res;
-      }).catch(err => {
-        console.error(`❌ Lỗi enroll khóa học ${item.course_id}:`, err.message);
-        throw err;
-      })
-    )
+      axios
+        .post(
+          `${COURSE_SERVICE_URL}/enroll`,
+          { courseId: item.course_id },
+          { headers: { "x-user-id": String(userId) } },
+        )
+        .then((res) => {
+          console.log(`✅ Enroll thành công khóa học ${item.course_id}`);
+          return res;
+        })
+        .catch((err) => {
+          console.error(
+            `❌ Lỗi enroll khóa học ${item.course_id}:`,
+            err.message,
+          );
+          throw err;
+        }),
+    ),
   );
 };
 
@@ -91,11 +104,15 @@ const validateCoursesInCart = async (userId, courseIds) => {
   });
 
   const cartItems = response.data?.items ?? [];
-  const cartCourseIds = cartItems.map((item) => item.courseId ?? item.course_id);
+  const cartCourseIds = cartItems.map(
+    (item) => item.courseId ?? item.course_id,
+  );
 
   const notInCart = courseIds.filter((id) => !cartCourseIds.includes(id));
   if (notInCart.length > 0) {
-    const err = new Error(`Khóa học chưa có trong giỏ hàng: ${notInCart.join(", ")}`);
+    const err = new Error(
+      `Khóa học chưa có trong giỏ hàng: ${notInCart.join(", ")}`,
+    );
     err.status = 400;
     throw err;
   }
@@ -121,8 +138,22 @@ const createPaymentLink = async (courseIds, userId) => {
   if (courses.length !== courseIds.length) {
     const foundIds = courses.map((c) => c.id);
     const notFound = courseIds.filter((id) => !foundIds.includes(id));
-    const err = new Error(`Không tìm thấy khóa học với ID: ${notFound.join(", ")}`);
+    const err = new Error(
+      `Không tìm thấy khóa học với ID: ${notFound.join(", ")}`,
+    );
     err.status = 404;
+    throw err;
+  }
+
+  const invalidCourses = courses.filter(
+    (course) => course.status !== "publish",
+  );
+
+  if (invalidCourses.length > 0) {
+    const err = new Error(
+      `User only can enroll course publish. Invalid IDs: ${invalidCourses.map((c) => c.id).join(", ")}`,
+    );
+    err.status = 400;
     throw err;
   }
 
@@ -131,7 +162,9 @@ const createPaymentLink = async (courseIds, userId) => {
     const healthRes = await axios.get(`${COURSE_SERVICE_URL}/`);
     if (healthRes.status !== 200) throw new Error();
   } catch {
-    const err = new Error("Course service is not available -> Enroll service is not available");
+    const err = new Error(
+      "Course service is not available -> Enroll service is not available",
+    );
     err.status = 503;
     throw err;
   }
@@ -183,7 +216,10 @@ const createPaymentLink = async (courseIds, userId) => {
   const t = await db.sequelize.transaction();
   try {
     savedTransaction = await saveTransactionToDB(pendingData, t);
-    await savePaymentData(orderCode, { ...pendingData, transaction_id: savedTransaction.id });
+    await savePaymentData(orderCode, {
+      ...pendingData,
+      transaction_id: savedTransaction.id,
+    });
     await t.commit();
   } catch (err) {
     await t.rollback();
@@ -194,19 +230,22 @@ const createPaymentLink = async (courseIds, userId) => {
   await removePurchasedCoursesFromCart(userId, courseItems);
 
   // Auto-cancel after 5 minutes if unpaid
-  setTimeout(async () => {
-    try {
-      const paymentInfo = await payos.paymentRequests.get(orderCode);
-      if (paymentInfo && paymentInfo.status !== "PAID") {
-        await payos.paymentRequests.cancel(orderCode, "Expired");
-        await updateTransactionStatus(orderCode, "failed");
-        await savePaymentData(orderCode, { status: "failed" });
-        console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
+  setTimeout(
+    async () => {
+      try {
+        const paymentInfo = await payos.paymentRequests.get(orderCode);
+        if (paymentInfo && paymentInfo.status !== "PAID") {
+          await payos.paymentRequests.cancel(orderCode, "Expired");
+          await updateTransactionStatus(orderCode, "failed");
+          await savePaymentData(orderCode, { status: "failed" });
+          console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
+        }
+      } catch (e) {
+        console.error("Lỗi khi tự động huỷ đơn: ", e.message);
       }
-    } catch (e) {
-      console.error("Lỗi khi tự động huỷ đơn: ", e.message);
-    }
-  }, 5 * 60 * 1000);
+    },
+    5 * 60 * 1000,
+  );
 
   return {
     orderCode: paymentLinkResponse.orderCode,
@@ -225,7 +264,9 @@ const buyNow = async (courseId, userId) => {
     const healthRes = await axios.get(`${COURSE_SERVICE_URL}/`);
     if (healthRes.status !== 200) throw new Error();
   } catch {
-    const err = new Error("Course service is not available -> Enroll service is not available");
+    const err = new Error(
+      "Course service is not available -> Enroll service is not available",
+    );
     err.status = 503;
     throw err;
   }
@@ -234,6 +275,12 @@ const buyNow = async (courseId, userId) => {
   if (!course) {
     const err = new Error(`Không tìm thấy khóa học ID: ${courseId}`);
     err.status = 404;
+    throw err;
+  }
+  const courseStatus = course.status || "";
+  if (courseStatus !== "publish") {
+    const err = new Error(`User only can enroll published course!`);
+    err.status = 400;
     throw err;
   }
 
@@ -268,26 +315,32 @@ const buyNow = async (courseId, userId) => {
   const t = await db.sequelize.transaction();
   try {
     savedTransaction = await saveTransactionToDB(pendingData, t);
-    await savePaymentData(orderCode, { ...pendingData, transaction_id: savedTransaction.id });
+    await savePaymentData(orderCode, {
+      ...pendingData,
+      transaction_id: savedTransaction.id,
+    });
     await t.commit();
   } catch (err) {
     await t.rollback();
     throw err;
   }
 
-  setTimeout(async () => {
-    try {
-      const paymentInfo = await payos.paymentRequests.get(orderCode);
-      if (paymentInfo && paymentInfo.status !== "PAID") {
-        await payos.paymentRequests.cancel(orderCode, "Expired");
-        await updateTransactionStatus(orderCode, "failed");
-        await savePaymentData(orderCode, { status: "failed" });
-        console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
+  setTimeout(
+    async () => {
+      try {
+        const paymentInfo = await payos.paymentRequests.get(orderCode);
+        if (paymentInfo && paymentInfo.status !== "PAID") {
+          await payos.paymentRequests.cancel(orderCode, "Expired");
+          await updateTransactionStatus(orderCode, "failed");
+          await savePaymentData(orderCode, { status: "failed" });
+          console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
+        }
+      } catch (e) {
+        console.error("Lỗi khi tự động huỷ đơn: ", e.message);
       }
-    } catch (e) {
-      console.error("Lỗi khi tự động huỷ đơn: ", e.message);
-    }
-  }, 5 * 60 * 1000);
+    },
+    5 * 60 * 1000,
+  );
 
   return {
     orderCode: paymentLinkResponse.orderCode,
@@ -315,7 +368,7 @@ const saveTransactionToDB = async (data, t = null) => {
         provider_order_id: data.provider_order_id,
         created_at: new Date(),
       },
-      { transaction: t }
+      { transaction: t },
     );
 
     const items = data.courseItems.map((item) => ({
@@ -328,7 +381,9 @@ const saveTransactionToDB = async (data, t = null) => {
 
     if (!externalTransaction) await t.commit();
 
-    console.log(`✅ Lưu transaction vào DB, ID: ${transaction.id}, items: ${items.length}`);
+    console.log(
+      `✅ Lưu transaction vào DB, ID: ${transaction.id}, items: ${items.length}`,
+    );
     return transaction;
   } catch (error) {
     if (!externalTransaction) await t.rollback();
@@ -384,7 +439,9 @@ const updateTransactionStatus = async (providerOrderId, status) => {
     const updated = await Transaction.update(updateData, {
       where: { provider_order_id: String(providerOrderId) },
     });
-    console.log(`✅ Cập nhật trạng thái transaction thành ${status} cho order: ${providerOrderId}`);
+    console.log(
+      `✅ Cập nhật trạng thái transaction thành ${status} cho order: ${providerOrderId}`,
+    );
     return updated;
   } catch (error) {
     console.error("❌ Lỗi khi cập nhật trạng thái:", error.message);
@@ -400,11 +457,13 @@ const getOrderStatus = async (orderCode) => {
     const paymentInfo = await payos.paymentRequests.get(orderCode);
     return paymentInfo.status;
   } catch (err) {
-    console.warn(`⚠️ Không thể lấy trạng thái đơn hàng ${orderCode} từ PayOS:`, err.message);
+    console.warn(
+      `⚠️ Không thể lấy trạng thái đơn hàng ${orderCode} từ PayOS:`,
+      err.message,
+    );
     return "PENDING"; // Hoặc trạng thái mặc định phù hợp
   }
 };
-
 
 // ============================================================
 // Xử lý webhook callback từ PayOS
@@ -438,12 +497,16 @@ const payosCallback = async (req) => {
         });
 
         // Tự động enroll user vào khóa học
-        enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(err => {
-          console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
-        });
-
+        enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
+          (err) => {
+            console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
+          },
+        );
       } else {
-        publishPaymentFailed(webhookData.orderCode, webhookData.desc || "Payment failed");
+        publishPaymentFailed(
+          webhookData.orderCode,
+          webhookData.desc || "Payment failed",
+        );
       }
 
       return { message: "Callback nhận thành công", data: webhookData };

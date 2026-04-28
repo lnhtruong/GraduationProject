@@ -69,12 +69,13 @@ CREATE TABLE IF NOT EXISTS `videos` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `user_id` INT(11) NOT NULL,
     `mascot_image_id` INT(11) DEFAULT NULL,
-    `type` ENUM('highlight', 'mascot') NOT NULL,
+    `type` ENUM('highlight', 'mascot', 'long') NOT NULL,
     `name` VARCHAR(255) DEFAULT NULL,
     `url` TEXT NULL,
     `duration` DOUBLE DEFAULT NULL,
     `thumbnail` VARCHAR(512) NOT NULL DEFAULT 'https://placehold.co/320x180/png?text=thumbnail',
     `srt_raw_url` TEXT NULL,
+    `bunny_video_guid` VARCHAR(64) NULL,
     `job_id` VARCHAR(255) NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS `videos` (
         )
     ),
     UNIQUE INDEX `uq_videos_job_id` (`job_id`),
+    UNIQUE INDEX `uq_videos_bunny_video_guid` (`bunny_video_guid`),
     CONSTRAINT `fk_videos_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_videos_mascot_image` FOREIGN KEY (`mascot_image_id`) REFERENCES `mascot_images` (`image_id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -206,6 +208,5 @@ CREATE TABLE quiz_options (
     INDEX idx_quiz_options_question_id (question_id),
     CONSTRAINT fk_quiz_options_question FOREIGN KEY (question_id) REFERENCES quiz_questions (id) ON DELETE CASCADE
 );
-
 
 SET FOREIGN_KEY_CHECKS = 1;
