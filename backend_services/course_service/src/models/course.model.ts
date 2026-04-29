@@ -36,7 +36,7 @@ export class Course extends Model {
   declare name: string;
 
   @Column({
-    type: DataType.STRING(255),
+    type: DataType.TEXT,
     allowNull: true,
   })
   declare description?: string;
