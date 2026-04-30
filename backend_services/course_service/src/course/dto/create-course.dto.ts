@@ -16,7 +16,6 @@ export class CreateCourseDto {
   name: string;
 
   @IsString()
-  @MaxLength(255)
   @IsOptional()
   description?: string;
 
