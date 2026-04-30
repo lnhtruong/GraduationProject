@@ -172,6 +172,25 @@ const createPaymentLink = async (courseIds, userId) => {
   // Sau đó mới check cart
   await validateCoursesInCart(userId, courseIds);
 
+  // Check if user is already enrolled in any of the courses
+  try {
+    for (const courseId of courseIds) {
+      const enrollCheckRes = await axios.get(
+        `${COURSE_SERVICE_URL}/enroll/check-mine-exists`,
+        { params: { userId, courseId }, headers: { "x-user-id": String(userId) } },
+      );
+      if (enrollCheckRes.data?.check) {
+        const err = new Error(`User ${userId} is already enrolled in course ${courseId}`);
+        err.status = 409;
+        throw err;
+      }
+    }
+  } catch (err) {
+    if (err.status === 409) throw err;
+    console.error("⚠️ Failed to check enrollment status:", err.message);
+    throw err;
+  }
+
   // Calculate total amount
   const totalAmount = courses.reduce((sum, c) => sum + c.price, 0);
 
@@ -282,6 +301,59 @@ const buyNow = async (courseId, userId) => {
     const err = new Error(`User only can enroll published course!`);
     err.status = 400;
     throw err;
+  }
+
+  // Check if user is already enrolled
+  try {
+    const enrollCheckRes = await axios.get(
+      `${COURSE_SERVICE_URL}/enroll/check-mine-exists`,
+      { params: { userId, courseId }, headers: { "x-user-id": String(userId) } },
+    );
+    if (enrollCheckRes.data?.check) {
+      const err = new Error(`User ${userId} is already enrolled in course ${courseId}`);
+      err.status = 409;
+      throw err;
+    }
+  } catch (err) {
+    if (err.status === 409) throw err;
+    console.error("⚠️ Failed to check enrollment status:", err.message);
+    throw err;
+  }
+
+  // Free course — enroll directly without payment
+  if (course.price === 0) {
+    const courseItems = [{ course_id: course.id, price: 0 }];
+    const orderCode = Date.now();
+
+    // DB transaction: save record + enroll together
+    const t = await db.sequelize.transaction();
+    let savedTransaction;
+    try {
+      // Save transaction record
+      savedTransaction = await saveTransactionToDB(
+        {
+          user_id: userId,
+          total_amount: 0,
+          status: "paid",
+          provider: "free",
+          provider_order_id: String(orderCode),
+          courseItems,
+        },
+        t,
+      );
+
+      // Enroll user within same transaction
+      await enrollUserInCourses(userId, courseItems);
+
+      // Commit only if both succeed
+      await t.commit();
+    } catch (err) {
+      await t.rollback();
+      console.error("❌ Lỗi enroll khóa học miễn phí:", err.message);
+      throw err;
+    }
+
+    return { enrolled: true, transaction_id: savedTransaction.id };
   }
 
   const totalAmount = course.price;
