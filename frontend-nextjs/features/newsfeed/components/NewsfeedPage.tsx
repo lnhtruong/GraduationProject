@@ -1,118 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Clapperboard } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowBigDownDash, ArrowBigUpDash, Clapperboard } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
-import { useNewsfeed } from "../hooks/useNewsfeed";
-import { NewsfeedCommentsSheet } from "./NewsfeedCommentsSheet";
-import { NewsfeedCoursePanel } from "./NewsfeedCoursePanel";
-import { NewsfeedMenuSheet } from "./NewsfeedMenuSheet";
-import { NewsfeedOverlayHud } from "./NewsfeedOverlayHud";
+import { cn } from "@/lib/utils";
+import { useNewsfeedVideoFeed } from "../hooks/useNewsfeedVideoFeed";
+import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
 import { getInitials } from "./newsfeed-ui";
-import { NewsfeedVideoStage } from "./NewsfeedVideoStage";
+import { NewsfeedHeader } from "./NewsfeedHeader";
+import { NewsfeedOptionBox } from "./NewsfeedOptionBox";
+import { NewsfeedShareDialog } from "./NewsfeedShareDialog";
+import { NewsfeedSidebar } from "./NewsfeedSidebar";
+import { NewsfeedVideoFeed } from "./NewsfeedVideoFeed";
 
 export function NewsfeedPage() {
+	const feed = useNewsfeedVideoFeed(true);
 	const {
-		activeVideo,
-		error,
-		isCoursePanelOpen,
-		isHudVisible,
-		isLoading,
 		isMenuOpen,
-		onTouchEnd,
-		onTouchStart,
-		onWheelCapture,
-		goNext,
-		goPrev,
-		endReached,
-		closeCoursePanel,
-		toggleCoursePanel,
-		toggleMenu,
-		openMenu,
+		isOptionBoxOpen,
+		optionBoxContentType,
 		closeMenu,
-		refetch,
-		wakeHud,
-	} = useNewsfeed();
+		toggleMenu,
+		openOptionBox,
+		closeOptionBox,
+		setActiveVideoId,
+	} = useNewsfeedUiStore();
 	const { user } = useAuth();
+	const [shareOpen, setShareOpen] = useState(false);
+	const [shareUrl, setShareUrl] = useState("");
 
-	const videoRef = useRef<HTMLVideoElement | null>(null);
-	const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
-	const [isMuted, setIsMuted] = useState(false);
-	const [isPaused, setIsPaused] = useState(false);
-	const [duration, setDuration] = useState(0);
-	const [currentTime, setCurrentTime] = useState(0);
-	const [volume, setVolume] = useState(0.7);
-	const [isPlayerHovered, setIsPlayerHovered] = useState(false);
-	const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
-	const [isCommentOpen, setIsCommentOpen] = useState(false);
+	const activeVideo = feed.activeVideo;
 
 	useEffect(() => {
-		const videoElement = videoRef.current;
-		if (!videoElement || !activeVideo) {
-			return;
-		}
+		setActiveVideoId(activeVideo?.id ?? null);
+	}, [activeVideo?.id, setActiveVideoId]);
 
-		setIsPaused(false);
-		setDuration(0);
-		setCurrentTime(0);
-		setVideoAspectRatio(16 / 9);
-		setIsDescriptionOpen(false);
-		videoElement.currentTime = 0;
-		videoElement.muted = isMuted;
-		videoElement.volume = volume;
-
-		const playCurrentVideo = async () => {
-			try {
-				await videoElement.play();
-			} catch {
-				videoElement.muted = true;
-				setIsMuted(true);
-				try {
-					await videoElement.play();
-				} catch {
-					// Ignore autoplay hard failures; user can click to play.
-				}
-			}
-		};
-
-		void playCurrentVideo();
-	}, [activeVideo, isMuted, volume]);
-
-	useEffect(() => {
-		const videoElement = videoRef.current;
-		if (!videoElement) {
-			return;
-		}
-		videoElement.muted = isMuted;
-		videoElement.volume = volume;
-	}, [isMuted, volume]);
-
-	const handleTogglePlay = useCallback(async () => {
-		const videoElement = videoRef.current;
-		if (!videoElement) {
-			return;
-		}
-
-		wakeHud();
-		if (videoElement.paused) {
-			await videoElement.play();
-			setIsPaused(false);
-			return;
-		}
-
-		videoElement.pause();
-		setIsPaused(true);
-	}, [wakeHud]);
+	const { goNext, goPrev, jumpTo } = feed;
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.code !== "Space") {
-				return;
-			}
-
 			const target = event.target as HTMLElement | null;
 			const tagName = target?.tagName;
 			const isEditable =
@@ -126,80 +55,92 @@ export function NewsfeedPage() {
 				return;
 			}
 
-			event.preventDefault();
-			void handleTogglePlay();
+			if (event.code === "Space") {
+				event.preventDefault();
+				const element = document.querySelector(
+					"video[data-active='true']",
+				) as HTMLVideoElement | null;
+				if (element) {
+					if (element.paused) {
+						void element.play();
+					} else {
+						element.pause();
+					}
+				}
+			}
+
+			if (event.key === "ArrowDown") {
+				event.preventDefault();
+				goNext();
+			}
+
+			if (event.key === "ArrowUp") {
+				event.preventDefault();
+				goPrev();
+			}
 		};
 
-		window.addEventListener("keydown", onKeyDown);
+		window.addEventListener("keydown", onKeyDown, { passive: false });
 		return () => {
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [handleTogglePlay]);
+	}, [goNext, goPrev]);
 
-	const handleToggleMute = useCallback(() => {
-		wakeHud();
-		setIsMuted((current) => {
-			const next = !current;
-			if (videoRef.current) {
-				videoRef.current.muted = next;
-			}
-			if (!next && volume <= 0) {
-				setVolume(0.5);
-			}
-			return next;
-		});
-	}, [volume, wakeHud]);
-
-	const handleSeek = (nextTime: number) => {
-		const videoElement = videoRef.current;
-		if (!videoElement || Number.isNaN(nextTime)) {
+	const onOpenCourse = useCallback(() => {
+		if (isOptionBoxOpen && optionBoxContentType === "course") {
+			closeOptionBox();
 			return;
 		}
+		openOptionBox("course");
+	}, [closeOptionBox, isOptionBoxOpen, openOptionBox, optionBoxContentType]);
 
-		const clamped = Math.max(0, Math.min(nextTime, duration || 0));
-		videoElement.currentTime = clamped;
-		setCurrentTime(clamped);
-	};
-
-	const handleVolumeChange = (value: number) => {
-		const clamped = Math.max(0, Math.min(value, 1));
-		setVolume(clamped);
-		setIsMuted(clamped <= 0);
-	};
-
-	const formatTime = (seconds: number) => {
-		if (!Number.isFinite(seconds) || seconds <= 0) {
-			return "0:00";
+	const onOpenComments = useCallback(() => {
+		if (isOptionBoxOpen && optionBoxContentType === "comments") {
+			closeOptionBox();
+			return;
 		}
+		openOptionBox("comments");
+	}, [closeOptionBox, isOptionBoxOpen, openOptionBox, optionBoxContentType]);
 
-		const total = Math.floor(seconds);
-		const mins = Math.floor(total / 60);
-		const secs = total % 60;
-		return `${mins}:${secs.toString().padStart(2, "0")}`;
-	};
+	const onOpenShare = useCallback((url: string) => {
+		setShareUrl(url);
+		setShareOpen(true);
+	}, []);
 
-	if (isLoading) {
+	const onActiveIndexChange = useCallback(
+		(index: number) => {
+			jumpTo(index);
+		},
+		[jumpTo],
+	);
+
+	const viewerName = useMemo(
+		() => user?.firstName ?? user?.email ?? "bạn",
+		[user?.email, user?.firstName],
+	);
+
+	if (feed.isLoading) {
 		return (
-			<div className="h-screen bg-[#0f0f0f]">
-				<PageLoader message="Đang tải video cho Newsfeed..." className="h-full" />
+			<div className="h-screen bg-background">
+				<PageLoader message="Đang tải video cho bảng tin..." className="h-full" />
 			</div>
 		);
 	}
 
-	if (error) {
-		const message = error instanceof Error ? error.message : "Không thể tải Newsfeed";
+	if (feed.error) {
+		const message = feed.error instanceof Error ? feed.error.message : "Không thể tải bảng tin";
 
 		return (
-			<div className="h-screen bg-[#0f0f0f] text-white flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-destructive" />
-				<h2 className="text-2xl font-bold">Tải Newsfeed thất bại</h2>
+				<h2 className="text-2xl font-bold">Tải bảng tin thất bại</h2>
 				<p className="text-muted-foreground max-w-xl">
 					{message}
 				</p>
 				<div className="flex items-center gap-3">
 					<Button
 						onClick={() => {
-							void refetch();
+							void feed.refetch();
 						}}
 					>
 						Thử lại
@@ -214,11 +155,11 @@ export function NewsfeedPage() {
 
 	if (!activeVideo) {
 		return (
-			<div className="h-screen bg-[#0f0f0f] text-white flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-primary" />
 				<h2 className="text-2xl font-bold">Chưa có video để hiển thị</h2>
 				<p className="text-muted-foreground max-w-xl">
-					Hãy tải lên ít nhất một video, Newsfeed sẽ lấy dữ liệu từ API feed để
+					Hãy tải lên ít nhất một video, bảng tin sẽ lấy dữ liệu từ API feed để
 					tạo trải nghiệm lướt dọc liên tục.
 				</p>
 				<Button asChild>
@@ -228,71 +169,74 @@ export function NewsfeedPage() {
 		);
 	}
 
-	const hudBaseOpacity = isHudVisible ? "opacity-100" : "opacity-35";
-
 	return (
-		<div
-			className="relative h-screen overflow-hidden bg-[#0f0f0f] text-white"
-			onMouseMove={wakeHud}
-			onWheel={onWheelCapture}
-			onTouchStart={onTouchStart}
-			onTouchEnd={onTouchEnd}
-		>
-			<NewsfeedVideoStage
-				video={activeVideo}
-				isCoursePanelOpen={isCoursePanelOpen}
-				isMuted={isMuted}
-				volume={volume}
-				isHovered={isPlayerHovered}
-				isDescriptionOpen={isDescriptionOpen}
-				duration={duration}
-				currentTime={currentTime}
-				videoAspectRatio={videoAspectRatio}
-				videoRef={videoRef}
-				onHoverChange={setIsPlayerHovered}
-				onTogglePlay={() => {
-					void handleTogglePlay();
-				}}
-				onToggleMute={handleToggleMute}
-				onVolumeChange={handleVolumeChange}
-				onSeek={handleSeek}
-				onToggleCoursePanel={toggleCoursePanel}
-				onOpenComments={() => setIsCommentOpen(true)}
-				onDescriptionOpenChange={setIsDescriptionOpen}
-				onVideoMetadataLoaded={(event) => {
-					const { duration: mediaDuration, videoWidth, videoHeight } = event.currentTarget;
-					setDuration(mediaDuration || 0);
-					setVideoAspectRatio(videoWidth > 0 && videoHeight > 0 ? videoWidth / videoHeight : 16 / 9);
-				}}
-				onVideoTimeUpdate={(event) => {
-					setCurrentTime(event.currentTarget.currentTime || 0);
-				}}
-				formatTime={formatTime}
-			/>
-
-			<NewsfeedOverlayHud
-				hudBaseOpacity={hudBaseOpacity}
-				isCoursePanelOpen={isCoursePanelOpen}
-				userInitials={getInitials(user?.firstName ?? user?.email ?? "U")}
-				onOpenMenu={openMenu}
+		<div className="relative h-screen overflow-hidden bg-background text-foreground">
+			<NewsfeedHeader
 				onToggleMenu={toggleMenu}
-				onPrev={goPrev}
-				onNext={goNext}
-				onInteract={wakeHud}
+				userInitials={getInitials(user?.firstName ?? user?.email ?? "U")}
+				userName={user?.firstName ?? user?.email ?? null}
 			/>
 
-			<NewsfeedCoursePanel video={activeVideo} isOpen={isCoursePanelOpen} onClose={closeCoursePanel} />
-			<NewsfeedMenuSheet isOpen={isMenuOpen} onOpen={openMenu} onClose={closeMenu} />
-			<NewsfeedCommentsSheet
-				isOpen={isCommentOpen}
-				onClose={() => setIsCommentOpen(false)}
+			<NewsfeedSidebar isExpanded={isMenuOpen} onClose={closeMenu} />
+
+			<main
+				className={cn(
+					"h-full pt-16 transition-all duration-300",
+					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
+					isOptionBoxOpen ? "md:pr-[456px] pr-[72px]" : "pr-[72px]",
+				)}
+			>
+				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">
+					<NewsfeedVideoFeed
+						videos={feed.videos}
+						activeIndex={feed.activeIndex}
+						onActiveIndexChange={onActiveIndexChange}
+						onOpenCourse={onOpenCourse}
+						onOpenComments={onOpenComments}
+						onOpenShare={onOpenShare}
+						className="w-full"
+					/>
+				</div>
+			</main>
+
+			<NewsfeedOptionBox
+				isOpen={isOptionBoxOpen}
+				contentType={optionBoxContentType}
 				video={activeVideo}
-				viewerName={user?.firstName ?? user?.email ?? "ban"}
+				viewerName={viewerName}
+				onClose={closeOptionBox}
 			/>
 
-			{endReached ? (
-				<div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/75 px-4 py-2 text-xs text-white shadow-lg backdrop-blur">
-					Bạn đã xem hết toàn bộ video được đề xuất trong hôm nay.
+			<NewsfeedShareDialog
+				open={shareOpen}
+				onOpenChange={setShareOpen}
+				url={shareUrl}
+			/>
+
+			<div className="fixed right-0 top-16 z-40 flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">
+				<Button
+					size="icon"
+					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 shadow-sm hover:bg-accent"
+					onClick={() => {
+						goPrev();
+					}}
+				>
+					<ArrowBigUpDash className="h-5 w-5" />
+				</Button>
+				<Button
+					size="icon"
+					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 shadow-sm hover:bg-accent"
+					onClick={() => {
+						goNext();
+					}}
+				>
+					<ArrowBigDownDash className="h-5 w-5" />
+				</Button>
+			</div>
+
+			{feed.endReached ? (
+				<div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-background/90 px-4 py-2 text-xs shadow-lg">
+					Đã xem hết video đề xuất.
 				</div>
 			) : null}
 		</div>

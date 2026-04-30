@@ -10,7 +10,7 @@ import type {
 const FEED_ENDPOINT = "/media/feed";
 
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
-  const courseName = raw.course?.name?.trim() || "Khoa hoc";
+  const courseName = raw.course?.name?.trim() || "Khóa học";
   const title = raw.title?.trim() || courseName || "Video";
   const description = raw.course?.description?.trim() || title;
   const video = raw.video;
@@ -25,7 +25,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     description,
     videoUrl: video.url,
     thumbnail: video.thumbnail ?? null,
-    type: raw.video_type ?? video.type ?? "unknown",
+    type: raw.video_type ?? video.type ?? "không xác định",
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
     lecturer: raw.lecturer,
     stats: {
@@ -41,8 +41,8 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     course: {
       id: raw.course?.id ?? raw.feed_id,
       name: courseName,
-      level: raw.course?.level?.trim() || "Unknown",
-      duration: raw.course?.duration?.trim() || "N/A",
+      level: raw.course?.level?.trim() || "Không rõ",
+      duration: raw.course?.duration?.trim() || "--",
       language: raw.course?.language?.trim() || "vi",
       price: Number(raw.course?.price ?? 0),
       userId: Number(raw.course?.userId ?? 0),
