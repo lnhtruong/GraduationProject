@@ -323,37 +323,8 @@ const buyNow = async (courseId, userId) => {
   // Free course — enroll directly without payment
   if (course.price === 0) {
     const courseItems = [{ course_id: course.id, price: 0 }];
-    const orderCode = Date.now();
-
-    // DB transaction: save record + enroll together
-    const t = await db.sequelize.transaction();
-    let savedTransaction;
-    try {
-      // Save transaction record
-      savedTransaction = await saveTransactionToDB(
-        {
-          user_id: userId,
-          total_amount: 0,
-          status: "paid",
-          provider: "free",
-          provider_order_id: String(orderCode),
-          courseItems,
-        },
-        t,
-      );
-
-      // Enroll user within same transaction
-      await enrollUserInCourses(userId, courseItems);
-
-      // Commit only if both succeed
-      await t.commit();
-    } catch (err) {
-      await t.rollback();
-      console.error("❌ Lỗi enroll khóa học miễn phí:", err.message);
-      throw err;
-    }
-
-    return { enrolled: true, transaction_id: savedTransaction.id };
+    await enrollUserInCourses(userId, courseItems);
+    return { enrolled: true };
   }
 
   const totalAmount = course.price;
