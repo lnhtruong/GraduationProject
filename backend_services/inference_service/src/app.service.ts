@@ -29,7 +29,7 @@ export class AppService {
     this.colabUrl = this.configService.getOrThrow<string>('COLAB_API_URL');
   }
 
-  // 1. Tạo Highlight Reel
+  // 1. Tạo Highlight Reel (file upload)
   async createHighlightReel(
     video: Express.Multer.File,
     body: unknown,
@@ -45,11 +45,17 @@ export class AppService {
       const includeKeywords = getStringField(body, 'include_keywords');
       const excludeKeywords = getStringField(body, 'exclude_keywords');
       const isOpenAI = getStringField(body, 'isOpenAI');
+      const isMultiOutput = getStringField(body, 'isMultiOutput');
+      const targetMin = getStringField(body, 'target_min');
+      const targetMax = getStringField(body, 'target_max');
       formData.append('user_id', String(userIdFromHeader ?? ''));
       if (topic) formData.append('topic', topic);
       if (includeKeywords) formData.append('include_keywords', includeKeywords);
       if (excludeKeywords) formData.append('exclude_keywords', excludeKeywords);
       if (isOpenAI) formData.append('isOpenAI', isOpenAI);
+      if (isMultiOutput) formData.append('isMultiOutput', isMultiOutput);
+      if (targetMin) formData.append('target_min', targetMin);
+      if (targetMax) formData.append('target_max', targetMax);
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
@@ -58,6 +64,54 @@ export class AppService {
           {
             headers: formData.getHeaders(),
           },
+        ),
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<unknown> | undefined;
+      const payload = axiosError?.response?.data ?? 'Colab Error';
+      const status = axiosError?.response?.status ?? 500;
+      throw new HttpException(payload as string | Record<string, any>, status);
+    }
+  }
+
+  // 1b. Tạo Highlight Reel (video link — download locally on Colab for speed)
+  async createHighlightReelLink(
+    body: unknown,
+    userIdFromHeader?: number,
+  ): Promise<unknown> {
+    try {
+      const videoUrl = getStringField(body, 'video_url');
+      const topic = getStringField(body, 'topic');
+      const includeKeywords = getStringField(body, 'include_keywords');
+      const excludeKeywords = getStringField(body, 'exclude_keywords');
+      const isOpenAI = getStringField(body, 'isOpenAI');
+      const isMultiOutput = getStringField(body, 'isMultiOutput');
+      const targetMin = getStringField(body, 'target_min');
+      const targetMax = getStringField(body, 'target_max');
+
+      if (!videoUrl) {
+        throw new HttpException('video_url is required', 400);
+      }
+
+      const payload: Record<string, unknown> = {
+        user_id: String(userIdFromHeader ?? ''),
+        video_url: videoUrl,
+        topic: topic ?? '',
+        include_keywords: includeKeywords ?? '',
+        exclude_keywords: excludeKeywords ?? '',
+        isOpenAI: isOpenAI === 'true',
+        isMultiOutput: isMultiOutput === 'true',
+      };
+      if (targetMin) payload.target_min = Number(targetMin);
+      if (targetMax) payload.target_max = Number(targetMax);
+
+      const response = await firstValueFrom(
+        this.httpService.post<unknown>(
+          `${this.colabUrl}/highlight-reel-link`,
+          payload,
+          { headers: { 'Content-Type': 'application/json' } },
         ),
       );
 

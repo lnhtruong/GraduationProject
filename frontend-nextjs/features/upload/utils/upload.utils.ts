@@ -20,6 +20,11 @@ export function buildHighlightReelFormData(
   if (params.excludeKeywords)
     formData.append("exclude_keywords", params.excludeKeywords);
   formData.append("isOpenAI", "false");
+  if (params.isMultiOutput) formData.append("isMultiOutput", "true");
+  if (params.targetMin !== undefined)
+    formData.append("target_min", String(params.targetMin));
+  if (params.targetMax !== undefined)
+    formData.append("target_max", String(params.targetMax));
 
   return formData;
 }

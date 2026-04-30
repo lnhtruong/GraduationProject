@@ -81,6 +81,20 @@ export interface HighlightReelParams {
   topic?: string;
   includeKeywords?: string;
   excludeKeywords?: string;
+  isMultiOutput?: boolean;
+  targetMin?: number;
+  targetMax?: number;
   /** Called with 0–100 as file bytes are sent to the server */
   onUploadProgress?: (percent: number) => void;
+}
+
+export interface HighlightReelLinkParams {
+  videoUrl: string;
+  topic?: string;
+  includeKeywords?: string;
+  excludeKeywords?: string;
+  isOpenAI?: boolean;
+  isMultiOutput?: boolean;
+  targetMin?: number;
+  targetMax?: number;
 }

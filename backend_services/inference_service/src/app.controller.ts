@@ -42,6 +42,20 @@ export class AppController {
     return this.appService.createHighlightReel(video, body, userId);
   }
 
+  // Map với /highlight-reel-link (video link, no file upload)
+  @Post('highlight-reel-link')
+  @UseInterceptors(NoFilesInterceptor())
+  async createHighlightReelLink(
+    @Body() body: unknown,
+    @Headers('x-user-id') userIdHeader?: string,
+  ): Promise<unknown> {
+    const userId =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+    return this.appService.createHighlightReelLink(body, userId);
+  }
+
   // Map với /mascot
   @Post('mascot')
   @UseInterceptors(FileInterceptor('audio'))
