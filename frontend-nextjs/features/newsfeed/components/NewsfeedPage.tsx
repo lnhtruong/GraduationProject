@@ -216,7 +216,7 @@ export function NewsfeedPage() {
 			<div className="fixed right-0 top-16 z-40 flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">
 				<Button
 					size="icon"
-					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 shadow-sm hover:bg-accent"
+					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
 					onClick={() => {
 						goPrev();
 					}}
@@ -225,7 +225,7 @@ export function NewsfeedPage() {
 				</Button>
 				<Button
 					size="icon"
-					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 shadow-sm hover:bg-accent"
+					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
 					onClick={() => {
 						goNext();
 					}}

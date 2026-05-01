@@ -29,6 +29,30 @@ export interface NewsfeedVideoStats {
 	views: number;
 }
 
+export interface NewsfeedFeedStatsItem {
+	feedId: number;
+	title: string;
+	course: {
+		id: number;
+		name: string;
+	};
+	stats: {
+		views: number;
+		uniqueViewers: number;
+		completedViews: number;
+		completionRate: number;
+		averageWatchDuration: number;
+		likes: number;
+		saves: number;
+		shares: number;
+		comments: number;
+		engagementRate?: number;
+		score?: number;
+	};
+}
+
+export interface NewsfeedFeedDetailStatsResponse extends NewsfeedFeedStatsItem {}
+
 export interface NewsfeedVideoData {
 	id: number;
 	user_id?: number;
@@ -90,6 +114,8 @@ export interface NewsfeedItem {
 export interface NewsfeedCommentItem {
 	id: number;
 	content: string;
+	origin_cmt?: number | null;
+	total_nested_cmt?: number;
 	created_at: string;
 	updated_at: string;
 	commenter?: {
@@ -101,6 +127,12 @@ export interface NewsfeedCommentItem {
 }
 
 export interface NewsfeedCommentPageResponse {
+	data: NewsfeedCommentItem[];
+	next_cursor: number | null;
+}
+
+export interface NewsfeedCommentDetailResponse {
+	origin_cmt: number;
 	data: NewsfeedCommentItem[];
 	next_cursor: number | null;
 }

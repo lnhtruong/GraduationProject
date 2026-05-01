@@ -1,7 +1,9 @@
-﻿import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
+import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
 import { withQueryPath } from "@/features/_shared/crud-factories";
 import type {
+  NewsfeedCommentDetailResponse,
   NewsfeedCommentPageResponse,
+  NewsfeedFeedDetailStatsResponse,
   NewsfeedItem,
   NewsfeedPageResponse,
   NewsfeedRawItem,
@@ -105,16 +107,55 @@ export const newsfeedApi = createApi({
     };
   },
 
+  getCommentDetail: async ({
+    feedId,
+    originCmt,
+    cursor,
+    limit = 20,
+  }: {
+    feedId: number;
+    originCmt: number;
+    cursor?: number;
+    limit?: number;
+  }) => {
+    const { data } = await apiHttpClient.get<NewsfeedCommentDetailResponse>(
+      withQueryPath(`${FEED_ENDPOINT}/${feedId}/comment/detail`, {
+        origin_cmt: originCmt,
+        cursor,
+        limit,
+      }),
+    );
+
+    return {
+      origin_cmt: data.origin_cmt,
+      items: Array.isArray(data.data) ? data.data : [],
+      nextCursor: typeof data.next_cursor === "number" ? data.next_cursor : null,
+    };
+  },
+
   createComment: async ({
     feedId,
     content,
+    originCmt,
   }: {
     feedId: number;
     content: string;
+    originCmt?: number | null;
   }) => {
-    const { data } = await apiHttpClient.post(`${FEED_ENDPOINT}/${feedId}/comments`, {
-      content,
-    });
+    const { data } = await apiHttpClient.post(
+      `${FEED_ENDPOINT}/${feedId}/comments`,
+      {
+        content,
+        origin_cmt: originCmt ?? null,
+      },
+    );
+    return data;
+  },
+
+  getFeedDetailStats: async ({ feedId }: { feedId: number }): Promise<NewsfeedFeedDetailStatsResponse> => {
+    const { data } = await apiHttpClient.get<NewsfeedFeedDetailStatsResponse>(
+      `${FEED_ENDPOINT}/${feedId}/stats`,
+    );
     return data;
   },
 });

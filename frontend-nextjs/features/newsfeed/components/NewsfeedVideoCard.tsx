@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
+import { useNewsfeedFeedDetailStats } from "../api/newsfeed.hooks";
 import { getInitials } from "./newsfeed-ui";
 
 function sanitizeDescriptionHtml(input?: string) {
@@ -84,6 +85,7 @@ export function NewsfeedVideoCard({
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [isSaved, setIsSaved] = useState(video.isSaved);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
 
   const isPortraitVideo = videoAspectRatio < 1;
   const descriptionText = useMemo(() => stripHtml(video.description), [video.description]);
@@ -106,6 +108,8 @@ export function NewsfeedVideoCard({
     const combined = [shortDescription, hashtags].filter(Boolean).join(" ");
     return combined;
   }, [hashtags, shortDescription]);
+
+  const displayStats = feedStatsQuery.data?.stats ?? video.stats;
 
   const hasSeeMore = descriptionText.length > 90;
   const progressPercent =
@@ -360,9 +364,16 @@ export function NewsfeedVideoCard({
               value={isMuted ? 0 : volume}
               onChange={(event) => handleVolumeChange(Number(event.target.value))}
               className={cn(
-                "h-1 w-0 opacity-0 appearance-none accent-primary transition-all pointer-events-none",
+                "h-1 w-0 appearance-none bg-transparent opacity-0 transition-all pointer-events-none",
+                "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent",
+                "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
+                "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm",
+                "[&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-sm",
                 isVolumeHovered && "w-24 opacity-100 pointer-events-auto",
               )}
+              style={{
+                background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) 100%)`,
+              }}
             />
           </div>
 
@@ -394,26 +405,26 @@ export function NewsfeedVideoCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel>Tuy chon video</DropdownMenuLabel>
+                <DropdownMenuLabel>Tùy chọn video</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <Settings2 className="h-4 w-4" />Chat luong
+                  <Settings2 className="h-4 w-4" />Chất lượng
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Gauge className="h-4 w-4" />Toc do phat
+                  <Gauge className="h-4 w-4" />Tốc độ phát
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Subtitles className="h-4 w-4" />Phu de
+                  <Subtitles className="h-4 w-4" />Phụ đề
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Volume2 className="h-4 w-4" />Tu dong cuon
+                  <Volume2 className="h-4 w-4" />Tự động cuộn
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <PictureInPicture2 className="h-4 w-4" />Picture in Picture
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <Flag className="h-4 w-4" />Bao cao
+                  <Flag className="h-4 w-4" />Báo cáo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -504,7 +515,7 @@ export function NewsfeedVideoCard({
             <Heart className={cn("h-5 w-5", isLiked && "fill-red-500 text-red-500")} />
           </Button>
           <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {video.stats.likes.toLocaleString("vi-VN")}
+            {displayStats.likes.toLocaleString("vi-VN")}
           </span>
 
           <Button
@@ -518,7 +529,7 @@ export function NewsfeedVideoCard({
             <MessageCircle className="h-5 w-5" />
           </Button>
           <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {video.stats.comments.toLocaleString("vi-VN")}
+            {displayStats.comments.toLocaleString("vi-VN")}
           </span>
 
           <Button
@@ -532,7 +543,7 @@ export function NewsfeedVideoCard({
             <Bookmark className={cn("h-5 w-5", isSaved && "fill-foreground")} />
           </Button>
           <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {video.stats.saves.toLocaleString("vi-VN")}
+            {displayStats.saves.toLocaleString("vi-VN")}
           </span>
 
           <Button
@@ -546,7 +557,7 @@ export function NewsfeedVideoCard({
             <Share2 className="h-5 w-5" />
           </Button>
           <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {video.stats.shares.toLocaleString("vi-VN")}
+            {displayStats.shares.toLocaleString("vi-VN")}
           </span>
         </div>
 
