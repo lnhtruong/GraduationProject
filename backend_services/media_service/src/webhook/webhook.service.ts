@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
-import { WebsocketService } from 'src/websocket/websocket.service';
+// import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
+import { SseService } from 'src/sse/sse.service';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -43,7 +44,8 @@ export class WebhookService {
     constructor(
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
-        private readonly websocketService: WebsocketService,
+        // private readonly websocketService: WebsocketService,
+        private readonly sseService: SseService,
         private readonly bunnyService: BunnyService,
     ) { }
 
@@ -123,8 +125,8 @@ export class WebhookService {
 
         const videoMeta =
             play.video !== null &&
-            typeof play.video === 'object' &&
-            !Array.isArray(play.video)
+                typeof play.video === 'object' &&
+                !Array.isArray(play.video)
                 ? (play.video as Record<string, unknown>)
                 : undefined;
         const titleFromPlay =
@@ -158,7 +160,7 @@ export class WebhookService {
 
         await row.reload();
 
-        this.websocketService.notifyUploadCompleted(row.user_id, {
+        this.sseService.notifyUploadCompleted(row.user_id, {
             id: row.id,
             url,
             type: VideoType.LONG,
@@ -346,7 +348,7 @@ export class WebhookService {
 
         await row.reload();
 
-        this.websocketService.notifyUploadCompleted(userId, {
+        this.sseService.notifyUploadCompleted(userId, {
             id: row.id,
             url: row.url ?? '',
             type: row.type,
@@ -446,7 +448,7 @@ export class WebhookService {
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        this.websocketService.notifyVideoCompleted(userId, {
+        this.sseService.notifyVideoCompleted(userId, {
             url: url,
             type: type,
             duration: duration ?? undefined,
