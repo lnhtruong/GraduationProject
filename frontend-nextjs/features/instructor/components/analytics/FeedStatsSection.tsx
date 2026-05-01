@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Video } from "lucide-react";
 import {
   Table,
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function FeedStatsSection({ feeds, isLoading }: Props) {
+  const router = useRouter();
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -62,7 +64,11 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
       </TableHeader>
       <TableBody>
         {feeds.map((item) => (
-          <TableRow key={item.feedId} className="border-border/40">
+          <TableRow
+            key={item.feedId}
+            className="cursor-pointer border-border/40 transition-colors hover:bg-primary/[0.03]"
+            onClick={() => router.push(`/instructor/courses/${item.course.id}/feed/${item.feedId}/edit`)}
+          >
             <TableCell className="py-3.5 pl-5">
               <p className="line-clamp-1 max-w-[180px] text-sm font-medium">{item.title}</p>
             </TableCell>

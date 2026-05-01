@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Flame, Eye, Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -32,9 +33,12 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function TopCard({ item }: { item: TrendingFeedItem }) {
+function TopCard({ item, onClick }: { item: TrendingFeedItem; onClick: () => void }) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-50/60 via-background to-background p-5 dark:from-amber-950/20">
+    <div
+      className="relative cursor-pointer overflow-hidden rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-50/60 via-background to-background p-5 transition-colors hover:bg-amber-50/80 dark:from-amber-950/20 dark:hover:from-amber-950/30"
+      onClick={onClick}
+    >
       <div className="absolute right-4 top-4 opacity-10">
         <Flame className="h-16 w-16 text-amber-500" />
       </div>
@@ -64,9 +68,12 @@ function TopCard({ item }: { item: TrendingFeedItem }) {
   );
 }
 
-function RegularCard({ item }: { item: TrendingFeedItem }) {
+function RegularCard({ item, onClick }: { item: TrendingFeedItem; onClick: () => void }) {
   return (
-    <div className="flex flex-col rounded-xl border border-border/60 bg-card p-4">
+    <div
+      className="flex cursor-pointer flex-col rounded-xl border border-border/60 bg-card p-4 transition-colors hover:bg-primary/[0.03]"
+      onClick={onClick}
+    >
       <div className="mb-2 flex items-start justify-between gap-2">
         <RankBadge rank={item.rank} />
         <ScoreBadge score={item.stats.score} />
@@ -96,6 +103,9 @@ interface Props {
 }
 
 export function TrendingFeedSection({ items, isLoading }: Props) {
+  const router = useRouter();
+  const toFeed = (item: TrendingFeedItem) =>
+    router.push(`/instructor/courses/${item.course.id}/feed/${item.feedId}/edit`);
   if (isLoading) {
     return (
       <div className="space-y-3 p-5">
@@ -122,11 +132,11 @@ export function TrendingFeedSection({ items, isLoading }: Props) {
 
   return (
     <div className="space-y-3 p-5">
-      {top && <TopCard item={top} />}
+      {top && <TopCard item={top} onClick={() => toFeed(top)} />}
       {rest.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {rest.map((item) => (
-            <RegularCard key={item.feedId} item={item} />
+            <RegularCard key={item.feedId} item={item} onClick={() => toFeed(item)} />
           ))}
         </div>
       )}

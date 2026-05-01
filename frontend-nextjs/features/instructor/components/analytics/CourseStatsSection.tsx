@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { BookOpen, Star } from "lucide-react";
 import {
   Table,
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function CourseStatsSection({ courses, isLoading }: Props) {
+  const router = useRouter();
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -67,7 +69,11 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
       </TableHeader>
       <TableBody>
         {courses.map((course) => (
-          <TableRow key={course.courseId} className="border-border/40">
+          <TableRow
+            key={course.courseId}
+            className="cursor-pointer border-border/40 transition-colors hover:bg-primary/[0.03]"
+            onClick={() => router.push(`/instructor/courses/${course.courseId}`)}
+          >
             <TableCell className="py-3.5 pl-5">
               <p className="line-clamp-1 text-sm font-medium">{course.courseName}</p>
             </TableCell>
