@@ -56,57 +56,64 @@ function PeriodSelector({
   );
 }
 
-// ── Summary stat card (simple, no change%) ────────────────────────────────────
+// ── Summary stat card ─────────────────────────────────────────────────────────
 
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  accent,
-}: {
+interface SummaryCardProps {
   label: string;
   value: string;
   icon: React.ElementType;
-  accent?: string;
-}) {
+  iconBg: string;
+  iconColor: string;
+}
+
+function SummaryCard({ label, value, icon: Icon, iconBg, iconColor }: SummaryCardProps) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-5">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-        <Icon className={`h-4.5 w-4.5 ${accent ?? "text-primary"}`} />
+    <div className="flex items-center gap-4 p-5">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        <Icon className={`h-5 w-5 ${iconColor}`} />
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="mt-0.5 text-sm text-muted-foreground">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xl font-bold tabular-nums leading-tight">{value}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
+      </div>
     </div>
   );
 }
 
 function SummaryCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-5">
-      <Skeleton className="mb-3 h-9 w-9 rounded-lg" />
-      <Skeleton className="h-7 w-24" />
-      <Skeleton className="mt-1.5 h-4 w-32" />
+    <div className="flex items-center gap-4 p-5">
+      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+      <div className="min-w-0 space-y-1.5">
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-3.5 w-28" />
+      </div>
     </div>
   );
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
+// ── Section wrapper — gom summary cards + table vào 1 card ───────────────────
 
-function SectionCard({
-  title,
-  children,
+function SectionHeader({
+  label,
+  sublabel,
+  icon: Icon,
+  iconColor,
 }: {
-  title: string;
-  children: React.ReactNode;
+  label: string;
+  sublabel?: string;
+  icon: React.ElementType;
+  iconColor: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-      <div className="border-b border-border/50 px-5 py-3">
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </p>
+    <div className="flex items-center gap-3 border-l-2 border-primary pl-3">
+      <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
+      <div>
+        <p className="text-sm font-semibold leading-tight">{label}</p>
+        {sublabel && (
+          <p className="text-xs text-muted-foreground">{sublabel}</p>
+        )}
       </div>
-      {children}
     </div>
   );
 }
@@ -116,20 +123,9 @@ function SectionCard({
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<StatPeriod>("all");
 
-  const {
-    data: courseStats,
-    isLoading: courseLoading,
-  } = useCourseStatsOverview();
-
-  const {
-    data: feedStats,
-    isLoading: feedLoading,
-  } = useFeedCreatorStats(period);
-
-  const {
-    data: trending,
-    isLoading: trendingLoading,
-  } = useFeedTrending(period);
+  const { data: courseStats, isLoading: courseLoading } = useCourseStatsOverview();
+  const { data: feedStats, isLoading: feedLoading } = useFeedCreatorStats(period);
+  const { data: trending, isLoading: trendingLoading } = useFeedTrending(period);
 
   const courseSummary = courseStats?.summary;
   const feedSummary = feedStats?.summary;
@@ -137,8 +133,14 @@ export default function AnalyticsPage() {
     ? feedSummary.likes + feedSummary.saves + feedSummary.shares + feedSummary.comments
     : 0;
 
+  const periodLabel =
+    period === "7d" ? "7 ngày qua" : period === "30d" ? "30 ngày qua" : "tất cả thời gian";
+
   return (
     <div className="space-y-8">
+      {/* ── Gradient stripe ── */}
+      <div className="h-1 rounded-full bg-linear-to-r from-primary/80 via-amber-400/70 to-primary/20" />
+
       {/* ── Header ── */}
       <div className="flex items-end justify-between gap-4 border-b border-border/50 pb-5">
         <div>
@@ -151,110 +153,140 @@ export default function AnalyticsPage() {
       </div>
 
       {/* ── Section 1: Khóa học ── */}
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold">Khóa học</h2>
+      <div className="space-y-3">
+        <SectionHeader
+          label="Khóa học"
+          sublabel={
+            courseSummary
+              ? `${courseSummary.totalCourses} khóa học · ${courseSummary.totalEnrollments.toLocaleString("vi-VN")} học viên`
+              : undefined
+          }
+          icon={BookOpen}
+          iconColor="text-primary"
+        />
 
-        {/* Course summary cards */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {courseLoading ? (
-            Array.from({ length: 4 }).map((_, i) => <SummaryCardSkeleton key={i} />)
-          ) : (
-            <>
-              <SummaryCard
-                label="Tổng khóa học"
-                value={String(courseSummary?.totalCourses ?? 0)}
-                icon={BookOpen}
-              />
-              <SummaryCard
-                label="Tổng học viên"
-                value={(courseSummary?.totalEnrollments ?? 0).toLocaleString("vi-VN")}
-                icon={Users}
-              />
-              <SummaryCard
-                label="Tỉ lệ hoàn thành"
-                value={`${courseSummary?.completionRate ?? 0}%`}
-                icon={CheckCircle2}
-                accent="text-emerald-600"
-              />
-              <SummaryCard
-                label="Điểm đánh giá TB"
-                value={`${courseSummary?.averageRating ?? 0} ★`}
-                icon={Star}
-                accent="text-amber-500"
-              />
-            </>
-          )}
-        </div>
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+          {/* Summary cards row */}
+          <div className="grid grid-cols-2 divide-x divide-y divide-border/40 border-b border-border/40 lg:grid-cols-4 lg:divide-y-0">
+            {courseLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <SummaryCardSkeleton key={i} />)
+            ) : (
+              <>
+                <SummaryCard
+                  label="Tổng khóa học"
+                  value={String(courseSummary?.totalCourses ?? 0)}
+                  icon={BookOpen}
+                  iconBg="bg-primary/10"
+                  iconColor="text-primary"
+                />
+                <SummaryCard
+                  label="Tổng học viên"
+                  value={(courseSummary?.totalEnrollments ?? 0).toLocaleString("vi-VN")}
+                  icon={Users}
+                  iconBg="bg-blue-50 dark:bg-blue-950/30"
+                  iconColor="text-blue-600 dark:text-blue-400"
+                />
+                <SummaryCard
+                  label="Tỉ lệ hoàn thành"
+                  value={`${courseSummary?.completionRate ?? 0}%`}
+                  icon={CheckCircle2}
+                  iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+                  iconColor="text-emerald-600 dark:text-emerald-400"
+                />
+                <SummaryCard
+                  label="Điểm đánh giá TB"
+                  value={`${courseSummary?.averageRating ?? 0} ★`}
+                  icon={Star}
+                  iconBg="bg-amber-50 dark:bg-amber-950/30"
+                  iconColor="text-amber-500 dark:text-amber-400"
+                />
+              </>
+            )}
+          </div>
 
-        {/* Course detail table */}
-        <SectionCard title="Chi tiết từng khóa học">
+          {/* Detail table */}
           <CourseStatsSection
             courses={courseStats?.courses ?? []}
             isLoading={courseLoading}
           />
-        </SectionCard>
+        </div>
       </div>
 
       {/* ── Section 2: Shorts Feed ── */}
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold">Shorts Feed</h2>
+      <div className="space-y-3">
+        <SectionHeader
+          label="Shorts Feed"
+          sublabel={
+            feedSummary
+              ? `${feedSummary.totalFeeds} bài đăng · ${feedSummary.views.toLocaleString("vi-VN")} lượt xem · ${periodLabel}`
+              : undefined
+          }
+          icon={TrendingUp}
+          iconColor="text-primary"
+        />
 
-        {/* Feed summary cards */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {feedLoading ? (
-            Array.from({ length: 4 }).map((_, i) => <SummaryCardSkeleton key={i} />)
-          ) : (
-            <>
-              <SummaryCard
-                label="Tổng bài đăng"
-                value={String(feedSummary?.totalFeeds ?? 0)}
-                icon={TrendingUp}
-              />
-              <SummaryCard
-                label="Tổng lượt xem"
-                value={(feedSummary?.views ?? 0).toLocaleString("vi-VN")}
-                icon={Eye}
-              />
-              <SummaryCard
-                label="Tổng tương tác"
-                value={totalEngagements.toLocaleString("vi-VN")}
-                icon={Heart}
-                accent="text-rose-500"
-              />
-              <SummaryCard
-                label="Tỉ lệ hoàn thành"
-                value={`${feedSummary?.completionRate ?? 0}%`}
-                icon={CheckCircle2}
-                accent="text-emerald-600"
-              />
-            </>
-          )}
-        </div>
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+          {/* Summary cards row */}
+          <div className="grid grid-cols-2 divide-x divide-y divide-border/40 border-b border-border/40 lg:grid-cols-4 lg:divide-y-0">
+            {feedLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <SummaryCardSkeleton key={i} />)
+            ) : (
+              <>
+                <SummaryCard
+                  label="Tổng bài đăng"
+                  value={String(feedSummary?.totalFeeds ?? 0)}
+                  icon={TrendingUp}
+                  iconBg="bg-primary/10"
+                  iconColor="text-primary"
+                />
+                <SummaryCard
+                  label="Tổng lượt xem"
+                  value={(feedSummary?.views ?? 0).toLocaleString("vi-VN")}
+                  icon={Eye}
+                  iconBg="bg-blue-50 dark:bg-blue-950/30"
+                  iconColor="text-blue-600 dark:text-blue-400"
+                />
+                <SummaryCard
+                  label="Tổng tương tác"
+                  value={totalEngagements.toLocaleString("vi-VN")}
+                  icon={Heart}
+                  iconBg="bg-rose-50 dark:bg-rose-950/30"
+                  iconColor="text-rose-500 dark:text-rose-400"
+                />
+                <SummaryCard
+                  label="Tỉ lệ hoàn thành"
+                  value={`${feedSummary?.completionRate ?? 0}%`}
+                  icon={CheckCircle2}
+                  iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+                  iconColor="text-emerald-600 dark:text-emerald-400"
+                />
+              </>
+            )}
+          </div>
 
-        {/* Feed detail table */}
-        <SectionCard title="Chi tiết từng feed">
+          {/* Detail table */}
           <FeedStatsSection
             feeds={feedStats?.data ?? []}
             isLoading={feedLoading}
           />
-        </SectionCard>
+        </div>
       </div>
 
       {/* ── Section 3: Trending ── */}
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold">
-          <span className="inline-flex items-center gap-2">
-            <Flame className="h-4 w-4 text-orange-500" />
-            Trending
-          </span>
-        </h2>
+      <div className="space-y-3">
+        <SectionHeader
+          label="Trending"
+          sublabel={`Top Shorts Feed · ${periodLabel}`}
+          icon={Flame}
+          iconColor="text-orange-500"
+        />
 
-        <SectionCard title={`Top Shorts Feed — ${period === "7d" ? "7 ngày" : period === "30d" ? "30 ngày" : "Tất cả"}`}>
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
           <TrendingFeedSection
             items={trending?.data ?? []}
             isLoading={trendingLoading}
           />
-        </SectionCard>
+        </div>
       </div>
     </div>
   );

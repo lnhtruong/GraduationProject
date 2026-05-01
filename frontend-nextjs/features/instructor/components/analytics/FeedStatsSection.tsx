@@ -12,11 +12,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FeedStatItem } from "../../analytics/types";
 
-interface Props {
-  feeds: FeedStatItem[];
-  isLoading: boolean;
-}
-
 function StatCell({ value }: { value: number }) {
   return (
     <TableCell className="tabular-nums text-sm text-muted-foreground">
@@ -25,10 +20,15 @@ function StatCell({ value }: { value: number }) {
   );
 }
 
+interface Props {
+  feeds: FeedStatItem[];
+  isLoading: boolean;
+}
+
 export function FeedStatsSection({ feeds, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="space-y-2 px-1">
+      <div className="space-y-2 p-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
@@ -64,7 +64,7 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
         {feeds.map((item) => (
           <TableRow key={item.feedId} className="border-border/40">
             <TableCell className="py-3.5 pl-5">
-              <p className="line-clamp-1 max-w-[180px] font-medium text-sm">{item.title}</p>
+              <p className="line-clamp-1 max-w-[180px] text-sm font-medium">{item.title}</p>
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
               {item.course.name}
@@ -80,7 +80,11 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
               </span>
             </TableCell>
             <TableCell className="pr-5">
-              <span className={`text-xs font-medium tabular-nums ${item.stats.completionRate >= 50 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+              <span className={`text-xs font-medium tabular-nums ${
+                item.stats.completionRate >= 50
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              }`}>
                 {item.stats.completionRate.toFixed(1)}%
               </span>
             </TableCell>

@@ -34,7 +34,7 @@ interface Props {
 export function CourseStatsSection({ courses, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="space-y-2 px-1">
+      <div className="space-y-2 p-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
@@ -69,15 +69,15 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
         {courses.map((course) => (
           <TableRow key={course.courseId} className="border-border/40">
             <TableCell className="py-3.5 pl-5">
-              <p className="line-clamp-1 font-medium text-sm">{course.courseName}</p>
+              <p className="line-clamp-1 text-sm font-medium">{course.courseName}</p>
             </TableCell>
-            <TableCell className="tabular-nums text-sm font-medium">
+            <TableCell className="text-sm font-medium tabular-nums">
               {course.enrollment.total.toLocaleString("vi-VN")}
             </TableCell>
-            <TableCell className="tabular-nums text-sm text-blue-600 dark:text-blue-400">
+            <TableCell className="text-sm tabular-nums text-blue-600 dark:text-blue-400">
               {course.enrollment.active.toLocaleString("vi-VN")}
             </TableCell>
-            <TableCell className="tabular-nums text-sm text-emerald-600 dark:text-emerald-400">
+            <TableCell className="text-sm tabular-nums text-emerald-600 dark:text-emerald-400">
               {course.enrollment.completed.toLocaleString("vi-VN")}
             </TableCell>
             <TableCell>
@@ -86,7 +86,7 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
             <TableCell>
               <ProgressBar value={course.enrollment.averageProgress} />
             </TableCell>
-            <TableCell className="tabular-nums text-sm text-muted-foreground">
+            <TableCell className="text-sm tabular-nums text-muted-foreground">
               {course.ratings.totalReviews}
             </TableCell>
             <TableCell className="pr-5">
