@@ -1,74 +1,161 @@
-﻿import { createApi } from "@/features/_shared/api-factories";
-import { videoApi } from "@/features/video";
-import {
-  buildMockCourseInfo,
-  buildMockFeedInfo,
-  buildMockStats,
-} from "../data/mock_data";
-import type { NewsfeedItem } from "../types";
+import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
+import { withQueryPath } from "@/features/_shared/crud-factories";
+import type {
+  NewsfeedCommentDetailResponse,
+  NewsfeedCommentPageResponse,
+  NewsfeedFeedDetailStatsResponse,
+  NewsfeedItem,
+  NewsfeedPageResponse,
+  NewsfeedRawItem,
+} from "../types";
 
-function mapToNewsfeedItem(
-  index: number,
-  rawVideo: Awaited<ReturnType<typeof videoApi.getAllByUser>>[number],
-): NewsfeedItem {
-  const displayIndex = index + 1;
-  const feedInfo = buildMockFeedInfo(displayIndex);
-  const courseInfo = buildMockCourseInfo(index, displayIndex, rawVideo.user_id);
+const FEED_ENDPOINT = "/media/feed";
+
+function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
+  const courseName = raw.course?.name?.trim() || "Khóa học";
+  const title = raw.title?.trim() || courseName || "Video";
+  const description = raw.course?.description?.trim() || title;
+  const video = raw.video;
+  const categories = Array.isArray(raw.course?.categories)
+    ? raw.course.categories.filter((tag) => typeof tag === "string")
+    : [];
 
   return {
-    id: rawVideo.id,
-    title: feedInfo.title,
-    description: feedInfo.description,
-    videoUrl: rawVideo.url,
-    thumbnail: rawVideo.thumbnail ?? rawVideo.image?.thumbnail ?? null,
-    type: rawVideo.type,
-    stats: buildMockStats(displayIndex),
-    sourceVideo: rawVideo,
+    id: raw.feed_id,
+    feedId: raw.feed_id,
+    title,
+    description,
+    videoUrl: video.url,
+    thumbnail: video.thumbnail ?? null,
+    type: raw.video_type ?? video.type ?? "không xác định",
+    hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
+    lecturer: raw.lecturer,
+    stats: {
+      likes: raw.stats?.likes ?? 0,
+      comments: raw.stats?.comments ?? 0,
+      saves: raw.stats?.saves ?? 0,
+      shares: 0,
+      views: raw.stats?.views ?? 0,
+    },
+    isLiked: Boolean(raw.is_liked),
+    isSaved: Boolean(raw.is_saved),
+    video,
     course: {
-      id: rawVideo.id,
-      name: courseInfo.name,
-      level: courseInfo.level,
-      duration: courseInfo.duration,
-      language: courseInfo.language,
-      price: courseInfo.price,
-      userId: courseInfo.userId,
-      status: courseInfo.status,
-      categories: courseInfo.categories,
-      thumbnail: rawVideo.thumbnail ?? rawVideo.image?.thumbnail ?? null,
-      description: courseInfo.description,
-      created_at: courseInfo.created_at,
-      updated_at: courseInfo.updated_at,
+      id: raw.course?.id ?? raw.feed_id,
+      name: courseName,
+      level: raw.course?.level?.trim() || "Không rõ",
+      duration: raw.course?.duration?.trim() || "--",
+      language: raw.course?.language?.trim() || "vi",
+      price: Number(raw.course?.price ?? 0),
+      userId: Number(raw.course?.userId ?? 0),
+      status: raw.course?.status ?? "published",
+      categories,
+      thumbnail: raw.course?.thumbnail ?? video.thumbnail ?? null,
+      description,
+      created_at:
+        raw.course?.created_at ?? video.created_at ?? new Date().toISOString(),
+      updated_at:
+        raw.course?.updated_at ?? video.updated_at ?? new Date().toISOString(),
     },
   };
 }
 
 export const newsfeedApi = createApi({
-  getFeed: async () => {
-    const [highlightResult, mascotResult, allResult] = await Promise.allSettled([
-      videoApi.getAllByUser("highlight"),
-      videoApi.getAllByUser("mascot"),
-      videoApi.getAllByUser(null),
-    ]);
+  getFeed: async ({
+    cursor = 0,
+    limit = 8,
+  }: {
+    cursor?: number;
+    limit?: number;
+  }): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
+    const { data } = await apiHttpClient.get<NewsfeedPageResponse>(
+      withQueryPath(FEED_ENDPOINT, {
+        cursor,
+        limit,
+      }),
+    );
 
-    const merged = [
-      ...(highlightResult.status === "fulfilled" ? highlightResult.value : []),
-      ...(mascotResult.status === "fulfilled" ? mascotResult.value : []),
-      ...(allResult.status === "fulfilled" ? allResult.value : []),
-    ];
+    return {
+      items: (Array.isArray(data.data) ? data.data : [])
+        .map(mapFeedItem)
+        .filter((item) => Boolean(item.videoUrl)),
+      nextCursor:
+        typeof data.next_cursor === "number" ? data.next_cursor : null,
+    };
+  },
 
-    if (!merged.length) {
-      throw new Error("Khong the tai du lieu video newsfeed. Vui long thu lai.");
-    }
+  getComments: async ({
+    feedId,
+    cursor,
+    limit = 20,
+  }: {
+    feedId: number;
+    cursor?: number;
+    limit?: number;
+  }) => {
+    const { data } = await apiHttpClient.get<NewsfeedCommentPageResponse>(
+      withQueryPath(`${FEED_ENDPOINT}/${feedId}/comments`, {
+        cursor,
+        limit,
+      }),
+    );
 
-    const uniqueById = new Map<number, (typeof merged)[number]>();
-    for (const video of merged) {
-      uniqueById.set(video.id, video);
-    }
+    return {
+      items: Array.isArray(data.data) ? data.data : [],
+      nextCursor:
+        typeof data.next_cursor === "number" ? data.next_cursor : null,
+    };
+  },
 
-    const videos = Array.from(uniqueById.values());
+  getCommentDetail: async ({
+    feedId,
+    originCmt,
+    cursor,
+    limit = 20,
+  }: {
+    feedId: number;
+    originCmt: number;
+    cursor?: number;
+    limit?: number;
+  }) => {
+    const { data } = await apiHttpClient.get<NewsfeedCommentDetailResponse>(
+      withQueryPath(`${FEED_ENDPOINT}/${feedId}/comment/detail`, {
+        origin_cmt: originCmt,
+        cursor,
+        limit,
+      }),
+    );
 
-    return videos
-      .filter((video) => Boolean(video.url))
-      .map((video, index) => mapToNewsfeedItem(index, video));
+    return {
+      origin_cmt: data.origin_cmt,
+      items: Array.isArray(data.data) ? data.data : [],
+      nextCursor: typeof data.next_cursor === "number" ? data.next_cursor : null,
+    };
+  },
+
+  createComment: async ({
+    feedId,
+    content,
+    originCmt,
+  }: {
+    feedId: number;
+    content: string;
+    originCmt?: number | null;
+  }) => {
+    const { data } = await apiHttpClient.post(
+      `${FEED_ENDPOINT}/${feedId}/comments`,
+      {
+        content,
+        origin_cmt: originCmt ?? null,
+      },
+    );
+    return data;
+  },
+
+  getFeedDetailStats: async ({ feedId }: { feedId: number }): Promise<NewsfeedFeedDetailStatsResponse> => {
+    const { data } = await apiHttpClient.get<NewsfeedFeedDetailStatsResponse>(
+      `${FEED_ENDPOINT}/${feedId}/stats`,
+    );
+    return data;
   },
 });

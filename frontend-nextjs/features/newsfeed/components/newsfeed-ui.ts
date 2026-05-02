@@ -1,10 +1,12 @@
 import { BookOpenCheck, Bookmark, Compass, UserCircle2 } from "lucide-react";
 
-export const MENU_ITEMS = [
-	{ id: "for-you", label: "Danh cho ban", icon: Compass },
-	{ id: "my-courses", label: "Khoa hoc cua toi", icon: BookOpenCheck },
-	{ id: "saved", label: "Da luu", icon: Bookmark },
-	{ id: "profile", label: "Ho so", icon: UserCircle2 },
+export const SIDEBAR_ITEMS = [
+	{ id: "home", label: "Trang chủ", icon: Compass, href: "/" },
+	{ id: "subscriptions", label: "Kênh đã đăng ký", icon: BookOpenCheck, href: "/courses" },
+	{ id: "library", label: "Thư viện", icon: Bookmark, href: "/library" },
+	{ id: "history", label: "Lịch sử", icon: UserCircle2, href: "/history" },
+	{ id: "saved", label: "Đã lưu", icon: Bookmark, href: "/saved" },
+	{ id: "settings", label: "Cài đặt", icon: UserCircle2, href: "/settings" },
 ];
 
 export function getInitials(name?: string | null) {
