@@ -170,7 +170,7 @@ export function NewsfeedPage() {
 	}
 
 	return (
-		<div className="relative h-screen overflow-hidden bg-background text-foreground">
+		<div className="relative h-screen overflow-hidden bg-gradient-to-br from-primary/5 via-background to-muted/30 text-foreground dark:from-primary/10 dark:via-background dark:to-background">
 			<NewsfeedHeader
 				onToggleMenu={toggleMenu}
 				userInitials={getInitials(user?.firstName ?? user?.email ?? "U")}
@@ -183,7 +183,7 @@ export function NewsfeedPage() {
 				className={cn(
 					"h-full pt-16 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
-					isOptionBoxOpen ? "md:pr-[456px] pr-[72px]" : "pr-[72px]",
+					isOptionBoxOpen ? "md:pr-[592px] pr-[72px]" : "pr-[72px]",
 				)}
 			>
 				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">

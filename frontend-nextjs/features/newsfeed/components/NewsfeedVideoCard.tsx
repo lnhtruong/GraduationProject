@@ -457,7 +457,7 @@ export function NewsfeedVideoCard({
                   onClick={() => {
                     onOpenCourse();
                   }}
-                  className="shrink-0 text-white/90"
+                  className="shrink-0 text-primary"
                 >
                   ...xem them
                 </button>
