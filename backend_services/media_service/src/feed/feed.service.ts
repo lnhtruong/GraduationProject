@@ -666,7 +666,7 @@ export class FeedService {
     });
 
     const userIds = rows
-      .map((row) => Number((row as Record<string, unknown>).user_id))
+      .map((row) => Number((row as unknown as { user_id: number | string }).user_id))
       .filter((id) => Number.isFinite(id));
 
     for (const userId of userIds) {

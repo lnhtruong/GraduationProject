@@ -8,9 +8,11 @@ export class FeedRecommendationWorker {
 
   constructor(private readonly feedService: FeedService) {}
 
-  @Cron('*/5 * * * *')
+  @Cron('*/10 * * * * *')
   async handlePrecompute(): Promise<void> {
     try {
+      this.logger.log('Cronning precompute');
+
       await this.feedService.precomputeRecommendedForActiveUsers();
     } catch (error) {
       this.logger.error('Failed to precompute recommended feeds', error);
