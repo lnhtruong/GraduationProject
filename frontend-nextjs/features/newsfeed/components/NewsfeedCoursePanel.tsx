@@ -2,18 +2,24 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
 	ArrowRight,
 	ChevronRight,
 	Clock,
+	BookOpen,
 	Globe,
+	GraduationCap,
 	Sparkles,
+	ShoppingCart,
 	Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCartStore } from "@/features/cart/hooks/useCartStore";
 import { useRoadmapsPaginated } from "@/features/roadmap/api/roadmap.hooks";
 import type { Roadmap, RoadmapCourse } from "@/features/roadmap/types";
+import type { CartItem } from "@/features/cart/types";
 import type { NewsfeedItem } from "../types";
 import { getInitials } from "./newsfeed-ui";
 
@@ -38,15 +44,105 @@ function formatIsoDate(iso: string) {
 const LEVEL_LABELS: Record<string, string> = {
 	Beginner: "Sơ cấp",
 	Intermediate: "Trung cấp",
-	Advanced: "Nâng cao",
+	Advanced: "Cao cấp",
+};
+
+const LEVEL_META: Record<
+	string,
+	{ label: string; icon: typeof BookOpen }
+> = {
+	Beginner: { label: LEVEL_LABELS.Beginner, icon: BookOpen },
+	Intermediate: { label: LEVEL_LABELS.Intermediate, icon: GraduationCap },
+	Advanced: { label: LEVEL_LABELS.Advanced, icon: Sparkles },
 };
 
 function formatCoursePrice(price: number) {
 	return price > 0 ? `${price.toLocaleString("vi-VN")} VND` : "Miễn phí";
 }
 
+function normalizeCartLevel(level: string): CartItem["level"] {
+	if (level === "Intermediate" || level === "Advanced") {
+		return level;
+	}
+
+	return "Beginner";
+}
+
 function formatDurationLabel(duration?: string | null) {
-	return duration?.trim() || "--";
+	if (!duration) {
+		return "--";
+	}
+
+	const normalized = duration.trim();
+	const timeMatch = normalized.match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
+	if (timeMatch) {
+		const hours = Number(timeMatch[1] ?? 0);
+		const minutes = Number(timeMatch[2] ?? 0);
+		const seconds = Number(timeMatch[3] ?? 0);
+		const totalMinutes = hours * 60 + minutes;
+		return `${totalMinutes}p${String(seconds).padStart(2, "0")}s`;
+	}
+
+	const minutesMatch = normalized.match(/^(\d+)\s*(?:phút|phut|p|m)(?:\s*(\d+)\s*(?:giây|giay|s))?$/i);
+	if (minutesMatch) {
+		const minutes = Number(minutesMatch[1] ?? 0);
+		const seconds = Number(minutesMatch[2] ?? 0);
+		return `${minutes}p${String(seconds).padStart(2, "0")}s`;
+	}
+
+	const secondsOnly = Number(normalized);
+	if (Number.isFinite(secondsOnly) && secondsOnly >= 0) {
+		const minutes = Math.floor(secondsOnly / 60);
+		const seconds = Math.floor(secondsOnly % 60);
+		return `${minutes}p${String(seconds).padStart(2, "0")}s`;
+	}
+
+	return normalized;
+}
+
+function parseDurationToSeconds(duration?: string | null) {
+	if (!duration) {
+		return 0;
+	}
+
+	const timeMatch = duration.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
+	if (timeMatch) {
+		const hours = Number(timeMatch[1] ?? 0);
+		const minutes = Number(timeMatch[2] ?? 0);
+		const seconds = Number(timeMatch[3] ?? 0);
+		return hours * 3600 + minutes * 60 + seconds;
+	}
+
+	const hoursMatch = duration.match(/(\d+)\s*(?:giờ|gio|h)/i);
+	const minutesMatch = duration.match(/(\d+)\s*(?:phút|phut|p|m)/i);
+	const secondsMatch = duration.match(/(\d+)\s*(?:giây|giay|s)/i);
+
+	return (
+		(Number(hoursMatch?.[1] ?? 0) * 3600) +
+		(Number(minutesMatch?.[1] ?? 0) * 60) +
+		Number(secondsMatch?.[1] ?? 0)
+	);
+}
+
+function buildCartItem(video: NewsfeedItem): CartItem {
+	const instructorName =
+		[video.lecturer?.firstName, video.lecturer?.lastName].filter(Boolean).join(" ").trim() ||
+		"Giảng viên";
+
+	return {
+		id: video.course.id,
+		courseId: video.course.id,
+		title: video.course.name,
+		instructorName,
+		thumbnailUrl: video.course.thumbnail ?? undefined,
+		level: normalizeCartLevel(video.course.level),
+		durationSeconds: parseDurationToSeconds(video.course.duration),
+		price: video.course.price,
+		originalPrice: undefined,
+		avgRating: undefined,
+		reviewCount: undefined,
+		savedForLater: false,
+	};
 }
 
 function sortRoadmapCourses(courses: RoadmapCourse[]) {
@@ -143,6 +239,9 @@ interface NewsfeedCoursePanelProps {
 }
 
 export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps) {
+	const router = useRouter();
+	const items = useCartStore((state) => state.items);
+	const setItems = useCartStore((state) => state.setItems);
 	const roadmapQuery = useRoadmapsPaginated(
 		{ userId: video.course.userId, page: 1, limit: 50 },
 		Boolean(video.course.userId),
@@ -184,7 +283,37 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 				? `--/${roadmapCourses.length}`
 				: "0/0";
 	const languageLabel = video.course.language === "vi" ? "Tiếng Việt" : video.course.language === "en" ? "Tiếng Anh" : video.course.language;
-	const levelLabel = LEVEL_LABELS[video.course.level] ?? video.course.level;
+	const levelMeta = LEVEL_META[video.course.level] ?? {
+		label: LEVEL_LABELS[video.course.level] ?? video.course.level,
+		icon: Sparkles,
+	};
+
+	const upsertCourseIntoCart = () => {
+		const nextItem = buildCartItem(video);
+		const existingIndex = items.findIndex((item) => item.courseId === nextItem.courseId);
+
+		if (existingIndex >= 0) {
+			const nextItems = [...items];
+			nextItems[existingIndex] = {
+				...nextItems[existingIndex],
+				...nextItem,
+				savedForLater: false,
+			};
+			setItems(nextItems);
+			return;
+		}
+
+		setItems([...items, nextItem]);
+	};
+
+	const handleAddToCart = () => {
+		upsertCourseIntoCart();
+	};
+
+	const handleBuyNow = () => {
+		upsertCourseIntoCart();
+		router.push("/cart");
+	};
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto pr-1">
@@ -230,8 +359,9 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 							<Users className="h-4 w-4 text-primary" />
 							ID khóa học {video.course.id}
 						</span>
-						<span className="inline-flex items-center gap-1.5">
-							{levelLabel}
+						<span className="inline-flex items-center gap-1.5 text-foreground">
+							<levelMeta.icon className="h-4 w-4 text-primary" />
+							{levelMeta.label}
 						</span>
 					</div>
 
@@ -245,9 +375,33 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 
 					<div className="flex flex-wrap items-center justify-between gap-3 pt-1">
 						<p className="text-lg font-semibold text-primary">{formatCoursePrice(video.course.price)}</p>
-						<Button asChild className="h-10 rounded-none border border-border bg-background px-5 text-foreground hover:bg-accent hover:text-accent-foreground">
-							<Link href={`/courses/${video.course.id}`}>Trang chi tiết khóa học</Link>
-						</Button>
+						<div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handleAddToCart}
+								className="h-10 rounded-none border-border bg-background px-5 text-foreground hover:bg-accent hover:text-accent-foreground"
+							>
+								<ShoppingCart className="mr-2 h-4 w-4" />
+								Thêm giỏ hàng
+							</Button>
+							<Button
+								type="button"
+								onClick={handleBuyNow}
+								className="h-10 rounded-none px-5"
+							>
+								Mua ngay
+							</Button>
+						</div>
+					</div>
+					<div className="flex justify-end pt-1">
+						<Link
+							href={`/courses/${video.course.id}`}
+							className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 transition-colors hover:underline hover:text-primary/80"
+						>
+							Xem chi tiết khóa học
+							<ArrowRight className="h-4 w-4" />
+						</Link>
 					</div>
 				</div>
 			</section>
