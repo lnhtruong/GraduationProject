@@ -161,7 +161,7 @@ export class WebhookService {
         await row.reload();
 
         this.sseService.notifyUploadCompleted(row.user_id, {
-            id: row.id,
+            videoId: row.id,
             url,
             type: VideoType.LONG,
             duration: duration ?? undefined,
@@ -349,11 +349,12 @@ export class WebhookService {
         await row.reload();
 
         this.sseService.notifyUploadCompleted(userId, {
-            id: row.id,
+            videoId: row.id,
             url: row.url ?? '',
             type: row.type,
             duration: duration ?? undefined,
             name: resolvedName ?? undefined,
+            job_id: jobId,
         });
 
         return { success: true, id: row.id };
@@ -449,6 +450,7 @@ export class WebhookService {
         }
 
         this.sseService.notifyVideoCompleted(userId, {
+            videoId: 1,
             url: url,
             type: type,
             duration: duration ?? undefined,

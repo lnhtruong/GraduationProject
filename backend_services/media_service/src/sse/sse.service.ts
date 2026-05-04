@@ -33,33 +33,33 @@ export class SseService {
         return stream;
     }
 
-    private emitDemoEventsForTesting(userId: number): void {
-        setTimeout(() => {
-            this.notifyVideoCompleted(userId, {
-                url: 'https://example.com/demo-video-completed.mp4',
-                type: 'highlight',
-                duration: 45,
-            });
-        }, 2000);
+    // private emitDemoEventsForTesting(userId: number): void {
+    //     setTimeout(() => {
+    //         this.notifyVideoCompleted(userId, {
+    //             url: 'https://example.com/demo-video-completed.mp4',
+    //             type: 'highlight',
+    //             duration: 45,
+    //         });
+    //     }, 2000);
 
-        setTimeout(() => {
-            this.notifyUploadCompleted(userId, {
-                id: 999001,
-                url: 'https://example.com/demo-upload-completed.mp4',
-                type: 'highlight',
-                duration: 52,
-                name: 'demo-upload-video',
-            });
-        }, 4000);
+    //     setTimeout(() => {
+    //         this.notifyUploadCompleted(userId, {
+    //             id: 999001,
+    //             url: 'https://example.com/demo-upload-completed.mp4',
+    //             type: 'highlight',
+    //             duration: 52,
+    //             name: 'demo-upload-video',
+    //         });
+    //     }, 4000);
 
-        setTimeout(() => {
-            this.notifyVideoError(userId, {
-                id: 'demo-error-001',
-                message: 'Demo SSE error event for testing',
-                reason: 'test-sequence',
-            });
-        }, 6000);
-    }
+    //     setTimeout(() => {
+    //         this.notifyVideoError(userId, {
+    //             id: 'demo-error-001',
+    //             message: 'Demo SSE error event for testing',
+    //             reason: 'test-sequence',
+    //         });
+    //     }, 6000);
+    // }
 
     subscribeByUserId(userId: number): Observable<MessageEvent> {
         const key = this.buildUserKey(userId);
@@ -70,7 +70,7 @@ export class SseService {
             this.logger.log(`SSE subscribe ${key} (connections=${stream.subscribers})`);
 
             const sub = stream.subject.subscribe(observer);
-            this.emitDemoEventsForTesting(userId);
+            // this.emitDemoEventsForTesting(userId);
 
             return () => {
                 sub.unsubscribe();
@@ -98,7 +98,7 @@ export class SseService {
         stream.subject.next(event);
     }
 
-    notifyVideoCompleted(userId: number, videoData: { url: string; type: string; duration?: number }): void {
+    notifyVideoCompleted(userId: number, videoData: { videoId: number; url: string; type: string; duration?: number; job_id?: string }): void {
         this.emitToUser(userId, {
             type: 'video:completed',
             data: {
@@ -110,11 +110,12 @@ export class SseService {
     }
 
     notifyUploadCompleted(userId: number, videoData: {
-        id: number;
+        videoId: number;
         url: string;
         type: string;
         duration?: number;
         name?: string;
+        job_id?: string;
     }): void {
         this.emitToUser(userId, {
             type: 'upload-video:completed',
