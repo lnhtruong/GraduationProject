@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, fn, col, literal } from 'sequelize';
+import { Op, fn, col, literal, WhereOptions } from 'sequelize';
 import { HighlightFeed, HighlightFeedStatus } from '../models/highlight_feed.model';
 import { CourseStatus } from '../models/course.model';
 import { FeedInteraction, FeedInteractionType } from '../models/feed_interactions.model';
@@ -27,7 +27,7 @@ export class FeedService {
     private courseModel: typeof Course,
     @InjectModel(User)
     private userModel: typeof User,
-  ) {}
+  ) { }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
@@ -214,36 +214,59 @@ export class FeedService {
     return feedItem;
   }
 
-  async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number, mode?: string) {
+  async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number, mode?: string, search?: string) {
     if (mode === 'recommended') {
       return this.getRecommendedFeed(cursor, limit, userId, courseId);
     }
 
+    if (mode !== 'recommended' && mode !== 'search') {
+      throw new BadRequestException('get mode must be recommended or search');
+    }
+
     // Query feeds với cursor-based pagination, eager load video + course + lecturer
+
+    const whereClause: WhereOptions<HighlightFeed> = {
+      status: HighlightFeedStatus.ACTIVE,
+      ...(cursor && { id: { [Op.lt]: cursor } }),
+      ...(courseId && { course_id: courseId }),
+    };
+
+    const term = search?.trim();
+
+    if (term) {
+      const likePattern = `%${term}%`;
+
+      whereClause[Op.or] = [
+        { title: { [Op.like]: likePattern } },
+        { '$course.name$': { [Op.like]: likePattern } },
+        literal(`CAST(HighlightFeed.hashtags AS CHAR) LIKE ${this.highlightFeedModel.sequelize!.escape(likePattern)}`),
+      ];
+    }
+
     const feeds = await this.highlightFeedModel.findAll({
-      where: {
-        status: HighlightFeedStatus.ACTIVE,
-        ...(cursor && { id: { [Op.lt]: cursor } }), // chỉ lấy items có id nhỏ hơn cursor
-        ...(courseId && { course_id: courseId }), // filter by course_id nếu có
-      },
+      where: whereClause,
       include: [
         { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
         {
           model: Course,
+          required: true,
           include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }], // lecturer info
         },
       ],
       order: [['id', 'DESC']], // mới nhất trước
       limit,
+      ...(term ? { subQuery: false } : {}),
     });
 
-  const data = await Promise.all(
-    feeds.map(async (feed) => {
-      // Fetch stats + interaction status của user song song để tối ưu performance
-      const [stats, liked, saved] = await Promise.all([
-        this.getFeedBasicStats(feed.id),
-        userId
-          ? this.feedInteractionModel.findOne({
+    // console.log('check data: ', feeds);
+
+    const data = await Promise.all(
+      feeds.map(async (feed) => {
+        // Fetch stats + interaction status của user song song để tối ưu performance
+        const [stats, liked, saved] = await Promise.all([
+          this.getFeedBasicStats(feed.id),
+          userId
+            ? this.feedInteractionModel.findOne({
               where: { user_id: userId, highlight_id: feed.id, type: FeedInteractionType.LIKE },
             })
             : null,

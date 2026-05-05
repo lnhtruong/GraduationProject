@@ -466,7 +466,7 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
-  { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: '*',
     pattern: '/api/media/feed/**',
