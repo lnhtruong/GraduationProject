@@ -9,6 +9,20 @@ import { FeedComment } from '../models/feed_comments.model';
 import { Video } from '../videos/video.model';
 import { Course } from '../models/course.model';
 import { User } from '../models/user.model';
+import { RedisService } from '../redis/redis.service';
+
+type FeedResponseItem = {
+  feed_id: number;
+  title?: string;
+  hashtags?: string[];
+  video_type: string;
+  video: unknown;
+  course: unknown;
+  lecturer: unknown;
+  stats: { likes: number; saves: number; views: number };
+  is_liked: boolean;
+  is_saved: boolean;
+};
 
 @Injectable()
 export class FeedService {
@@ -27,10 +41,16 @@ export class FeedService {
     private courseModel: typeof Course,
     @InjectModel(User)
     private userModel: typeof User,
-  ) { }
+    private readonly redisService: RedisService,
+  ) {}
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
+  private readonly RECOMMEND_CACHE_TTL_SECONDS = 600;
+  private readonly PROFILE_TTL_SECONDS = 24 * 60 * 60;
+  private readonly SEEN_COOLDOWN_SECONDS = 6 * 60 * 60;
+  private readonly RECOMMEND_CACHE_SIZE = 100;
+  private readonly ACTIVE_USER_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
   private parseNumberValue(value: unknown): number {
     const parsed = Number(value);
@@ -59,6 +79,293 @@ export class FeedService {
     }
 
     throw new BadRequestException("Invalid period. Supported values: '7d', '30d', 'all'");
+  }
+
+  private buildRecommendListKey(userId: number, courseId?: number): string {
+    return `feed:rec:list:${userId}:${courseId ?? 0}`;
+  }
+
+  private buildProfileKey(userId: number): string {
+    return `feed:rec:profile:${userId}`;
+  }
+
+  private buildSeenKey(userId: number): string {
+    return `feed:rec:seen:${userId}`;
+  }
+
+  private buildInteractedUsersKey(): string {
+    return 'feed:rec:interacted-users';
+  }
+
+  private serializeNumberMap(map: Map<number, number>): Record<string, number> {
+    const result: Record<string, number> = {};
+    for (const [key, value] of map.entries()) {
+      result[String(key)] = value;
+    }
+    return result;
+  }
+
+  private deserializeNumberMap(source?: Record<string, number>): Map<number, number> {
+    const map = new Map<number, number>();
+    if (!source) {
+      return map;
+    }
+    for (const [key, value] of Object.entries(source)) {
+      const parsedKey = Number(key);
+      if (Number.isFinite(parsedKey)) {
+        map.set(parsedKey, Number(value) || 0);
+      }
+    }
+    return map;
+  }
+
+  private deserializeStringMap(source?: Record<string, number>): Map<string, number> {
+    const map = new Map<string, number>();
+    if (!source) {
+      return map;
+    }
+    for (const [key, value] of Object.entries(source)) {
+      if (typeof key === 'string') {
+        map.set(key, Number(value) || 0);
+      }
+    }
+    return map;
+  }
+
+  private async getCachedProfile(userId: number): Promise<{
+    courseAffinity: Map<number, number>;
+    hashtagAffinity: Map<string, number>;
+  } | null> {
+    const raw = await this.redisService.get(this.buildProfileKey(userId));
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        courseAffinity?: Record<string, number>;
+        hashtagAffinity?: Record<string, number>;
+      };
+      return {
+        courseAffinity: this.deserializeNumberMap(parsed.courseAffinity),
+        hashtagAffinity: this.deserializeStringMap(parsed.hashtagAffinity),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async setCachedProfile(
+    userId: number,
+    courseAffinity: Map<number, number>,
+    hashtagAffinity: Map<string, number>,
+  ): Promise<void> {
+    const payload = JSON.stringify({
+      courseAffinity: this.serializeNumberMap(courseAffinity),
+      hashtagAffinity: Object.fromEntries(hashtagAffinity),
+    });
+    await this.redisService.set(this.buildProfileKey(userId), payload, this.PROFILE_TTL_SECONDS);
+  }
+
+  private async getRecentSeenFeedIds(userId: number, limit = 500): Promise<number[]> {
+    const now = Date.now();
+    const minScore = now - this.SEEN_COOLDOWN_SECONDS * 1000;
+    await this.redisService.zRemRangeByScore(this.buildSeenKey(userId), 0, minScore - 1);
+    const ids = await this.redisService.zRangeByScore(
+      this.buildSeenKey(userId),
+      minScore,
+      now,
+      limit,
+    );
+    return ids
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+  }
+
+  private async markFeedSeen(userId: number, feedId: number): Promise<void> {
+    await this.redisService.zAdd(this.buildSeenKey(userId), Date.now(), String(feedId));
+  }
+
+  private async markUserInteracted(userId: number): Promise<void> {
+    await this.redisService.sAdd(this.buildInteractedUsersKey(), [String(userId)]);
+  }
+
+  private async getCachedRecommendList(userId: number, courseId?: number): Promise<number[] | null> {
+    const raw = await this.redisService.get(this.buildRecommendListKey(userId, courseId));
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      return parsed
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id));
+    } catch {
+      return null;
+    }
+  }
+
+  private async setCachedRecommendList(
+    userId: number,
+    courseId: number | undefined,
+    feedIds: number[],
+  ): Promise<void> {
+    await this.redisService.set(
+      this.buildRecommendListKey(userId, courseId),
+      JSON.stringify(feedIds),
+      this.RECOMMEND_CACHE_TTL_SECONDS,
+    );
+  }
+
+  private pageFeedIds(feedIds: number[], cursor: number | undefined, limit: number): number[] {
+    if (!cursor) {
+      return feedIds.slice(0, limit);
+    }
+    const index = feedIds.indexOf(cursor);
+    if (index < 0) {
+      return [];
+    }
+    return feedIds.slice(index + 1, index + 1 + limit);
+  }
+
+  private async getStatsAndInteractions(
+    feedIds: number[],
+    userId: number,
+  ): Promise<{
+    statsByFeed: Map<number, { likes: number; saves: number; views: number }>;
+    likedSet: Set<number>;
+    savedSet: Set<number>;
+  }> {
+    const statsByFeed = new Map<number, { likes: number; saves: number; views: number }>();
+    const likedSet = new Set<number>();
+    const savedSet = new Set<number>();
+
+    if (feedIds.length === 0) {
+      return { statsByFeed, likedSet, savedSet };
+    }
+
+    const [interactionRows, viewRows, userInteractionRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds } },
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds } },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'views']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedInteractionModel.findAll({
+        where: {
+          user_id: userId,
+          highlight_id: { [Op.in]: feedIds },
+          type: { [Op.in]: [FeedInteractionType.LIKE, FeedInteractionType.SAVE] },
+        },
+        attributes: ['highlight_id', 'type'],
+        raw: true,
+      }),
+    ]);
+
+    const interactionAggRows = interactionRows as unknown as Array<{
+      highlight_id: number;
+      likes: string | number;
+      saves: string | number;
+    }>;
+    for (const row of interactionAggRows) {
+      const feedId = Number(row.highlight_id);
+      statsByFeed.set(feedId, {
+        likes: Number(row.likes || 0),
+        saves: Number(row.saves || 0),
+        views: statsByFeed.get(feedId)?.views || 0,
+      });
+    }
+
+    const viewAggRows = viewRows as unknown as Array<{ highlight_id: number; views: string | number }>;
+    for (const row of viewAggRows) {
+      const feedId = Number(row.highlight_id);
+      const current = statsByFeed.get(feedId) || { likes: 0, saves: 0, views: 0 };
+      current.views = Number(row.views || 0);
+      statsByFeed.set(feedId, current);
+    }
+
+    const userInteractionAggRows = userInteractionRows as unknown as Array<{
+      highlight_id: number;
+      type: FeedInteractionType;
+    }>;
+    for (const row of userInteractionAggRows) {
+      if (row.type === FeedInteractionType.LIKE) {
+        likedSet.add(Number(row.highlight_id));
+      }
+      if (row.type === FeedInteractionType.SAVE) {
+        savedSet.add(Number(row.highlight_id));
+      }
+    }
+
+    return { statsByFeed, likedSet, savedSet };
+  }
+
+  private async buildFeedResponse(
+    feedIds: number[],
+    statsByFeed: Map<number, { likes: number; saves: number; views: number }>,
+    likedSet: Set<number>,
+    savedSet: Set<number>,
+  ): Promise<FeedResponseItem[]> {
+    if (feedIds.length === 0) {
+      return [];
+    }
+
+    const feeds = await this.highlightFeedModel.findAll({
+      where: {
+        id: { [Op.in]: feedIds },
+        status: HighlightFeedStatus.ACTIVE,
+      },
+      include: [
+        { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+        {
+          model: Course,
+          where: { status: CourseStatus.PUBLISH },
+          include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }],
+        },
+      ],
+    });
+
+    const feedById = new Map<number, HighlightFeed>();
+    for (const feed of feeds) {
+      feedById.set(feed.id, feed);
+    }
+
+    const data: FeedResponseItem[] = [];
+    for (const feedId of feedIds) {
+      const feed = feedById.get(feedId);
+      if (!feed || !feed.course || !feed.video) {
+        continue;
+      }
+      const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+      const { user, ...courseData } = feed.course.toJSON();
+      data.push({
+        feed_id: feed.id,
+        title: feed.title,
+        hashtags: feed.hashtags,
+        video_type: feed.video.type,
+        video: feed.video.toJSON(),
+        course: courseData,
+        lecturer: user,
+        stats,
+        is_liked: likedSet.has(feed.id),
+        is_saved: savedSet.has(feed.id),
+      });
+    }
+
+    return data;
   }
 
   private async assertFeedStatsAccess(
@@ -309,6 +616,120 @@ export class FeedService {
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 20) : 10;
 
+    const cachedList = await this.getCachedRecommendList(userId, courseId);
+    if (cachedList) {
+      const pageIds = this.pageFeedIds(cachedList, cursor, safeLimit);
+      if (pageIds.length > 0) {
+        const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(
+          pageIds,
+          userId,
+        );
+        const data = await this.buildFeedResponse(pageIds, statsByFeed, likedSet, savedSet);
+        return {
+          data,
+          next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+        };
+      }
+    }
+
+    const { rankedFeeds, statsByFeed, likedSet, savedSet } = await this.computeRankedCandidates(
+      userId,
+      courseId,
+    );
+    if (!rankedFeeds.length) {
+      return { data: [], next_cursor: null };
+    }
+
+    const rankedIds = rankedFeeds.map((item) => item.feed.id);
+    await this.setCachedRecommendList(userId, courseId, rankedIds);
+
+    const pageIds = this.pageFeedIds(rankedIds, cursor, safeLimit);
+    const data = await this.buildFeedResponse(pageIds, statsByFeed, likedSet, savedSet);
+    return {
+      data,
+      next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+    };
+  }
+
+  private normalizeHashtags(hashtags?: unknown): string[] {
+    if (!hashtags || !Array.isArray(hashtags)) {
+      return [];
+    }
+
+    return hashtags
+      .filter((tag) => typeof tag === 'string')
+      .map((tag) => tag.trim().toLowerCase())
+      .filter((tag) => tag.length > 0);
+  }
+
+  private async invalidateRecommendCache(userId: number, courseId?: number): Promise<void> {
+    await this.redisService.del(this.buildRecommendListKey(userId, courseId));
+    if (courseId) {
+      await this.redisService.del(this.buildRecommendListKey(userId, undefined));
+    }
+  }
+
+  private async updateProfileAffinity(
+    userId: number,
+    feed: HighlightFeed,
+    weight: number,
+  ): Promise<void> {
+    const cachedProfile = await this.getCachedProfile(userId);
+    const courseAffinity = cachedProfile?.courseAffinity ?? new Map<number, number>();
+    const hashtagAffinity = cachedProfile?.hashtagAffinity ?? new Map<string, number>();
+
+    courseAffinity.set(feed.course_id, (courseAffinity.get(feed.course_id) || 0) + weight);
+    const tags = this.normalizeHashtags(feed.hashtags);
+    for (const tag of tags) {
+      hashtagAffinity.set(tag, (hashtagAffinity.get(tag) || 0) + weight);
+    }
+
+    await this.setCachedProfile(userId, courseAffinity, hashtagAffinity);
+  }
+
+  async precomputeRecommendedForActiveUsers(): Promise<void> {
+    const members = await this.redisService.sMembers(this.buildInteractedUsersKey());
+    const userIds = members
+      .map((value) => Number(value))
+      .filter((id) => Number.isFinite(id));
+
+    for (const userId of userIds) {
+      const { rankedFeeds } = await this.computeRankedCandidates(userId);
+      const rankedIds = rankedFeeds.map((item) => item.feed.id);
+      await this.setCachedRecommendList(userId, undefined, rankedIds);
+    }
+
+    await this.redisService.sRem(this.buildInteractedUsersKey(), members);
+  }
+
+  private async getFeedBasicStats(feedId: number) {
+    const [likes, saves, views] = await Promise.all([
+      this.feedInteractionModel.count({
+        where: { highlight_id: feedId, type: FeedInteractionType.LIKE },
+      }),
+      this.feedInteractionModel.count({
+        where: { highlight_id: feedId, type: FeedInteractionType.SAVE },
+      }),
+      this.feedViewModel.count({
+        where: { highlight_id: feedId },
+      }),
+    ]);
+    return { views, likes, saves };
+  }
+
+  private async computeRankedCandidates(
+    userId: number,
+    courseId?: number,
+  ): Promise<{
+    rankedFeeds: Array<{ feed: HighlightFeed; stats: { likes: number; saves: number; views: number } }>;
+    statsByFeed: Map<number, { likes: number; saves: number; views: number }>;
+    likedSet: Set<number>;
+    savedSet: Set<number>;
+    viewedCount: Map<number, number>;
+    courseAffinity: Map<number, number>;
+    hashtagAffinity: Map<string, number>;
+  }> {
+    const cachedProfile = await this.getCachedProfile(userId);
     const userViews = await this.feedViewModel.findAll({
       where: { user_id: userId },
       include: [{ model: HighlightFeed, attributes: ['id', 'course_id', 'hashtags'] }],
@@ -316,36 +737,54 @@ export class FeedService {
       limit: 200,
     });
 
-    const courseAffinity = new Map<number, number>();
-    const hashtagAffinity = new Map<string, number>();
+    const courseAffinity = cachedProfile?.courseAffinity ?? new Map<number, number>();
+    const hashtagAffinity = cachedProfile?.hashtagAffinity ?? new Map<string, number>();
     const viewedCount = new Map<number, number>();
 
-    for (const view of userViews) {
-      const highlight = view.highlight;
-      if (!highlight) {
-        continue;
+    if (!cachedProfile) {
+      for (const view of userViews) {
+        const highlight = view.highlight;
+        if (!highlight) {
+          continue;
+        }
+
+        const behaviorWeight = (view.completed ? 2 : 1) + Math.min((view.watch_duration || 0) / 30, 2);
+        viewedCount.set(highlight.id, (viewedCount.get(highlight.id) || 0) + 1);
+        courseAffinity.set(
+          highlight.course_id,
+          (courseAffinity.get(highlight.course_id) || 0) + behaviorWeight,
+        );
+
+        const tags = this.normalizeHashtags(highlight.hashtags);
+        for (const tag of tags) {
+          hashtagAffinity.set(tag, (hashtagAffinity.get(tag) || 0) + behaviorWeight);
+        }
       }
 
-      const behaviorWeight = (view.completed ? 2 : 1) + Math.min((view.watch_duration || 0) / 30, 2);
-
-      viewedCount.set(highlight.id, (viewedCount.get(highlight.id) || 0) + 1);
-      courseAffinity.set(
-        highlight.course_id,
-        (courseAffinity.get(highlight.course_id) || 0) + behaviorWeight,
-      );
-
-      const tags = this.normalizeHashtags(highlight.hashtags);
-      for (const tag of tags) {
-        hashtagAffinity.set(tag, (hashtagAffinity.get(tag) || 0) + behaviorWeight);
+      await this.setCachedProfile(userId, courseAffinity, hashtagAffinity);
+    } else {
+      for (const view of userViews) {
+        const highlight = view.highlight;
+        if (!highlight) {
+          continue;
+        }
+        viewedCount.set(highlight.id, (viewedCount.get(highlight.id) || 0) + 1);
       }
     }
 
-    const candidateFeeds = await this.highlightFeedModel.findAll({
-      where: {
-        status: HighlightFeedStatus.ACTIVE,
-        ...(cursor && { id: { [Op.lt]: cursor } }),
-        ...(courseId && { course_id: courseId }),
-      },
+    const seenIds = await this.getRecentSeenFeedIds(userId, 1000);
+    const baseWhere = {
+      status: HighlightFeedStatus.ACTIVE,
+      ...(courseId && { course_id: courseId }),
+    } as Record<string, unknown>;
+
+    const whereWithSeen = {
+      ...baseWhere,
+      ...(seenIds.length ? { id: { [Op.notIn]: seenIds } } : {}),
+    } as Record<string, unknown>;
+
+    let candidateFeeds = await this.highlightFeedModel.findAll({
+      where: whereWithSeen,
       include: [
         { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
         {
@@ -355,82 +794,29 @@ export class FeedService {
         },
       ],
       order: [['id', 'DESC']],
-      limit: safeLimit,
+      limit: this.RECOMMEND_CACHE_SIZE,
     });
 
-    if (!candidateFeeds.length) {
-      return { data: [], next_cursor: null };
-    }
-
-    const feedIds = candidateFeeds.map((feed) => feed.id);
-
-    const [interactionRows, viewRows, userInteractionRows] = await Promise.all([
-      this.feedInteractionModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds } },
-        attributes: [
-          'highlight_id',
-          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
-          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+    if (candidateFeeds.length < 10) {
+      candidateFeeds = await this.highlightFeedModel.findAll({
+        where: baseWhere,
+        include: [
+          { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+          {
+            model: Course,
+            where: { status: CourseStatus.PUBLISH },
+            include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }],
+          },
         ],
-        group: ['highlight_id'],
-        raw: true,
-      }),
-      this.feedViewModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds } },
-        attributes: ['highlight_id', [fn('COUNT', col('id')), 'views']],
-        group: ['highlight_id'],
-        raw: true,
-      }),
-      this.feedInteractionModel.findAll({
-        where: {
-          user_id: userId,
-          highlight_id: { [Op.in]: feedIds },
-          type: { [Op.in]: [FeedInteractionType.LIKE, FeedInteractionType.SAVE] },
-        },
-        attributes: ['highlight_id', 'type'],
-        raw: true,
-      }),
-    ]);
-
-    const statsByFeed = new Map<number, { likes: number; saves: number; views: number }>();
-    const interactionAggRows = interactionRows as unknown as Array<{
-      highlight_id: number;
-      likes: string | number;
-      saves: string | number;
-    }>;
-    for (const row of interactionAggRows) {
-      const feedId = Number(row.highlight_id);
-      statsByFeed.set(feedId, {
-        likes: Number(row.likes || 0),
-        saves: Number(row.saves || 0),
-        views: statsByFeed.get(feedId)?.views || 0,
+        order: [['id', 'DESC']],
+        limit: this.RECOMMEND_CACHE_SIZE,
       });
     }
 
-    const viewAggRows = viewRows as unknown as Array<{ highlight_id: number; views: string | number }>;
-    for (const row of viewAggRows) {
-      const feedId = Number(row.highlight_id);
-      const current = statsByFeed.get(feedId) || { likes: 0, saves: 0, views: 0 };
-      current.views = Number(row.views || 0);
-      statsByFeed.set(feedId, current);
-    }
+    const feedIds = candidateFeeds.map((feed) => feed.id);
+    const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(feedIds, userId);
 
-    const likedSet = new Set<number>();
-    const savedSet = new Set<number>();
-    const userInteractionAggRows = userInteractionRows as unknown as Array<{
-      highlight_id: number;
-      type: FeedInteractionType;
-    }>;
-    for (const row of userInteractionAggRows) {
-      if (row.type === FeedInteractionType.LIKE) {
-        likedSet.add(Number(row.highlight_id));
-      }
-      if (row.type === FeedInteractionType.SAVE) {
-        savedSet.add(Number(row.highlight_id));
-      }
-    }
-
-    const ranked = candidateFeeds
+    const rankedFeeds = candidateFeeds
       .map((feed) => {
         const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
         const courseScore = courseAffinity.get(feed.course_id) || 0;
@@ -449,55 +835,18 @@ export class FeedService {
           return b.recommendationScore - a.recommendationScore;
         }
         return b.feed.id - a.feed.id;
-      });
+      })
+      .map(({ feed, stats }) => ({ feed, stats }));
 
-    const data = ranked.map(({ feed, stats }) => {
-      const { user, ...courseData } = feed.course!.toJSON();
-      return {
-        feed_id: feed.id,
-        title: feed.title,
-        hashtags: feed.hashtags,
-        video_type: feed.video!.type,
-        video: feed.video!.toJSON(),
-        course: courseData,
-        lecturer: user,
-        stats,
-        is_liked: likedSet.has(feed.id),
-        is_saved: savedSet.has(feed.id),
-      };
-    });
-
-    const minFeedId = data.reduce((minId, item) => Math.min(minId, item.feed_id), data[0].feed_id);
     return {
-      data,
-      next_cursor: data.length === safeLimit ? minFeedId : null,
+      rankedFeeds,
+      statsByFeed,
+      likedSet,
+      savedSet,
+      viewedCount,
+      courseAffinity,
+      hashtagAffinity,
     };
-  }
-
-  private normalizeHashtags(hashtags?: unknown): string[] {
-    if (!hashtags || !Array.isArray(hashtags)) {
-      return [];
-    }
-
-    return hashtags
-      .filter((tag) => typeof tag === 'string')
-      .map((tag) => tag.trim().toLowerCase())
-      .filter((tag) => tag.length > 0);
-  }
-
-  private async getFeedBasicStats(feedId: number) {
-    const [likes, saves, views] = await Promise.all([
-      this.feedInteractionModel.count({
-        where: { highlight_id: feedId, type: FeedInteractionType.LIKE },
-      }),
-      this.feedInteractionModel.count({
-        where: { highlight_id: feedId, type: FeedInteractionType.SAVE },
-      }),
-      this.feedViewModel.count({
-        where: { highlight_id: feedId },
-      }),
-    ]);
-    return { views, likes, saves };
   }
 
   async getFeedDetailStats(feedId: number, requesterUserId: number, requesterRole: number) {
@@ -914,6 +1263,7 @@ export class FeedService {
         highlight_id: feedId,
         type,
       });
+      await this.markUserInteracted(userId);
       return { type, active: true };
     } else {
       // Toggle for like/save
@@ -922,6 +1272,8 @@ export class FeedService {
       });
       if (existing) {
         await existing.destroy();
+        await this.invalidateRecommendCache(userId, feed.course_id);
+        await this.markUserInteracted(userId);
         return { type, active: false };
       } else {
         await this.feedInteractionModel.create({
@@ -929,6 +1281,10 @@ export class FeedService {
           highlight_id: feedId,
           type,
         });
+        const weight = type === FeedInteractionType.SAVE ? 2 : 1.2;
+        await this.updateProfileAffinity(userId, feed, weight);
+        await this.invalidateRecommendCache(userId, feed.course_id);
+        await this.markUserInteracted(userId);
         return { type, active: true };
       }
     }
@@ -950,7 +1306,11 @@ export class FeedService {
       watch_duration: watchDuration,
       completed,
     });
-
+    const viewWeight = (completed ? 2 : 1) + Math.min((watchDuration || 0) / 30, 2);
+    await this.updateProfileAffinity(userId, feed, viewWeight);
+    await this.markFeedSeen(userId, feedId);
+    await this.invalidateRecommendCache(userId, feed.course_id);
+    await this.markUserInteracted(userId);
     return { recorded: true };
   }
 

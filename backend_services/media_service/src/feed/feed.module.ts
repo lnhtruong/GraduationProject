@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { FeedController } from './feed.controller';
 import { FeedService } from './feed.service';
+import { RedisModule } from '../redis/redis.module';
+import { RedisService } from '../redis/redis.service';
+import { FeedRecommendationWorker } from './feed-recommendation.worker';
 import { HighlightFeed } from '../models/highlight_feed.model';
 import { FeedInteraction } from '../models/feed_interactions.model';
 import { FeedView } from '../models/feed_views.model';
@@ -21,9 +24,10 @@ import { User } from '../models/user.model';
       Course,
       User,
     ]),
+    RedisModule,
   ],
   controllers: [FeedController],
-  providers: [FeedService],
+  providers: [FeedService, RedisService, FeedRecommendationWorker],
   exports: [FeedService],
 })
 export class FeedModule {}
