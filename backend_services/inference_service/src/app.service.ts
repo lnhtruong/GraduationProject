@@ -15,18 +15,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getStringField(obj: unknown, key: string): string | undefined {
   if (!isRecord(obj)) return undefined;
   const v = obj[key];
-  return typeof v === 'string' ? v : undefined;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return undefined;
 }
 
 @Injectable()
 export class AppService {
-  private colabUrl: string;
+  private highlightUrl: string;
+  private mascotUrl: string;
+  private ngrokHeaders = { 'ngrok-skip-browser-warning': 'true' };
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.colabUrl = this.configService.getOrThrow<string>('COLAB_API_URL');
+    this.highlightUrl = this.configService.getOrThrow<string>('COLAB_HIGHLIGHT_URL');
+    this.mascotUrl = this.configService.getOrThrow<string>('COLAB_MASCOT_URL');
   }
 
   // 1. Tạo Highlight Reel (file upload)
@@ -59,10 +64,10 @@ export class AppService {
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
-          `${this.colabUrl}/highlight-reel`,
+          `${this.highlightUrl}/highlight-reel`,
           formData,
           {
-            headers: formData.getHeaders(),
+            headers: { ...formData.getHeaders(), ...this.ngrokHeaders },
           },
         ),
       );
@@ -109,9 +114,9 @@ export class AppService {
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
-          `${this.colabUrl}/highlight-reel-link`,
+          `${this.highlightUrl}/highlight-reel-link`,
           payload,
-          { headers: { 'Content-Type': 'application/json' } },
+          { headers: { 'Content-Type': 'application/json', ...this.ngrokHeaders } },
         ),
       );
 
@@ -157,8 +162,8 @@ export class AppService {
       }
 
       const response = await firstValueFrom(
-        this.httpService.post<unknown>(`${this.colabUrl}/mascot`, formData, {
-          headers: formData.getHeaders(),
+        this.httpService.post<unknown>(`${this.mascotUrl}/mascot`, formData, {
+          headers: { ...formData.getHeaders(), ...this.ngrokHeaders },
         }),
       );
 
@@ -184,10 +189,10 @@ export class AppService {
 
       const response = await firstValueFrom(
         this.httpService.post<unknown>(
-          `${this.colabUrl}/generate-quiz`,
+          `${this.highlightUrl}/generate-quiz`,
           formData,
           {
-            headers: formData.getHeaders(),
+            headers: { ...formData.getHeaders(), ...this.ngrokHeaders },
           },
         ),
       );
@@ -200,53 +205,55 @@ export class AppService {
     }
   }
 
-  // 4. Lấy trạng thái Job
+  // 4. Lấy trạng thái Job (try highlight first, fallback to mascot)
   async getJobStatus(
     jobId: string,
     userIdFromHeader?: number,
   ): Promise<unknown> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.get<unknown>(`${this.colabUrl}/jobs/status/${jobId}`),
-      );
-
-      const data = response.data as any;
-      console.log('check data: ', data);
-      const outputUrl = (data as any)?.result?.download_url as string | '';
-
-      const userId = userIdFromHeader;
-      const isHighlight = (data as any)?.type?.includes('highlight-reel');
-
-      return response.data;
-    } catch (error: unknown) {
-      const axiosError = error as AxiosError<unknown> | undefined;
-      const payload = axiosError?.response?.data ?? 'Colab Error';
-      const status = axiosError?.response?.status ?? 500;
-      throw new HttpException(payload as string | Record<string, any>, status);
+    for (const baseUrl of [this.highlightUrl, this.mascotUrl]) {
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get<unknown>(`${baseUrl}/jobs/status/${jobId}`, {
+            headers: this.ngrokHeaders,
+          }),
+        );
+        return response.data;
+      } catch (error: unknown) {
+        const axiosError = error as AxiosError<unknown> | undefined;
+        const status = axiosError?.response?.status;
+        // If 404, try the other service
+        if (status === 404) continue;
+        // Other errors: throw immediately
+        const payload = axiosError?.response?.data ?? 'Colab Error';
+        throw new HttpException(payload as string | Record<string, any>, status ?? 500);
+      }
     }
+    throw new HttpException('Job not found', 404);
   }
 
-  // 5. Download Video (Stream)
+  // 5. Download Video (Stream — try highlight first, fallback to mascot)
   async downloadVideo(jobId: string, res: Response) {
-    try {
-      const response = await this.httpService.axiosRef.get<Readable>(
-        `${this.colabUrl}/download/${jobId}`,
-        { responseType: 'stream' },
-      );
+    for (const baseUrl of [this.highlightUrl, this.mascotUrl]) {
+      try {
+        const response = await this.httpService.axiosRef.get<Readable>(
+          `${baseUrl}/download/${jobId}`,
+          { responseType: 'stream', headers: this.ngrokHeaders },
+        );
 
-      // Set header từ Colab sang NestJS
-      const headers = response.headers as Record<string, string | undefined>;
-      const contentType = headers['content-type'];
-      if (contentType) res.setHeader('Content-Type', contentType);
-      const disposition = headers['content-disposition'];
-      if (disposition) {
-        res.setHeader('Content-Disposition', disposition);
+        const headers = response.headers as Record<string, string | undefined>;
+        const contentType = headers['content-type'];
+        if (contentType) res.setHeader('Content-Type', contentType);
+        const disposition = headers['content-disposition'];
+        if (disposition) {
+          res.setHeader('Content-Disposition', disposition);
+        }
+
+        response.data.pipe(res);
+        return;
+      } catch {
+        continue;
       }
-
-      // Pipe stream thẳng về FE
-      response.data.pipe(res);
-    } catch {
-      throw new HttpException('Video not found or job not completed', 404);
     }
+    throw new HttpException('Video not found or job not completed', 404);
   }
 }

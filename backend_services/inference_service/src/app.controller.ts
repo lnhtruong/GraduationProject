@@ -42,9 +42,8 @@ export class AppController {
     return this.appService.createHighlightReel(video, body, userId);
   }
 
-  // Map với /highlight-reel-link (video link, no file upload)
+  // Map với /highlight-reel-link (video link, no file upload — JSON body)
   @Post('highlight-reel-link')
-  @UseInterceptors(NoFilesInterceptor())
   async createHighlightReelLink(
     @Body() body: unknown,
     @Headers('x-user-id') userIdHeader?: string,
