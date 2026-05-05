@@ -42,4 +42,22 @@ export class RedisService {
   async zRemRangeByScore(key: string, min: number, max: number): Promise<void> {
     await this.redisClient.zremrangebyscore(key, min, max);
   }
+
+  async sAdd(key: string, members: string[]): Promise<void> {
+    if (members.length === 0) {
+      return;
+    }
+    await this.redisClient.sadd(key, ...members);
+  }
+
+  async sMembers(key: string): Promise<string[]> {
+    return await this.redisClient.smembers(key);
+  }
+
+  async sRem(key: string, members: string[]): Promise<void> {
+    if (members.length === 0) {
+      return;
+    }
+    await this.redisClient.srem(key, ...members);
+  }
 }

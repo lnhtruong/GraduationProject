@@ -93,6 +93,10 @@ export class FeedService {
     return `feed:rec:seen:${userId}`;
   }
 
+  private buildInteractedUsersKey(): string {
+    return 'feed:rec:interacted-users';
+  }
+
   private serializeNumberMap(map: Map<number, number>): Record<string, number> {
     const result: Record<string, number> = {};
     for (const [key, value] of map.entries()) {
@@ -180,6 +184,10 @@ export class FeedService {
 
   private async markFeedSeen(userId: number, feedId: number): Promise<void> {
     await this.redisService.zAdd(this.buildSeenKey(userId), Date.now(), String(feedId));
+  }
+
+  private async markUserInteracted(userId: number): Promise<void> {
+    await this.redisService.sAdd(this.buildInteractedUsersKey(), [String(userId)]);
   }
 
   private async getCachedRecommendList(userId: number, courseId?: number): Promise<number[] | null> {
@@ -657,16 +665,9 @@ export class FeedService {
   }
 
   async precomputeRecommendedForActiveUsers(): Promise<void> {
-    const since = new Date(Date.now() - this.ACTIVE_USER_LOOKBACK_MS);
-    const rows = await this.feedViewModel.findAll({
-      where: { viewed_at: { [Op.gte]: since } },
-      attributes: [[fn('DISTINCT', col('user_id')), 'user_id']],
-      raw: true,
-      limit: 200,
-    });
-
-    const userIds = rows
-      .map((row) => Number((row as unknown as { user_id: number | string }).user_id))
+    const members = await this.redisService.sMembers(this.buildInteractedUsersKey());
+    const userIds = members
+      .map((value) => Number(value))
       .filter((id) => Number.isFinite(id));
 
     for (const userId of userIds) {
@@ -674,6 +675,8 @@ export class FeedService {
       const rankedIds = rankedFeeds.map((item) => item.feed.id);
       await this.setCachedRecommendList(userId, undefined, rankedIds);
     }
+
+    await this.redisService.sRem(this.buildInteractedUsersKey(), members);
   }
 
   private async getFeedBasicStats(feedId: number) {
@@ -1237,6 +1240,7 @@ export class FeedService {
         highlight_id: feedId,
         type,
       });
+      await this.markUserInteracted(userId);
       return { type, active: true };
     } else {
       // Toggle for like/save
@@ -1246,6 +1250,7 @@ export class FeedService {
       if (existing) {
         await existing.destroy();
         await this.invalidateRecommendCache(userId, feed.course_id);
+        await this.markUserInteracted(userId);
         return { type, active: false };
       } else {
         await this.feedInteractionModel.create({
@@ -1256,6 +1261,7 @@ export class FeedService {
         const weight = type === FeedInteractionType.SAVE ? 2 : 1.2;
         await this.updateProfileAffinity(userId, feed, weight);
         await this.invalidateRecommendCache(userId, feed.course_id);
+        await this.markUserInteracted(userId);
         return { type, active: true };
       }
     }
@@ -1281,6 +1287,7 @@ export class FeedService {
     await this.updateProfileAffinity(userId, feed, viewWeight);
     await this.markFeedSeen(userId, feedId);
     await this.invalidateRecommendCache(userId, feed.course_id);
+    await this.markUserInteracted(userId);
     return { recorded: true };
   }
 
