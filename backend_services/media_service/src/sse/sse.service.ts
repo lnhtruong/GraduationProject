@@ -98,7 +98,16 @@ export class SseService {
         stream.subject.next(event);
     }
 
-    notifyVideoCompleted(userId: number, videoData: { videoId: number; url: string; type: string; duration?: number; job_id?: string }): void {
+    notifyVideoCompleted(userId: number, videoData: {
+        videoId?: number;
+        url: string;
+        type: string;
+        duration?: number;
+        jobId?: string;
+        job_id?: string;
+        srtUrl?: string;
+        status?: string;
+    }): void {
         this.emitToUser(userId, {
             type: 'video:completed',
             data: {
@@ -144,6 +153,37 @@ export class SseService {
             data: {
                 videoId,
                 progress,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    }
+
+    notifyJobProgress(userId: number, progressData: {
+        jobId?: string;
+        type?: string;
+        stage?: string;
+        status?: string;
+    }): void {
+        this.emitToUser(userId, {
+            type: 'video:progress',
+            data: {
+                ...progressData,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    }
+
+    notifyJobFailed(userId: number, errorData: {
+        jobId?: string;
+        type?: string;
+        status?: string;
+        error?: string;
+    }): void {
+        this.emitToUser(userId, {
+            type: 'video:error',
+            data: {
+                success: false,
+                ...errorData,
                 timestamp: new Date().toISOString(),
             },
         });
