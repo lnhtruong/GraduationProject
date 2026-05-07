@@ -64,14 +64,16 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('courseId') courseId?: string,
-    @Query('mode') mode?: string,
+    @Query('mode') mode?: 'recommended' | 'search',
+    @Query('search') search?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : 10;
     const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
-    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode);
+
+    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode, search);
   }
 
   @Get('viewed')
