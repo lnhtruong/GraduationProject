@@ -17,7 +17,9 @@ import { NewsfeedSidebar } from "./NewsfeedSidebar";
 import { NewsfeedVideoFeed } from "./NewsfeedVideoFeed";
 
 export function NewsfeedPage() {
-	const feed = useNewsfeedVideoFeed(true);
+	const [searchValue, setSearchValue] = useState("");
+	const [submittedSearch, setSubmittedSearch] = useState("");
+	const feed = useNewsfeedVideoFeed(true, submittedSearch);
 	const {
 		isMenuOpen,
 		isOptionBoxOpen,
@@ -119,6 +121,12 @@ export function NewsfeedPage() {
 		[user?.email, user?.firstName],
 	);
 
+	const normalizedSearch = submittedSearch.trim();
+
+	const handleSearchSubmit = useCallback((value: string) => {
+		setSubmittedSearch(value.trim());
+	}, []);
+
 	if (feed.isLoading) {
 		return (
 			<div className="h-screen bg-background">
@@ -175,6 +183,12 @@ export function NewsfeedPage() {
 				onToggleMenu={toggleMenu}
 				userInitials={getInitials(user?.firstName ?? user?.email ?? "U")}
 				userName={user?.firstName ?? user?.email ?? null}
+				searchValue={searchValue}
+				onSearchValueChange={setSearchValue}
+				onSearchSubmit={(value) => {
+					setSearchValue(value);
+					handleSearchSubmit(value);
+				}}
 			/>
 
 			<NewsfeedSidebar isExpanded={isMenuOpen} onClose={closeMenu} />
@@ -236,7 +250,7 @@ export function NewsfeedPage() {
 
 			{feed.endReached ? (
 				<div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-background/90 px-4 py-2 text-xs shadow-lg">
-					Đã xem hết video đề xuất.
+					{normalizedSearch ? "Không còn kết quả phù hợp." : "Đã xem hết video đề xuất."}
 				</div>
 			) : null}
 		</div>

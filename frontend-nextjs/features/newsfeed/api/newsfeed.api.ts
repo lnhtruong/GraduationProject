@@ -3,6 +3,7 @@ import { withQueryPath } from "@/features/_shared/crud-factories";
 import type {
   NewsfeedCommentDetailResponse,
   NewsfeedCommentPageResponse,
+  NewsfeedActionType,
   NewsfeedFeedDetailStatsResponse,
   NewsfeedItem,
   NewsfeedPageResponse,
@@ -64,14 +65,20 @@ export const newsfeedApi = createApi({
   getFeed: async ({
     cursor = 0,
     limit = 8,
+    mode = "recommended",
+    search,
   }: {
     cursor?: number;
     limit?: number;
+    mode?: "recommended" | "search";
+    search?: string;
   }): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
     const { data } = await apiHttpClient.get<NewsfeedPageResponse>(
       withQueryPath(FEED_ENDPOINT, {
         cursor,
         limit,
+        mode,
+        search,
       }),
     );
 
@@ -155,6 +162,20 @@ export const newsfeedApi = createApi({
   getFeedDetailStats: async ({ feedId }: { feedId: number }): Promise<NewsfeedFeedDetailStatsResponse> => {
     const { data } = await apiHttpClient.get<NewsfeedFeedDetailStatsResponse>(
       `${FEED_ENDPOINT}/${feedId}/stats`,
+    );
+    return data;
+  },
+
+  interactFeed: async ({
+    feedId,
+    type,
+  }: {
+    feedId: number;
+    type: Exclude<NewsfeedActionType, "course" | "comment">;
+  }): Promise<{ type: Exclude<NewsfeedActionType, "course" | "comment">; active: boolean }> => {
+    const { data } = await apiHttpClient.post<{ type: Exclude<NewsfeedActionType, "course" | "comment">; active: boolean }>(
+      `${FEED_ENDPOINT}/${feedId}/interact`,
+      { type },
     );
     return data;
   },
