@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
-import { WebsocketService } from 'src/websocket/websocket.service';
+// import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
+import { SseService } from 'src/sse/sse.service';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -27,13 +28,23 @@ interface CloudinaryPayload {
     original_filename?: string;
 }
 
-interface ai_model_result {
-    user_id?: string | number;
-    url?: string;
+export interface ai_model_result {
+    event?: 'stage_update' | 'completed' | 'job_failed'; // Thêm field này
+    job_id?: string;
+    user_id: string | number;
+    type?: string;
+
+    // Dành cho completed
     video_url?: string;
+    url?: string;
+    srt_url?: string;
     duration?: number;
-    type?: VideoType | string;
     display_name?: string;
+
+    // Dành cho progress / failed
+    stage?: string;
+    status?: string;
+    error_message?: string;
 }
 
 @Injectable()
@@ -43,7 +54,8 @@ export class WebhookService {
     constructor(
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
-        private readonly websocketService: WebsocketService,
+        // private readonly websocketService: WebsocketService,
+        private readonly sseService: SseService,
         private readonly bunnyService: BunnyService,
     ) { }
 
@@ -123,8 +135,8 @@ export class WebhookService {
 
         const videoMeta =
             play.video !== null &&
-            typeof play.video === 'object' &&
-            !Array.isArray(play.video)
+                typeof play.video === 'object' &&
+                !Array.isArray(play.video)
                 ? (play.video as Record<string, unknown>)
                 : undefined;
         const titleFromPlay =
@@ -158,8 +170,8 @@ export class WebhookService {
 
         await row.reload();
 
-        this.websocketService.notifyUploadCompleted(row.user_id, {
-            id: row.id,
+        this.sseService.notifyUploadCompleted(row.user_id, {
+            videoId: row.id,
             url,
             type: VideoType.LONG,
             duration: duration ?? undefined,
@@ -346,12 +358,13 @@ export class WebhookService {
 
         await row.reload();
 
-        this.websocketService.notifyUploadCompleted(userId, {
-            id: row.id,
+        this.sseService.notifyUploadCompleted(userId, {
+            videoId: row.id,
             url: row.url ?? '',
             type: row.type,
             duration: duration ?? undefined,
             name: resolvedName ?? undefined,
+            job_id: jobId,
         });
 
         return { success: true, id: row.id };
@@ -402,55 +415,78 @@ export class WebhookService {
     }
 
     async handleAIResult(payload: ai_model_result) {
+        // 1. Xử lý User ID trước (logic cũ của bạn)
         const userIdRaw = payload.user_id;
-        const url = payload.url ?? payload.video_url;
-        const duration = payload.duration;
-        const display_name = payload.display_name;
-
-        const rawType = payload.type?.toString().toLowerCase();
-        const type: VideoType | undefined =
-            rawType === VideoType.MASCOT
-                ? VideoType.MASCOT
-                : rawType === VideoType.HIGHLIGHT
-                    ? VideoType.HIGHLIGHT
-                    : rawType === VideoType.LONG
-                        ? VideoType.LONG
-                        : undefined;
-
-        if (
-            type !== VideoType.MASCOT &&
-            type !== VideoType.HIGHLIGHT &&
-            type !== VideoType.LONG
-        ) {
-            this.logger.debug(`Ignoring non-video type=${type}`);
-            return { ignored: true };
-        }
-
-        if (!url) {
-            this.logger.warn('ai model webhook missing url');
-            return { ignored: true };
-        }
-
-        const userIdStr =
-            typeof userIdRaw === 'number'
-                ? String(userIdRaw)
-                : userIdRaw;
-
-        const userId =
-            typeof userIdStr === 'string' && userIdStr.trim().length > 0
-                ? Number(userIdStr)
-                : undefined;
+        const userIdStr = typeof userIdRaw === 'number' ? String(userIdRaw) : userIdRaw;
+        const userId = typeof userIdStr === 'string' && userIdStr.trim().length > 0
+            ? Number(userIdStr)
+            : undefined;
 
         if (!userId || Number.isNaN(userId)) {
             this.logger.warn(`AI model webhook missing valid userId. payload=${JSON.stringify(payload)}`);
             return { ignored: true, reason: 'missing_user_id' };
         }
 
-        this.websocketService.notifyVideoCompleted(userId, {
-            url: url,
-            type: type,
-            duration: duration ?? undefined,
-        });
+        // 2. Map Video Type (accept unknown string for progress/error relay)
+        const rawType = payload.type?.toString().toLowerCase();
+        const type: VideoType | undefined =
+            rawType === VideoType.MASCOT ? VideoType.MASCOT
+                : rawType === VideoType.HIGHLIGHT ? VideoType.HIGHLIGHT
+                    : rawType === VideoType.LONG ? VideoType.LONG
+                        : undefined;
+        const typeForSse = type ?? rawType ?? 'unknown';
+
+        // 3. Phân luồng xử lý theo EVENT
+        // Mặc định là 'completed' nếu Python chưa kịp update code cũ
+        const eventType = payload.event || 'completed';
+
+        console.log('check BE: ', payload);
+
+        switch (eventType) {
+            case 'stage_update':
+                // Bắn SSE báo progress cho FE
+                this.sseService.notifyJobProgress(userId, {
+                    jobId: payload.job_id,
+                    type: typeForSse,
+                    stage: payload.stage,
+                    status: 'processing'
+                });
+                break;
+
+            case 'job_failed':
+                // Bắn SSE báo lỗi
+                this.sseService.notifyJobFailed(userId, {
+                    jobId: payload.job_id,
+                    type: typeForSse,
+                    status: 'failed',
+                    error: payload.error_message
+                });
+                break;
+
+            case 'completed': {
+                // Chỉ check URL khi job đã xong
+                const url = payload.url ?? payload.video_url;
+                if (!url) {
+                    this.logger.warn('AI model webhook missing url for completed event');
+                    return { ignored: true, reason: 'missing_url' };
+                }
+
+                // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
+                this.sseService.notifyVideoCompleted(userId, {
+                    jobId: payload.job_id, // Gửi kèm jobId để FE biết box nào xong
+                    url: url,
+                    srtUrl: payload.srt_url,
+                    type: typeForSse,
+                    duration: payload.duration ?? undefined,
+                    status: 'completed'
+                });
+                break;
+            }
+
+            default:
+                this.logger.warn(`Unknown AI event type: ${eventType}`);
+                break;
+        }
 
         return { success: true };
     }

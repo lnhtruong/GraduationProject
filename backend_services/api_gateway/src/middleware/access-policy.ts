@@ -63,7 +63,7 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
-    { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'public' },
@@ -350,6 +350,11 @@ const ACCESS_RULES: AccessRule[] = [
 
   // Media service
   {
+    method: 'GET',
+    pattern: '/api/media/sse/**',
+    access: 'public',
+  },
+  {
     method: 'POST',
     pattern: '/api/media/webhooks/cloudinary/upload',
     access: 'public',
@@ -461,7 +466,7 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
-  { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: '*',
     pattern: '/api/media/feed/**',

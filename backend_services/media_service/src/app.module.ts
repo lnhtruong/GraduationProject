@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 // import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -7,6 +8,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import redisConfig from './config/redis.config';
 import { VideoModule } from './videos/video.module';
 import { MascotImageModule } from './images_mascot/image_mascot.module';
 import { ProjectModule } from './projects/project.module';
@@ -16,13 +18,15 @@ import { WebhookModule } from './webhook/webhook.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { FeedModule } from './feed/feed.module';
 import { BunnyModule } from './bunny/bunny.module';
+import { SseModule } from './sse/sse.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig],
+      load: [databaseConfig, jwtConfig, redisConfig],
     }),
+    ScheduleModule.forRoot(),
     // JwtModule.register({
     //   global: true,
     // }),
@@ -33,6 +37,7 @@ import { BunnyModule } from './bunny/bunny.module';
     ProjectModule,
     MascotOverlayModule,
     WebsocketModule,
+    SseModule,
     WebhookModule,
     CloudinaryModule,
     BunnyModule,

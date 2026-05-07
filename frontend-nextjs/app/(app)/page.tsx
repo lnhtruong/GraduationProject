@@ -1,5 +1,7 @@
-import Home from "@/features/home";
+// import Home from "@/features/home";
+import SseTestClient from "./components/SseTestClient";
 
 export default function HomePage() {
-  return <Home />;
+  // return <Home />;
+  return <SseTestClient />;
 }
