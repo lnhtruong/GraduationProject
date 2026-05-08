@@ -436,11 +436,13 @@ export class WebhookService {
                         : undefined;
         const typeForSse = type ?? rawType ?? 'unknown';
 
+        let completedVideoId: number | undefined;
+
         // 3. Phân luồng xử lý theo EVENT
         // Mặc định là 'completed' nếu Python chưa kịp update code cũ
         const eventType = payload.event || 'completed';
 
-        console.log('check BE: ', payload);
+        // console.log('check BE: ', payload);
 
         switch (eventType) {
             case 'stage_update':
@@ -471,9 +473,31 @@ export class WebhookService {
                     return { ignored: true, reason: 'missing_url' };
                 }
 
+                const jobId =
+                    typeof payload.job_id === 'string' && payload.job_id.trim().length > 0
+                        ? payload.job_id.trim()
+                        : undefined;
+
+                let videoId: number | undefined;
+                if (jobId) {
+                    const videoRow = await this.videoModel.findOne({
+                        where: { job_id: jobId },
+                    });
+
+                    if (videoRow) {
+                        videoId = videoRow.id;
+                        completedVideoId = videoRow.id;
+                    } else {
+                        this.logger.warn(`AI model webhook completed event cannot find video by job_id=${jobId}`);
+                    }
+                } else {
+                    this.logger.warn('AI model webhook completed event missing job_id');
+                }
+
                 // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
                 this.sseService.notifyVideoCompleted(userId, {
-                    jobId: payload.job_id, // Gửi kèm jobId để FE biết box nào xong
+                    videoId,
+                    jobId, // Gửi kèm jobId để FE biết box nào xong
                     url: url,
                     srtUrl: payload.srt_url,
                     type: typeForSse,
@@ -488,6 +512,6 @@ export class WebhookService {
                 break;
         }
 
-        return { success: true };
+        return { success: true, videoId: completedVideoId };
     }
 }
