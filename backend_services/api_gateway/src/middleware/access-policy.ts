@@ -48,6 +48,13 @@ const ACCESS_RULES: AccessRule[] = [
   // User service
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
+  {
+    method: 'GET',
+    pattern: '/api/users',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  { method: 'PATCH', pattern: '/api/users/:id', access: 'authenticated' },
 
   // Course service - public reads
   {
