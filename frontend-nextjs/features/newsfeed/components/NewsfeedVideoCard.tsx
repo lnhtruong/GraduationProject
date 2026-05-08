@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
-import { useNewsfeedFeedDetailStats } from "../api/newsfeed.hooks";
+import { useNewsfeedFeedDetailStats, useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { getInitials } from "./newsfeed-ui";
 
 function sanitizeDescriptionHtml(input?: string) {
@@ -86,6 +86,15 @@ export function NewsfeedVideoCard({
   const [isSaved, setIsSaved] = useState(video.isSaved);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
+  const interactMutation = useNewsfeedInteractMutation();
+
+  useEffect(() => {
+    setIsLiked(video.isLiked);
+  }, [video.feedId, video.isLiked]);
+
+  useEffect(() => {
+    setIsSaved(video.isSaved);
+  }, [video.feedId, video.isSaved]);
 
   const isPortraitVideo = videoAspectRatio < 1;
   const descriptionText = useMemo(() => stripHtml(video.description), [video.description]);
@@ -114,6 +123,27 @@ export function NewsfeedVideoCard({
   const hasSeeMore = descriptionText.length > 90;
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+
+  const toggleInteraction = useCallback(
+    async (type: "like" | "save") => {
+      try {
+        const result = await interactMutation.mutateAsync({
+          feedId: video.feedId,
+          type,
+        });
+
+        if (type === "like") {
+          setIsLiked(result.active);
+          return;
+        }
+
+        setIsSaved(result.active);
+      } catch {
+        // Keep the current UI state if the toggle fails.
+      }
+    },
+    [interactMutation, video.feedId],
+  );
 
   const handleTogglePlay = useCallback(async () => {
     const element = videoRef.current;
@@ -457,7 +487,7 @@ export function NewsfeedVideoCard({
                   onClick={() => {
                     onOpenCourse();
                   }}
-                  className="shrink-0 text-white/90"
+                  className="shrink-0 text-primary"
                 >
                   ...xem them
                 </button>
@@ -507,9 +537,10 @@ export function NewsfeedVideoCard({
           <Button
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
+            disabled={interactMutation.isPending}
             onClick={(event) => {
               event.stopPropagation();
-              setIsLiked((current) => !current);
+              void toggleInteraction("like");
             }}
           >
             <Heart className={cn("h-5 w-5", isLiked && "fill-red-500 text-red-500")} />
@@ -535,9 +566,10 @@ export function NewsfeedVideoCard({
           <Button
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
-            onClick={(event) => {
+            disabled={interactMutation.isPending}
+            onClick={async (event) => {
               event.stopPropagation();
-              setIsSaved((current) => !current);
+              void toggleInteraction("save");
             }}
           >
             <Bookmark className={cn("h-5 w-5", isSaved && "fill-foreground")} />

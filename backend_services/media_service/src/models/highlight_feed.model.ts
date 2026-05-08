@@ -50,6 +50,12 @@ export class HighlightFeed extends Model {
   declare title?: string;
 
   @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+  })
+  declare caption?: string | null;
+
+  @Column({
     type: DataType.JSON,
     allowNull: true,
   })

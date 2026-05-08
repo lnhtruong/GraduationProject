@@ -14,6 +14,7 @@ import { RedisService } from '../redis/redis.service';
 type FeedResponseItem = {
   feed_id: number;
   title?: string;
+  caption?: string | null;
   hashtags?: string[];
   video_type: string;
   video: unknown;
@@ -318,21 +319,25 @@ export class FeedService {
     statsByFeed: Map<number, { likes: number; saves: number; views: number }>,
     likedSet: Set<number>,
     savedSet: Set<number>,
+    options?: { requireActive?: boolean; requirePublishedCourse?: boolean },
   ): Promise<FeedResponseItem[]> {
     if (feedIds.length === 0) {
       return [];
     }
 
+    const requireActive = options?.requireActive ?? true;
+    const requirePublishedCourse = options?.requirePublishedCourse ?? true;
+
     const feeds = await this.highlightFeedModel.findAll({
       where: {
         id: { [Op.in]: feedIds },
-        status: HighlightFeedStatus.ACTIVE,
+        ...(requireActive ? { status: HighlightFeedStatus.ACTIVE } : {}),
       },
       include: [
         { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
         {
           model: Course,
-          where: { status: CourseStatus.PUBLISH },
+          ...(requirePublishedCourse ? { where: { status: CourseStatus.PUBLISH } } : {}),
           include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }],
         },
       ],
@@ -354,6 +359,7 @@ export class FeedService {
       data.push({
         feed_id: feed.id,
         title: feed.title,
+        caption: feed.caption ?? null,
         hashtags: feed.hashtags,
         video_type: feed.video.type,
         video: feed.video.toJSON(),
@@ -366,6 +372,60 @@ export class FeedService {
     }
 
     return data;
+  }
+
+  private uniqueFeedIds(feedIds: number[]): number[] {
+    const seen = new Set<number>();
+    const uniqueFeedIds: number[] = [];
+
+    for (const feedId of feedIds) {
+      if (!Number.isFinite(feedId) || seen.has(feedId)) {
+        continue;
+      }
+      seen.add(feedId);
+      uniqueFeedIds.push(feedId);
+    }
+
+    return uniqueFeedIds;
+  }
+
+  async getViewedFeeds(userId: number): Promise<FeedResponseItem[]> {
+    const rows = await this.feedViewModel.findAll({
+      where: { user_id: userId },
+      attributes: ['highlight_id', 'viewed_at'],
+      order: [['viewed_at', 'DESC']],
+      raw: true,
+    });
+
+    const feedIds = this.uniqueFeedIds(
+      (rows as Array<{ highlight_id: number }>).map((row) => Number(row.highlight_id)),
+    );
+    const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(feedIds, userId);
+    return this.buildFeedResponse(feedIds, statsByFeed, likedSet, savedSet, {
+      requireActive: false,
+      requirePublishedCourse: false,
+    });
+  }
+
+  async getSavedFeeds(userId: number): Promise<FeedResponseItem[]> {
+    const rows = await this.feedInteractionModel.findAll({
+      where: {
+        user_id: userId,
+        type: FeedInteractionType.SAVE,
+      },
+      attributes: ['highlight_id', 'created_at'],
+      order: [['created_at', 'DESC']],
+      raw: true,
+    });
+
+    const feedIds = this.uniqueFeedIds(
+      (rows as Array<{ highlight_id: number }>).map((row) => Number(row.highlight_id)),
+    );
+    const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(feedIds, userId);
+    return this.buildFeedResponse(feedIds, statsByFeed, likedSet, savedSet, {
+      requireActive: false,
+      requirePublishedCourse: false,
+    });
   }
 
   private async assertFeedStatsAccess(
@@ -479,7 +539,14 @@ export class FeedService {
     return map;
   }
 
-  async addToFeed(userId: number, videoId: number, courseId: number, title?: string, hashtags?: string[]) {
+  async addToFeed(
+    userId: number,
+    videoId: number,
+    courseId: number,
+    title?: string,
+    caption?: string,
+    hashtags?: string[],
+  ) {
     // Check if video exists and user owns it
     const video = await this.videoModel.findByPk(videoId);
     if (!video) {
@@ -514,6 +581,7 @@ export class FeedService {
       video_id: videoId,
       course_id: courseId,
       title: title || video.name,
+      caption: caption?.trim() || null,
       hashtags,
       status: HighlightFeedStatus.HIDDEN,
     });
@@ -889,6 +957,7 @@ export class FeedService {
     return {
       feedId: feed.id,
       title: feed.title,
+      caption: feed.caption ?? null,
       course: {
         id: feed.course.id,
         name: feed.course.name,
@@ -1030,6 +1099,7 @@ export class FeedService {
       return {
         feedId: feed.id,
         title: feed.title,
+        caption: feed.caption ?? null,
         course: {
           id: feed.course.id,
           name: feed.course.name,
@@ -1199,6 +1269,7 @@ export class FeedService {
         return {
           feedId: feed.id,
           title: feed.title,
+          caption: feed.caption ?? null,
           course: {
             id: feed.course.id,
             name: feed.course.name,
@@ -1314,7 +1385,14 @@ export class FeedService {
     return { recorded: true };
   }
 
-  async updateFeed(userId: number, feedId: number, title?: string, hashtags?: string[], status?: string) {
+  async updateFeed(
+    userId: number,
+    feedId: number,
+    title?: string,
+    caption?: string,
+    hashtags?: string[],
+    status?: string,
+  ) {
     // Get feed with course info
     const feed = await this.highlightFeedModel.findByPk(feedId, {
       include: [{ model: Course }],
@@ -1336,6 +1414,9 @@ export class FeedService {
     // Update feed fields
     if (title !== undefined) {
       feed.title = title;
+    }
+    if (caption !== undefined) {
+      feed.caption = caption?.trim() || null;
     }
     if (hashtags !== undefined) {
       feed.hashtags = hashtags;

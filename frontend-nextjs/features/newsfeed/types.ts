@@ -3,6 +3,7 @@ export type NewsfeedActionType =
 	| "like"
 	| "comment"
 	| "bookmark"
+	| "save"
 	| "share";
 
 export interface NewsfeedCourseInfo {

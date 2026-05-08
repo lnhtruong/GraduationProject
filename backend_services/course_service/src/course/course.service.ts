@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Includeable } from 'sequelize';
 import { col, fn, literal, Op } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -12,34 +13,64 @@ import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
+import { Video } from 'src/models/video.model';
 
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectModel(Course)
     private readonly courseModel: typeof Course,
+    @InjectModel(Video)
+    private readonly videoModel: typeof Video,
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
     @InjectModel(Enroll)
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
-  ) {}
+  ) { }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
+  private readonly courseVideoInclude: Includeable[] = [
+    {
+      model: Video,
+      as: 'video',
+      required: false,
+    },
+  ];
+
+  private async validateVideoId(videoId: number | null | undefined): Promise<void> {
+    if (videoId === undefined || videoId === null) {
+      return;
+    }
+
+    const video = await this.videoModel.findByPk(videoId, {
+      attributes: ['id'],
+    });
+
+    if (!video) {
+      throw new BadRequestException(`Video with ID ${videoId} not found`);
+    }
+  }
 
   async create(createCourseDto: CreateCourseDto, userId: number | undefined): Promise<Course> {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
-    return await this.courseModel.create({
+
+    await this.validateVideoId(createCourseDto.videoId);
+
+    const createdCourse = await this.courseModel.create({
       ...createCourseDto,
+      videoId: createCourseDto.videoId ?? null,
       userId: userId,
       level: createCourseDto.level ?? undefined,
       status: CourseStatus.DRAFT,
       duration: '00:00:00.000',
     });
+
+    return await this.findOne(createdCourse.id);
   }
 
   async findAll(
@@ -71,11 +102,14 @@ export class CoursesService {
     if (status) {
       whereCondition.status = status;
     }
-    
+
     const shouldPaginate = page !== undefined || limit !== undefined;
 
     if (!shouldPaginate) {
-      return await this.courseModel.findAll({ where: whereCondition });
+      return await this.courseModel.findAll({
+        where: whereCondition,
+        include: [Video],
+      });
     }
 
     const safePage = Number.isInteger(page) && page! > 0 ? page! : 1;
@@ -85,6 +119,7 @@ export class CoursesService {
 
     const { rows, count } = await this.courseModel.findAndCountAll({
       where: whereCondition,
+      include: [Video],
       offset,
       limit: safeLimit,
       order: [['id', 'DESC']],
@@ -126,7 +161,10 @@ export class CoursesService {
     const shouldPaginate = page !== undefined || limit !== undefined;
 
     if (!shouldPaginate) {
-      return await this.courseModel.findAll({ where: whereCondition });
+      return await this.courseModel.findAll({
+        where: whereCondition,
+        include: [Video],
+      });
     }
 
     const safePage = Number.isInteger(page) && page! > 0 ? page! : 1;
@@ -136,6 +174,7 @@ export class CoursesService {
 
     const { rows, count } = await this.courseModel.findAndCountAll({
       where: whereCondition,
+      include: [Video],
       offset,
       limit: safeLimit,
       order: [['id', 'DESC']],
@@ -153,10 +192,13 @@ export class CoursesService {
   }
 
   async findOne(id: number): Promise<Course> {
-    const course = await this.courseModel.findByPk(id);
+    const course = await this.courseModel.findByPk(id, {
+      include: [Video],
+    });
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
+    console.log('check res: ', course);
     return course;
   }
 
@@ -472,6 +514,7 @@ export class CoursesService {
         'Cannot edit a published course. Only quiz edits are allowed after publishing.',
       );
     }
+    await this.validateVideoId(updateCourseDto.videoId);
     return await course.update({ ...updateCourseDto, status: CourseStatus.DRAFT });
   }
 
