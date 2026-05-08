@@ -20,12 +20,18 @@ interface NewsfeedHeaderProps {
   onToggleMenu: () => void;
   userInitials: string;
   userName?: string | null;
+  searchValue: string;
+  onSearchValueChange: (value: string) => void;
+  onSearchSubmit: (value: string) => void;
 }
 
 export function NewsfeedHeader({
   onToggleMenu,
   userInitials,
   userName,
+  searchValue,
+  onSearchValueChange,
+  onSearchSubmit,
 }: NewsfeedHeaderProps) {
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
@@ -49,10 +55,18 @@ export function NewsfeedHeader({
         </div>
 
         <div className="hidden justify-self-center md:flex md:w-full md:max-w-[760px]">
-          <div className="flex h-12 w-full items-center gap-2 rounded-full border border-border/70 bg-muted/75 px-2 pl-4 shadow-sm transition-colors focus-within:border-primary/40 focus-within:bg-background">
+          <form
+            className="flex h-12 w-full items-center gap-2 rounded-full border border-border/70 bg-muted/75 px-2 pl-4 shadow-sm transition-colors focus-within:border-primary/40 focus-within:bg-background"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSearchSubmit(searchValue);
+            }}
+          >
             <Search className="h-4 w-4 flex-none text-muted-foreground" />
             <Input
               placeholder="Tìm kiếm"
+              value={searchValue}
+              onChange={(event) => onSearchValueChange(event.target.value)}
               className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
             />
             <Button
@@ -64,6 +78,7 @@ export function NewsfeedHeader({
               <Keyboard className="h-4 w-4" />
             </Button>
             <Button
+              type="submit"
               variant="secondary"
               size="icon"
               aria-label="Tìm kiếm"
@@ -71,7 +86,7 @@ export function NewsfeedHeader({
             >
               <Search className="h-5 w-5" />
             </Button>
-          </div>
+          </form>
         </div>
 
         <div className="flex items-center gap-2 justify-self-end">
