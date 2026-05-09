@@ -3,7 +3,6 @@ import {
   FileText,
   HelpCircle,
   PenLine,
-  Lock,
   CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,7 +53,7 @@ export function CourseContentAccordion({
               className={cn(
                 "flex items-center gap-3 px-5 py-3.5 transition-colors",
                 idx !== 0 && "border-t border-border/40",
-                isLocked ? "bg-card" : "hover:bg-muted/20 cursor-pointer",
+                "hover:bg-muted/20 cursor-pointer",
                 isCompleted && "bg-muted/10",
               )}
             >
@@ -64,19 +63,13 @@ export function CourseContentAccordion({
               </span>
 
               {/* Content type icon */}
-              <Icon
-                className={cn(
-                  "h-4 w-4 shrink-0",
-                  isLocked ? "text-muted-foreground/30" : "text-muted-foreground",
-                )}
-              />
+              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
 
               {/* Title */}
               <span
                 className={cn(
                   "flex-1 text-sm",
                   isCompleted && "text-muted-foreground line-through",
-                  isLocked && "text-muted-foreground/50",
                 )}
               >
                 {lesson.title}
@@ -95,11 +88,9 @@ export function CourseContentAccordion({
               </span>
 
               {/* Status icon */}
-              {isCompleted ? (
+              {isCompleted && (
                 <CheckCircle className="h-4 w-4 shrink-0 text-green-500" />
-              ) : isLocked ? (
-                <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/30" />
-              ) : null}
+              )}
             </div>
           );
         })}

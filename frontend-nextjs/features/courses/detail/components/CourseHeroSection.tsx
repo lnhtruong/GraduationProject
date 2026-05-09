@@ -61,11 +61,6 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
             {course.name}
           </h1>
 
-          {/* Short description */}
-          <p className="max-w-2xl text-base text-slate-300 lg:text-lg">
-            {course.shortDescription}
-          </p>
-
           {/* Rating row */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-bold text-primary">

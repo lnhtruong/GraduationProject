@@ -23,6 +23,9 @@ interface Props {
   enrollment: Enrollment | null;
   isAuthenticated: boolean;
   onEnroll: () => void;
+  onAddToCart?: () => void;
+  isEnrolling?: boolean;
+  isAddingToCart?: boolean;
 }
 
 const INCLUDES = [
@@ -33,7 +36,7 @@ const INCLUDES = [
   { icon: Smartphone, label: () => "Học trên di động & desktop" },
 ];
 
-export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll }: Props) {
+export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart }: Props) {
   const discountDays = course.discountEndAt ? daysUntil(course.discountEndAt) : null;
   const isFree = course.price === 0;
   const isEnrolled = enrollment !== null;
@@ -115,6 +118,9 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
           enrollment={enrollment}
           isAuthenticated={isAuthenticated}
           onEnroll={onEnroll}
+          onAddToCart={onAddToCart}
+          isEnrolling={isEnrolling}
+          isAddingToCart={isAddingToCart}
         />
 
         {/* Guarantee */}
@@ -165,11 +171,17 @@ function EnrollButton({
   enrollment,
   isAuthenticated,
   onEnroll,
+  onAddToCart,
+  isEnrolling,
+  isAddingToCart,
 }: {
   course: CourseDetail;
   enrollment: Enrollment | null;
   isAuthenticated: boolean;
   onEnroll: () => void;
+  onAddToCart?: () => void;
+  isEnrolling?: boolean;
+  isAddingToCart?: boolean;
 }) {
   if (!isAuthenticated) {
     return (
@@ -188,19 +200,34 @@ function EnrollButton({
           size="lg"
           className="w-full shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30"
           onClick={onEnroll}
+          disabled={isEnrolling}
         >
-          Đăng ký miễn phí
+          {isEnrolling ? "Đang đăng ký..." : "Đăng ký miễn phí"}
         </Button>
       );
     }
     return (
-      <Button
-        size="lg"
-        className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/25 hover:bg-accent/90"
-        onClick={onEnroll}
-      >
-        Mua ngay — {formatPrice(course.price)}
-      </Button>
+      <div className="space-y-2">
+        <Button
+          size="lg"
+          className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/25 hover:bg-accent/90"
+          onClick={onEnroll}
+          disabled={isEnrolling}
+        >
+          {isEnrolling ? "Đang xử lý..." : `Mua ngay — ${formatPrice(course.price)}`}
+        </Button>
+        {onAddToCart && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full"
+            onClick={onAddToCart}
+            disabled={isAddingToCart}
+          >
+            {isAddingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
+          </Button>
+        )}
+      </div>
     );
   }
 

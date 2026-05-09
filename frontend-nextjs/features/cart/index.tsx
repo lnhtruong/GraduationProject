@@ -1,15 +1,6 @@
-// Cart feature — entry component
-//
-// [MOCK] Swap checklist — tìm comment [MOCK] để biết chỗ cần thay:
-// 1. Thay MOCK_CART_ITEMS bằng data từ useCartQuery() (React Query) — xem cart.hooks.ts
-// 2. Thay cartStore.removeItem / saveForLater bằng mutations useRemoveFromCart / useSaveForLater
-//    khi backend sẵn sàng, để sync server-side
-// 3. Thay handleCheckout bằng navigate tới /checkout hoặc mở payment modal
-// 4. Xoá import MOCK_CART_ITEMS sau khi có API
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,10 +15,10 @@ import { CartOrderSummary } from "./components/CartOrderSummary";
 import { CartMobileBottomBar } from "./components/CartMobileBottomBar";
 import { CartEmptyState } from "./components/CartEmptyState";
 import { useCartStore } from "./hooks/useCartStore";
-import { MOCK_CART_ITEMS } from "./mock-data"; // [MOCK] — xoá khi có API
+import { useCartQuery, useRemoveFromCart } from "./api/cart.hooks";
+import { useCreatePayment } from "@/features/payment/api/payment.hooks";
 import type { CartItem } from "./types";
 
-// [MOCK] Skeleton cho trạng thái loading
 function CartItemSkeleton() {
   return (
     <div className="flex animate-pulse gap-4 rounded-xl border border-border/60 bg-card p-4">
@@ -45,56 +36,45 @@ function CartItemSkeleton() {
 export default function CartPage() {
   const store = useCartStore();
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // [MOCK] Khởi tạo store từ mock data khi chưa có dữ liệu nào
-  // [SWAP] Xoá useEffect này, thay bằng:
-  //   const { data: items = [], isLoading } = useCartQuery();
-  //   useEffect(() => { if (items.length) store.setItems(items); }, [items]);
-  useEffect(() => {
-    if (store.items.length === 0) {
-      store.setItems(MOCK_CART_ITEMS);
-    }
-    setIsLoaded(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { data: cartItems, isLoading } = useCartQuery();
+  const removeFromCartMutation = useRemoveFromCart();
+  const createPayment = useCreatePayment();
 
-  const inCartItems = store.getInCartItems();
+  // Sync API data vào store để dùng getInCartItems / getSavedItems / getTotal
+  const items = cartItems ?? store.items;
+  const inCartItems = items.filter((i) => !i.savedForLater);
   const savedItems = store.getSavedItems();
 
-  // Handlers
   const handleRemove = async (courseId: number) => {
     setRemovingIds((prev) => new Set(prev).add(courseId));
-
-    // [MOCK] optimistic remove — [SWAP] thêm: await removeFromCartMutation.mutateAsync(courseId)
-    await new Promise((r) => setTimeout(r, 300)); // animation delay
-    store.removeItem(courseId);
-
-    setRemovingIds((prev) => {
-      const next = new Set(prev);
-      next.delete(courseId);
-      return next;
-    });
+    try {
+      await removeFromCartMutation.mutateAsync(courseId);
+      store.removeItem(courseId);
+    } finally {
+      setRemovingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+    }
   };
 
   const handleSave = (courseId: number) => {
-    // [MOCK] local only — [SWAP] thêm: saveForLaterMutation.mutate({ courseId, saved: true })
     store.saveForLater(courseId);
   };
 
   const handleMoveToCart = (courseId: number) => {
-    // [MOCK] local only — [SWAP] thêm: saveForLaterMutation.mutate({ courseId, saved: false })
     store.moveToCart(courseId);
   };
 
   const handleCheckout = () => {
-    // [SWAP] navigate('/checkout') hoặc mở payment modal
-    alert("Tính năng thanh toán sẽ sớm được cập nhật!");
+    const courseIds = inCartItems.map((i) => i.courseId);
+    if (courseIds.length === 0) return;
+    createPayment.mutate(courseIds);
   };
 
-  // Loading state — [MOCK] isLoaded delay nhỏ cho hydration
-  // [SWAP] dùng isLoading từ useCartQuery() thay thế
-  if (!isLoaded) {
+  if (isLoading) {
     return (
       <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
         <div className="flex gap-8">
@@ -115,8 +95,7 @@ export default function CartPage() {
     );
   }
 
-  // Empty state
-  if (inCartItems.length === 0 && savedItems.length === 0) {
+  if (!isLoading && inCartItems.length === 0 && savedItems.length === 0) {
     return <CartEmptyState />;
   }
 
@@ -157,6 +136,7 @@ export default function CartPage() {
                 <CartOrderSummary
                   items={inCartItems}
                   onCheckout={handleCheckout}
+                  isCheckingOut={createPayment.isPending}
                 />
               </div>
             )}
@@ -223,6 +203,7 @@ export default function CartPage() {
                 <CartOrderSummary
                   items={inCartItems}
                   onCheckout={handleCheckout}
+                  isCheckingOut={createPayment.isPending}
                 />
               </div>
             </div>

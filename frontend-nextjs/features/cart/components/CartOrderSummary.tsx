@@ -10,11 +10,12 @@ import { useCartStore } from "../hooks/useCartStore";
 import type { CartItem } from "../types";
 
 interface CartOrderSummaryProps {
-  items: CartItem[]; // chỉ in-cart items (không tính saved)
+  items: CartItem[];
   onCheckout?: () => void;
+  isCheckingOut?: boolean;
 }
 
-export function CartOrderSummary({ items, onCheckout }: CartOrderSummaryProps) {
+export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrderSummaryProps) {
   const { discountAmount, couponCode } = useCartStore();
 
   // [MOCK] tính từ local items — [SWAP] lấy từ useCartSummary() khi có backend
@@ -59,9 +60,9 @@ export function CartOrderSummary({ items, onCheckout }: CartOrderSummaryProps) {
         size="lg"
         className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/25 hover:bg-accent/90 active:scale-[0.98]"
         onClick={onCheckout}
-        disabled={itemCount === 0}
+        disabled={itemCount === 0 || isCheckingOut}
       >
-        Thanh toán ngay ({itemCount} khoá học)
+        {isCheckingOut ? "Đang xử lý..." : `Thanh toán ngay (${itemCount} khoá học)`}
       </Button>
 
       {/* Tiếp tục mua sắm */}
