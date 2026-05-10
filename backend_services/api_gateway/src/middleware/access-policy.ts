@@ -54,6 +54,12 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN],
   },
+  {
+    method: 'PATCH',
+    pattern: '/api/users/reset/:id',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
   { method: 'PATCH', pattern: '/api/users/:id', access: 'authenticated' },
 
   // Course service - public reads
@@ -70,7 +76,7 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
-    { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'public' },
@@ -357,6 +363,11 @@ const ACCESS_RULES: AccessRule[] = [
 
   // Media service
   {
+    method: 'GET',
+    pattern: '/api/media/sse/**',
+    access: 'public',
+  },
+  {
     method: 'POST',
     pattern: '/api/media/webhooks/cloudinary/upload',
     access: 'public',
@@ -449,6 +460,23 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'authenticated',
   },
 
+  { method: 'GET', pattern: '/api/media/notifications', access: 'authenticated' },
+  {
+    method: 'PUT',
+    pattern: '/api/media/notifications/bulk',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/notifications/:id',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/media/notifications/:id',
+    access: 'authenticated',
+  },
+
   // Feed
   {
     method: 'GET',
@@ -471,6 +499,12 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/media/feed/viewed', access: 'authenticated' },
   { method: 'GET', pattern: '/api/media/feed/saved', access: 'authenticated' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  {
+    method: 'POST',
+    pattern: '/api/media/feed/:feedId/comments',
+    access: 'authenticated',
+    // roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
   {
     method: '*',
     pattern: '/api/media/feed/**',

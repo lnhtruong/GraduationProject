@@ -19,6 +19,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { FeedModule } from './feed/feed.module';
 import { BunnyModule } from './bunny/bunny.module';
 import { SseModule } from './sse/sse.module';
+import { NotificationModule } from './notifications/notification.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SseModule } from './sse/sse.module';
     MascotOverlayModule,
     WebsocketModule,
     SseModule,
+    NotificationModule,
     WebhookModule,
     CloudinaryModule,
     BunnyModule,
