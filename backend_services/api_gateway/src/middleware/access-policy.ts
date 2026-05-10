@@ -448,6 +448,11 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/media/cloudinary/upload',
     access: 'authenticated',
   },
+  {
+    method: 'GET',
+    pattern: '/api/media/sse/**',
+    access: 'public',
+  },
 
   // Bunny/TUS integration endpoints (media service)
   {
