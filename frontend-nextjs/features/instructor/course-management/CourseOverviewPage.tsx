@@ -25,7 +25,8 @@ import {
   useDeleteLesson,
   useInstructorCourseById,
   useLessonsByCourseId,
-  useQuickPublishCourse,
+  usePublishCourse,
+  useSubmitCourseForReview,
 } from "./api/course-management.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDuration, formatPrice } from "@/features/courses/utils";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 interface Props {
   courseId: number;
@@ -82,8 +84,10 @@ export default function CourseOverviewPage({ courseId }: Props) {
     useInstructorCourseById(courseId);
   const { data: lessons, isLoading: lessonsLoading } =
     useLessonsByCourseId(courseId);
+  const { user } = useAuth();
   const deleteLessonMutation = useDeleteLesson();
-  const quickPublishCourseMutation = useQuickPublishCourse();
+  const submitForReviewMutation = useSubmitCourseForReview();
+  const publishCourseMutation = usePublishCourse();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -135,19 +139,32 @@ export default function CourseOverviewPage({ courseId }: Props) {
     setCurrentPage(1);
   };
 
-  const handleQuickPublishCourse = async () => {
-    if (!course || course.status === "publish") {
+  const isAdmin = user?.role === 1;
+
+  const handleCourseStatusAction = async () => {
+    if (!course) {
       return;
     }
 
     try {
-      await quickPublishCourseMutation.mutateAsync({
-        id: course.id,
-        status: course.status,
-      });
-      toast.success("Đã public khóa học");
+      if (course.status === "draft") {
+        await submitForReviewMutation.mutateAsync(course.id);
+        toast.success("Đã gửi khóa học chờ duyệt");
+        return;
+      }
+
+      if (course.status === "approved") {
+        if (!isAdmin) {
+          toast.info("Khóa học đã được duyệt, chờ admin publish");
+          return;
+        }
+
+        await publishCourseMutation.mutateAsync(course.id);
+        toast.success("Đã publish khóa học");
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Public thất bại";
+      const message =
+        error instanceof Error ? error.message : "Cập nhật trạng thái thất bại";
       toast.error(message);
     }
   };
@@ -227,18 +244,39 @@ export default function CourseOverviewPage({ courseId }: Props) {
                   <Badge variant="outline" className="text-xs">
                     {String(course.status).toUpperCase()}
                   </Badge>
-                  {course.status !== "publish" && (
+                  {course.status === "draft" && (
                     <Button
                       type="button"
                       size="sm"
-                      disabled={quickPublishCourseMutation.isPending}
+                      disabled={submitForReviewMutation.isPending}
                       onClick={() => {
-                        void handleQuickPublishCourse();
+                        void handleCourseStatusAction();
                       }}
                     >
-                      {quickPublishCourseMutation.isPending
-                        ? "Đang public..."
-                        : "Public khóa học"}
+                      {submitForReviewMutation.isPending
+                        ? "Đang gửi duyệt..."
+                        : "Gửi duyệt khóa học"}
+                    </Button>
+                  )}
+                  {course.status === "pending" && (
+                    <Button type="button" size="sm" disabled>
+                      Đang chờ admin duyệt
+                    </Button>
+                  )}
+                  {course.status === "approved" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!isAdmin || publishCourseMutation.isPending}
+                      onClick={() => {
+                        void handleCourseStatusAction();
+                      }}
+                    >
+                      {publishCourseMutation.isPending
+                        ? "Đang publish..."
+                        : isAdmin
+                          ? "Publish khóa học"
+                          : "Đã duyệt, chờ publish"}
                     </Button>
                   )}
                 </div>
@@ -320,8 +358,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
               <div>
                 <h2 className="text-lg font-semibold">Danh sách bài học</h2>
                 <p className="text-sm text-muted-foreground">
-                  Quản lý toàn bộ bài học ngay tại đây: tìm kiếm, lọc, thêm,
-                  sửa và xóa.
+                  Quản lý toàn bộ bài học ngay tại đây: tìm kiếm, lọc, thêm, sửa
+                  và xóa.
                 </p>
               </div>
               <Button asChild className="hidden sm:inline-flex">
@@ -364,7 +402,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger size="sm" className="w-[170px] bg-background">
+                  <SelectTrigger size="sm" className="w-44 bg-background">
                     <SelectValue placeholder="Trạng thái" />
                   </SelectTrigger>
                   <SelectContent>
@@ -408,7 +446,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
                           {lesson.description ?? "Chưa có mô tả"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDuration(toSeconds(lesson.duration))} • {lesson.contentType}
+                          {formatDuration(toSeconds(lesson.duration))} •{" "}
+                          {lesson.contentType}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">

@@ -448,6 +448,34 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/media/cloudinary/upload',
     access: 'authenticated',
   },
+  {
+    method: 'GET',
+    pattern: '/api/media/sse/**',
+    access: 'public',
+  },
+
+  // Bunny/TUS integration endpoints (media service)
+  {
+    method: 'POST',
+    pattern: '/api/media/bunny/videos/init-upload',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/bunny/videos/:bunnyVideoId/status',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/bunny/videos/:bunnyVideoId/play-data',
+    access: 'authenticated',
+  },
+  // Bunny webhook (Bunny will POST here) - allow anonymous; verify HMAC in media_service
+  {
+    method: 'POST',
+    pattern: '/api/media/webhooks/bunny-stream',
+    access: 'public',
+  },
 
   // Feed
   {

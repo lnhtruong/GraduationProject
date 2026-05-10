@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { BookmarkPlus, Clock3, Play } from "lucide-react";
+import { BookmarkPlus, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Activity {
@@ -12,33 +11,22 @@ interface Activity {
 }
 
 interface Props {
-  courseId: number;
-  lessonId: number;
   activities?: Activity[] | null;
   isLoading: boolean;
   timelineCount?: number;
+  onEditQuiz?: (activityId: number) => void;
 }
 
 export function ActivitiesDisplay({
-  courseId,
-  lessonId,
   activities,
   isLoading,
   timelineCount = 0,
+  onEditQuiz,
 }: Props) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-        <h3 className="font-semibold text-sm">Hoạt động bài học</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            {isLoading ? "..." : (activities?.length ?? 0)}
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            <Clock3 className="mr-1 h-3 w-3" />
-            {timelineCount} mốc quiz
-          </Badge>
-        </div>
+      <div className="px-1">
+        <h3 className="font-semibold text-sm">Hoạt động sau bài học</h3>
       </div>
 
       {isLoading ? (
@@ -48,10 +36,16 @@ export function ActivitiesDisplay({
       ) : activities && activities.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-border/70 bg-background">
           {activities.map((activity) => (
-            <Link
+            <button
               key={activity.id}
-              href={`/instructor/courses/${courseId}/lessons/${lessonId}/quiz?activityId=${activity.id}`}
-              className="group"
+              type="button"
+              disabled={activity.activityType !== "quiz"}
+              onClick={() => {
+                if (activity.activityType === "quiz") {
+                  onEditQuiz?.(activity.id);
+                }
+              }}
+              className="group w-full text-left disabled:cursor-default"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2 transition-colors last:border-b-0 hover:bg-muted/35">
                 <div className="flex min-w-0 items-center gap-2">
@@ -74,7 +68,7 @@ export function ActivitiesDisplay({
                   {activity.status}
                 </Badge>
               </div>
-            </Link>
+            </button>
           ))}
         </div>
       ) : (

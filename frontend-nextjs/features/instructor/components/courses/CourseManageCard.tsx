@@ -3,12 +3,13 @@
 import Link from "next/link";
 import {
   BookOpen,
-  Layers3,
   Trash2,
   FolderKanban,
   Clock3,
   Languages,
   BadgeCheck,
+  Send,
+  Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,9 @@ import type {
 interface Props {
   course: InstructorCourse;
   onDelete: (id: number) => void;
+  onSubmitForReview?: (id: number) => void;
+  onPublishCourse?: (id: number) => void;
+  workflowLoading?: boolean;
 }
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -73,7 +77,18 @@ function StatusBadge({ status }: { status: CourseStatus }) {
   );
 }
 
-export function CourseManageCard({ course, onDelete }: Props) {
+export function CourseManageCard({
+  course,
+  onDelete,
+  onSubmitForReview,
+  onPublishCourse,
+  workflowLoading = false,
+}: Props) {
+  const canSubmitForReview =
+    course.status === "draft" && Boolean(onSubmitForReview);
+  const canPublishCourse =
+    course.status === "approved" && Boolean(onPublishCourse);
+
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-linear-to-b from-background via-background to-muted/20 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
       <div className="h-1 w-full bg-linear-to-r from-primary/70 via-amber-400/70 to-primary/20" />
@@ -83,7 +98,36 @@ export function CourseManageCard({ course, onDelete }: Props) {
           <div className="min-w-0">
             <h3 className="line-clamp-1 font-semibold">{course.name}</h3>
           </div>
-          <StatusBadge status={course.status} />
+          <div className="flex items-center gap-2">
+            {canSubmitForReview ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2.5 gap-1.5"
+                onClick={() => onSubmitForReview?.(course.id)}
+                aria-label="Gửi duyệt khóa học"
+                title="Xin duyệt"
+                disabled={workflowLoading}
+              >
+                <Send className="h-3.5 w-3.5" />
+                Xin duyệt
+              </Button>
+            ) : null}
+            {canPublishCourse ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 border-emerald-200 p-0 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700"
+                onClick={() => onPublishCourse?.(course.id)}
+                aria-label="Publish khóa học"
+                title="Publish"
+                disabled={workflowLoading}
+              >
+                <Rocket className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+            <StatusBadge status={course.status} />
+          </div>
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
@@ -115,11 +159,7 @@ export function CourseManageCard({ course, onDelete }: Props) {
 
         <div className="mt-4 grid gap-2">
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="flex-1 gap-1.5"
-              asChild
-            >
+            <Button size="sm" className="flex-1 gap-1.5" asChild>
               <Link href={`/instructor/courses/${course.id}`}>
                 <FolderKanban className="h-3.5 w-3.5" />
                 Quản lý khóa học

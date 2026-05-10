@@ -81,7 +81,7 @@ export default function Upload() {
 
     if (ensured?.projectId) {
       params.set("edit_id", String(ensured.projectId));
-      params.set("video_id", String(ensured.videoId));
+      if (ensured.videoId) params.set("video_id", String(ensured.videoId));
     } else if (clip.videoId) {
       params.set("video_id", String(clip.videoId));
     }
