@@ -2,8 +2,13 @@
  * Video Feature Types
  */
 
-export type VideoType = "highlight" | "mascot" | "full" | (string & {});
-export type VideoListType = "highlight" | "mascot";
+export type VideoType =
+  | "highlight"
+  | "mascot"
+  | "long"
+  | "full"
+  | (string & {});
+export type VideoListType = "highlight" | "mascot" | "long";
 
 export interface VideoImage {
   id?: number;

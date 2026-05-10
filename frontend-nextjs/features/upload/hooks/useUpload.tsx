@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProcessHighlight } from "../api/upload.hooks";
 import {
-  createMediaUploadSocket,
-  type VideoCompletedEvent,
-  type VideoErrorEvent,
-  type VideoProgressEvent,
+  createMediaUploadStream,
+  type UploadStreamSubscription,
+} from "@/features/_shared/realtime/media-upload-stream";
+import type {
+  VideoCompletedPayload,
+  VideoErrorPayload,
+  VideoProgressPayload,
 } from "../api/upload.websocket";
 import { useCreateProject } from "@/features/project/api/project.hooks";
-import { useVideosByUser } from "@/features/video/api/video.hooks";
 import { authStorageHelper } from "@/store/auth";
 import type {
   UploadState,
@@ -51,8 +53,8 @@ export function useUpload(): UploadHookReturn {
   const { user } = useAuth();
   const router = useRouter();
   const { mutateAsync: createProject } = useCreateProject();
-  const highlightVideosQuery = useVideosByUser("highlight", true);
 
+  // We rely on backend to include `videoId` in SSE completed events.
   // Use React Query mutation
   const processHighlight = useProcessHighlight({
     onJobStarted: (jobId) => {
@@ -74,47 +76,112 @@ export function useUpload(): UploadHookReturn {
     },
   });
 
-  const wsSessionActive =
+  const sseSessionActive =
     state.status === "uploading" ||
     state.status === "pending" ||
     state.status === "processing" ||
-    state.status === "failed"; // Thêm "failed" vào đây để socket không bị ngắt khi gặp lỗi 503;
+    state.status === "failed";
 
-  // Real-time events via API Gateway → media service (namespace /media)
+  // Real-time events via SSE (Server-Sent Events)
   useEffect(() => {
     const userId = resolveUserId(user?.id);
-    //DEBUG ws
-    if (!userId || !wsSessionActive) {
-      console.log("🔌 WS Skip: Chưa có userId hoặc session chưa active", {
-        userId,
-        wsSessionActive,
-      });
+    if (!userId || !sseSessionActive) {
       return;
     }
-    console.log("🔌 WS Attempting connection for User:", userId);
-    const socket = createMediaUploadSocket(userId);
+    // Attempt SSE connection for active session
 
-    const onVideoProgress = (data: VideoProgressEvent) => {
+    let stream: UploadStreamSubscription | null = null;
+
+    const onProgress = (payload: VideoProgressPayload) => {
       setState((prev) => {
         if (prev.status === "completed" || prev.status === "failed") {
           return prev;
         }
-        return {
-          ...prev,
-          status: "processing",
-          progressPercent: data.progress,
-          stage: `Đang xử lý (video #${data.videoId})`,
-        };
+
+        // New format: Job stage update (has jobId, stage)
+        if (payload.jobId && payload.stage) {
+          // Resolve event job id from possible locations (normalized top-level or nested)
+          const eventJobId =
+            (payload as any).jobId ??
+            (payload as any).job_id ??
+            (payload as any).data?.jobId ??
+            (payload as any).data?.job_id;
+
+          // Only update if this is for the current job
+          if (
+            eventJobId &&
+            prev.jobId &&
+            String(prev.jobId) !== String(eventJobId)
+          ) {
+            return prev; // Ignore events from other jobs
+          }
+
+          // Normalize stage string (trim extra whitespace that backend might include)
+          const rawStage =
+            typeof payload.stage === "string"
+              ? payload.stage.trim()
+              : String(payload.stage);
+
+          // Try to extract X/Y from stage like "1/4: Transcribing"
+          let stageProgress: number | undefined;
+          const match = rawStage.match(/^(\d+)\/(\d+)\s*:\s*(.*)$/);
+          if (match) {
+            const step = Number(match[1]);
+            const total = Number(match[2]) || 1;
+            stageProgress = Math.round((step / total) * 100);
+          } else if (/finaliz|upload|uploading/i.test(rawStage)) {
+            // Heuristic: treat finalizing/upload steps as near-complete
+            stageProgress = 95;
+          }
+
+          // update stage/progressPercent silently
+
+          return {
+            ...prev,
+            status: "processing",
+            stage: rawStage, // Display cleaned stage
+            progressPercent: stageProgress,
+          };
+        }
+
+        // Legacy format: Direct progress (has videoId, progress)
+        if (payload.videoId && typeof payload.progress === "number") {
+          return {
+            ...prev,
+            status: "processing",
+            progressPercent: payload.progress,
+            stage: `Uploading (${payload.progress}%)`,
+          };
+        }
+
+        return prev;
       });
     };
 
-    const onVideoCompleted = (payload: VideoCompletedEvent) => {
-      const url = payload?.data?.url;
-      const videoId = payload?.data?.id;
-      if (!url) return;
+    const onCompleted = (payload: VideoCompletedPayload) => {
+      // Support normalized payloads: top-level or nested `data` may hold fields
+      const url = (payload as any)?.data?.url ?? (payload as any)?.url;
+      const videoId =
+        (payload as any)?.data?.videoId ?? (payload as any)?.videoId;
+      const jobId =
+        (payload as any)?.data?.job_id ??
+        (payload as any)?.data?.jobId ??
+        (payload as any)?.job_id ??
+        (payload as any)?.jobId;
+
+      if (!url) {
+        console.warn("[useUpload] Completion event missing URL");
+        return;
+      }
 
       setState((prev) => {
         if (prev.status === "completed") return prev;
+
+        // Only process if this matches the current job (or no jobId filtering needed)
+        if (jobId && prev.jobId && String(prev.jobId) !== String(jobId)) {
+          return prev;
+        }
+
         const name =
           url.split("/").pop()?.split("?")[0] || "highlight-output.mp4";
         return {
@@ -123,36 +190,57 @@ export function useUpload(): UploadHookReturn {
           clips: [{ name, url, videoId }],
           isDownloading: false,
           progress: null,
+          stage: "Completed",
         };
       });
     };
 
-    const onVideoError = (payload: VideoErrorEvent) => {
+    const onError = (payload: VideoErrorPayload) => {
       setState((prev) => {
         if (prev.status === "completed") return prev;
+
+        // Check if this error is for the current job
+        const errorJobId =
+          (payload as any).jobId ??
+          (payload as any).job_id ??
+          (payload as any).data?.jobId ??
+          (payload as any).data?.job_id;
+        if (
+          errorJobId &&
+          prev.jobId &&
+          String(prev.jobId) !== String(errorJobId)
+        ) {
+          return prev;
+        }
+
+        const errorMessage = payload.error?.message ?? "Lỗi xử lý video";
+
+        console.error("[useUpload] Video processing failed:", errorMessage);
+
         return {
           ...prev,
           status: "failed",
-          error: payload.error?.message ?? "Lỗi xử lý video",
+          error: errorMessage,
           progress: null,
+          stage: "Failed",
         };
       });
     };
 
-    socket.on("video:progress", onVideoProgress);
-    socket.on("video:completed", onVideoCompleted);
-    socket.on("upload-video :completed", onVideoCompleted);
-    socket.on("video:error", onVideoError);
-
-    return () => {
-      socket.off("video:progress", onVideoProgress);
-      socket.off("video:completed", onVideoCompleted);
-      socket.off("upload-video :completed", onVideoCompleted);
-      socket.off("video:error", onVideoError);
-      socket.disconnect();
+    const onConnectionError = (error: Error) => {
+      console.error("[useUpload] SSE connection error:", error);
+      // Don't update state for connection errors - SSE will retry automatically
     };
-  }, [user?.id, wsSessionActive]);
 
+    stream = createMediaUploadStream(
+      { onProgress, onCompleted, onError, onConnectionError },
+      { userId },
+    );
+
+    return () => stream?.close();
+  }, [user?.id, sseSessionActive]);
+
+  // ============================================================================
   // ============================================================================
   // AUTO-CREATE PROJECT AND REDIRECT WHEN VIDEO COMPLETES
   // ============================================================================
@@ -170,49 +258,8 @@ export function useUpload(): UploadHookReturn {
 
     const createProjectAndRedirect = async () => {
       try {
-        console.log("[useUpload] Auto-creating project for highlight:", {
-          videoUrl: firstClip.url,
-          videoId: firstClip.videoId,
-        });
-
-        const normalizeUrl = (value?: string) => {
-          if (!value) return "";
-          try {
-            const parsed = new URL(value);
-            return `${parsed.origin}${parsed.pathname}`;
-          } catch {
-            return value;
-          }
-        };
-
-        const resolveVideoIdByUrl = async (url: string) => {
-          const targetUrl = normalizeUrl(url);
-
-          for (let attempt = 0; attempt < 10; attempt++) {
-            const videos = highlightVideosQuery.data ?? [];
-            const matched = videos.find(
-              (video) => normalizeUrl(video.url) === targetUrl,
-            );
-            const videoId = matched?.id;
-            if (videoId) {
-              return videoId;
-            }
-            await highlightVideosQuery.refetch();
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-
-          return undefined;
-        };
-
-        const resolvedVideoId =
-          firstClip.videoId ?? (await resolveVideoIdByUrl(firstClip.url));
-
-        if (!resolvedVideoId) {
-          console.warn(
-            "[useUpload] Cannot resolve videoId by URL, skipping project creation to avoid empty project.",
-          );
-          return;
-        }
+        // Auto-create project for completed clip — prefer videoId from SSE
+        const resolvedVideoId = firstClip.videoId ?? null;
 
         const now = new Date();
         const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
@@ -238,16 +285,17 @@ export function useUpload(): UploadHookReturn {
           );
         })();
         if (projectId) {
-          console.log(
+          console.debug(
             "[useUpload] Project created, redirecting to editor:",
             projectId,
           );
           setState((prev) => ({ ...prev, createdProjectId: projectId }));
-          const params = new URLSearchParams({
+          const paramsObj: Record<string, string> = {
             edit_id: String(projectId),
             src: firstClip.url,
-            video_id: String(resolvedVideoId),
-          });
+          };
+          if (resolvedVideoId) paramsObj.video_id = String(resolvedVideoId);
+          const params = new URLSearchParams(paramsObj);
           router.push(`/editor?${params.toString()}`);
         } else {
           console.warn("[useUpload] No project ID returned from create");
@@ -267,7 +315,7 @@ export function useUpload(): UploadHookReturn {
 
   const ensureProjectForClip = async (
     clip: UploadState["clips"][number],
-  ): Promise<{ projectId: number; videoId: number } | null> => {
+  ): Promise<{ projectId: number; videoId?: number } | null> => {
     if (!clip?.url || !user?.id) return null;
 
     const existingProjectId = state.createdProjectId;
@@ -275,42 +323,16 @@ export function useUpload(): UploadHookReturn {
       return { projectId: existingProjectId, videoId: clip.videoId };
     }
 
-    const normalizeUrl = (value?: string) => {
-      if (!value) return "";
-      try {
-        const parsed = new URL(value);
-        return `${parsed.origin}${parsed.pathname}`;
-      } catch {
-        return value;
-      }
-    };
+    // Use videoId from clip (provided by SSE) when available. Backend should provide it.
+    const resolvedVideoId = clip.videoId ?? null;
 
-    const findVideoIdByUrl = async (url: string) => {
-      const targetUrl = normalizeUrl(url);
-
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const videos = highlightVideosQuery.data ?? [];
-        const matched = videos.find(
-          (video) => normalizeUrl(video.url) === targetUrl,
-        );
-        const videoId = matched?.id;
-        if (videoId) return videoId;
-        await highlightVideosQuery.refetch();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-
-      return undefined;
-    };
-
-    const resolvedVideoId = clip.videoId ?? (await findVideoIdByUrl(clip.url));
-    if (!resolvedVideoId) return null;
-
-    if (existingProjectId) {
+    if (existingProjectId && resolvedVideoId) {
       return { projectId: existingProjectId, videoId: resolvedVideoId };
     }
 
     const now = new Date();
     const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
+    // Create project even if we couldn't resolve a videoId yet. Backend accepts null.
     const createdProject = await createProject({
       session_name: projectName,
       video_id: resolvedVideoId,
@@ -333,7 +355,9 @@ export function useUpload(): UploadHookReturn {
     if (!projectId) return null;
 
     setState((prev) => ({ ...prev, createdProjectId: projectId }));
-    return { projectId, videoId: resolvedVideoId };
+    return resolvedVideoId
+      ? { projectId, videoId: resolvedVideoId }
+      : { projectId };
   };
 
   // ============================================================================
@@ -354,7 +378,7 @@ export function useUpload(): UploadHookReturn {
   // START UPLOAD
   // ============================================================================
   const startUpload = async (fileToUpload: File, params: HighlightParams) => {
-    console.log("[useUpload] Starting upload workflow with params:", params);
+    console.debug("[useUpload] Starting upload workflow with params:", params);
 
     // Reset state
     updateState({
@@ -398,7 +422,7 @@ export function useUpload(): UploadHookReturn {
   // CANCEL
   // ============================================================================
   const cancel = () => {
-    console.log("[useUpload] Canceling upload");
+    console.debug("[useUpload] Canceling upload");
     setState(INITIAL_STATE);
   };
 
@@ -406,7 +430,7 @@ export function useUpload(): UploadHookReturn {
   // RESET (for starting new upload without clearing file)
   // ============================================================================
   const reset = () => {
-    console.log("[useUpload] Resetting state");
+    console.debug("[useUpload] Resetting state");
     updateState({
       progress: null,
       status: "idle",

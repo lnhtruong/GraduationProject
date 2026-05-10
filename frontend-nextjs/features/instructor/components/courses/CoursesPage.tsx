@@ -16,48 +16,111 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CourseManageCard } from "./CourseManageCard";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
   useDeleteCourse,
   useInstructorCourses,
+  usePublishCourse,
+  useSubmitCourseForReview,
 } from "../../course-management/api/course-management.hooks";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLES } from "@/lib/roles";
 
-type StatusFilter = "all" | "publish" | "draft" | "pending";
+type StatusFilter =
+  | "all"
+  | "publish"
+  | "draft"
+  | "pending"
+  | "approved"
+  | "rejected";
 
 export default function CoursesPage() {
   const { user } = useAuth();
-  const { data: courses, isLoading } = useInstructorCourses(
-    {
-      userId: user?.id,
-    },
-    Boolean(user?.id),
-  );
+  const { data: courses, isLoading } = useInstructorCourses({}, true);
+  const { data: rejectedCourses, isLoading: rejectedLoading } =
+    useInstructorCourses(
+      {
+        status: "rejected",
+      },
+      true,
+    );
   const deleteCourseMutation = useDeleteCourse();
+  const submitCourseForReviewMutation = useSubmitCourseForReview();
+  const publishCourseMutation = usePublishCourse();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [activeWorkflowCourseId, setActiveWorkflowCourseId] = useState<
+    number | null
+  >(null);
 
   const handleDelete = async (id: number) => {
     await deleteCourseMutation.mutateAsync(id);
     toast.success("Đã xóa khóa học");
   };
 
+  const handleSubmitForReview = async (id: number) => {
+    setActiveWorkflowCourseId(id);
+    try {
+      await submitCourseForReviewMutation.mutateAsync(id);
+      toast.success("Đã gửi duyệt khóa học");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gửi duyệt khóa học thất bại";
+      toast.error(message);
+    } finally {
+      setActiveWorkflowCourseId(null);
+    }
+  };
+
+  const handlePublishCourse = async (id: number) => {
+    setActiveWorkflowCourseId(id);
+    try {
+      await publishCourseMutation.mutateAsync(id);
+      toast.success("Đã publish khóa học");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Publish khóa học thất bại";
+      toast.error(message);
+    } finally {
+      setActiveWorkflowCourseId(null);
+    }
+  };
+
+  const mergedCourses = useMemo(() => {
+    const list = [...(courses ?? []), ...(rejectedCourses ?? [])];
+    const unique = new Map<number, (typeof list)[number]>();
+
+    for (const item of list) {
+      unique.set(item.id, item);
+    }
+
+    return Array.from(unique.values());
+  }, [courses, rejectedCourses]);
+
   const stats = useMemo(() => {
-    const list = courses ?? [];
+    const list = mergedCourses;
     const published = list.filter(
       (course) => course.status === "publish",
     ).length;
     const draft = list.filter((course) => course.status === "draft").length;
     const pending = list.filter((course) => course.status === "pending").length;
+    const approved = list.filter(
+      (course) => course.status === "approved",
+    ).length;
+    const rejected = list.filter(
+      (course) => course.status === "rejected",
+    ).length;
     return {
       total: list.length,
       published,
       draft,
       pending,
+      approved,
+      rejected,
     };
-  }, [courses]);
+  }, [mergedCourses]);
 
   const filteredCourses = useMemo(() => {
-    return (courses ?? []).filter((course) => {
+    return mergedCourses.filter((course) => {
       const keyword = search.trim().toLowerCase();
       const bySearch =
         !keyword ||
@@ -69,7 +132,7 @@ export default function CoursesPage() {
       const byStatus = statusFilter === "all" || course.status === statusFilter;
       return bySearch && byStatus;
     });
-  }, [courses, search, statusFilter]);
+  }, [mergedCourses, search, statusFilter]);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -93,7 +156,7 @@ export default function CoursesPage() {
             </Button>
           </div>
 
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-6">
             <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Tổng khóa học
@@ -122,6 +185,22 @@ export default function CoursesPage() {
               </p>
               <p className="mt-0.5 text-xl font-semibold">{stats.draft}</p>
             </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Approved
+              </p>
+              <p className="mt-0.5 text-xl font-semibold text-blue-600">
+                {stats.approved}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-2.5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Rejected
+              </p>
+              <p className="mt-0.5 text-xl font-semibold text-rose-600">
+                {stats.rejected}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -145,13 +224,15 @@ export default function CoursesPage() {
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value as StatusFilter)}
           >
-            <SelectTrigger size="sm" className="w-[170px] bg-background">
+            <SelectTrigger size="sm" className="w-44 bg-background">
               <SelectValue placeholder="Chọn trạng thái" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="publish">Published</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
             </SelectContent>
           </Select>
@@ -181,7 +262,7 @@ export default function CoursesPage() {
         </div>
 
         <div className="relative p-4 sm:p-5">
-          {isLoading ? (
+          {isLoading || rejectedLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
@@ -258,6 +339,21 @@ export default function CoursesPage() {
                   <CourseManageCard
                     key={course.id}
                     course={course}
+                    onSubmitForReview={
+                      user?.role === ROLES.LECTURER
+                        ? (courseId) => {
+                            void handleSubmitForReview(courseId);
+                          }
+                        : undefined
+                    }
+                    onPublishCourse={
+                      user?.role === ROLES.ADMIN
+                        ? (courseId) => {
+                            void handlePublishCourse(courseId);
+                          }
+                        : undefined
+                    }
+                    workflowLoading={activeWorkflowCourseId === course.id}
                     onDelete={(courseId) => {
                       void handleDelete(courseId);
                     }}

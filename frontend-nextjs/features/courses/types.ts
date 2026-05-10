@@ -31,7 +31,6 @@ export interface Lesson {
   isFree: boolean;
 }
 
-
 export interface Review {
   id: number;
   userId: number;
@@ -175,7 +174,6 @@ export interface CreateCoursePayload {
 export type UpdateCoursePayload = Partial<CreateCoursePayload>;
 
 export type CourseListParams = {
-  userId?: number;
   status?: CourseStatus;
   page?: number;
   limit?: number;

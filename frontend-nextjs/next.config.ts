@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com",
       },
+      {
+        protocol: "https",
+        hostname: "placehold.co",
+      },
       // TODO: thêm các hostname khác khi dùng ảnh từ CDN/backend
     ],
   },
