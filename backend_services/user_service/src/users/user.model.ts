@@ -45,6 +45,14 @@ export class User extends Model {
   declare role: number | null;
 
   @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_banned',
+  })
+  declare isBanned: boolean;
+
+  @Column({
     type: DataType.DATE,
     allowNull: false,
   })

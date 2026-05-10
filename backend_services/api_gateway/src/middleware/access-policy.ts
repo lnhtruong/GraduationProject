@@ -355,6 +355,37 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
 
+  // Reports
+  {
+    method: 'POST',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/mine',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/:id',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/reports/:id/review',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Media service
   {
     method: 'POST',
