@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { ShoppingCart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { CartItemCard } from "./components/CartItemCard";
 import { CartOrderSummary } from "./components/CartOrderSummary";
@@ -101,11 +102,12 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
 
-        {/* ── Breadcrumb + Title ─────────────────────────────────── */}
-        <div className="mb-8 space-y-2">
-          <Breadcrumb>
+      {/* ── Hero header ────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b border-border/40 py-10 lg:py-14">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-br from-primary/5 via-background to-background" />
+        <div className="container mx-auto max-w-7xl px-4 lg:px-8">
+          <Breadcrumb className="mb-3">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink href="/">Trang chủ</BreadcrumbLink>
@@ -116,13 +118,25 @@ export default function CartPage() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <h1 className="text-2xl font-bold">Giỏ hàng của bạn</h1>
-          {inCartItems.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {inCartItems.length} khoá học
-            </p>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight lg:text-3xl">
+                Giỏ hàng của bạn
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {inCartItems.length > 0
+                  ? `${inCartItems.length} khoá học đang chờ thanh toán`
+                  : "Chưa có khoá học nào trong giỏ"}
+              </p>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
 
         {/* ── Main layout ────────────────────────────────────────── */}
         <div className="flex gap-8">

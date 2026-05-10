@@ -8,14 +8,13 @@ import {
   Award,
   Infinity,
   Smartphone,
-  Timer,
-  Lock,
   CheckCircle,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { formatPrice, daysUntil } from "../../utils";
+import { formatPrice } from "../../utils";
 import type { CourseDetail, Enrollment } from "../../types";
 
 interface Props {
@@ -26,6 +25,7 @@ interface Props {
   onAddToCart?: () => void;
   isEnrolling?: boolean;
   isAddingToCart?: boolean;
+  isInCart?: boolean;
 }
 
 const INCLUDES = [
@@ -36,8 +36,7 @@ const INCLUDES = [
   { icon: Smartphone, label: () => "Học trên di động & desktop" },
 ];
 
-export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart }: Props) {
-  const discountDays = course.discountEndAt ? daysUntil(course.discountEndAt) : null;
+export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart, isInCart }: Props) {
   const isFree = course.price === 0;
   const isEnrolled = enrollment !== null;
   const isCompleted = enrollment?.status === "completed";
@@ -53,7 +52,7 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50" />
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/20 via-primary/8 to-accent/10" />
         )}
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
@@ -70,34 +69,13 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
       <div className="space-y-4 p-5">
         {/* Price */}
         {!isEnrolled && (
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-baseline gap-2">
-              {isFree ? (
-                <span className="text-2xl font-extrabold text-foreground">Miễn phí</span>
-              ) : (
-                <>
-                  <span className="text-2xl font-extrabold text-foreground">
-                    {formatPrice(course.price)}
-                  </span>
-                  {course.originalPrice && course.originalPrice > course.price && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatPrice(course.originalPrice)}
-                    </span>
-                  )}
-                  {course.originalPrice && (
-                    <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold text-white">
-                      Giảm{" "}
-                      {Math.round((1 - course.price / course.originalPrice) * 100)}%
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-            {discountDays !== null && (
-              <p className="flex items-center gap-1.5 text-xs text-destructive">
-                <Timer className="h-3.5 w-3.5" />
-                Còn {discountDays} ngày với giá này
-              </p>
+          <div className="flex flex-wrap items-baseline gap-2">
+            {isFree ? (
+              <span className="text-2xl font-extrabold text-foreground">Miễn phí</span>
+            ) : (
+              <span className="text-2xl font-extrabold text-foreground">
+                {formatPrice(course.price)}
+              </span>
             )}
           </div>
         )}
@@ -121,15 +99,16 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
           onAddToCart={onAddToCart}
           isEnrolling={isEnrolling}
           isAddingToCart={isAddingToCart}
+          isInCart={isInCart}
         />
 
         {/* Guarantee */}
-        {!isEnrolled && (
+        {/* {!isEnrolled && (
           <p className="flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
             Đảm bảo hoàn tiền 30 ngày
           </p>
-        )}
+        )} */}
 
         {/* Progress (enrolled) */}
         {isEnrolled && enrollment && (
@@ -174,6 +153,7 @@ function EnrollButton({
   onAddToCart,
   isEnrolling,
   isAddingToCart,
+  isInCart,
 }: {
   course: CourseDetail;
   enrollment: Enrollment | null;
@@ -182,6 +162,7 @@ function EnrollButton({
   onAddToCart?: () => void;
   isEnrolling?: boolean;
   isAddingToCart?: boolean;
+  isInCart?: boolean;
 }) {
   if (!isAuthenticated) {
     return (
@@ -217,15 +198,29 @@ function EnrollButton({
           {isEnrolling ? "Đang xử lý..." : `Mua ngay — ${formatPrice(course.price)}`}
         </Button>
         {onAddToCart && (
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full"
-            onClick={onAddToCart}
-            disabled={isAddingToCart}
-          >
-            {isAddingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
-          </Button>
+          isInCart ? (
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full border-green-500/50 bg-green-500/8 text-green-600 hover:bg-green-500/15 dark:text-green-400"
+              asChild
+            >
+              <Link href="/cart">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Đã có trong giỏ hàng
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full"
+              onClick={onAddToCart}
+              disabled={isAddingToCart}
+            >
+              {isAddingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
+            </Button>
+          )
         )}
       </div>
     );

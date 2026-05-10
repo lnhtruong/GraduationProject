@@ -1,20 +1,11 @@
 import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
 import type { CartItem, CartSummary, CouponResult } from "../types";
 
-// Backend cart item response (GET /course/carts)
-type CartItemApiResponse = {
+// Raw item returned by GET /course/carts
+type CartItemRaw = {
   id: number;
   courseId: number;
-  // Course info joined from Course Service
-  title?: string;
-  instructorName?: string;
-  thumbnailUrl?: string;
-  level?: "Beginner" | "Intermediate" | "Advanced";
-  durationSeconds?: number;
-  price?: number;
-  originalPrice?: number;
-  avgRating?: number;
-  reviewCount?: number;
+  created_at: string;
 };
 
 type CartApiResponse = {
@@ -22,7 +13,7 @@ type CartApiResponse = {
   userId: number;
   totalQuantity: number;
   totalAmount: number;
-  items: CartItemApiResponse[];
+  items: CartItemRaw[];
 };
 
 type AddToCartResponse = {
@@ -31,35 +22,59 @@ type AddToCartResponse = {
   courseId: number;
 };
 
-function mapCartItem(raw: CartItemApiResponse): CartItem {
-  return {
-    id: raw.id,
-    courseId: raw.courseId,
-    title: raw.title ?? "",
-    instructorName: raw.instructorName ?? "",
-    thumbnailUrl: raw.thumbnailUrl,
-    level: raw.level ?? "Beginner",
-    durationSeconds: raw.durationSeconds ?? 0,
-    price: raw.price ?? 0,
-    originalPrice: raw.originalPrice,
-    avgRating: raw.avgRating,
-    reviewCount: raw.reviewCount,
-    savedForLater: false,
-  };
+// Shape of GET /course/courses/:id we care about
+type CourseBasic = {
+  id: number;
+  name: string;
+  price: number;
+  level?: "Beginner" | "Intermediate" | "Advanced";
+  duration?: string; // HH:MM:SS
+  userId?: number;
+  video?: { thumbnail?: string; url?: string } | null;
+};
+
+function parseHHMMSS(d?: string): number {
+  if (!d) return 0;
+  const parts = d.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
+async function fetchCourse(courseId: number): Promise<CourseBasic | null> {
+  try {
+    const { data } = await apiHttpClient.get<CourseBasic>(`/course/courses/${courseId}`);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function buildCartItems(raw: CartItemRaw[]): Promise<CartItem[]> {
+  const courses = await Promise.all(raw.map((item) => fetchCourse(item.courseId)));
+  return raw.map((item, i) => {
+    const c = courses[i];
+    return {
+      id: item.id,
+      courseId: item.courseId,
+      title: c?.name ?? `Khoá học #${item.courseId}`,
+      instructorName: "",
+      thumbnailUrl: c?.video?.thumbnail,
+      level: c?.level ?? "Beginner",
+      durationSeconds: parseHHMMSS(c?.duration),
+      price: c?.price ?? 0,
+      originalPrice: undefined,
+      avgRating: undefined,
+      reviewCount: undefined,
+      savedForLater: false,
+    };
+  });
 }
 
 export const cartApi = createApi({
   getCart: async (): Promise<CartItem[]> => {
     const { data } = await apiHttpClient.get<CartApiResponse>("/course/carts");
-    return (data.items ?? []).map(mapCartItem);
-  },
-
-  getCartSummary: async (): Promise<Pick<CartSummary, "itemCount" | "subtotal">> => {
-    const { data } = await apiHttpClient.get<CartApiResponse>("/course/carts");
-    return {
-      itemCount: data.totalQuantity ?? 0,
-      subtotal: data.totalAmount ?? 0,
-    };
+    return buildCartItems(data.items ?? []);
   },
 
   addToCart: async (courseId: number): Promise<AddToCartResponse> => {
@@ -75,13 +90,11 @@ export const cartApi = createApi({
     await apiHttpClient.delete("/course/carts");
   },
 
-  // coupon chưa được backend hỗ trợ
   applyCoupon: async (code: string): Promise<CouponResult> => {
     void code;
     return { valid: false, message: "Tính năng coupon chưa khả dụng." };
   },
 
-  // saved for later chưa được backend hỗ trợ
   saveForLater: async (courseId: number, saved: boolean): Promise<void> => {
     void courseId;
     void saved;

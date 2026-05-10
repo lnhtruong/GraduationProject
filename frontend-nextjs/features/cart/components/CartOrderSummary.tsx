@@ -75,10 +75,10 @@ export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrder
       </Button>
 
       {/* Trust badge */}
-      <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+      {/* <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
         <Lock className="h-3 w-3 shrink-0" />
         Đảm bảo hoàn tiền trong 30 ngày
-      </p>
+      </p> */}
     </div>
   );
 }

@@ -18,20 +18,19 @@ export function useBuyNow(courseId: number) {
     mutationFn: () => paymentApi.buyNow(courseId),
     onSuccess: (data) => {
       if (data.enrolled) {
-        // Khoá học miễn phí — backend đã enroll, chỉ cần refresh enrollment
         queryClient.invalidateQueries({ queryKey: ["enrollment", "check", courseId] });
+        queryClient.invalidateQueries({ queryKey: ["enrollment"] });
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
         router.push(`/payment/success?free=1&courseId=${courseId}`);
         return;
       }
-      // Khoá học trả phí — redirect đến PayOS
+      sessionStorage.setItem(`payment_course_${data.orderCode}`, String(courseId));
       redirectToPayOS(data.checkoutUrl);
     },
   });
 }
 
 export function useCreatePayment() {
-  const router = useRouter();
-
   return useMutation<PaymentLinkResponse, Error, number[]>({
     mutationFn: (courseIds) => paymentApi.createPayment(courseIds),
     onSuccess: (data) => {

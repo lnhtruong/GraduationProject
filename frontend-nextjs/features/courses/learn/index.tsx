@@ -14,7 +14,7 @@ interface Props {
 export default function CourseLearnPage({ courseId }: Props) {
   const state = useCourseLearnPage(courseId);
 
-  if (state.courseLoading || state.lessonsLoading) {
+  if (!state.enrollmentSettled || state.courseLoading || state.lessonsLoading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card>

@@ -16,14 +16,13 @@ const cartItemsHooks = createQueryHooks(
 export const cartKeys = cartItemsHooks.keys;
 export const useCartQuery = cartItemsHooks.useQuery;
 
-const cartSummaryHooks = createQueryHooks(
-  "cart",
-  ["summary"],
-  cartApi.getCartSummary,
-  { staleTime: 30_000 },
-);
-
-export const useCartSummary = cartSummaryHooks.useQuery;
+// Derive từ useCartQuery — không gọi API thêm
+export function useCartSummary() {
+  const { data: items, ...rest } = useCartQuery();
+  const itemCount = items?.length ?? 0;
+  const subtotal = items?.reduce((sum, i) => sum + i.price, 0) ?? 0;
+  return { data: { itemCount, subtotal }, ...rest };
+}
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
@@ -56,3 +55,8 @@ export const useApplyCoupon = createMutationHooks<
   Awaited<ReturnType<typeof cartApi.applyCoupon>>,
   string
 >("cart", "apply-coupon", cartApi.applyCoupon);
+
+export function useIsInCart(courseId: number): boolean {
+  const { data: items } = useCartQuery();
+  return (items ?? []).some((item) => item.courseId === courseId);
+}

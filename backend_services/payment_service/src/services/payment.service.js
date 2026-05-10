@@ -245,9 +245,6 @@ const createPaymentLink = async (courseIds, userId) => {
     throw err;
   }
 
-  // Remove from cart only after transaction committed
-  await removePurchasedCoursesFromCart(userId, courseItems);
-
   // Auto-cancel after 5 minutes if unpaid
   setTimeout(
     async () => {
@@ -337,7 +334,7 @@ const buyNow = async (courseId, userId) => {
       orderCode,
       amount: totalAmount,
       description: "Thanh toan khoa hoc",
-      cancelUrl: CANCEL_URL,
+      cancelUrl: `${CANCEL_URL}?courseId=${courseId}`,
       returnUrl: RETURN_URL,
     });
   } catch (err) {
@@ -496,6 +493,16 @@ const updateTransactionStatus = async (providerOrderId, status) => {
 // Kiểm tra trạng thái đơn hàng trên PayOS
 // ============================================================
 const getOrderStatus = async (orderCode) => {
+  // Đọc từ Redis trước — được cập nhật ngay sau webhook
+  try {
+    const cached = await getPaymentData(orderCode);
+    if (cached?.status) {
+      const s = cached.status.toUpperCase();
+      if (s === "PAID" || s === "FAILED" || s === "CANCELLED") return s;
+    }
+  } catch (_) {}
+
+  // Fallback: hỏi trực tiếp PayOS
   try {
     const paymentInfo = await payos.paymentRequests.get(orderCode);
     return paymentInfo.status;
@@ -504,7 +511,7 @@ const getOrderStatus = async (orderCode) => {
       `⚠️ Không thể lấy trạng thái đơn hàng ${orderCode} từ PayOS:`,
       err.message,
     );
-    return "PENDING"; // Hoặc trạng thái mặc định phù hợp
+    return "PENDING";
   }
 };
 
@@ -543,6 +550,13 @@ const payosCallback = async (req) => {
         enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
           (err) => {
             console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
+          },
+        );
+
+        // Xoá khỏi giỏ hàng chỉ khi thanh toán thành công
+        removePurchasedCoursesFromCart(oldData.user_id, oldData.courseItems || []).catch(
+          (err) => {
+            console.error("❌ Lỗi xoá cart sau thanh toán:", err.message);
           },
         );
       } else {

@@ -9,19 +9,20 @@ import { WhatYouLearnSection } from "./components/WhatYouLearnSection";
 import { CourseContentAccordion } from "./components/CourseContentAccordion";
 import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
-import { getCourseById } from "../mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth";
 import { useEnrollmentCheck } from "../api/enrollment.api";
+import { useCourseDetail } from "../api/courseDetail.api";
 import { useBuyNow } from "@/features/payment/api/payment.hooks";
-import { useAddToCart } from "@/features/cart/api/cart.hooks";
-
+import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 
 // ---------------------------------------------------------------------------
 // Inline minor sections
 // ---------------------------------------------------------------------------
 
 function RequirementsSection({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Yêu cầu</h2>
@@ -39,6 +40,7 @@ function RequirementsSection({ items }: { items: string[] }) {
 
 function DescriptionSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Mô tả khoá học</h2>
@@ -64,6 +66,26 @@ function DescriptionSection({ text }: { text: string }) {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="bg-muted/30 px-4 py-16">
+        <div className="container mx-auto max-w-7xl space-y-4">
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-5 w-1/2" />
+          <Skeleton className="h-5 w-1/3" />
+        </div>
+      </div>
+      <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-60 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main feature component
 // ---------------------------------------------------------------------------
@@ -73,7 +95,7 @@ interface Props {
 }
 
 export default function CourseDetail({ courseId }: Props) {
-  const course = getCourseById(courseId);
+  const { data: course, isLoading, isError } = useCourseDetail(courseId);
   const router = useRouter();
 
   const { user } = useAuthStore();
@@ -82,8 +104,11 @@ export default function CourseDetail({ courseId }: Props) {
 
   const buyNow = useBuyNow(courseId);
   const addToCart = useAddToCart();
+  const isInCart = useIsInCart(courseId);
 
-  if (!course) {
+  if (isLoading) return <LoadingSkeleton />;
+
+  if (isError || !course) {
     return (
       <div className="container mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4 py-20 text-center">
         <div className="space-y-3">
@@ -141,10 +166,13 @@ export default function CourseDetail({ courseId }: Props) {
                 onAddToCart={course.price > 0 ? handleAddToCart : undefined}
                 isEnrolling={buyNow.isPending}
                 isAddingToCart={addToCart.isPending}
+                isInCart={isInCart}
               />
             </div>
 
-            <WhatYouLearnSection items={course.whatYouLearn} />
+            {course.whatYouLearn.length > 0 && (
+              <WhatYouLearnSection items={course.whatYouLearn} />
+            )}
 
             <CourseContentAccordion
               lessons={course.lessons}
@@ -175,6 +203,7 @@ export default function CourseDetail({ courseId }: Props) {
                 onAddToCart={course.price > 0 ? handleAddToCart : undefined}
                 isEnrolling={buyNow.isPending}
                 isAddingToCart={addToCart.isPending}
+                isInCart={isInCart}
               />
             </div>
           </div>
