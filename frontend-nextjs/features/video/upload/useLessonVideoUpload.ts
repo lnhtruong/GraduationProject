@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { createMediaUploadSocket } from "@/features/upload/api/upload.websocket";
+import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { lessonVideoUploadManager } from "./lesson-video-upload.manager";
 
 type LessonVideoUploadStatus =
@@ -57,7 +57,6 @@ export function useLessonVideoUpload() {
     useState<LessonVideoUploadSession>(INITIAL_SESSION);
   const lastUploadArgsRef = useRef<LastUploadArgs>(null);
   const { user } = useAuth();
-  const socketRef = useRef<any | null>(null);
 
   const patchSession = useCallback(
     (patch: Partial<LessonVideoUploadSession>) => {
@@ -246,81 +245,74 @@ export function useLessonVideoUpload() {
     };
   }, [session.status]);
 
-  // Real-time websocket for media events (upload/video completed, progress, error)
+  // Real-time SSE for media events (upload/video completed, progress, error)
   useEffect(() => {
     const userId = user?.id;
     const hasTrackedVideo = !!session.videoId || !!getPendingSession?.();
     if (!userId || !hasTrackedVideo) return;
 
-    try {
-      const socket = createMediaUploadSocket(userId);
-      socketRef.current = socket;
-
-      const onVideoProgress = (data: any) => {
-        try {
-          const vid = data?.videoId ?? data?.data?.id ?? null;
-          const progress = data?.progress ?? data?.data?.progress ?? null;
-          if (!vid) return;
-          if (String(vid) !== String(session.videoId)) return;
-          patchSession({
-            status: "processing",
-            progressPercent: progress ?? 100,
-          });
-        } catch {}
-      };
-
-      const onVideoCompleted = (payload: any) => {
-        try {
-          const videoId =
-            payload?.data?.id ?? payload?.data?.videoId ?? payload?.id;
-          if (!videoId) return;
-          if (String(videoId) !== String(session.videoId)) return;
-          patchSession({
-            status: "completed",
-            progressPercent: 100,
-            error: null,
-          });
-          // call completion callback if provided
+    const stream = createMediaUploadStream(
+      {
+        onProgress: (data) => {
           try {
-            lastUploadArgsRef.current?.onCompleted?.(Number(videoId));
+            // Support both old format (videoId) and new format (jobId/stage)
+            const vid = data?.videoId ?? null;
+            if (vid && String(vid) === String(session.videoId)) {
+              patchSession({
+                status: "processing",
+                progressPercent: data.progress ?? 100,
+              });
+            }
+            // New format: Job stage updates (less critical for lesson videos)
           } catch {}
+        },
+
+        onCompleted: (payload) => {
           try {
-            localStorage.removeItem("lessonUploadSession");
-          } catch {}
-        } catch {}
-      };
+            const videoId = payload?.data?.videoId;
+            const jobId = payload?.data?.job_id ?? payload?.data?.jobId;
 
-      const onVideoError = (payload: any) => {
-        try {
-          const err = payload?.error ?? payload;
-          patchSession({
-            status: "failed",
-            error: err?.message ?? "Lỗi xử lý video",
-          });
+            // Match by videoId (primary) or jobId (fallback for AI processing)
+            if (videoId && String(videoId) === String(session.videoId)) {
+              patchSession({
+                status: "completed",
+                progressPercent: 100,
+                error: null,
+              });
+              // call completion callback if provided
+              try {
+                lastUploadArgsRef.current?.onCompleted?.(Number(videoId));
+              } catch {}
+              try {
+                localStorage.removeItem("lessonUploadSession");
+              } catch {}
+            }
+          } catch {}
+        },
+
+        onError: (payload) => {
           try {
-            localStorage.removeItem("lessonUploadSession");
+            patchSession({
+              status: "failed",
+              error: payload.error?.message ?? "Lỗi xử lý video",
+            });
+            try {
+              localStorage.removeItem("lessonUploadSession");
+            } catch {}
           } catch {}
-        } catch {}
-      };
+        },
 
-      socket.on("video:progress", onVideoProgress);
-      socket.on("video:completed", onVideoCompleted);
-      socket.on("upload-video :completed", onVideoCompleted);
-      socket.on("video:error", onVideoError);
+        onConnectionError: (error) => {
+          console.error("[useLessonVideoUpload] SSE connection error:", error);
+        },
+      },
+      { userId },
+    );
 
-      return () => {
-        try {
-          socket.off("video:progress", onVideoProgress);
-          socket.off("video:completed", onVideoCompleted);
-          socket.off("upload-video :completed", onVideoCompleted);
-          socket.off("video:error", onVideoError);
-          socket.disconnect();
-        } catch {}
-      };
-    } catch {
-      // ignore socket errors silently
-    }
-  }, [user?.id, session.videoId, getPendingSession]);
+    return () => {
+      stream.close();
+    };
+  }, [user?.id, session.videoId, getPendingSession, patchSession]);
 
   return {
     session,
