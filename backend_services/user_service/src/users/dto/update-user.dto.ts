@@ -20,4 +20,9 @@ export class UpdateUserDto {
   @IsInt()
   @Min(1)
   role?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  avatarUrl?: string;
 }
