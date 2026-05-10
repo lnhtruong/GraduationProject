@@ -9,7 +9,8 @@ import { CourseForm } from "./components/CourseForm";
 import {
   useCreateCourse,
   useInstructorCourseById,
-  useQuickPublishCourse,
+  usePublishCourse,
+  useSubmitCourseForReview,
   useUpdateCourse,
 } from "./api/course-management.hooks";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -27,22 +28,36 @@ export default function CourseFormPage({ courseId }: Props) {
   );
   const createCourseMutation = useCreateCourse();
   const updateCourseMutation = useUpdateCourse();
-  const quickPublishCourseMutation = useQuickPublishCourse();
+  const submitForReviewMutation = useSubmitCourseForReview();
+  const publishCourseMutation = usePublishCourse();
+  const isAdmin = user?.role === 1;
 
-  const handleQuickPublishCourse = async () => {
-    if (!course || course.status === "publish") {
+  const handleCourseStatusAction = async () => {
+    if (!course) {
       return;
     }
 
     try {
-      await quickPublishCourseMutation.mutateAsync({
-        id: course.id,
-        status: course.status,
-      });
-      toast.success("Đã public khóa học");
-      router.refresh();
+      if (course.status === "draft") {
+        await submitForReviewMutation.mutateAsync(course.id);
+        toast.success("Đã gửi khóa học chờ duyệt");
+        router.refresh();
+        return;
+      }
+
+      if (course.status === "approved") {
+        if (!isAdmin) {
+          toast.info("Khóa học đã được duyệt, chờ admin publish");
+          return;
+        }
+
+        await publishCourseMutation.mutateAsync(course.id);
+        toast.success("Đã publish khóa học");
+        router.refresh();
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Public thất bại";
+      const message =
+        error instanceof Error ? error.message : "Cập nhật trạng thái thất bại";
       toast.error(message);
     }
   };
@@ -105,18 +120,34 @@ export default function CourseFormPage({ courseId }: Props) {
         </Button>
       }
       action={
-        isEdit && course && course.status !== "publish" ? (
+        isEdit && course ? (
           <Button
             type="button"
-            disabled={quickPublishCourseMutation.isPending}
+            disabled={
+              (course.status === "draft" &&
+                submitForReviewMutation.isPending) ||
+              (course.status === "approved" &&
+                (!isAdmin || publishCourseMutation.isPending)) ||
+              (course.status !== "draft" && course.status !== "approved")
+            }
             onClick={() => {
-              void handleQuickPublishCourse();
+              void handleCourseStatusAction();
             }}
           >
             <Upload className="mr-2 h-4 w-4" />
-            {quickPublishCourseMutation.isPending
-              ? "Đang public..."
-              : "Public khóa học"}
+            {course.status === "draft"
+              ? submitForReviewMutation.isPending
+                ? "Đang gửi duyệt..."
+                : "Gửi duyệt khóa học"
+              : course.status === "pending"
+                ? "Đang chờ admin duyệt"
+                : course.status === "approved"
+                  ? publishCourseMutation.isPending
+                    ? "Đang publish..."
+                    : isAdmin
+                      ? "Publish khóa học"
+                      : "Đã duyệt, chờ publish"
+                  : "Đã publish"}
           </Button>
         ) : null
       }

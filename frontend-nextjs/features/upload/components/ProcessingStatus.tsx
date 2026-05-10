@@ -91,7 +91,7 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
     label: "Đang chờ xử lý",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
-    progress: 20,
+    progress: 0,
     description: "Video đã được tải lên, đang xếp hàng để xử lý",
   },
   processing: {
@@ -197,8 +197,11 @@ export default function ProcessingStatus({
     ? Math.round((parseInt(stageMatch[1]) / parseInt(stageMatch[2])) * 100)
     : undefined;
 
-  // Target for the animated bar: explicit WS progress > stage milestone > config default
-  const targetProgress = progressPercent ?? stageProgress ?? config.progress;
+  // Target for the animated bar: explicit WS progress > stage milestone > status default
+  const targetProgress =
+    progressPercent ??
+    stageProgress ??
+    (status === "pending" ? 0 : config.progress);
 
   // Smoothly crawl toward targetProgress instead of jumping to it
   const displayProgress = useAnimatedProgress(targetProgress);
@@ -271,9 +274,7 @@ export default function ProcessingStatus({
       </div>
 
       {/* Processing Steps — driven by stage string "X/Y: Label" from Colab polling */}
-      {status === "processing" && (
-        <ProcessingSteps stage={stage} />
-      )}
+      {status === "processing" && <ProcessingSteps stage={stage} />}
 
       {/* Pending Steps */}
       {status === "pending" && (
