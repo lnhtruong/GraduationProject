@@ -66,6 +66,7 @@ export class FeedController {
     @Query('courseId') courseId?: string,
     @Query('mode') mode?: 'recommended' | 'search',
     @Query('search') search?: string,
+    @Query('sessionId') sessionId?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
@@ -73,7 +74,15 @@ export class FeedController {
     const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
 
-    return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode, search);
+    return this.feedService.getFeed(
+      cursorId,
+      limitNum,
+      userId,
+      courseIdNum,
+      mode,
+      search,
+      sessionId,
+    );
   }
 
   @Get('viewed')
@@ -86,6 +95,12 @@ export class FeedController {
   async getSavedFeeds(@Headers('x-user-id') userIdHeader?: string) {
     const userId = this.parseRequiredUserId(userIdHeader);
     return this.feedService.getSavedFeeds(userId);
+  }
+
+  @Get('trending')
+  async getPublicTrending(@Query('limit') limit?: string) {
+    const limitNum = limit ? Number(limit) : undefined;
+    return this.feedService.getPublicTrending(limitNum);
   }
 
   @Get('stats/creator')
