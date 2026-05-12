@@ -128,7 +128,8 @@ export function ActivityCreationDialog({
           <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
             <DialogTitle className="text-xl">Tạo hoạt động mới</DialogTitle>
             <DialogDescription>
-              Tạo quiz đầy đủ ngay trong popup hoặc tạo activity bài tập.
+              Tạo quiz đầy đủ ngay trong popup hoặc tạo activity bài tập. Quiz
+              ngoài video có thể tạo ngay khi bài học đã có `videoId`.
             </DialogDescription>
           </DialogHeader>
 

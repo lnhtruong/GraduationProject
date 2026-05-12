@@ -9,8 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
-import { type VideoCompletedEvent } from "@/features/upload/api/upload.websocket";
-import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
+import { type VideoCompletedPayload } from "@/features/upload/api/upload.websocket";
+import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
@@ -108,34 +108,39 @@ export default function EditorMediaDropzone({
       };
 
       const targetUrl = normalizeUrl(uploadedUrl);
-      const socket = createMediaUploadSocket(userId);
       let settled = false;
 
       const finish = (videoId?: number) => {
         if (settled) return;
         settled = true;
-        socket.off("upload-video :completed", onUploadCompleted);
-        socket.disconnect();
+        stream.close();
+        clearTimeout(timeout);
         resolve(videoId);
       };
 
-      const onUploadCompleted = (payload: VideoCompletedEvent) => {
-        const eventUrl = payload?.data?.url;
-        const eventId = payload?.data?.id;
-        if (!eventUrl) return;
-
-        const normalizedEventUrl = normalizeUrl(eventUrl);
-        if (normalizedEventUrl !== targetUrl) return;
-
-        finish(typeof eventId === "number" ? eventId : undefined);
-      };
-
       const timeout = window.setTimeout(() => {
-        window.clearTimeout(timeout);
         finish(undefined);
       }, timeoutMs);
 
-      socket.on("upload-video :completed", onUploadCompleted);
+      const stream = createMediaUploadStream(
+        {
+          onCompleted: (payload: VideoCompletedPayload) => {
+            const eventUrl = payload?.data?.url;
+            const eventId = payload?.data?.videoId;
+            if (!eventUrl) return;
+
+            const normalizedEventUrl = normalizeUrl(eventUrl);
+            if (normalizedEventUrl !== targetUrl) return;
+
+            finish(typeof eventId === "number" ? eventId : undefined);
+          },
+
+          onConnectionError: () => {
+            finish(undefined);
+          },
+        },
+        { userId },
+      );
     });
   };
 

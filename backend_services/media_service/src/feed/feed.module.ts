@@ -12,6 +12,7 @@ import { FeedComment } from '../models/feed_comments.model';
 import { Video } from '../videos/video.model';
 import { Course } from '../models/course.model';
 import { User } from '../models/user.model';
+import { NotificationModule } from '../notifications/notification.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { User } from '../models/user.model';
       User,
     ]),
     RedisModule,
+    NotificationModule,
   ],
   controllers: [FeedController],
   providers: [FeedService, RedisService, FeedRecommendationWorker],

@@ -1,4 +1,12 @@
-import { IsEmail, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -25,4 +33,8 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(512)
   avatarUrl?: string;
+  
+  @MinLength(8)
+  @MaxLength(255)
+  password?: string;
 }

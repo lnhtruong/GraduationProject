@@ -9,10 +9,10 @@ import { useMascotJob } from "../api/mascot.hooks";
 import type { MascotParams } from "../types";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
-import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
-import {
-  type VideoCompletedEvent,
-  type VideoErrorEvent,
+import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
+import type {
+  VideoCompletedPayload,
+  VideoErrorPayload,
 } from "@/features/upload/api/upload.websocket";
 
 export function useMascot() {
@@ -189,7 +189,7 @@ export function useMascot() {
   };
 
   // ============================================================================
-  // SOCKET HANDLING
+  // SSE HANDLING
   // ============================================================================
 
   const listenForJobCompletion = (
@@ -198,61 +198,85 @@ export function useMascot() {
     onSuccess: (result: { blobUrl: string; downloadUrl: string }) => void,
   ): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
-      const socket = createMediaUploadSocket(userId);
+      const stream = createMediaUploadStream(
+        {
+          onProgress: (payload) => {
+            // Handle job stage updates
+            if (payload.jobId === jobId && payload.stage) {
+              setMascotProgress(`Processing: ${payload.stage}`);
+            }
+          },
 
-      const cleanup = () => {
-        socket.off("video:completed", onVideoCompleted);
-        socket.off("video:error", onVideoError);
-        socket.disconnect();
-      };
+          onCompleted: async (payload) => {
+            // Only process completion for this specific job
+            const payloadJobId = payload?.data?.job_id ?? payload?.data?.jobId;
+            if (payloadJobId && payloadJobId !== jobId) {
+              return; // Ignore other jobs
+            }
 
-      const finish = async (downloadUrl: string) => {
-        try {
-          const response = await fetch(downloadUrl);
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
+            if (payload.data.type !== "mascot") {
+              return; // Ignore non-mascot videos
+            }
 
-          setIsApplyingMascot(false);
-          setMascotProgress("");
+            const url = payload.data.url;
+            if (!url) {
+              stream.close();
+              setIsApplyingMascot(false);
+              setMascotProgress("");
+              reject(new Error("Mascot video URL is missing"));
+              return;
+            }
 
-          onSuccess({
-            blobUrl,
-            downloadUrl,
-          });
-        } catch (error) {
-          setIsApplyingMascot(false);
-          setMascotProgress("");
-          reject(error);
-        }
-      };
+            try {
+              const response = await fetch(url);
+              const blob = await response.blob();
+              const blobUrl = URL.createObjectURL(blob);
 
-      const onVideoCompleted = async (payload: VideoCompletedEvent) => {
-        if (payload.data.type !== "mascot") return;
+              setIsApplyingMascot(false);
+              setMascotProgress("");
 
-        try {
-          cleanup();
-          await finish(payload.data.url);
-          resolve();
-        } catch (error) {
-          cleanup();
-          reject(error);
-        }
-      };
+              onSuccess({
+                blobUrl,
+                downloadUrl: url,
+              });
 
-      const onVideoError = (payload: VideoErrorEvent) => {
-        cleanup();
-        setIsApplyingMascot(false);
-        setMascotProgress("");
-        reject(
-          new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
-        );
-      };
+              stream.close();
+              resolve();
+            } catch (error) {
+              stream.close();
+              setIsApplyingMascot(false);
+              setMascotProgress("");
+              reject(error);
+            }
+          },
 
-      socket.on("video:completed", onVideoCompleted);
-      socket.on("video:error", onVideoError);
+          onError: (payload) => {
+            // Only process error for this specific job
+            const errorJobId = payload.jobId;
+            if (errorJobId && errorJobId !== jobId) {
+              return; // Ignore other jobs
+            }
+
+            stream.close();
+            setIsApplyingMascot(false);
+            setMascotProgress("");
+            reject(
+              new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
+            );
+          },
+
+          onConnectionError: (error) => {
+            stream.close();
+            setIsApplyingMascot(false);
+            setMascotProgress("");
+            reject(error);
+          },
+        },
+        { userId },
+      );
 
       if (!jobId) {
-        cleanup();
+        stream.close();
         reject(new Error("Không thể tạo job mascot."));
       }
     });

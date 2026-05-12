@@ -34,10 +34,10 @@ export function authorizationMiddleware(
       ? req.path.slice(0, -1)
       : req.path;
 
-    if (req.method === 'PATCH' && normalizedPath.startsWith('/api/users/')) {
-      const targetId = Number(req.originalUrl.split('/').pop());
-      console.log('targetId: ', targetId);
-      console.log('req.originalUrl: ', req.originalUrl);
+    const userUpdatePathMatch = normalizedPath.match(/^\/api\/users\/(\d+)$/);
+    if (req.method === 'PATCH' && userUpdatePathMatch) {
+      // const targetId = Number(req.originalUrl.split('/').pop());
+      const targetId = Number(userUpdatePathMatch[1]);
       const currentUser = authReq.user;
 
       if (!Number.isInteger(targetId) || !currentUser) {
