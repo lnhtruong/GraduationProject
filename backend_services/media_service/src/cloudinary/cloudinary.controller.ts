@@ -19,33 +19,65 @@ import { CloudinaryService } from './cloudinary.service';
 
 type UploadVideoType = 'highlight' | 'mascot';
 
+type ImageUploadPurpose = 'avatar' | 'post' | 'gallery';
+
+/** Optional `job_id` is forwarded in signed context so the webhook can upsert by job. */
+function buildSignedUploadContext(userId: number, body: { job_id?: unknown }): string {
+  const parts = [`userId=${userId}`];
+  if (typeof body?.job_id === 'string' && body.job_id.trim().length > 0) {
+    parts.push(`job_id=${body.job_id.trim()}`);
+  }
+  return parts.join('|');
+}
+
+/**
+ * Folder layout for user-scoped images (override with `folder` / `folderName` on the body).
+ * - avatar → avatars/{userId}
+ * - post → posts/{userId}
+ * - gallery → gallery/{userId}
+ * - default → gallery/{userId}
+ */
+function resolveImageUploadFolder(
+  userId: number,
+  body: { folder?: unknown; folderName?: unknown; purpose?: unknown },
+): string {
+  const explicit =
+    (typeof body.folder === 'string' && body.folder.trim()) ||
+    (typeof body.folderName === 'string' && body.folderName.trim()) ||
+    '';
+  if (explicit) return explicit;
+
+  const purpose =
+    typeof body.purpose === 'string' ? body.purpose.trim().toLowerCase() : '';
+  switch (purpose as ImageUploadPurpose | '') {
+    case 'avatar':
+      return `avatars/${userId}`;
+    case 'post':
+      return `posts/${userId}`;
+    case 'gallery':
+      return `gallery/${userId}`;
+    default:
+      return `gallery/${userId}`;
+  }
+}
+
 @Controller('cloudinary')
 export class CloudinaryController {
   constructor(private readonly cloudinaryService: CloudinaryService) { }
 
-  // Ký chữ ký cho frontend upload trực tiếp lên Cloudinary (Client-side signed upload)
-  @Post('sign')
-  @HttpCode(200)
-  getSignature(@Body() body: any, @Headers('x-user-id') userIdHeader?: string) {
-
+  private parseUserIdHeader(userIdHeader?: string): number {
     const userId =
       typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
         ? Number(userIdHeader)
-        : undefined;
-
-    if (userId === undefined) {
+        : NaN;
+    if (!userId || Number.isNaN(userId)) {
       throw new BadRequestException('Missing user_id');
     }
+    return userId;
+  }
 
+  private signDirectUpload(folder: string, context: string) {
     const timestamp = Math.round(Date.now() / 1000);
-
-    const folder =
-      typeof body?.folder === 'string'
-        ? body.folder
-        : typeof body?.folderName === 'string'
-          ? body.folderName
-          : 'videos';
-
     const apiSecret = process.env.API_SECRET;
     const cloudName = process.env.CLOUD_NAME;
     const apiKey = process.env.API_KEY;
@@ -56,7 +88,7 @@ export class CloudinaryController {
       );
     }
 
-    const paramsToSign = { timestamp, folder, context: `userId=${userId}` };
+    const paramsToSign = { timestamp, folder, context };
     const signature = cloudinary.utils.api_sign_request(paramsToSign, apiSecret);
 
     return {
@@ -65,7 +97,25 @@ export class CloudinaryController {
       cloud_name: cloudName,
       api_key: apiKey,
       folder,
+      context,
     };
+  }
+
+  // Ký chữ ký cho frontend upload trực tiếp lên Cloudinary (Client-side signed upload)
+  @Post('sign')
+  @HttpCode(200)
+  getSignature(@Body() body: any, @Headers('x-user-id') userIdHeader?: string) {
+    const userId = this.parseUserIdHeader(userIdHeader);
+
+    const folder =
+      typeof body?.folder === 'string'
+        ? body.folder
+        : typeof body?.folderName === 'string'
+          ? body.folderName
+          : 'videos';
+
+    const context = buildSignedUploadContext(userId, body);
+    return this.signDirectUpload(folder, context);
   }
 
   @Post('upload')

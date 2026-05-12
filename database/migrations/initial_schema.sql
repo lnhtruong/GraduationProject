@@ -39,10 +39,16 @@ CREATE TABLE IF NOT EXISTS `mascot_images` (
     `image_id` INT(11) NOT NULL AUTO_INCREMENT,
     `user_id` INT(11) NOT NULL,
     `url` VARCHAR(255) NOT NULL,
+    `job_id` VARCHAR(64) NULL,
+    `thumbnail` VARCHAR(1024) NULL,
+    `public_id` VARCHAR(512) NULL,
+    `format` VARCHAR(32) NULL,
+    `name` VARCHAR(255) NULL,
     `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`image_id`),
-    INDEX `idx_mascot_images_user_id` (`user_id`)
+    INDEX `idx_mascot_images_user_id` (`user_id`),
+    UNIQUE KEY `uq_mascot_images_job_id` (`job_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `mascot_overlays` (
