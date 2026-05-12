@@ -95,9 +95,6 @@ Khóa học cập nhật liên tục — mua một lần, học mãi mãi. Tham 
   /** 12h 30m */
   duration: 45000,
   price: 299000,
-  originalPrice: 599000,
-  /** 2 days after "today" (2026-04-07) */
-  discountEndAt: "2026-04-09T23:59:59Z",
   hasCertificate: true,
 
   instructor: {

@@ -210,6 +210,11 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/enroll', access: 'authenticated' },
   {
     method: 'GET',
+    pattern: '/api/course/enroll/check-mine-exists',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
     pattern: '/api/course/enroll/:id',
     access: 'authenticated',
   },

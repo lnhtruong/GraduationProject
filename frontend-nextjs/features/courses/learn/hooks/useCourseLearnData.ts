@@ -10,6 +10,8 @@ import {
   useLessonProgressByCourseId,
   useUpsertLessonProgress,
 } from "../api/lesson-progress.hooks";
+import { useEnrollmentCheck } from "../../api/enrollment.api";
+import { useAuthStore } from "@/store/auth";
 import type { LessonProgressRecord } from "../types";
 import {
   buildAfterLessonQuiz,
@@ -23,6 +25,24 @@ export function useCourseLearnData(courseId: number) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+
+  const { data: enrollment, isLoading: enrollmentLoading, isError: enrollmentError } =
+    useEnrollmentCheck(courseId, user?.id);
+
+  // enrollmentSettled: true khi store đã hydrate VÀ query đã chạy xong (không còn loading).
+  // Khi userId chưa có (store chưa hydrate), query bị disabled → isLoading=false ngay
+  // nhưng ta cần !!user?.id để đảm bảo store đã sẵn sàng trước khi đánh giá kết quả.
+  const enrollmentSettled = !!user?.id && !enrollmentLoading;
+
+  useEffect(() => {
+    if (!enrollmentSettled) return;
+    if (!isAuthenticated || enrollmentError || enrollment == null) {
+      router.replace(`/courses/${courseId}`);
+    }
+  }, [courseId, enrollment, enrollmentError, enrollmentSettled, isAuthenticated, router]);
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
@@ -234,6 +254,7 @@ export function useCourseLearnData(courseId: number) {
   return {
     course,
     courseLoading,
+    enrollmentSettled,
     lessons,
     lessonsLoading,
     lessonProgressRecords,
