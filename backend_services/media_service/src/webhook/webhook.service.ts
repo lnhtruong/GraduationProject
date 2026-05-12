@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
-import { SseService } from 'src/sse/sse.service';
+import { NotificationService } from 'src/notifications/notification.service';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -55,7 +55,7 @@ export class WebhookService {
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
         // private readonly websocketService: WebsocketService,
-        private readonly sseService: SseService,
+        private readonly notificationService: NotificationService,
         private readonly bunnyService: BunnyService,
     ) { }
 
@@ -170,12 +170,21 @@ export class WebhookService {
 
         await row.reload();
 
-        this.sseService.notifyUploadCompleted(row.user_id, {
-            videoId: row.id,
-            url,
-            type: VideoType.LONG,
-            duration: duration ?? undefined,
-            name: row.name ?? undefined,
+        await this.notificationService.createAndEmit({
+            userId: row.user_id,
+            eventType: 'video.upload.completed',
+            sseEventType: 'upload-video:completed',
+            title: 'Video upload completed',
+            message: 'Your course video is ready to use',
+            sourceType: 'video',
+            sourceId: row.id,
+            payload: {
+                videoId: row.id,
+                url,
+                type: VideoType.LONG,
+                duration: duration ?? undefined,
+                name: row.name ?? undefined,
+            },
         });
 
         return {
@@ -358,13 +367,22 @@ export class WebhookService {
 
         await row.reload();
 
-        this.sseService.notifyUploadCompleted(userId, {
-            videoId: row.id,
-            url: row.url ?? '',
-            type: row.type,
-            duration: duration ?? undefined,
-            name: resolvedName ?? undefined,
-            job_id: jobId,
+        await this.notificationService.createAndEmit({
+            userId,
+            eventType: 'video.upload.completed',
+            sseEventType: 'upload-video:completed',
+            title: 'Video upload completed',
+            message: 'Your video has been uploaded successfully',
+            sourceType: 'video',
+            sourceId: row.id,
+            payload: {
+                videoId: row.id,
+                url: row.url ?? '',
+                type: row.type,
+                duration: duration ?? undefined,
+                name: resolvedName ?? undefined,
+                job_id: jobId,
+            },
         });
 
         return { success: true, id: row.id };
@@ -436,30 +454,51 @@ export class WebhookService {
                         : undefined;
         const typeForSse = type ?? rawType ?? 'unknown';
 
+        let completedVideoId: number | undefined;
+
         // 3. Phân luồng xử lý theo EVENT
         // Mặc định là 'completed' nếu Python chưa kịp update code cũ
         const eventType = payload.event || 'completed';
 
-        console.log('check BE: ', payload);
+        // console.log('check BE: ', payload);
 
         switch (eventType) {
             case 'stage_update':
                 // Bắn SSE báo progress cho FE
-                this.sseService.notifyJobProgress(userId, {
-                    jobId: payload.job_id,
-                    type: typeForSse,
-                    stage: payload.stage,
-                    status: 'processing'
+                await this.notificationService.createAndEmit({
+                    userId,
+                    eventType: 'video.job.progress',
+                    sseEventType: 'video:progress',
+                    title: 'Video processing update',
+                    message: payload.stage
+                        ? `Current stage: ${payload.stage}`
+                        : 'Your video is being processed',
+                    sourceType: 'video_job',
+                    payload: {
+                        jobId: payload.job_id,
+                        type: typeForSse,
+                        stage: payload.stage,
+                        status: 'processing',
+                    },
                 });
                 break;
 
             case 'job_failed':
                 // Bắn SSE báo lỗi
-                this.sseService.notifyJobFailed(userId, {
-                    jobId: payload.job_id,
-                    type: typeForSse,
-                    status: 'failed',
-                    error: payload.error_message
+                await this.notificationService.createAndEmit({
+                    userId,
+                    eventType: 'video.job.failed',
+                    sseEventType: 'video:error',
+                    title: 'Video processing failed',
+                    message: payload.error_message ?? 'Unexpected error while processing video',
+                    sourceType: 'video_job',
+                    payload: {
+                        success: false,
+                        jobId: payload.job_id,
+                        type: typeForSse,
+                        status: 'failed',
+                        error: payload.error_message,
+                    },
                 });
                 break;
 
@@ -471,14 +510,45 @@ export class WebhookService {
                     return { ignored: true, reason: 'missing_url' };
                 }
 
+                const jobId =
+                    typeof payload.job_id === 'string' && payload.job_id.trim().length > 0
+                        ? payload.job_id.trim()
+                        : undefined;
+
+                let videoId: number | undefined;
+                if (jobId) {
+                    const videoRow = await this.videoModel.findOne({
+                        where: { job_id: jobId },
+                    });
+
+                    if (videoRow) {
+                        videoId = videoRow.id;
+                        completedVideoId = videoRow.id;
+                    } else {
+                        this.logger.warn(`AI model webhook completed event cannot find video by job_id=${jobId}`);
+                    }
+                } else {
+                    this.logger.warn('AI model webhook completed event missing job_id');
+                }
+
                 // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
-                this.sseService.notifyVideoCompleted(userId, {
-                    jobId: payload.job_id, // Gửi kèm jobId để FE biết box nào xong
-                    url: url,
-                    srtUrl: payload.srt_url,
-                    type: typeForSse,
-                    duration: payload.duration ?? undefined,
-                    status: 'completed'
+                await this.notificationService.createAndEmit({
+                    userId,
+                    eventType: 'video.job.completed',
+                    sseEventType: 'video:completed',
+                    title: 'Video processing completed',
+                    message: 'Your highlight video is ready',
+                    sourceType: 'video',
+                    sourceId: videoId,
+                    payload: {
+                        videoId,
+                        jobId,
+                        url,
+                        srtUrl: payload.srt_url,
+                        type: typeForSse,
+                        duration: payload.duration ?? undefined,
+                        status: 'completed',
+                    },
                 });
                 break;
             }
@@ -488,6 +558,6 @@ export class WebhookService {
                 break;
         }
 
-        return { success: true };
+        return { success: true, videoId: completedVideoId };
     }
 }

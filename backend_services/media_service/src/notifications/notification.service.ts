@@ -1,0 +1,152 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { MessageEvent } from '@nestjs/common';
+import { Op } from 'sequelize';
+import { Notification } from 'src/models/notification.model';
+import { SseService } from 'src/sse/sse.service';
+import { PatchNotificationDto } from './dto/patch-notification.dto';
+import { BulkUpdateNotificationsDto } from './dto/bulk-update-notifications.dto';
+
+type CreateNotificationInput = {
+  userId: number;
+  eventType: string;
+  sseEventType: string;
+  title: string;
+  message?: string | null;
+  payload?: Record<string, unknown>;
+  sourceType?: string;
+  sourceId?: number;
+};
+
+@Injectable()
+export class NotificationService {
+  constructor(
+    @InjectModel(Notification)
+    private readonly notificationModel: typeof Notification,
+    private readonly sseService: SseService,
+  ) {}
+
+  async createAndEmit(input: CreateNotificationInput): Promise<Notification> {
+    const notification = await this.notificationModel.create({
+      user_id: input.userId,
+      event_type: input.eventType,
+      title: input.title,
+      message: input.message ?? null,
+      payload: input.payload ?? null,
+      source_type: input.sourceType ?? null,
+      source_id: input.sourceId ?? null,
+      is_read: false,
+    });
+
+    const event: MessageEvent = {
+      type: input.sseEventType,
+      data: {
+        success: true,
+        notification: {
+          id: notification.id,
+          user_id: notification.user_id,
+          event_type: notification.event_type,
+          title: notification.title,
+          message: notification.message,
+          payload: notification.payload,
+          is_read: notification.is_read,
+          source_type: notification.source_type,
+          source_id: notification.source_id,
+          created_at: notification.get('created_at'),
+        },
+        data: input.payload ?? null,
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    this.sseService.emitToUser(input.userId, event);
+    return notification;
+  }
+
+  toResponse(row: Notification) {
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      event_type: row.event_type,
+      title: row.title,
+      message: row.message,
+      payload: row.payload,
+      is_read: row.is_read,
+      source_type: row.source_type,
+      source_id: row.source_id,
+      created_at: row.get('created_at'),
+      updated_at: row.get('updated_at'),
+    };
+  }
+
+  async findAllForUser(
+    userId: number,
+    options: { cursor?: number; limit: number; isRead?: boolean },
+  ) {
+    const safeLimit =
+      Number.isInteger(options.limit) && options.limit > 0
+        ? Math.min(options.limit, 50)
+        : 20;
+
+    const where: Record<string, unknown> = { user_id: userId };
+    if (typeof options.isRead === 'boolean') {
+      where.is_read = options.isRead;
+    }
+    if (options.cursor) {
+      where.id = { [Op.lt]: options.cursor };
+    }
+
+    const rows = await this.notificationModel.findAll({
+      where,
+      order: [['id', 'DESC']],
+      limit: safeLimit,
+    });
+
+    const data = rows.map((row) => this.toResponse(row));
+    return {
+      data,
+      next_cursor:
+        data.length === safeLimit ? data[data.length - 1].id : null,
+    };
+  }
+
+  async findOneForUser(userId: number, id: number): Promise<Notification> {
+    const row = await this.notificationModel.findOne({
+      where: { id, user_id: userId },
+    });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    return row;
+  }
+
+  async updateOneForUser(
+    userId: number,
+    id: number,
+    dto: PatchNotificationDto,
+  ): Promise<Notification> {
+    const row = await this.findOneForUser(userId, id);
+    row.is_read = dto.is_read;
+    await row.save();
+    return row;
+  }
+
+  async bulkUpdateForUser(
+    userId: number,
+    dto: BulkUpdateNotificationsDto,
+  ): Promise<{ updated: number }> {
+    if (dto.all) {
+      const [updated] = await this.notificationModel.update(
+        { is_read: dto.is_read },
+        { where: { user_id: userId } },
+      );
+      return { updated };
+    }
+
+    const [updated] = await this.notificationModel.update(
+      { is_read: dto.is_read },
+      { where: { user_id: userId, id: { [Op.in]: dto.ids } } },
+    );
+    return { updated };
+  }
+}

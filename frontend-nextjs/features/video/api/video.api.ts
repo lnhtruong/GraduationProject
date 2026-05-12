@@ -4,6 +4,7 @@
  */
 
 import { createResourceApi } from "@/features/_shared/crud-factories";
+import { apiHttpClient as apiClient } from "@/features/_shared/api-factories";
 import type {
   CreateVideoRequest,
   DeleteVideoResponse,
@@ -13,6 +14,37 @@ import type {
 } from "../types";
 
 const VIDEO_ENDPOINT = "/media/videos";
+
+type BunnyInitUploadRequest = {
+  title?: string;
+  collectionId?: string;
+  thumbnailTime?: number;
+  expiresInSeconds?: number;
+  meta?: Record<string, unknown>;
+};
+
+export type BunnyInitUploadResponse = {
+  success: boolean;
+  videoId: number;
+  bunnyVideoId: string;
+  libraryId: string;
+  tus: {
+    endpoint: string;
+    headers: {
+      AuthorizationSignature: string;
+      AuthorizationExpire: string;
+      LibraryId: string;
+      VideoId: string;
+    };
+  };
+  bunnyVideo?: Record<string, unknown>;
+};
+
+export type BunnyVideoStatusResponse = {
+  status?: number;
+  Status?: number;
+  [key: string]: unknown;
+};
 
 type VideoApiResponse = {
   id?: number;
@@ -71,4 +103,17 @@ export const videoApi = {
     videoCrudApi.list?.(type) ?? Promise.resolve([]),
   updateById: videoCrudApi.update,
   deleteById: videoCrudApi.delete,
+  initBunnyUpload: async (payload: BunnyInitUploadRequest) => {
+    const { data } = await apiClient.post<BunnyInitUploadResponse>(
+      "/media/bunny/videos/init-upload",
+      payload,
+    );
+    return data;
+  },
+  getBunnyVideoStatus: async (bunnyVideoId: string) => {
+    const { data } = await apiClient.get<BunnyVideoStatusResponse>(
+      `/media/bunny/videos/${bunnyVideoId}/status`,
+    );
+    return data;
+  },
 };

@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
 
-export function useNewsfeedVideoFeed(enabled = true) {
-  const feedQuery = useNewsfeedFeed(enabled);
+export function useNewsfeedVideoFeed(enabled = true, searchTerm = "") {
+  const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const videos = useMemo(
@@ -16,6 +16,10 @@ export function useNewsfeedVideoFeed(enabled = true) {
   const totalVideos = videos.length;
   const hasMore = Boolean(feedQuery.hasNextPage);
   const isFetchingNextPage = feedQuery.isFetchingNextPage;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [searchTerm]);
 
   const safeIndex = useMemo(() => {
     if (!totalVideos) {

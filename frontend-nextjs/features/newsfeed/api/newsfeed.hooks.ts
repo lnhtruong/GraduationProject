@@ -12,13 +12,18 @@ export const newsfeedKeys = createKeyFactory("newsfeed");
 const DEFAULT_FEED_LIMIT = 8;
 const DEFAULT_COMMENT_LIMIT = 20;
 
-export function useNewsfeedFeed(enabled = true, limit = DEFAULT_FEED_LIMIT) {
+export function useNewsfeedFeed(enabled = true, limit = DEFAULT_FEED_LIMIT, searchTerm = "") {
+  const normalizedSearchTerm = searchTerm.trim();
+  const mode = normalizedSearchTerm ? "search" : "recommended";
+
   return useInfiniteQuery({
-    queryKey: newsfeedKeys.custom("feed", limit),
+    queryKey: newsfeedKeys.custom("feed", limit, mode, normalizedSearchTerm),
     queryFn: ({ pageParam }) =>
       newsfeedApi.getFeed({
         cursor: Number(pageParam) || 0,
         limit,
+        mode,
+        search: normalizedSearchTerm || undefined,
       }),
     enabled,
     staleTime: 45 * 1000,
@@ -91,6 +96,18 @@ export function useNewsfeedCommentDetail(
     staleTime: 20 * 1000,
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+}
+
+export function useNewsfeedInteractMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: newsfeedKeys.custom("interact"),
+    mutationFn: newsfeedApi.interactFeed,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+    },
   });
 }
 

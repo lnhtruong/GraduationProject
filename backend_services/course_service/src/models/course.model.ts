@@ -13,6 +13,7 @@ export enum CourseStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected',
   PUBLISH = 'publish',
+  BANNED = 'banned',
 }
 
 @Table({

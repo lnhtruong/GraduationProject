@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { Clock3, Maximize2, PlayCircle, X } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
 import { getVideoCardTitle } from "../../utils/lesson-form.utils";
 
 interface Video {
@@ -24,6 +25,10 @@ interface Props {
   userVideos?: Video[] | null;
   selectedVideoId: number | null;
   onVideoSelect: (videoId: number) => void;
+  onRefreshVideos?: () => Promise<void>;
+  lessonId?: number | null;
+  onOpenCreateQuizModal?: () => void;
+  onPendingCreateQuiz?: () => void;
 }
 
 export function VideoSelectionSection({
@@ -31,14 +36,93 @@ export function VideoSelectionSection({
   userVideos,
   selectedVideoId,
   onVideoSelect,
+  onRefreshVideos,
+  lessonId,
+  onOpenCreateQuizModal,
+  onPendingCreateQuiz,
 }: Props) {
-  const [previewVideoId, setPreviewVideoId] = useState<number | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedUploadVideoRef = useRef<number | null>(null);
 
-  const previewVideo = useMemo(
-    () =>
-      (userVideos ?? []).find((video) => video.id === previewVideoId) ?? null,
-    [previewVideoId, userVideos],
-  );
+  const {
+    session,
+    startUpload,
+    retryUpload,
+    cancelUpload,
+    clearSession,
+    isUploading,
+  } = useLessonVideoUpload();
+
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+      }
+    };
+  }, [previewBlobUrl]);
+
+  useEffect(() => {
+    if (!session.videoId) return;
+    if (selectedUploadVideoRef.current === session.videoId) return;
+    selectedUploadVideoRef.current = session.videoId;
+    onVideoSelect(session.videoId);
+  }, [session.videoId, onVideoSelect]);
+
+  const onPickFile = () => {
+    if (isUploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleSelectedFile = async (file: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Vui lòng chọn file video hợp lệ.");
+      return;
+    }
+
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+    }
+
+    const blobUrl = URL.createObjectURL(file);
+    setPreviewBlobUrl(blobUrl);
+    setPreviewFileName(file.name);
+
+    try {
+      await startUpload({
+        file,
+        title: file.name,
+        onCompleted: async (videoId) => {
+          await onRefreshVideos?.();
+          onVideoSelect(videoId);
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Không thể bắt đầu upload.";
+      toast.error(message);
+    }
+  };
+
+  const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    await handleSelectedFile(file);
+  };
+
+  const onDropFile = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    if (isUploading) return;
+    const file = event.dataTransfer.files?.[0] ?? null;
+    await handleSelectedFile(file);
+  };
+
+  const showStatus = session.status !== "idle";
 
   return (
     <div className="grid gap-3">
@@ -51,178 +135,225 @@ export function VideoSelectionSection({
         ) : null}
       </div>
 
-      {videosLoading ? (
-        <div className="rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
-          Đang tải video highlight...
-        </div>
-      ) : userVideos?.length ? (
-        <div className="space-y-3">
-          <div className="max-h-[23rem] overflow-y-auto rounded-xl border border-border/60 bg-muted/10 p-2 pr-1">
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
-              {userVideos.map((video) => {
-                const isSelected = selectedVideoId === video.id;
-                const title = getVideoCardTitle(video.name, video.id);
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={onFileChange}
+      />
 
-                return (
-                  <button
-                    key={video.id}
-                    type="button"
-                    onClick={() => onVideoSelect(video.id)}
-                    onDoubleClick={() => {
-                      onVideoSelect(video.id);
-                      setPreviewVideoId(video.id);
-                    }}
-                    className={`group overflow-hidden rounded-xl border text-left transition ${
-                      isSelected
-                        ? "border-primary shadow-sm ring-1 ring-primary/40"
-                        : "border-border/60 bg-background hover:border-primary/40"
-                    }`}
-                    title="Double click để xem trước"
-                  >
-                    <div className="relative aspect-video overflow-hidden bg-muted/30">
-                      {video.thumbnail ? (
-                        <Image
-                          src={video.thumbnail}
-                          alt={title}
-                          width={480}
-                          height={270}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                          Không có thumbnail
-                        </div>
-                      )}
-
-                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-                        <PlayCircle className="h-7 w-7 text-white" />
-                      </div>
-
-                      <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
-                        {video.type ? (
-                          <Badge
-                            variant="secondary"
-                            className="h-5 bg-black/65 px-1.5 text-[10px] text-white"
-                          >
-                            {video.type}
-                          </Badge>
-                        ) : null}
-                        {isSelected ? (
-                          <Badge className="h-5 px-1.5 text-[10px]">Đã chọn</Badge>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 p-2">
-                      <p className="line-clamp-2 text-xs font-medium">{title}</p>
-                      <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock3 className="h-3 w-3" />
-                          {formatDuration(video.duration)}
-                        </span>
-                        <span>{formatDate(video.created_at)}</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+      {previewBlobUrl ? (
+        <div className="space-y-2">
+          <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+            <div className="bg-black">
+              <video
+                className="block h-auto max-h-[26rem] w-full object-contain"
+                src={previewBlobUrl}
+                poster={previewBlobUrl}
+                controls
+                preload="metadata"
+                playsInline
+              >
+                Trình duyệt không hỗ trợ phát video.
+              </video>
             </div>
+            {previewFileName ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                {previewFileName}
+              </p>
+            ) : null}
           </div>
-
-          <p className="text-[11px] text-muted-foreground">
-            Nhấn 1 lần để chọn video, double click để mở phần xem trước.
-          </p>
-
-          {previewVideo ? (
-            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-              <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-                <p className="line-clamp-1 text-xs font-medium">
-                  Xem trước: {getVideoCardTitle(previewVideo.name, previewVideo.id)}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Badge variant="outline" className="text-[10px] font-normal">
-                    {formatDuration(previewVideo.duration)}
-                  </Badge>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPreviewVideoId(null)}
-                    aria-label="Đóng xem trước"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              {previewVideo.url ? (
-                <div className="bg-black">
-                  <video
-                    className="block h-auto max-h-[24rem] w-full object-contain"
-                    src={previewVideo.url}
-                    poster={previewVideo.thumbnail ?? undefined}
-                    controls
-                    preload="metadata"
-                    playsInline
-                  >
-                    Trình duyệt không hỗ trợ phát video.
-                  </video>
-                </div>
-              ) : (
-                <div className="flex min-h-32 items-center justify-center px-3 py-4 text-xs text-muted-foreground">
-                  Video này chưa có URL để preview.
-                </div>
-              )}
-
-              <div className="flex justify-end border-t border-border/60 px-3 py-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onVideoSelect(previewVideo.id)}
-                >
-                  <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-                  Dùng video này
-                </Button>
-              </div>
-            </div>
+          {selectedVideoId || previewBlobUrl ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                if (lessonId) {
+                  onOpenCreateQuizModal?.();
+                } else {
+                  onPendingCreateQuiz?.();
+                }
+              }}
+            >
+              Tạo Quiz
+            </Button>
           ) : null}
+        </div>
+      ) : (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onPickFile}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onPickFile();
+            }
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!isUploading) setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={onDropFile}
+          className={`group flex min-h-36 w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-7 text-center transition ${
+            isDragOver
+              ? "border-primary bg-primary/8"
+              : "border-border/60 bg-background/60 hover:border-primary/50"
+          } ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+        >
+          <div className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-primary/10">
+            {isUploading ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <Upload className="h-6 w-6 text-primary" />
+            )}
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            Kéo thả video vào đây hoặc bấm để chọn file
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Hỗ trợ: MP4, MOV, AVI, WEBM, MKV
+          </p>
+        </div>
+      )}
+
+      {showStatus ? (
+        <div className="rounded-xl border border-border/60 bg-background/80 px-3 py-2.5 text-xs">
+          {session.status === "processing" ? (
+            <p className="font-medium text-foreground">
+              Video vẫn đang được xử lý.
+            </p>
+          ) : session.status === "initializing" ? (
+            <p className="font-medium text-foreground">
+              Đang khởi tạo upload...
+            </p>
+          ) : session.status === "uploading" ? (
+            <p className="font-medium text-foreground">
+              Đang upload...{" "}
+              {Math.max(0, Math.min(100, session.progressPercent))}%
+            </p>
+          ) : session.status === "completed" ? (
+            <p className="font-medium text-foreground">Upload hoàn tất.</p>
+          ) : session.status === "failed" ? (
+            <p className="font-medium text-destructive">
+              Upload thất bại{session.error ? `: ${session.error}` : "."}
+            </p>
+          ) : session.status === "canceled" ? (
+            <p className="font-medium text-muted-foreground">Đã hủy upload.</p>
+          ) : null}
+
+          {(session.status === "uploading" ||
+            session.status === "initializing") && (
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-[width] duration-300"
+                style={{
+                  width: `${Math.max(0, Math.min(100, session.progressPercent))}%`,
+                }}
+              />
+            </div>
+          )}
+
+          <div className="mt-2 flex items-center gap-2">
+            {(session.status === "uploading" ||
+              session.status === "initializing") && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => {
+                  void cancelUpload();
+                }}
+              >
+                Hủy upload
+              </Button>
+            )}
+            {(session.status === "failed" || session.status === "canceled") && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => {
+                  void retryUpload();
+                }}
+              >
+                Thử lại
+              </Button>
+            )}
+            {(session.status === "failed" ||
+              session.status === "canceled" ||
+              session.status === "completed") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={clearSession}
+              >
+                Ẩn
+              </Button>
+            )}
+          </div>
         </div>
       ) : null}
 
-      {!videosLoading && !(userVideos?.length ?? 0) ? (
-        <p className="text-xs text-muted-foreground">
-          Chưa có video highlight. Vui lòng upload ở{" "}
-          <Link
-            href="/upload"
-            className="font-medium text-primary underline-offset-2 hover:underline"
-          >
-            trang Upload
-          </Link>
-          .
-        </p>
+      {videosLoading ? (
+        <div className="rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+          Đang tải video bài học...
+        </div>
+      ) : userVideos?.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {userVideos.map((video) => {
+            const isSelected = selectedVideoId === video.id;
+            return (
+              <button
+                key={video.id}
+                type="button"
+                onClick={() => onVideoSelect(video.id)}
+                className={`overflow-hidden rounded-xl border text-left transition ${
+                  isSelected
+                    ? "border-primary shadow-sm ring-1 ring-primary/40"
+                    : "border-border/60 hover:border-primary/50"
+                }`}
+              >
+                <div className="aspect-video bg-muted/30">
+                  {video.thumbnail ? (
+                    <Image
+                      src={video.thumbnail}
+                      alt={getVideoCardTitle(video.name, video.id)}
+                      width={480}
+                      height={270}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                      Không có thumbnail
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 p-2">
+                  <p className="line-clamp-2 text-xs font-medium">
+                    {getVideoCardTitle(video.name, video.id)}
+                  </p>
+                  <div className="flex items-center justify-end">
+                    {isSelected ? (
+                      <Badge variant="default" className="h-5 px-2 text-[10px]">
+                        Đã chọn
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       ) : null}
     </div>
   );
-}
-
-function formatDate(raw?: string): string {
-  if (!raw) return "-";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("vi-VN");
-}
-
-function formatDuration(duration: number | null | undefined): string {
-  if (duration === null || duration === undefined || !Number.isFinite(duration)) {
-    return "00:00:00";
-  }
-  const total = Math.max(0, Math.floor(duration));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  return [hours, minutes, seconds]
-    .map((value) => String(value).padStart(2, "0"))
-    .join(":");
 }

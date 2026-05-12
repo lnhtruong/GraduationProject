@@ -39,7 +39,7 @@ export function useRoadmapDetailEditor(roadmapId: number) {
     true,
   );
   const { data: courses, isLoading: coursesLoading } = useInstructorCourses(
-    { userId: user?.id },
+    { page: 1, limit: 100 },
     Boolean(user?.id),
   );
 

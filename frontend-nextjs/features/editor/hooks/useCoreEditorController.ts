@@ -25,10 +25,10 @@ import {
   getMascotDisplaySize,
 } from "@/features/editor/utils/mascotPlacement";
 import {
-  type VideoCompletedEvent,
-  type VideoErrorEvent,
+  type VideoCompletedPayload,
+  type VideoErrorPayload,
 } from "@/features/upload/api/upload.websocket";
-import { createMediaSocket as createMediaUploadSocket } from "@/features/_shared/realtime/media-socket";
+import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 
 export interface CoreEditorControllerProps {
   disableUpload?: boolean;
@@ -516,39 +516,60 @@ export function useCoreEditorController({
       }
 
       await new Promise<void>((resolve, reject) => {
-        const socket = createMediaUploadSocket(userId);
+        const stream = createMediaUploadStream(
+          {
+            onProgress: (payload) => {
+              // Handle job stage updates
+              if (payload.jobId === jobId && payload.stage) {
+                toast(`Processing: ${payload.stage}`);
+              }
+            },
 
-        const cleanup = () => {
-          socket.off("video:completed", onVideoCompleted);
-          socket.off("video:error", onVideoError);
-          socket.disconnect();
-        };
+            onCompleted: async (payload: VideoCompletedPayload) => {
+              // Only process completion for this specific job
+              const payloadJobId =
+                payload?.data?.job_id ?? payload?.data?.jobId;
+              if (payloadJobId && payloadJobId !== jobId) {
+                return; // Ignore other jobs
+              }
 
-        const onVideoCompleted = async (payload: VideoCompletedEvent) => {
-          if (payload.data.type !== "mascot") return;
+              if (payload.data.type !== "mascot") return;
 
-          try {
-            await onFinalizeMascotProject?.({
-              videoId: payload.data.id,
-              videoUrl: payload.data.url,
-            });
-            cleanup();
-            resolve();
-          } catch (error) {
-            cleanup();
-            reject(error);
-          }
-        };
+              try {
+                await onFinalizeMascotProject?.({
+                  videoId: payload.data.videoId,
+                  videoUrl: payload.data.url,
+                });
+                stream.close();
+                resolve();
+              } catch (error) {
+                stream.close();
+                reject(error);
+              }
+            },
 
-        const onVideoError = (payload: VideoErrorEvent) => {
-          cleanup();
-          reject(
-            new Error(payload.error?.message ?? "Tạo mascot video thất bại."),
-          );
-        };
+            onError: (payload: VideoErrorPayload) => {
+              // Only process error for this specific job
+              const errorJobId = payload.jobId;
+              if (errorJobId && errorJobId !== jobId) {
+                return; // Ignore other jobs
+              }
 
-        socket.on("video:completed", onVideoCompleted);
-        socket.on("video:error", onVideoError);
+              stream.close();
+              reject(
+                new Error(
+                  payload.error?.message ?? "Tạo mascot video thất bại.",
+                ),
+              );
+            },
+
+            onConnectionError: (error) => {
+              stream.close();
+              reject(error);
+            },
+          },
+          { userId },
+        );
       });
 
       toast.success("Tạo mascot video thành công, chuyển sang thư viện...");
