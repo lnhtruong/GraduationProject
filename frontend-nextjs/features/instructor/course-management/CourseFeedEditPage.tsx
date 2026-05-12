@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Heart, Loader2, Plus, Tag, Video, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  Heart,
+  Loader2,
+  Plus,
+  Tag,
+  Video,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
@@ -30,6 +40,11 @@ function parseHashtagTokens(value: string) {
     .filter(Boolean);
 }
 
+function normalizeCaption(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
 export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const router = useRouter();
   const { data: course, isLoading: courseLoading } =
@@ -48,6 +63,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   }, [feedDetail, feeds, feedId]);
 
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  const [captionDraft, setCaptionDraft] = useState<string | null>(null);
   const [hashtagsDraft, setHashtagsDraft] = useState<string[] | null>(null);
   const [hashtagDraft, setHashtagDraft] = useState("");
 
@@ -55,6 +71,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const isReady = !courseLoading && !isFeedLoading && Boolean(course && feed);
 
   const title = titleDraft ?? feed?.title ?? "";
+  const caption = captionDraft ?? feed?.caption ?? "";
   const hashtags = hashtagsDraft ?? feed?.hashtags ?? [];
 
   const addHashtags = (rawValue: string) => {
@@ -93,6 +110,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
       id: feed.feed_id,
       data: {
         title: title.trim(),
+        caption: normalizeCaption(caption),
         hashtags,
       },
     });
@@ -147,7 +165,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   return (
     <ManagementPageShell
       title={`Sửa feed #${feed.feed_id}`}
-      description="Chỉnh sửa title và hashtags. Video được giữ nguyên."
+      description="Chỉnh sửa title, caption và hashtags. Video được giữ nguyên."
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name, href: `/instructor/courses/${course.id}` },
@@ -186,7 +204,9 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
               <div className="rounded-xl border border-border/60 bg-background p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">Feed #{feed.feed_id}</Badge>
-                  <Badge variant="secondary">{feed.video_type ?? "unknown"}</Badge>
+                  <Badge variant="secondary">
+                    {feed.video_type ?? "unknown"}
+                  </Badge>
                   <Badge
                     variant="outline"
                     className="inline-flex items-center gap-1"
@@ -229,6 +249,17 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                   value={title}
                   onChange={(event) => setTitleDraft(event.target.value)}
                   placeholder="Nhập tiêu đề feed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="feed-caption">Caption</Label>
+                <Textarea
+                  id="feed-caption"
+                  value={caption}
+                  onChange={(event) => setCaptionDraft(event.target.value)}
+                  placeholder="Mô tả ngắn cho feed (tùy chọn)"
+                  className="min-h-24"
                 />
               </div>
 
