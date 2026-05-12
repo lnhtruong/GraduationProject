@@ -557,7 +557,8 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/viewed', access: 'authenticated' },
   { method: 'GET', pattern: '/api/media/feed/saved', access: 'authenticated' },
-  { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',
     pattern: '/api/media/feed/:feedId/comments',

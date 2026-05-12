@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, fn, col, literal, WhereOptions } from 'sequelize';
 import { HighlightFeed, HighlightFeedStatus } from '../models/highlight_feed.model';
@@ -54,6 +55,10 @@ export class FeedService {
   private readonly SEEN_COOLDOWN_SECONDS = 6 * 60 * 60;
   private readonly RECOMMEND_CACHE_SIZE = 100;
   private readonly ACTIVE_USER_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+  private readonly TRENDING_WINDOW_MS = 60 * 60 * 1000;
+  private readonly TRENDING_CACHE_TTL_SECONDS = 300;
+  private readonly TRENDING_MAX_LIMIT = 50;
+  private readonly TRENDING_DEFAULT_LIMIT = 20;
 
   private parseNumberValue(value: unknown): number {
     const parsed = Number(value);
@@ -84,8 +89,12 @@ export class FeedService {
     throw new BadRequestException("Invalid period. Supported values: '7d', '30d', 'all'");
   }
 
-  private buildRecommendListKey(userId: number, courseId?: number): string {
-    return `feed:rec:list:${userId}:${courseId ?? 0}`;
+  private buildRecommendListKey(userId: number, sessionId: string, courseId?: number): string {
+    return `feed:rec:list:${userId}:${sessionId}:${courseId ?? 0}`;
+  }
+
+  private buildRecommendSessionKey(userId: number): string {
+    return `feed:rec:session:${userId}`;
   }
 
   private buildProfileKey(userId: number): string {
@@ -98,6 +107,10 @@ export class FeedService {
 
   private buildInteractedUsersKey(): string {
     return 'feed:rec:interacted-users';
+  }
+
+  private buildTrendingCacheKey(): string {
+    return 'feed:trending:1h';
   }
 
   private serializeNumberMap(map: Map<number, number>): Record<string, number> {
@@ -193,8 +206,36 @@ export class FeedService {
     await this.redisService.sAdd(this.buildInteractedUsersKey(), [String(userId)]);
   }
 
-  private async getCachedRecommendList(userId: number, courseId?: number): Promise<number[] | null> {
-    const raw = await this.redisService.get(this.buildRecommendListKey(userId, courseId));
+  private normalizeSessionId(sessionId?: string): string | undefined {
+    if (!sessionId) {
+      return undefined;
+    }
+    const trimmed = sessionId.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private generateRecommendSessionId(): string {
+    return randomUUID();
+  }
+
+  private async getLatestRecommendSessionId(userId: number): Promise<string | null> {
+    return this.redisService.get(this.buildRecommendSessionKey(userId));
+  }
+
+  private async setLatestRecommendSessionId(userId: number, sessionId: string): Promise<void> {
+    await this.redisService.set(
+      this.buildRecommendSessionKey(userId),
+      sessionId,
+      this.RECOMMEND_CACHE_TTL_SECONDS,
+    );
+  }
+
+  private async getCachedRecommendList(
+    userId: number,
+    sessionId: string,
+    courseId?: number,
+  ): Promise<number[] | null> {
+    const raw = await this.redisService.get(this.buildRecommendListKey(userId, sessionId, courseId));
     if (!raw) {
       return null;
     }
@@ -213,11 +254,12 @@ export class FeedService {
 
   private async setCachedRecommendList(
     userId: number,
+    sessionId: string,
     courseId: number | undefined,
     feedIds: number[],
   ): Promise<void> {
     await this.redisService.set(
-      this.buildRecommendListKey(userId, courseId),
+      this.buildRecommendListKey(userId, sessionId, courseId),
       JSON.stringify(feedIds),
       this.RECOMMEND_CACHE_TTL_SECONDS,
     );
@@ -314,6 +356,192 @@ export class FeedService {
     }
 
     return { statsByFeed, likedSet, savedSet };
+  }
+
+  private async getStatsOnly(
+    feedIds: number[],
+  ): Promise<Map<number, { likes: number; saves: number; views: number }>> {
+    const statsByFeed = new Map<number, { likes: number; saves: number; views: number }>();
+    if (feedIds.length === 0) {
+      return statsByFeed;
+    }
+
+    const [interactionRows, viewRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds } },
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds } },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'views']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+    ]);
+
+    const interactionAggRows = interactionRows as unknown as Array<{
+      highlight_id: number;
+      likes: string | number;
+      saves: string | number;
+    }>;
+    for (const row of interactionAggRows) {
+      const feedId = Number(row.highlight_id);
+      statsByFeed.set(feedId, {
+        likes: Number(row.likes || 0),
+        saves: Number(row.saves || 0),
+        views: statsByFeed.get(feedId)?.views || 0,
+      });
+    }
+
+    const viewAggRows = viewRows as unknown as Array<{ highlight_id: number; views: string | number }>;
+    for (const row of viewAggRows) {
+      const feedId = Number(row.highlight_id);
+      const current = statsByFeed.get(feedId) || { likes: 0, saves: 0, views: 0 };
+      current.views = Number(row.views || 0);
+      statsByFeed.set(feedId, current);
+    }
+
+    return statsByFeed;
+  }
+
+  private async computeTrendingFeedIds(): Promise<number[]> {
+    const startDate = new Date(Date.now() - this.TRENDING_WINDOW_MS);
+
+    const feeds = await this.highlightFeedModel.findAll({
+      where: { status: HighlightFeedStatus.ACTIVE },
+      attributes: ['id'],
+      include: [
+        {
+          model: Course,
+          attributes: ['id'],
+          where: { status: CourseStatus.PUBLISH },
+          required: true,
+        },
+      ],
+      raw: true,
+    });
+
+    const feedIds = feeds
+      .map((row) => Number((row as { id: number }).id))
+      .filter((id) => Number.isFinite(id));
+
+    if (feedIds.length === 0) {
+      return [];
+    }
+
+    const [interactionRows, viewRows, commentRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          created_at: { [Op.gte]: startDate },
+        },
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          viewed_at: { [Op.gte]: startDate },
+        },
+        attributes: [
+          'highlight_id',
+          [fn('COUNT', col('id')), 'views'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedCommentModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          created_at: { [Op.gte]: startDate },
+        },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+    ]);
+
+    const statsMap = this.buildFeedStatsMap(
+      interactionRows as unknown as Array<Record<string, unknown>>,
+      viewRows as unknown as Array<Record<string, unknown>>,
+      commentRows as unknown as Array<Record<string, unknown>>,
+    );
+
+    return feedIds
+      .map((feedId) => {
+        const stats = statsMap.get(feedId) ?? {
+          views: 0,
+          uniqueViewers: 0,
+          completedViews: 0,
+          avgWatchDuration: 0,
+          likes: 0,
+          saves: 0,
+          shares: 0,
+          comments: 0,
+        };
+        const score =
+          stats.likes * 3 +
+          stats.saves * 4 +
+          stats.shares * 5 +
+          stats.comments * 2 +
+          stats.views * 0.5;
+        return { feedId, score };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return b.feedId - a.feedId;
+      })
+      .map((item) => item.feedId);
+  }
+
+  async getPublicTrending(limit?: number): Promise<{ data: FeedResponseItem[]; next_cursor: null }> {
+    const safeLimit = Number.isInteger(limit) && (limit as number) > 0
+      ? Math.min(limit as number, this.TRENDING_MAX_LIMIT)
+      : this.TRENDING_DEFAULT_LIMIT;
+
+    const cacheKey = this.buildTrendingCacheKey();
+    let cachedIds: number[] | null = null;
+    const raw = await this.redisService.get(cacheKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          cachedIds = parsed
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id));
+        }
+      } catch {
+        cachedIds = null;
+      }
+    }
+
+    if (!cachedIds || cachedIds.length === 0) {
+      cachedIds = await this.computeTrendingFeedIds();
+      await this.redisService.set(
+        cacheKey,
+        JSON.stringify(cachedIds),
+        this.TRENDING_CACHE_TTL_SECONDS,
+      );
+    }
+
+    const pageIds = cachedIds.slice(0, safeLimit);
+    const statsByFeed = await this.getStatsOnly(pageIds);
+    const data = await this.buildFeedResponse(pageIds, statsByFeed, new Set(), new Set());
+    return { data, next_cursor: null };
   }
 
   private async buildFeedResponse(
@@ -591,9 +819,17 @@ export class FeedService {
     return feedItem;
   }
 
-  async getFeed(cursor?: number, limit = 10, userId?: number, courseId?: number, mode?: string, search?: string) {
+  async getFeed(
+    cursor?: number,
+    limit = 10,
+    userId?: number,
+    courseId?: number,
+    mode?: string,
+    search?: string,
+    sessionId?: string,
+  ) {
     if (mode === 'recommended') {
-      return this.getRecommendedFeed(cursor, limit, userId, courseId);
+      return this.getRecommendedFeed(cursor, limit, userId, courseId, sessionId);
     }
 
     if (mode !== 'recommended' && mode !== 'search') {
@@ -679,27 +915,45 @@ export class FeedService {
     };
   }
 
-  private async getRecommendedFeed(cursor?: number, limit = 10, userId?: number, courseId?: number) {
+  private async getRecommendedFeed(
+    cursor?: number,
+    limit = 10,
+    userId?: number,
+    courseId?: number,
+    sessionId?: string,
+  ) {
     if (!userId) {
       throw new BadRequestException('User not authenticated for recommendation mode');
     }
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 20) : 10;
 
-    const cachedList = await this.getCachedRecommendList(userId, courseId);
-    if (cachedList) {
+    const normalizedSessionId = this.normalizeSessionId(sessionId);
+    let activeSessionId = normalizedSessionId ?? (await this.getLatestRecommendSessionId(userId));
+    let cachedList: number[] | null = null;
+
+    if (activeSessionId) {
+      cachedList = await this.getCachedRecommendList(userId, activeSessionId, courseId);
+    }
+
+    if (cachedList && cachedList.length > 0) {
       const pageIds = this.pageFeedIds(cachedList, cursor, safeLimit);
-      if (pageIds.length > 0) {
-        const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(
-          pageIds,
-          userId,
-        );
-        const data = await this.buildFeedResponse(pageIds, statsByFeed, likedSet, savedSet);
-        return {
-          data,
-          next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
-        };
+      if (pageIds.length === 0) {
+        return { data: [], next_cursor: null, session_id: activeSessionId };
       }
+      const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(
+        pageIds,
+        userId,
+      );
+      const data = await this.buildFeedResponse(pageIds, statsByFeed, likedSet, savedSet);
+      if (activeSessionId) {
+        await this.setLatestRecommendSessionId(userId, activeSessionId);
+      }
+      return {
+        data,
+        next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+        session_id: activeSessionId,
+      };
     }
 
     const { rankedFeeds, statsByFeed, likedSet, savedSet } = await this.computeRankedCandidates(
@@ -707,17 +961,31 @@ export class FeedService {
       courseId,
     );
     if (!rankedFeeds.length) {
-      return { data: [], next_cursor: null };
+      if (!activeSessionId) {
+        activeSessionId = this.generateRecommendSessionId();
+      } else if (!normalizedSessionId && (!cachedList || cachedList.length === 0)) {
+        activeSessionId = this.generateRecommendSessionId();
+      }
+      await this.setLatestRecommendSessionId(userId, activeSessionId);
+      return { data: [], next_cursor: null, session_id: activeSessionId };
+    }
+
+    if (!activeSessionId) {
+      activeSessionId = this.generateRecommendSessionId();
+    } else if (!normalizedSessionId && (!cachedList || cachedList.length === 0)) {
+      activeSessionId = this.generateRecommendSessionId();
     }
 
     const rankedIds = rankedFeeds.map((item) => item.feed.id);
-    await this.setCachedRecommendList(userId, courseId, rankedIds);
+    await this.setCachedRecommendList(userId, activeSessionId, courseId, rankedIds);
+    await this.setLatestRecommendSessionId(userId, activeSessionId);
 
     const pageIds = this.pageFeedIds(rankedIds, cursor, safeLimit);
     const data = await this.buildFeedResponse(pageIds, statsByFeed, likedSet, savedSet);
     return {
       data,
       next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+      session_id: activeSessionId,
     };
   }
 
@@ -732,11 +1000,8 @@ export class FeedService {
       .filter((tag) => tag.length > 0);
   }
 
-  private async invalidateRecommendCache(userId: number, courseId?: number): Promise<void> {
-    await this.redisService.del(this.buildRecommendListKey(userId, courseId));
-    if (courseId) {
-      await this.redisService.del(this.buildRecommendListKey(userId, undefined));
-    }
+  private async invalidateRecommendCache(userId: number, _courseId?: number): Promise<void> {
+    await this.redisService.del(this.buildRecommendSessionKey(userId));
   }
 
   private async updateProfileAffinity(
@@ -764,9 +1029,11 @@ export class FeedService {
       .filter((id) => Number.isFinite(id));
 
     for (const userId of userIds) {
+      const sessionId = this.generateRecommendSessionId();
       const { rankedFeeds } = await this.computeRankedCandidates(userId);
       const rankedIds = rankedFeeds.map((item) => item.feed.id);
-      await this.setCachedRecommendList(userId, undefined, rankedIds);
+      await this.setCachedRecommendList(userId, sessionId, undefined, rankedIds);
+      await this.setLatestRecommendSessionId(userId, sessionId);
     }
 
     await this.redisService.sRem(this.buildInteractedUsersKey(), members);
