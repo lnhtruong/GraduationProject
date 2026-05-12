@@ -10,6 +10,7 @@ import { Video } from '../videos/video.model';
 import { Course } from '../models/course.model';
 import { User } from '../models/user.model';
 import { RedisService } from '../redis/redis.service';
+import { NotificationService } from '../notifications/notification.service';
 
 type FeedResponseItem = {
   feed_id: number;
@@ -43,6 +44,7 @@ export class FeedService {
     @InjectModel(User)
     private userModel: typeof User,
     private readonly redisService: RedisService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   private readonly ADMIN_ROLE = 1;
@@ -1441,8 +1443,9 @@ export class FeedService {
     }
 
     let normalizedOriginCmt: number | null = null;
+    let parentComment: FeedComment | null = null;
     if (Number.isInteger(originCmt) && (originCmt as number) > 0) {
-      const parentComment = await this.feedCommentModel.findByPk(originCmt as number);
+      parentComment = await this.feedCommentModel.findByPk(originCmt as number);
       if (!parentComment || parentComment.highlight_id !== feedId) {
         throw new NotFoundException('Parent comment not found');
       }
@@ -1462,6 +1465,53 @@ export class FeedService {
     const user = await this.userModel.findByPk(userId, {
       attributes: ['id', 'firstName', 'lastName'],
     });
+
+    const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+
+    if (parentComment && parentComment.user_id !== userId) {
+      await this.notificationService.createAndEmit({
+        userId: parentComment.user_id,
+        eventType: 'feed.comment.reply',
+        sseEventType: 'notify:created',
+        title: 'New reply to your comment',
+        message: fullName
+          ? `${fullName} replied to your comment`
+          : 'Someone replied to your comment',
+        sourceType: 'feed_comment',
+        sourceId: comment.id,
+        payload: {
+          feedId,
+          commentId: comment.id,
+          parentCommentId: parentComment.id,
+          actorUserId: userId,
+          content: trimmedContent,
+        },
+      });
+    } else if (!parentComment) {
+      const feed = await this.highlightFeedModel.findByPk(feedId, {
+        include: [{ model: Course, attributes: ['id', 'userId'] }],
+      });
+      const feedOwnerId = feed?.course?.userId;
+      if (feedOwnerId != null && feedOwnerId !== userId) {
+        await this.notificationService.createAndEmit({
+          userId: feedOwnerId,
+          eventType: 'feed.comment.created',
+          sseEventType: 'notify:created',
+          title: 'New comment on your feed',
+          message: fullName
+            ? `${fullName} commented on your post`
+            : 'Someone commented on your post',
+          sourceType: 'feed_comment',
+          sourceId: comment.id,
+          payload: {
+            feedId,
+            commentId: comment.id,
+            actorUserId: userId,
+            content: trimmedContent,
+          },
+        });
+      }
+    }
 
     comment.user = user as User;
     return this.mapCommentResponse(comment, userId, 0);
