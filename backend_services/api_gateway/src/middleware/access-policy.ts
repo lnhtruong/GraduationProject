@@ -361,6 +361,37 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
 
+  // Reports
+  {
+    method: 'POST',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/mine',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/:id',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/reports/:id/review',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Media service
   {
     method: 'GET',
@@ -526,7 +557,8 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/viewed', access: 'authenticated' },
   { method: 'GET', pattern: '/api/media/feed/saved', access: 'authenticated' },
-  { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',
     pattern: '/api/media/feed/:feedId/comments',

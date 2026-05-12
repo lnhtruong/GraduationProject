@@ -148,6 +148,7 @@ export interface CourseFeedVideo {
 export interface CourseFeedItem {
   feed_id: number;
   title: string;
+  caption?: string | null;
   hashtags?: string[] | null;
   video_type?: string;
   video: CourseFeedVideo;
@@ -171,6 +172,7 @@ export interface CourseFeedItem {
 
 export interface CourseFeedUpsertPayload {
   title: string;
+  caption?: string;
   hashtags: string[];
 }
 

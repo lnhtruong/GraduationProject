@@ -17,6 +17,7 @@ import { FeedbacksModule } from './feedbacks/feedbacks.module';
 import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions.module';
 import { EnrollsModule } from './enrolls/enrolls.module';
 import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
     FeedbackReactionsModule,
     EnrollsModule,
     LessonProgressModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
