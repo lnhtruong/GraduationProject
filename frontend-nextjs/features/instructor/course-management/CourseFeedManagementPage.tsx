@@ -58,7 +58,12 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
     if (!query) return feeds ?? [];
 
     return (feeds ?? []).filter((feed) => {
-      const text = [feed.title, ...(feed.hashtags ?? []), String(feed.feed_id)]
+      const text = [
+        feed.title,
+        feed.caption ?? "",
+        ...(feed.hashtags ?? []),
+        String(feed.feed_id),
+      ]
         .join(" ")
         .toLowerCase();
       return text.includes(query);
@@ -69,9 +74,18 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
     const source = feeds ?? [];
     return {
       total: source.length,
-      views: source.reduce((sum, item) => sum + Number(item.stats?.views ?? 0), 0),
-      likes: source.reduce((sum, item) => sum + Number(item.stats?.likes ?? 0), 0),
-      saves: source.reduce((sum, item) => sum + Number(item.stats?.saves ?? 0), 0),
+      views: source.reduce(
+        (sum, item) => sum + Number(item.stats?.views ?? 0),
+        0,
+      ),
+      likes: source.reduce(
+        (sum, item) => sum + Number(item.stats?.likes ?? 0),
+        0,
+      ),
+      saves: source.reduce(
+        (sum, item) => sum + Number(item.stats?.saves ?? 0),
+        0,
+      ),
     };
   }, [feeds]);
 
@@ -216,7 +230,9 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                         playsInline
                         preload="metadata"
                         onMouseEnter={(event) => {
-                          void event.currentTarget.play().catch(() => undefined);
+                          void event.currentTarget
+                            .play()
+                            .catch(() => undefined);
                         }}
                         onMouseLeave={(event) => {
                           event.currentTarget.pause();
@@ -255,6 +271,11 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                           <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
                             {feed.title}
                           </h3>
+                          {feed.caption?.trim() ? (
+                            <p className="line-clamp-3 text-sm text-muted-foreground">
+                              {feed.caption}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">

@@ -59,4 +59,23 @@ export class UsersController {
       role: requesterRole,
     });
   }
+
+  @Patch('reset/:id')
+  async resetUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') requesterIdHeader: string,
+    @Headers('x-user-role') requesterRoleHeader: string,
+  ) {
+    const requesterId = parseInt(requesterIdHeader, 10);
+    const requesterRole = parseInt(requesterRoleHeader, 10);
+
+    if (isNaN(requesterId) || isNaN(requesterRole)) {
+      throw new BadRequestException('Requester context not found in request headers');
+    }
+
+    return this.usersService.resetUserById(id, {
+      userId: requesterId,
+      role: requesterRole,
+    });
+  }
 }

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
@@ -36,12 +37,14 @@ interface Props {
 interface FeedCreateFormState {
   videoId: string;
   title: string;
+  caption: string;
   hashtags: string[];
 }
 
 const EMPTY_FORM: FeedCreateFormState = {
   videoId: "",
   title: "",
+  caption: "",
   hashtags: [],
 };
 
@@ -50,6 +53,11 @@ function parseHashtagTokens(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeCaption(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
 }
 
 function getVideoThumbnail(video: CourseFeedCandidateVideo): string | null {
@@ -173,6 +181,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       video_id: videoId,
       course_id: courseId,
       title: form.title.trim(),
+      caption: normalizeCaption(form.caption),
       hashtags: form.hashtags,
     });
 
@@ -292,6 +301,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                       <div className="mt-3 space-y-2 rounded-xl border border-border/60 bg-background px-3 py-3">
                         <p className="line-clamp-2 text-sm font-semibold text-foreground">
                           {form.title.trim() || "Tiêu đề sẽ hiển thị ở đây"}
+                        </p>
+                        <p className="line-clamp-3 text-sm text-muted-foreground">
+                          {form.caption.trim() || "Caption sẽ hiển thị ở đây"}
                         </p>
                         <div className="flex min-h-8 flex-wrap gap-2">
                           {form.hashtags.length ? (
@@ -594,6 +606,22 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                     </Button>
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="feed-caption">Caption</Label>
+                <Textarea
+                  id="feed-caption"
+                  value={form.caption}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      caption: event.target.value,
+                    }))
+                  }
+                  placeholder="Mô tả ngắn cho feed (tùy chọn)"
+                  className="min-h-24"
+                />
               </div>
 
               <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">

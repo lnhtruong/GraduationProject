@@ -12,6 +12,7 @@ import { FeedView } from 'src/models/feed_views.model';
 import { FeedComment } from 'src/models/feed_comments.model';
 import { Course } from 'src/models/course.model';
 import { User } from 'src/models/user.model';
+import { Notification } from 'src/models/notification.model';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { User } from 'src/models/user.model';
             FeedComment,
             Course,
             User,
+            Notification,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development

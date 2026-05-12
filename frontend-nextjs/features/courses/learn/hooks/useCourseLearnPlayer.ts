@@ -99,16 +99,9 @@ export function useCourseLearnPlayer({
 
   const isQuizSolved = useCallback(
     (point: InVideoQuizPoint) => {
-      if (point.answerIndex === null) {
-        return false;
-      }
-
-      return (
-        Boolean(inVideoSubmitted[point.id]) &&
-        inVideoAnswers[point.id] === point.answerIndex
-      );
+      return Boolean(inVideoSubmitted[point.id]);
     },
-    [inVideoAnswers, inVideoSubmitted],
+    [inVideoSubmitted],
   );
 
   const progressPercent =
@@ -252,15 +245,7 @@ export function useCourseLearnPlayer({
       return;
     }
 
-    const answeredCorrectly =
-      activeQuizPoint.answerIndex !== null &&
-      selectedAnswerIndex === activeQuizPoint.answerIndex;
-
     setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: true }));
-
-    if (!answeredCorrectly) {
-      return;
-    }
 
     if (inVideoQuizResolveTimeoutRef.current !== null) {
       window.clearTimeout(inVideoQuizResolveTimeoutRef.current);

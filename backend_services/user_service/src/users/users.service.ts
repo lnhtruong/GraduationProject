@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -15,6 +16,9 @@ export enum UserRole {
 
 @Injectable()
 export class UsersService {
+  private static readonly PASSWORD_SALT_ROUNDS = 10;
+  private static readonly DEFAULT_RESET_PASSWORD = 'fivetoneu2026';
+
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
@@ -27,6 +31,7 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -83,7 +88,47 @@ export class UsersService {
       throw new ForbiddenException('Only admin can update role');
     }
 
-    await user.update(payload);
+    const updatePayload: Partial<User> & { password?: string } = { ...payload };
+
+    // Chỉ chính chủ mới được đổi password thông qua API update profile.
+    if (payload.password !== undefined) {
+      if (requester.userId !== userId) {
+        throw new ForbiddenException('You can only update your own password');
+      }
+
+      updatePayload.password = await bcrypt.hash(
+        payload.password,
+        UsersService.PASSWORD_SALT_ROUNDS,
+      );
+    }
+
+    await user.update(updatePayload);
     return this.getUserById(userId);
+  }
+
+  async resetUserById(
+    userId: number,
+    requester: { userId: number; role: number },
+  ) {
+    if (requester.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admin can reset user');
+    }
+
+    const user = await this.userModel.findByPk(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const hashedDefaultPassword = await bcrypt.hash(
+      UsersService.DEFAULT_RESET_PASSWORD,
+      UsersService.PASSWORD_SALT_ROUNDS,
+    );
+
+    await user.update({ password: hashedDefaultPassword });
+
+    return {
+      message: 'User password has been reset to default value',
+      user: await this.getUserById(userId),
+    };
   }
 }
