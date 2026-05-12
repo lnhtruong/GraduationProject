@@ -13,6 +13,9 @@ import {
   BookOpen,
   GraduationCap,
   PlayCircle,
+  ShieldBan,
+  Mail,
+  Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,7 +32,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewReport } from "../../api/admin-reports.hooks";
-import type { Report, ReportStatus, ReportTargetType } from "../../types/report.types";
+import type {
+  Report,
+  ReportStatus,
+  ReportTargetType,
+  ReportTargetCourse,
+  ReportTargetLesson,
+  ReportTargetTeacher,
+} from "../../types/report.types";
 
 const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactNode; badgeClass: string }> = {
   course: {
@@ -69,6 +79,88 @@ const BAN_TARGET_LABELS: Record<ReportTargetType, string> = {
   lesson: "Khóa (block) bài học này",
   teacher: "Cấm tài khoản giảng viên này",
 };
+
+function TargetDetail({ report }: { report: Report }) {
+  const { targetType, targetId, target } = report;
+
+  if (!target) {
+    return (
+      <span className="font-mono text-sm text-muted-foreground">ID #{targetId}</span>
+    );
+  }
+
+  if (targetType === "course") {
+    const t = target as ReportTargetCourse;
+    return (
+      <div className="space-y-1.5 text-sm">
+        <p className="font-semibold text-foreground">{t.name}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><Hash className="h-3 w-3" />ID {t.id}</span>
+          <StatusPill value={t.status} />
+        </div>
+      </div>
+    );
+  }
+
+  if (targetType === "lesson") {
+    const t = target as ReportTargetLesson;
+    return (
+      <div className="space-y-1.5 text-sm">
+        <p className="font-semibold text-foreground">{t.title}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><Hash className="h-3 w-3" />ID {t.id}</span>
+          <span>Khóa #{t.courseId}</span>
+          <StatusPill value={t.status} />
+        </div>
+      </div>
+    );
+  }
+
+  if (targetType === "teacher") {
+    const t = target as ReportTargetTeacher;
+    const name = [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || "—";
+    return (
+      <div className="space-y-1.5 text-sm">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-foreground">{name}</p>
+          {t.isBanned && (
+            <span className="flex items-center gap-0.5 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+              <ShieldBan className="h-2.5 w-2.5" />
+              Đã bị cấm
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><Hash className="h-3 w-3" />ID {t.id}</span>
+          <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{t.email}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function StatusPill({ value }: { value: string }) {
+  const map: Record<string, string> = {
+    publish: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    banned: "bg-red-50 text-red-700 border-red-200",
+    blocked: "bg-red-50 text-red-700 border-red-200",
+    draft: "bg-muted text-muted-foreground border-border",
+  };
+  const label: Record<string, string> = {
+    publish: "Đang hiển thị",
+    banned: "Đã bị cấm",
+    blocked: "Đã bị khóa",
+    draft: "Nháp",
+  };
+  const cls = map[value] ?? "bg-muted text-muted-foreground border-border";
+  return (
+    <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
+      {label[value] ?? value}
+    </span>
+  );
+}
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return "—";
@@ -166,17 +258,15 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                     <Target className="h-3 w-3" />
                     Đối tượng bị báo cáo
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-2">
                     <Badge
                       variant="outline"
-                      className={`flex items-center gap-1 text-xs font-medium ${TARGET_TYPE_CONFIG[report.targetType].badgeClass}`}
+                      className={`flex w-fit items-center gap-1 text-xs font-medium ${TARGET_TYPE_CONFIG[report.targetType].badgeClass}`}
                     >
                       {TARGET_TYPE_CONFIG[report.targetType].icon}
                       {TARGET_TYPE_CONFIG[report.targetType].label}
                     </Badge>
-                    <span className="font-mono text-sm text-muted-foreground">
-                      ID #{report.targetId}
-                    </span>
+                    <TargetDetail report={report} />
                   </div>
                 </div>
 

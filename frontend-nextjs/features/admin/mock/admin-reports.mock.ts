@@ -1,5 +1,6 @@
 import type { Report } from "../types/report.types";
 
+
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_REPORT === "true";
 
 export const MOCK_REPORTS: Report[] = [
@@ -16,6 +17,7 @@ export const MOCK_REPORTS: Report[] = [
     created_at: "2026-05-10T08:00:00.000Z",
     updated_at: "2026-05-10T08:00:00.000Z",
     reporter: { id: 5, email: "user5@example.com", firstName: "Nguyễn", lastName: "Văn A" },
+    target: { id: 10, name: "React từ cơ bản đến nâng cao", status: "publish", userId: 2 },
   },
   {
     id: 2,
@@ -30,6 +32,7 @@ export const MOCK_REPORTS: Report[] = [
     created_at: "2026-05-11T10:30:00.000Z",
     updated_at: "2026-05-11T10:30:00.000Z",
     reporter: { id: 7, email: "user7@example.com", firstName: "Trần", lastName: "Thị B" },
+    target: { id: 3, firstName: "Nguyễn", lastName: "Văn Giảng", email: "giang@example.com", role: 3, isBanned: false },
   },
   {
     id: 3,
@@ -45,6 +48,7 @@ export const MOCK_REPORTS: Report[] = [
     updated_at: "2026-05-09T14:00:00.000Z",
     reporter: { id: 9, email: "user9@example.com", firstName: "Lê", lastName: "Văn C" },
     approver: { id: 1, email: "admin@example.com", firstName: "Admin", lastName: "" },
+    target: { id: 25, title: "Bài 5: Vòng lặp và điều kiện", status: "blocked", courseId: 10 },
   },
   {
     id: 4,
@@ -60,5 +64,6 @@ export const MOCK_REPORTS: Report[] = [
     updated_at: "2026-05-07T11:00:00.000Z",
     reporter: { id: 12, email: "user12@example.com", firstName: "Phạm", lastName: "Thị D" },
     approver: { id: 1, email: "admin@example.com", firstName: "Admin", lastName: "" },
+    target: { id: 15, name: "Node.js Backend với Express", status: "banned", userId: 4 },
   },
 ];

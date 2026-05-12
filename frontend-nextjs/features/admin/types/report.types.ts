@@ -8,6 +8,31 @@ export interface ReportUser {
   lastName?: string | null;
 }
 
+export interface ReportTargetCourse {
+  id: number;
+  name: string;
+  status: string;
+  userId: number;
+}
+
+export interface ReportTargetLesson {
+  id: number;
+  title: string;
+  status: string;
+  courseId: number;
+}
+
+export interface ReportTargetTeacher {
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+  role: number;
+  isBanned: boolean;
+}
+
+export type ReportTarget = ReportTargetCourse | ReportTargetLesson | ReportTargetTeacher | null;
+
 export interface Report {
   id: number;
   targetType: ReportTargetType;
@@ -22,6 +47,7 @@ export interface Report {
   updated_at: string;
   reporter?: ReportUser;
   approver?: ReportUser;
+  target?: ReportTarget;
 }
 
 export interface ReportListResponse {
