@@ -90,6 +90,10 @@ export function QuizModeSection({
       {/* Quiz Mode Selector */}
       <div className="grid gap-2">
         <Label>Vị trí quiz</Label>
+        <p className="text-xs text-muted-foreground">
+          Chọn &quot;Ngoài video&quot; nếu bạn muốn tạo quiz ngay. Chọn
+          &quot;Trong video&quot; chỉ khi video đã có thời lượng để lấy mốc.
+        </p>
         <Select
           value={quizMode}
           onValueChange={(value: "in_video" | "outside_video") =>

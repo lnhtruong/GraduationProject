@@ -13,6 +13,8 @@ import { Feedback } from '../models/feedback.model';
 import { FeedbackReaction } from '../models/feedback-reaction.model';
 import { Enroll } from '../models/enroll.model';
 import { LessonProgress } from '../models/lesson-progress.model';
+import { MascotImage } from 'src/models/images.model';
+import { Report } from '../models/report.model';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { LessonProgress } from '../models/lesson-progress.model';
           models: [
             User,
             Video,
+            MascotImage,
             Course,
             RoadMap,
             RoadMapCourse,
@@ -34,6 +37,7 @@ import { LessonProgress } from '../models/lesson-progress.model';
             FeedbackReaction,
             Enroll,
             LessonProgress,
+            Report,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)

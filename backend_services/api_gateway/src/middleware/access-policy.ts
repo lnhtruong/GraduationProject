@@ -48,6 +48,19 @@ const ACCESS_RULES: AccessRule[] = [
   // User service
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
+  {
+    method: 'GET',
+    pattern: '/api/users',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/users/reset/:id',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  { method: 'PATCH', pattern: '/api/users/:id', access: 'authenticated' },
 
   // Course service - public reads
   {
@@ -348,6 +361,37 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
 
+  // Reports
+  {
+    method: 'POST',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/mine',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/reports/:id',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/reports/:id/review',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Media service
   {
     method: 'GET',
@@ -446,6 +490,51 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/media/cloudinary/upload',
     access: 'authenticated',
   },
+  {
+    method: 'GET',
+    pattern: '/api/media/sse/**',
+    access: 'public',
+  },
+
+  // Bunny/TUS integration endpoints (media service)
+  {
+    method: 'POST',
+    pattern: '/api/media/bunny/videos/init-upload',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/bunny/videos/:bunnyVideoId/status',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/bunny/videos/:bunnyVideoId/play-data',
+    access: 'authenticated',
+  },
+  // Bunny webhook (Bunny will POST here) - allow anonymous; verify HMAC in media_service
+  {
+    method: 'POST',
+    pattern: '/api/media/webhooks/bunny-stream',
+    access: 'public',
+  },
+
+  { method: 'GET', pattern: '/api/media/notifications', access: 'authenticated' },
+  {
+    method: 'PUT',
+    pattern: '/api/media/notifications/bulk',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/notifications/:id',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/media/notifications/:id',
+    access: 'authenticated',
+  },
 
   // Feed
   {
@@ -466,7 +555,15 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
-  { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/media/feed/viewed', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/media/feed/saved', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/media/feed/**', access: 'public' },
+  {
+    method: 'POST',
+    pattern: '/api/media/feed/:feedId/comments',
+    access: 'authenticated',
+    // roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
   {
     method: '*',
     pattern: '/api/media/feed/**',

@@ -15,7 +15,7 @@ import {
   InVideoQuizPoint,
   type AfterLessonQuizQuestion,
 } from "../utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -189,7 +189,7 @@ export function LessonVideoCard({
                           activeQuizPoint.answerIndex !== optionIndex;
 
                         let cardClasses =
-                          "border-white/15 bg-white/[0.04] text-white hover:border-white/35 hover:bg-white/[0.08]";
+                          "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
                         let indicatorClasses =
                           "border-white/25 bg-white/[0.02] text-white/75";
 
@@ -214,7 +214,10 @@ export function LessonVideoCard({
                           <button
                             key={`${activeQuizPoint.id}-${optionIndex}`}
                             type="button"
-                            disabled={submitted}
+                            disabled={
+                              submitted ||
+                              inVideoAnswers[activeQuizPoint.id] !== undefined
+                            }
                             className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
                             onClick={() =>
                               onSelectInVideoAnswer(
@@ -242,6 +245,29 @@ export function LessonVideoCard({
                       })}
                     </div>
 
+                    {inVideoSubmitted[activeQuizPoint.id] ? (
+                      <div
+                        className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+                          inVideoScore
+                            ? "border-emerald-400/40 bg-emerald-500/12 text-emerald-100"
+                            : "border-rose-400/40 bg-rose-500/12 text-rose-100"
+                        }`}
+                      >
+                        {inVideoScore ? (
+                          <p className="font-medium">Bạn làm đúng.</p>
+                        ) : (
+                          <p className="font-medium">
+                            Sai rồi. Đáp án đúng là:{" "}
+                            {activeQuizPoint.answerIndex !== null
+                              ? activeQuizPoint.options[
+                                  activeQuizPoint.answerIndex
+                                ]
+                              : "chưa có đáp án đúng"}
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+
                     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
                       <div className="flex items-center gap-2 text-xs text-white/75">
                         <CircleHelp className="h-3.5 w-3.5 text-white/70" />
@@ -252,12 +278,13 @@ export function LessonVideoCard({
                           size="sm"
                           className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
                           disabled={
-                            inVideoAnswers[activeQuizPoint.id] === undefined
+                            inVideoAnswers[activeQuizPoint.id] === undefined ||
+                            Boolean(inVideoSubmitted[activeQuizPoint.id])
                           }
                           onClick={onSubmitInVideoQuiz}
                         >
-                          {inVideoScore === false
-                            ? "Thử lại"
+                          {inVideoSubmitted[activeQuizPoint.id]
+                            ? "Đã ghi nhận"
                             : "Kiểm tra đáp án"}
                         </Button>
                         {inVideoScore !== null ? (
@@ -299,7 +326,7 @@ export function LessonVideoCard({
                           {afterLessonQuiz.map((question, questionIndex) => (
                             <div
                               key={question.id}
-                              className="rounded-2xl border border-white/12 bg-white/[0.04] p-3 text-white"
+                              className="rounded-2xl border border-white/12 bg-white/5 p-3 text-white"
                             >
                               <p className="mb-2 text-sm font-medium text-white">
                                 Câu {questionIndex + 1}: {question.question}
@@ -318,7 +345,7 @@ export function LessonVideoCard({
                                     question.answerIndex !== optionIndex;
 
                                   let cardClasses =
-                                    "border-white/15 bg-white/[0.04] text-white hover:border-white/35 hover:bg-white/[0.08]";
+                                    "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
                                   let indicatorClasses =
                                     "border-white/25 bg-white/[0.02] text-white/75";
 
@@ -431,7 +458,7 @@ export function LessonVideoCard({
                           ) : null}
                         </>
                       ) : (
-                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-3 text-sm text-white/70">
+                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/3 p-3 text-sm text-white/70">
                           Bài học này chưa có quiz sau bài học từ API.
                         </div>
                       )}

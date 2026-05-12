@@ -67,13 +67,14 @@ function toTimeDuration(value?: number | string | null): string {
     return "00:00:00";
   }
 
-  // Current lesson form stores duration in minutes, convert it to HH:MM:SS.
-  const totalSeconds = Math.max(0, Math.round(value * 60));
+  const totalMillis = Math.max(0, Math.round(value * 1000));
+  const totalSeconds = Math.floor(totalMillis / 1000);
+  const milliseconds = totalMillis % 1000;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
 }
 
 function toLessonPayload(payload: LessonFormValues) {
@@ -139,9 +140,7 @@ export const courseApi = {
   create: (payload: CourseFormValues): Promise<InstructorCourse> =>
     baseCourseApi.create(toCoursePayload(payload)).then(toInstructorCourse),
   update: (id: number, payload: CourseFormValues): Promise<InstructorCourse> =>
-    baseCourseApi
-      .update(id, toCoursePayload(payload))
-      .then(toInstructorCourse),
+    baseCourseApi.update(id, toCoursePayload(payload)).then(toInstructorCourse),
   updatePatch: (
     id: number,
     payload: CourseFormValues,
@@ -204,7 +203,10 @@ export const quizApi = {
   },
   update: (id: number, payload: QuizEditorState): Promise<InstructorQuiz> =>
     baseQuizApi.update(id, toQuizPayload(payload)),
-  updatePatch: (id: number, payload: QuizEditorState): Promise<InstructorQuiz> =>
+  updatePatch: (
+    id: number,
+    payload: QuizEditorState,
+  ): Promise<InstructorQuiz> =>
     baseQuizApi.updatePatch
       ? baseQuizApi.updatePatch(id, toQuizPayload(payload))
       : baseQuizApi.update(id, toQuizPayload(payload)),
@@ -243,4 +245,10 @@ const courseFeedCrudApi = createResourceApi<
 export const courseFeedApi = courseFeedCrudApi;
 export { lessonActivityApi };
 
-export type { CourseListParams, CourseReviewAction, LessonActivityListParams, LessonListParams, QuizListParams };
+export type {
+  CourseListParams,
+  CourseReviewAction,
+  LessonActivityListParams,
+  LessonListParams,
+  QuizListParams,
+};

@@ -1,4 +1,5 @@
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { Video } from './video.model';
 
 export enum CourseLevel {
   BEGINNER = 'Beginner',
@@ -12,6 +13,7 @@ export enum CourseStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected',
   PUBLISH = 'publish',
+  BANNED = 'banned',
 }
 
 @Table({
@@ -78,6 +80,21 @@ export class Course extends Model {
     field: 'user_id',
   })
   declare userId: number;
+
+  @ForeignKey(() => Video)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    field: 'video_id',
+  })
+  declare videoId: number | null;
+
+  @BelongsTo(() => Video, {
+    foreignKey: 'videoId',
+    targetKey: 'id',
+    as: 'video',
+  })
+  declare video?: Video | null;
 
   @Column({
     type: DataType.ENUM(...Object.values(CourseStatus)),

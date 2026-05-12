@@ -16,7 +16,7 @@ router.use(
     },
     onProxyReq: (proxyReq, req: AuthRequest) => {
 
-      console.log('check header: ', req.headers);
+      // console.log('check header: ', req.headers);
       // Forward original headers
       if (req.headers['content-type']) {
         proxyReq.setHeader('Content-Type', req.headers['content-type']);
@@ -29,6 +29,13 @@ router.use(
         proxyReq.setHeader('Cookie', req.headers.cookie);
       }
 
+      // Forward requester context for downstream authorization logic.
+      if (req.user) {
+        proxyReq.setHeader('X-User-Id', req.user.userId.toString());
+        proxyReq.setHeader('X-User-Email', req.user.email);
+        proxyReq.setHeader('X-User-Role', req.user.role.toString());
+      }
+
       if (
         req.method !== 'GET' &&
         req.method !== 'HEAD' &&
@@ -38,14 +45,6 @@ router.use(
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
-      }
-
-      // console.log('check req.user: ', req.user);
-
-      // Forward userId in header for user service
-      if (req.user) {
-        proxyReq.setHeader('X-User-Id', req.user.userId.toString());
-        proxyReq.setHeader('X-User-Email', req.user.email);
       }
     },
     onProxyRes: (proxyRes, req: Request, res: Response) => {

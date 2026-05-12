@@ -43,13 +43,20 @@ export class FeedController {
   @Post()
   async addToFeed(
     @Headers('x-user-id') userIdHeader: string,
-    @Body() body: { video_id: number; course_id: number; title?: string; hashtags?: string[] },
+    @Body() body: { video_id: number; course_id: number; title?: string; caption?: string; hashtags?: string[] },
   ) {
     const userId = parseInt(userIdHeader, 10);
     if (!userId || isNaN(userId)) {
       throw new BadRequestException('User not authenticated');
     }
-    return this.feedService.addToFeed(userId, body.video_id, body.course_id, body.title, body.hashtags);
+    return this.feedService.addToFeed(
+      userId,
+      body.video_id,
+      body.course_id,
+      body.title,
+      body.caption,
+      body.hashtags,
+    );
   }
 
   @Get()
@@ -67,6 +74,18 @@ export class FeedController {
     const userId = userIdHeader ? parseInt(userIdHeader, 10) : undefined;
 
     return this.feedService.getFeed(cursorId, limitNum, userId, courseIdNum, mode, search);
+  }
+
+  @Get('viewed')
+  async getViewedFeeds(@Headers('x-user-id') userIdHeader?: string) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    return this.feedService.getViewedFeeds(userId);
+  }
+
+  @Get('saved')
+  async getSavedFeeds(@Headers('x-user-id') userIdHeader?: string) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+    return this.feedService.getSavedFeeds(userId);
   }
 
   @Get('stats/creator')
@@ -139,13 +158,13 @@ export class FeedController {
   async updateFeed(
     @Param('id', ParseIntPipe) feedId: number,
     @Headers('x-user-id') userIdHeader: string,
-    @Body() body: { title?: string; hashtags?: string[]; status?: string },
+    @Body() body: { title?: string; caption?: string; hashtags?: string[]; status?: string },
   ) {
     const userId = parseInt(userIdHeader, 10);
     if (!userId || isNaN(userId)) {
       throw new BadRequestException('User not authenticated');
     }
-    return this.feedService.updateFeed(userId, feedId, body.title, body.hashtags, body.status);
+    return this.feedService.updateFeed(userId, feedId, body.title, body.caption, body.hashtags, body.status);
   }
 
   @Post(':id/comments')

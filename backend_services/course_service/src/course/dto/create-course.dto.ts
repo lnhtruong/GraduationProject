@@ -34,6 +34,10 @@ export class CreateCourseDto {
   @IsNumber()
   price: number;
 
+  @IsInt()
+  @IsOptional()
+  videoId?: number | null;
+
   // @IsInt()
   // userId: number;
 }
