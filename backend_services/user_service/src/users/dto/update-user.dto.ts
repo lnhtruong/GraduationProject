@@ -31,6 +31,9 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(512)
+  avatarUrl?: string;
+  
   @MinLength(8)
   @MaxLength(255)
   password?: string;

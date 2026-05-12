@@ -45,6 +45,12 @@ export class User extends Model {
   declare role: number | null;
 
   @Column({
+    type: DataType.STRING(512),
+    allowNull: true,
+  })
+  declare avatarUrl: string | null;
+
+  @Column({
     type: DataType.DATE,
     allowNull: false,
   })
