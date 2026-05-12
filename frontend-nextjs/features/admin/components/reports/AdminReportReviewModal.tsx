@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Check,
   X,
@@ -10,6 +10,9 @@ import {
   FileText,
   ShieldAlert,
   CalendarDays,
+  BookOpen,
+  GraduationCap,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,10 +31,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { useReviewReport } from "../../api/admin-reports.hooks";
 import type { Report, ReportStatus, ReportTargetType } from "../../types/report.types";
 
-const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = {
-  course: "Khóa học",
-  lesson: "Bài học",
-  teacher: "Giảng viên",
+const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactNode; badgeClass: string }> = {
+  course: {
+    label: "Khóa học",
+    icon: <BookOpen className="h-3 w-3" />,
+    badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+  },
+  lesson: {
+    label: "Bài học",
+    icon: <PlayCircle className="h-3 w-3" />,
+    badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800",
+  },
+  teacher: {
+    label: "Giảng viên",
+    icon: <GraduationCap className="h-3 w-3" />,
+    badgeClass: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800",
+  },
 };
 
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
@@ -152,8 +167,12 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                     Đối tượng bị báo cáo
                   </p>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {TARGET_TYPE_LABELS[report.targetType]}
+                    <Badge
+                      variant="outline"
+                      className={`flex items-center gap-1 text-xs font-medium ${TARGET_TYPE_CONFIG[report.targetType].badgeClass}`}
+                    >
+                      {TARGET_TYPE_CONFIG[report.targetType].icon}
+                      {TARGET_TYPE_CONFIG[report.targetType].label}
                     </Badge>
                     <span className="font-mono text-sm text-muted-foreground">
                       ID #{report.targetId}
@@ -227,11 +246,11 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                   </>
                 )}
 
-                {/* Form ghi chú + banTarget (chỉ hiện khi pending) */}
+                {/* Ghi chú xử lý (chỉ hiện khi pending) */}
                 {isPending && (
                   <>
                     <Separator className="mb-4 mt-5" />
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Ghi chú xử lý (tuỳ chọn)
                       </p>
@@ -242,23 +261,6 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                         onChange={(e) => setReviewNote(e.target.value)}
                         maxLength={2000}
                       />
-                      <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2.5">
-                        <Checkbox
-                          id="ban-target"
-                          checked={banTarget}
-                          onCheckedChange={(v) => setBanTarget(Boolean(v))}
-                          className="mt-0.5"
-                        />
-                        <Label
-                          htmlFor="ban-target"
-                          className="cursor-pointer text-xs leading-relaxed text-destructive"
-                        >
-                          {BAN_TARGET_LABELS[report.targetType]}
-                          <span className="mt-0.5 block font-normal text-muted-foreground">
-                            Chỉ áp dụng khi chọn &quot;Chấp nhận báo cáo&quot;
-                          </span>
-                        </Label>
-                      </div>
                     </div>
                   </>
                 )}
@@ -271,28 +273,51 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
         {report && (
           <div className="shrink-0 border-t border-border/60 bg-background p-4">
             {isPending ? (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                  onClick={() => handleReview("rejected")}
-                  disabled={isBusy}
-                >
-                  {review.isPending
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <X className="h-3.5 w-3.5" />}
-                  Từ chối
-                </Button>
-                <Button
-                  className="flex-1 gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-                  onClick={() => handleReview("approved")}
-                  disabled={isBusy}
-                >
-                  {review.isPending
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Check className="h-3.5 w-3.5" />}
-                  Chấp nhận
-                </Button>
+              <div className="space-y-3">
+                {/* Ban checkbox — grouped with Approve action */}
+                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 px-3 py-2.5 dark:border-emerald-800/40 dark:bg-emerald-950/10">
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="ban-target"
+                      checked={banTarget}
+                      onCheckedChange={(v) => setBanTarget(Boolean(v))}
+                      className="mt-0.5 border-emerald-400 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                    />
+                    <Label
+                      htmlFor="ban-target"
+                      className="cursor-pointer text-xs leading-relaxed text-foreground/80"
+                    >
+                      {BAN_TARGET_LABELS[report.targetType]}
+                      <span className="mt-0.5 block font-normal text-muted-foreground">
+                        Tích để áp dụng đồng thời khi chấp nhận báo cáo
+                      </span>
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                    onClick={() => handleReview("rejected")}
+                    disabled={isBusy}
+                  >
+                    {isBusy
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <X className="h-3.5 w-3.5" />}
+                    Từ chối
+                  </Button>
+                  <Button
+                    className="flex-1 gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                    onClick={() => handleReview("approved")}
+                    disabled={isBusy}
+                  >
+                    {isBusy
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Check className="h-3.5 w-3.5" />}
+                    {banTarget ? `Chấp nhận & ${BAN_TARGET_LABELS[report.targetType].split(" ")[0].toLowerCase()}` : "Chấp nhận báo cáo"}
+                  </Button>
+                </div>
               </div>
             ) : (
               <Button variant="outline" className="w-full" onClick={handleClose}>

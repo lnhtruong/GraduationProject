@@ -1,6 +1,7 @@
 "use client";
 
-import { Eye, Inbox } from "lucide-react";
+import type { ReactNode } from "react";
+import { Eye, Inbox, BookOpen, PlayCircle, GraduationCap } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,17 +15,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Report, ReportStatus, ReportTargetType } from "../../types/report.types";
 
-const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; className: string }> = {
+const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactNode; className: string }> = {
   course: {
     label: "Khóa học",
+    icon: <BookOpen className="h-3 w-3" />,
     className: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
   },
   lesson: {
     label: "Bài học",
+    icon: <PlayCircle className="h-3 w-3" />,
     className: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800",
   },
   teacher: {
     label: "Giảng viên",
+    icon: <GraduationCap className="h-3 w-3" />,
     className: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800",
   },
 };
@@ -136,8 +140,9 @@ export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
               <TableCell>
                 <Badge
                   variant="outline"
-                  className={`text-xs font-medium ${typeConfig.className}`}
+                  className={`flex w-fit items-center gap-1 text-xs font-medium ${typeConfig.className}`}
                 >
+                  {typeConfig.icon}
                   {typeConfig.label}
                 </Badge>
               </TableCell>

@@ -1,7 +1,13 @@
+"use client";
+
+import { useState } from "react";
+import { Flag } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportDialog } from "@/features/reports/components/ReportDialog";
 
 interface Props {
   lessonTitle: string;
@@ -13,6 +19,8 @@ interface Props {
   completedLessonCount: number;
   courseProgressPercent: number;
   instructorLabel: string;
+  lessonId: number;
+  isAuthenticated: boolean;
 }
 
 export function LessonInfoPanel({
@@ -25,7 +33,11 @@ export function LessonInfoPanel({
   completedLessonCount,
   courseProgressPercent,
   instructorLabel,
+  lessonId,
+  isAuthenticated,
 }: Props) {
+  const [reportOpen, setReportOpen] = useState(false);
+
   return (
     <Card className="overflow-hidden border-border/70 bg-card/90 shadow-sm">
       <CardContent className="space-y-5 p-4 sm:p-6">
@@ -54,7 +66,7 @@ export function LessonInfoPanel({
                 {instructorLabel.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-semibold text-foreground">
                 {instructorLabel}
               </p>
@@ -62,6 +74,17 @@ export function LessonInfoPanel({
                 Đã hoàn thành {completedLessonCount}/{lessonsLength} bài học
               </p>
             </div>
+            {isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground/50 hover:text-destructive"
+                title="Báo cáo bài học"
+                onClick={() => setReportOpen(true)}
+              >
+                <Flag className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -93,6 +116,14 @@ export function LessonInfoPanel({
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="lesson"
+        targetId={lessonId}
+        targetLabel="bài học này"
+      />
     </Card>
   );
 }

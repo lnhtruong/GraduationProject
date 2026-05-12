@@ -183,7 +183,7 @@ export default function CourseDetail({ courseId }: Props) {
 
             <DescriptionSection text={course.description} />
 
-            <InstructorSection instructor={course.instructor} />
+            <InstructorSection instructor={course.instructor} courseId={courseId} />
 
             <ReviewsSection
               courseId={courseId}

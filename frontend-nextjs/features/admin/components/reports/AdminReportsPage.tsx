@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Clock4, CheckCircle2, XCircle, Flag } from "lucide-react";
+import { Search, Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -136,9 +136,24 @@ export default function AdminReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả loại</SelectItem>
-                <SelectItem value="teacher">Giảng viên</SelectItem>
-                <SelectItem value="course">Khóa học</SelectItem>
-                <SelectItem value="lesson">Bài học</SelectItem>
+                <SelectItem value="teacher">
+                  <span className="flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5 text-orange-500" />
+                    Giảng viên
+                  </span>
+                </SelectItem>
+                <SelectItem value="course">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+                    Khóa học
+                  </span>
+                </SelectItem>
+                <SelectItem value="lesson">
+                  <span className="flex items-center gap-1.5">
+                    <PlayCircle className="h-3.5 w-3.5 text-purple-500" />
+                    Bài học
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

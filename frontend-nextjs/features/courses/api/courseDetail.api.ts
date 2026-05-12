@@ -92,8 +92,12 @@ async function fetchLessonsByCourse(courseId: number): Promise<Lesson[]> {
 }
 
 async function fetchInstructor(userId: number): Promise<CourseInstructor> {
-  const { data } = await apiHttpClient.get<RawUser>(`/course/users/${userId}`);
-  return mapInstructor(data);
+  try {
+    const { data } = await apiHttpClient.get<RawUser>(`/course/users/${userId}`);
+    return mapInstructor(data);
+  } catch {
+    return { id: userId, firstName: "Giảng viên", lastName: "" };
+  }
 }
 
 async function fetchFeedbackSummary(courseId: number): Promise<RatingSummary> {
