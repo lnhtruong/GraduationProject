@@ -142,22 +142,23 @@ function TargetDetail({ report }: { report: Report }) {
 }
 
 function StatusPill({ value }: { value: string }) {
-  const map: Record<string, string> = {
-    publish: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    banned: "bg-red-50 text-red-700 border-red-200",
-    blocked: "bg-red-50 text-red-700 border-red-200",
-    draft: "bg-muted text-muted-foreground border-border",
+  const config: Record<string, { label: string; cls: string }> = {
+    // Course statuses
+    publish:  { label: "Đang hiển thị", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    draft:    { label: "Nháp",          cls: "bg-muted text-muted-foreground border-border" },
+    pending:  { label: "Chờ duyệt",     cls: "bg-amber-50 text-amber-700 border-amber-200" },
+    approved: { label: "Đã duyệt",      cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    rejected: { label: "Đã từ chối",    cls: "bg-red-50 text-red-700 border-red-200" },
+    banned:   { label: "Đã bị cấm",     cls: "bg-red-50 text-red-700 border-red-200" },
+    // Lesson statuses
+    active:   { label: "Hoạt động",     cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    blocked:  { label: "Đã bị khóa",    cls: "bg-red-50 text-red-700 border-red-200" },
+    removed:  { label: "Đã xóa",        cls: "bg-muted text-muted-foreground border-border" },
   };
-  const label: Record<string, string> = {
-    publish: "Đang hiển thị",
-    banned: "Đã bị cấm",
-    blocked: "Đã bị khóa",
-    draft: "Nháp",
-  };
-  const cls = map[value] ?? "bg-muted text-muted-foreground border-border";
+  const { label, cls } = config[value] ?? { label: value, cls: "bg-muted text-muted-foreground border-border" };
   return (
     <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
-      {label[value] ?? value}
+      {label}
     </span>
   );
 }
