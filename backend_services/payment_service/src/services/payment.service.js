@@ -245,9 +245,6 @@ const createPaymentLink = async (courseIds, userId) => {
     throw err;
   }
 
-  // Remove from cart only after transaction committed
-  await removePurchasedCoursesFromCart(userId, courseItems);
-
   // Auto-cancel after 5 minutes if unpaid
   setTimeout(
     async () => {
@@ -337,7 +334,7 @@ const buyNow = async (courseId, userId) => {
       orderCode,
       amount: totalAmount,
       description: "Thanh toan khoa hoc",
-      cancelUrl: CANCEL_URL,
+      cancelUrl: `${CANCEL_URL}?courseId=${courseId}`,
       returnUrl: RETURN_URL,
     });
   } catch (err) {
@@ -495,16 +492,39 @@ const updateTransactionStatus = async (providerOrderId, status) => {
 // ============================================================
 // Kiểm tra trạng thái đơn hàng trên PayOS
 // ============================================================
+const normalizeStatus = (status) => {
+  if (!status) return null;
+  const s = String(status).toUpperCase();
+  if (s === "PAID") return "PAID";
+  if (s === "FAILED") return "FAILED";
+  if (s === "CANCELLED" || s === "CANCELED") return "CANCELLED";
+  if (s === "PENDING") return "PENDING";
+  return s;
+};
+
 const getOrderStatus = async (orderCode) => {
   try {
+    const cached = await getPaymentData(orderCode);
+    const cachedStatus = normalizeStatus(cached?.status);
+    if (cachedStatus && cachedStatus !== "PENDING") {
+      return cachedStatus;
+    }
+  } catch (err) {
+    console.warn(
+      `⚠️ Không đọc được cache cho đơn ${orderCode}:`,
+      err.message,
+    );
+  }
+
+  try {
     const paymentInfo = await payos.paymentRequests.get(orderCode);
-    return paymentInfo.status;
+    return normalizeStatus(paymentInfo.status) || "PENDING";
   } catch (err) {
     console.warn(
       `⚠️ Không thể lấy trạng thái đơn hàng ${orderCode} từ PayOS:`,
       err.message,
     );
-    return "PENDING"; // Hoặc trạng thái mặc định phù hợp
+    return "PENDING";
   }
 };
 
@@ -545,6 +565,14 @@ const payosCallback = async (req) => {
             console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
           },
         );
+
+        // Xóa khỏi giỏ hàng chỉ khi thanh toán thành công
+        removePurchasedCoursesFromCart(
+          oldData.user_id,
+          oldData.courseItems || [],
+        ).catch((err) => {
+          console.error("❌ Lỗi xóa cart sau thanh toán:", err.message);
+        });
       } else {
         publishPaymentFailed(
           webhookData.orderCode,
