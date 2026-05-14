@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
+import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
 
 export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVideoId?: number | null) {
   const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm);
@@ -58,9 +59,14 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     }
 
     const remainingVideos = totalVideos - 1 - safeIndex;
-    const shouldPrefetch = remainingVideos <= 2;
 
-    if (shouldPrefetch && hasMore && !isFetchingNextPage) {
+    if (
+      shouldPrefetchNewsfeedPage({
+        remainingItems: remainingVideos,
+        hasMore,
+        isFetchingNextPage,
+      })
+    ) {
       void feedQuery.fetchNextPage();
     }
   }, [enabled, feedQuery.fetchNextPage, hasMore, isFetchingNextPage, safeIndex, totalVideos]);

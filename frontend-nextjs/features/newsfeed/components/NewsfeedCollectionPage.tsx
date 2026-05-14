@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { PageLoader } from "@/components/PageLoader";
-import { useNewsfeedFeed } from "../api/newsfeed.hooks";
+import { useNewsfeedFeed, useNewsfeedSavedFeeds, useNewsfeedViewedFeeds } from "../api/newsfeed.hooks";
 import type { NewsfeedItem } from "../types";
 import { useNewsfeedHistory } from "../hooks/useNewsfeedHistory";
 import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
@@ -24,12 +24,24 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 	const normalizedSearchTerm = searchTerm.trim();
 	const shouldLoadFeed = mode !== "search" || Boolean(normalizedSearchTerm);
 	const feedQuery = useNewsfeedFeed(shouldLoadFeed, 24, mode === "search" ? normalizedSearchTerm : "");
+	const viewedQuery = useNewsfeedViewedFeeds(mode === "history");
+	const savedQuery = useNewsfeedSavedFeeds(mode === "saved");
 	const { items: historyItems, clearHistory } = useNewsfeedHistory();
 	const { isMenuOpen } = useNewsfeedUiStore();
 
 	const feedItems = useMemo(
 		() => feedQuery.data?.pages.flatMap((page) => page.items) ?? [],
 		[feedQuery.data?.pages],
+	);
+
+	const viewedItems = useMemo(
+		() => viewedQuery.data?.items ?? [],
+		[viewedQuery.data?.items],
+	);
+
+	const savedApiItems = useMemo(
+		() => savedQuery.data?.items ?? [],
+		[savedQuery.data?.items],
 	);
 
 	const savedItems = useMemo(
@@ -39,15 +51,15 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 
 	const displayItems = useMemo(() => {
 		if (mode === "history") {
-			return historyItems.length ? historyItems : feedItems;
+			return viewedItems.length ? viewedItems : historyItems.length ? historyItems : feedItems;
 		}
 
 		if (mode === "saved") {
-			return savedItems.length ? savedItems : feedItems;
+			return savedApiItems.length ? savedApiItems : savedItems.length ? savedItems : feedItems;
 		}
 
 		return uniqueByFeedId(feedItems);
-	}, [feedItems, historyItems, mode, savedItems]);
+	}, [feedItems, historyItems, mode, savedApiItems, savedItems, viewedItems]);
 
 	const pageTitle = useMemo(() => {
 		switch (mode) {
@@ -61,7 +73,10 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 		}
 	}, [mode, normalizedSearchTerm]);
 
-	const isLoading = shouldLoadFeed && feedQuery.isLoading;
+	const isLoading =
+		(shouldLoadFeed && feedQuery.isLoading) ||
+		(mode === "history" && viewedQuery.isLoading) ||
+		(mode === "saved" && savedQuery.isLoading);
 
 	return (
 		<div className={cn("min-h-[calc(100vh-64px)] pb-8", isMenuOpen ? "lg:pl-60" : "lg:pl-16") }>
