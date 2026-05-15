@@ -121,9 +121,19 @@ export class ReportsService {
     if (!report) {
       throw new NotFoundException(`Không tìm thấy report ${id}`);
     }
+
+    const reportCount = await this.reportModel.count({
+      where: {
+        targetType: report.targetType,
+        targetId: report.targetId,
+        status: ReportStatus.PENDING,
+      },
+    });
+
     return {
       ...report.get({ plain: true }),
       target: await this.getTargetSnapshot(report.targetType, report.targetId),
+      reportCount,
     };
   }
 
@@ -258,17 +268,17 @@ export class ReportsService {
     if (targetType === ReportTargetType.COURSE) {
       const course = await this.courseModel.findByPk(targetId);
       if (course) await course.update({ status: CourseStatus.BANNED });
-      return;
-    }
-    if (targetType === ReportTargetType.LESSON) {
+    } else if (targetType === ReportTargetType.LESSON) {
       const lesson = await this.lessonModel.findByPk(targetId);
       if (lesson) await lesson.update({ status: LessonStatus.BLOCKED });
-      return;
-    }
-    if (targetType === ReportTargetType.TEACHER) {
+    } else if (targetType === ReportTargetType.TEACHER) {
       const user = await this.userModel.findByPk(targetId);
       if (user) await user.update({ isBanned: true });
     }
+
+    await this.reportModel.destroy({
+      where: { targetType, targetId },
+    });
   }
 
   private async getTargetSnapshot(
