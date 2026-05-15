@@ -27,12 +27,13 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
 
   return (
-    <section className="relative overflow-hidden bg-[#1c1d1f] text-white">
-      {/* ambient glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-30%,rgba(232,160,32,0.10),transparent)]" />
+    <section className="relative overflow-hidden bg-linear-to-br from-[#1a1400] via-[#2a1f00] to-[#1c1206] text-white">
+      {/* primary amber glow */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_-10%,oklch(0.7664_0.1585_68_/_0.22),transparent)]" />
+      {/* subtle warm shimmer bottom */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-primary/40 to-transparent" />
 
       <div className="container relative mx-auto max-w-7xl px-4 py-10 lg:px-8 lg:py-14">
-        {/* On desktop, constrain content width so the sidebar has space */}
         <div className="space-y-4 lg:max-w-[calc(100%-368px)]">
           {/* Breadcrumb */}
           <nav className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
@@ -61,11 +62,6 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
             {course.name}
           </h1>
 
-          {/* Short description */}
-          <p className="max-w-2xl text-base text-slate-300 lg:text-lg">
-            {course.shortDescription}
-          </p>
-
           {/* Rating row */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-bold text-primary">
@@ -87,11 +83,15 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
             <span className="text-slate-400">
               ({course.ratingSummary.total.toLocaleString("vi-VN")} đánh giá)
             </span>
-            <span className="text-slate-600">•</span>
-            <span className="flex items-center gap-1 text-slate-400">
-              <Users className="h-3.5 w-3.5" />
-              {course.totalStudents.toLocaleString("vi-VN")} học viên
-            </span>
+            {course.totalStudents > 0 && (
+              <>
+                <span className="text-slate-600">•</span>
+                <span className="flex items-center gap-1 text-slate-400">
+                  <Users className="h-3.5 w-3.5" />
+                  {course.totalStudents.toLocaleString("vi-VN")} học viên
+                </span>
+              </>
+            )}
             {isEnrolled && (
               <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/15 px-2.5 py-0.5 text-xs text-green-400">
                 ✓ Đã đăng ký

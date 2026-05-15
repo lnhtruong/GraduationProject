@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LessonVideoCard } from "./components/LessonVideoCard";
 import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 
 interface Props {
   courseId: number;
@@ -13,8 +14,9 @@ interface Props {
 
 export default function CourseLearnPage({ courseId }: Props) {
   const state = useCourseLearnPage(courseId);
+  const { isAuthenticated } = useAuthState();
 
-  if (state.courseLoading || state.lessonsLoading) {
+  if (!state.enrollmentSettled || state.courseLoading || state.lessonsLoading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card>
@@ -141,6 +143,8 @@ export default function CourseLearnPage({ courseId }: Props) {
               completedLessonCount={state.completedLessonCount}
               courseProgressPercent={state.courseProgressPercent}
               instructorLabel={`Giảng viên #${state.course.userId}`}
+              lessonId={state.selectedLesson.id}
+              isAuthenticated={isAuthenticated}
             />
           </div>
 

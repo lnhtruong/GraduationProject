@@ -5,41 +5,26 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
 	ArrowRight,
+	BookOpen,
+	CheckCircle,
 	ChevronRight,
 	Clock,
-	BookOpen,
 	Globe,
 	GraduationCap,
-	Sparkles,
 	ShoppingCart,
+	Sparkles,
 	Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/features/cart/hooks/useCartStore";
+import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
+import { useBuyNow } from "@/features/payment/api/payment.hooks";
+import { useEnrollmentCheck } from "@/features/courses/api/enrollment.api";
+import { useAuthStore } from "@/store/auth";
 import { useRoadmapsPaginated } from "@/features/roadmap/api/roadmap.hooks";
 import type { Roadmap, RoadmapCourse } from "@/features/roadmap/types";
-import type { CartItem } from "@/features/cart/types";
 import type { NewsfeedItem } from "../types";
-import { getInitials } from "./newsfeed-ui";
-
-function formatIsoDate(iso: string) {
-	if (!iso) {
-		return "Không rõ";
-	}
-	const parsed = new Date(iso);
-	if (Number.isNaN(parsed.getTime())) {
-		return iso.replace("T", " ").replace(".000Z", " UTC");
-	}
-
-	return new Intl.DateTimeFormat("vi-VN", {
-		day: "2-digit",
-		month: "2-digit",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	}).format(parsed);
-}
 
 const LEVEL_LABELS: Record<string, string> = {
 	Beginner: "Sơ cấp",
@@ -58,14 +43,6 @@ const LEVEL_META: Record<
 
 function formatCoursePrice(price: number) {
 	return price > 0 ? `${price.toLocaleString("vi-VN")} VND` : "Miễn phí";
-}
-
-function normalizeCartLevel(level: string): CartItem["level"] {
-	if (level === "Intermediate" || level === "Advanced") {
-		return level;
-	}
-
-	return "Beginner";
 }
 
 function formatDurationLabel(duration?: string | null) {
@@ -98,51 +75,6 @@ function formatDurationLabel(duration?: string | null) {
 	}
 
 	return normalized;
-}
-
-function parseDurationToSeconds(duration?: string | null) {
-	if (!duration) {
-		return 0;
-	}
-
-	const timeMatch = duration.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
-	if (timeMatch) {
-		const hours = Number(timeMatch[1] ?? 0);
-		const minutes = Number(timeMatch[2] ?? 0);
-		const seconds = Number(timeMatch[3] ?? 0);
-		return hours * 3600 + minutes * 60 + seconds;
-	}
-
-	const hoursMatch = duration.match(/(\d+)\s*(?:giờ|gio|h)/i);
-	const minutesMatch = duration.match(/(\d+)\s*(?:phút|phut|p|m)/i);
-	const secondsMatch = duration.match(/(\d+)\s*(?:giây|giay|s)/i);
-
-	return (
-		(Number(hoursMatch?.[1] ?? 0) * 3600) +
-		(Number(minutesMatch?.[1] ?? 0) * 60) +
-		Number(secondsMatch?.[1] ?? 0)
-	);
-}
-
-function buildCartItem(video: NewsfeedItem): CartItem {
-	const instructorName =
-		[video.lecturer?.firstName, video.lecturer?.lastName].filter(Boolean).join(" ").trim() ||
-		"Giảng viên";
-
-	return {
-		id: video.course.id,
-		courseId: video.course.id,
-		title: video.course.name,
-		instructorName,
-		thumbnailUrl: video.course.thumbnail ?? undefined,
-		level: normalizeCartLevel(video.course.level),
-		durationSeconds: parseDurationToSeconds(video.course.duration),
-		price: video.course.price,
-		originalPrice: undefined,
-		avgRating: undefined,
-		reviewCount: undefined,
-		savedForLater: false,
-	};
 }
 
 function sortRoadmapCourses(courses: RoadmapCourse[]) {
@@ -240,8 +172,16 @@ interface NewsfeedCoursePanelProps {
 
 export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps) {
 	const router = useRouter();
-	const items = useCartStore((state) => state.items);
-	const setItems = useCartStore((state) => state.setItems);
+	const { user } = useAuthStore();
+	const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+	const courseId = video.course.id;
+
+	const addToCart = useAddToCart();
+	const buyNow = useBuyNow(courseId);
+	const isInCart = useIsInCart(courseId);
+	const { data: enrollment } = useEnrollmentCheck(courseId, user?.id);
+	const isEnrolled = enrollment != null;
+
 	const roadmapQuery = useRoadmapsPaginated(
 		{ userId: video.course.userId, page: 1, limit: 50 },
 		Boolean(video.course.userId),
@@ -288,31 +228,25 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 		icon: Sparkles,
 	};
 
-	const upsertCourseIntoCart = () => {
-		const nextItem = buildCartItem(video);
-		const existingIndex = items.findIndex((item) => item.courseId === nextItem.courseId);
-
-		if (existingIndex >= 0) {
-			const nextItems = [...items];
-			nextItems[existingIndex] = {
-				...nextItems[existingIndex],
-				...nextItem,
-				savedForLater: false,
-			};
-			setItems(nextItems);
+	const handleAddToCart = () => {
+		if (!isAuthenticated) {
+			router.push(`/signin?returnUrl=/courses/${courseId}`);
 			return;
 		}
-
-		setItems([...items, nextItem]);
-	};
-
-	const handleAddToCart = () => {
-		upsertCourseIntoCart();
+		addToCart.mutate(courseId, {
+			onSuccess: () => toast.success("Đã thêm vào giỏ hàng!"),
+			onError: () => toast.error("Không thể thêm vào giỏ. Vui lòng thử lại."),
+		});
 	};
 
 	const handleBuyNow = () => {
-		upsertCourseIntoCart();
-		router.push("/cart");
+		if (!isAuthenticated) {
+			router.push(`/signin?returnUrl=/courses/${courseId}`);
+			return;
+		}
+		buyNow.mutate(undefined, {
+			onError: () => toast.error("Không thể xử lý yêu cầu. Vui lòng thử lại."),
+		});
 	};
 
 	return (
@@ -375,24 +309,66 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 
 					<div className="flex flex-wrap items-center justify-between gap-3 pt-1">
 						<p className="text-lg font-semibold text-primary">{formatCoursePrice(video.course.price)}</p>
-						<div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
+
+						{/* Đã enrolled */}
+						{isEnrolled ? (
 							<Button
 								type="button"
-								variant="outline"
-								onClick={handleAddToCart}
-								className="h-10 rounded-none border-border bg-background px-5 text-foreground hover:bg-accent hover:text-accent-foreground"
+								className="h-10 w-full rounded-none border border-green-500/40 bg-green-500/10 px-5 text-green-600 hover:bg-green-500/20 dark:text-green-400"
+								asChild
 							>
-								<ShoppingCart className="mr-2 h-4 w-4" />
-								Thêm giỏ hàng
+								<Link href={`/courses/${courseId}/learn`}>
+									<CheckCircle className="mr-2 h-4 w-4" />
+									Vào học ngay
+								</Link>
 							</Button>
+						) : video.course.price === 0 ? (
+							/* Khoá miễn phí chưa enrolled */
 							<Button
 								type="button"
+								className="h-10 w-full rounded-none px-5"
 								onClick={handleBuyNow}
-								className="h-10 rounded-none px-5"
+								disabled={buyNow.isPending}
 							>
-								Mua ngay
+								{buyNow.isPending ? "Đang đăng ký..." : "Đăng ký miễn phí"}
 							</Button>
-						</div>
+						) : (
+							/* Khoá có phí chưa enrolled */
+							<div className="grid w-full gap-2 sm:grid-cols-2">
+								{isInCart ? (
+									<Button
+										type="button"
+										variant="outline"
+										className="h-10 rounded-none border-green-500/40 bg-green-500/8 px-5 text-green-600 hover:bg-green-500/15 dark:text-green-400"
+										asChild
+									>
+										<Link href="/cart">
+											<ShoppingCart className="mr-2 h-4 w-4" />
+											Đã có trong giỏ
+										</Link>
+									</Button>
+								) : (
+									<Button
+										type="button"
+										variant="outline"
+										onClick={handleAddToCart}
+										disabled={addToCart.isPending}
+										className="h-10 rounded-none border-border bg-background px-5 text-foreground hover:bg-accent hover:text-accent-foreground"
+									>
+										<ShoppingCart className="mr-2 h-4 w-4" />
+										{addToCart.isPending ? "Đang thêm..." : "Thêm giỏ hàng"}
+									</Button>
+								)}
+								<Button
+									type="button"
+									onClick={handleBuyNow}
+									disabled={buyNow.isPending}
+									className="h-10 rounded-none px-5"
+								>
+									{buyNow.isPending ? "Đang xử lý..." : "Mua ngay"}
+								</Button>
+							</div>
+						)}
 					</div>
 					<div className="flex justify-end pt-1">
 						<Link

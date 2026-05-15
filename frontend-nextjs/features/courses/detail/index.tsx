@@ -1,32 +1,28 @@
-// Swap sang real API
-// Khi backend sẵn sàng, chỉ cần:
-// Thay getCourseById() trong detail/index.tsx bằng useCourseById(id) (TanStack Query)
-// Thay useState(null) enrollment bằng useCourseEnrollment(courseId)
-// Thay handleEnroll bằng mutation useEnrollCourse()
-// Xóa mock-data.ts khi không còn cần nữa
-
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { CourseHeroSection } from "./components/CourseHeroSection";
 import { CourseStickySidebar } from "./components/CourseStickySidebar";
 import { WhatYouLearnSection } from "./components/WhatYouLearnSection";
 import { CourseContentAccordion } from "./components/CourseContentAccordion";
 import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
-import { getCourseById, MOCK_ENROLLMENT } from "../mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth";
 import { useEnrollmentCheck } from "../api/enrollment.api";
-import type { Enrollment } from "../types";
-
-
+import { useCourseDetail } from "../api/courseDetail.api";
+import { useBuyNow } from "@/features/payment/api/payment.hooks";
+import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 
 // ---------------------------------------------------------------------------
 // Inline minor sections
 // ---------------------------------------------------------------------------
 
 function RequirementsSection({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Yêu cầu</h2>
@@ -44,6 +40,7 @@ function RequirementsSection({ items }: { items: string[] }) {
 
 function DescriptionSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Mô tả khoá học</h2>
@@ -69,6 +66,26 @@ function DescriptionSection({ text }: { text: string }) {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="bg-muted/30 px-4 py-16">
+        <div className="container mx-auto max-w-7xl space-y-4">
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-5 w-1/2" />
+          <Skeleton className="h-5 w-1/3" />
+        </div>
+      </div>
+      <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-60 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main feature component
 // ---------------------------------------------------------------------------
@@ -78,18 +95,20 @@ interface Props {
 }
 
 export default function CourseDetail({ courseId }: Props) {
-  const course = getCourseById(courseId);
+  const { data: course, isLoading, isError } = useCourseDetail(courseId);
+  const router = useRouter();
 
   const { user } = useAuthStore();
-  const { data: enrollmentData } = useEnrollmentCheck(courseId, user?.id);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const { data: enrollment } = useEnrollmentCheck(courseId, user?.id);
 
-  // Auth & enrollment state — swap with real hooks when backend is ready
-  const [isAuthenticated] = useState(true);
-  const [mockEnrollment, setMockEnrollment] = useState<Enrollment | null>(null);
-  // Prefer real enrollment data from API; fall back to mock state for demo toggle
-  const enrollment: Enrollment | null = enrollmentData ?? mockEnrollment;
+  const buyNow = useBuyNow(courseId);
+  const addToCart = useAddToCart();
+  const isInCart = useIsInCart(courseId);
 
-  if (!course) {
+  if (isLoading) return <LoadingSkeleton />;
+
+  if (isError || !course) {
     return (
       <div className="container mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4 py-20 text-center">
         <div className="space-y-3">
@@ -102,15 +121,28 @@ export default function CourseDetail({ courseId }: Props) {
     );
   }
 
-  const isEnrolled = enrollment !== null;
+  const isEnrolled = enrollment !== null && enrollment !== undefined;
 
   const handleEnroll = () => {
-    if (course.price === 0 || true /* mock: always succeed */) {
-      setMockEnrollment(MOCK_ENROLLMENT);
+    if (!isAuthenticated) {
+      router.push(`/signin?returnUrl=/courses/${courseId}`);
+      return;
     }
+    buyNow.mutate(undefined, {
+      onError: () => toast.error("Không thể xử lý yêu cầu. Vui lòng thử lại."),
+    });
   };
 
-  const handleUnenroll = () => setMockEnrollment(null);
+  const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      router.push(`/signin?returnUrl=/courses/${courseId}`);
+      return;
+    }
+    addToCart.mutate(courseId, {
+      onSuccess: () => toast.success("Đã thêm vào giỏ hàng!"),
+      onError: () => toast.error("Không thể thêm vào giỏ. Vui lòng thử lại."),
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,13 +160,19 @@ export default function CourseDetail({ courseId }: Props) {
             <div className="lg:hidden">
               <CourseStickySidebar
                 course={course}
-                enrollment={enrollment}
+                enrollment={enrollment ?? null}
                 isAuthenticated={isAuthenticated}
                 onEnroll={handleEnroll}
+                onAddToCart={course.price > 0 ? handleAddToCart : undefined}
+                isEnrolling={buyNow.isPending}
+                isAddingToCart={addToCart.isPending}
+                isInCart={isInCart}
               />
             </div>
 
-            <WhatYouLearnSection items={course.whatYouLearn} />
+            {course.whatYouLearn.length > 0 && (
+              <WhatYouLearnSection items={course.whatYouLearn} />
+            )}
 
             <CourseContentAccordion
               lessons={course.lessons}
@@ -145,7 +183,7 @@ export default function CourseDetail({ courseId }: Props) {
 
             <DescriptionSection text={course.description} />
 
-            <InstructorSection instructor={course.instructor} />
+            <InstructorSection instructor={course.instructor} courseId={courseId} />
 
             <ReviewsSection
               courseId={courseId}
@@ -155,14 +193,17 @@ export default function CourseDetail({ courseId }: Props) {
           </div>
 
           {/* ── Right sticky sidebar (desktop only) ─────── */}
-          {/* Negative top margin overlaps the hero section visually */}
           <div className="hidden w-80 shrink-0 lg:block lg:-mt-52">
             <div className="sticky top-24">
               <CourseStickySidebar
                 course={course}
-                enrollment={enrollment}
+                enrollment={enrollment ?? null}
                 isAuthenticated={isAuthenticated}
                 onEnroll={handleEnroll}
+                onAddToCart={course.price > 0 ? handleAddToCart : undefined}
+                isEnrolling={buyNow.isPending}
+                isAddingToCart={addToCart.isPending}
+                isInCart={isInCart}
               />
             </div>
           </div>
@@ -190,23 +231,14 @@ export default function CourseDetail({ courseId }: Props) {
               size="lg"
               className="flex-1 shadow-md shadow-primary/20"
               onClick={handleEnroll}
+              disabled={buyNow.isPending}
             >
-              {course.price === 0 ? "Đăng ký miễn phí" : "Đăng ký ngay"}
+              {buyNow.isPending
+                ? "Đang xử lý..."
+                : course.price === 0 ? "Đăng ký miễn phí" : "Mua ngay"}
             </Button>
           </>
         )}
-      </div>
-
-      {/* ── Dev toggle: enrolled ↔ not enrolled ─────────── */}
-      <div className="fixed bottom-24 right-4 z-50 lg:bottom-6">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="rounded-full border border-border shadow-md text-xs opacity-70 hover:opacity-100"
-          onClick={isEnrolled ? handleUnenroll : handleEnroll}
-        >
-          {isEnrolled ? "Demo: Huỷ đăng ký" : "Demo: Đăng ký"}
-        </Button>
       </div>
     </div>
   );

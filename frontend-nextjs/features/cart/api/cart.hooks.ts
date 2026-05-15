@@ -1,12 +1,3 @@
-/**
- * Cart React Query Hooks
- * Pattern giống features/home/api/home.hooks.ts
- *
- * [MOCK] useCartQuery hiện trả về MOCK_CART_ITEMS qua cartApi.getCart()
- * [SWAP] Khi backend sẵn sàng: chỉ cần swap cartApi.getCart() để gọi real endpoint,
- *        hooks này không cần thay đổi.
- */
-
 import {
   createQueryHooks,
   createMutationHooks,
@@ -15,28 +6,39 @@ import { cartApi } from "./cart.api";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-// Danh sách đầy đủ cart items — dùng trong CartPage
 const cartItemsHooks = createQueryHooks(
   "cart",
   ["items"],
   cartApi.getCart,
-  { staleTime: 30_000 }, // 30s
+  { staleTime: 30_000 },
 );
 
 export const cartKeys = cartItemsHooks.keys;
 export const useCartQuery = cartItemsHooks.useQuery;
 
-// Summary (count + subtotal) — dùng cho Header badge
-const cartSummaryHooks = createQueryHooks(
-  "cart",
-  ["summary"],
-  cartApi.getCartSummary,
-  { staleTime: 30_000 },
-);
-
-export const useCartSummary = cartSummaryHooks.useQuery;
+// Derive từ useCartQuery — không gọi API thêm
+export function useCartSummary() {
+  const { data: items, ...rest } = useCartQuery();
+  const itemCount = items?.length ?? 0;
+  const subtotal = items?.reduce((sum, i) => sum + i.price, 0) ?? 0;
+  return { data: { itemCount, subtotal }, ...rest };
+}
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
+
+export const useAddToCart = createMutationHooks<
+  Awaited<ReturnType<typeof cartApi.addToCart>>,
+  number
+>(
+  "cart",
+  "add",
+  cartApi.addToCart,
+  {
+    onSuccess: (_data, _vars, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: cartKeys.root });
+    },
+  },
+);
 
 export const useRemoveFromCart = createMutationHooks<void, number>(
   "cart",
@@ -53,3 +55,8 @@ export const useApplyCoupon = createMutationHooks<
   Awaited<ReturnType<typeof cartApi.applyCoupon>>,
   string
 >("cart", "apply-coupon", cartApi.applyCoupon);
+
+export function useIsInCart(courseId: number): boolean {
+  const { data: items } = useCartQuery();
+  return (items ?? []).some((item) => item.courseId === courseId);
+}
