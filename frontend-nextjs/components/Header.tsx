@@ -32,6 +32,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { canAccessInstructor } from "@/lib/roles";
 import { useUiModeStore } from "@/store/ui-mode";
@@ -242,6 +243,10 @@ export function Header() {
           >
             <ThemeToggle />
           </div>
+
+          {isAuthenticated ? (
+            <NotificationBell className="md:inline-flex" />
+          ) : null}
 
           {/* Auth Section */}
           {isAuthenticated ? (

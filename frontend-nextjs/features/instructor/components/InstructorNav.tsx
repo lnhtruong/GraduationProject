@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 
 const NAV_TABS = [
   { label: "Dashboard", href: "/instructor/dashboard" },
@@ -90,11 +91,7 @@ export function InstructorNav() {
 
         {/* Right: notification + avatar */}
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative h-8 w-8">
-            <Bell className="h-4 w-4" />
-            {/* TODO: badge count từ API notifications */}
-            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" />
-          </Button>
+          <NotificationBell className="h-9 w-9" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProcessHighlight } from "../api/upload.hooks";
@@ -48,11 +48,76 @@ function resolveUserId(authUserId: number | undefined): number | undefined {
   return stored?.id;
 }
 
+type UploadEventEnvelope = {
+  jobId?: string | number;
+  job_id?: string | number;
+  url?: string;
+  videoId?: number;
+  progress?: number;
+  stage?: string;
+  data?: {
+    jobId?: string | number;
+    job_id?: string | number;
+    url?: string;
+    videoId?: number;
+  };
+};
+
+function readEventJobId(payload: UploadEventEnvelope): string | null {
+  const raw =
+    payload.data?.job_id ??
+    payload.data?.jobId ??
+    payload.job_id ??
+    payload.jobId;
+  return raw == null ? null : String(raw);
+}
+
+function readCompletedEvent(
+  payload: VideoCompletedPayload | UploadEventEnvelope,
+): {
+  url?: string;
+  videoId?: number;
+  jobId: string | null;
+} {
+  const envelope = payload as UploadEventEnvelope;
+  return {
+    url: envelope.data?.url ?? envelope.url,
+    videoId: envelope.data?.videoId ?? envelope.videoId,
+    jobId: readEventJobId(envelope),
+  };
+}
+
+function resolveProjectId(response: unknown): number | null {
+  if (!response || typeof response !== "object") return null;
+
+  const record = response as {
+    edit_id?: number;
+    id?: number;
+    data?: { edit_id?: number; id?: number };
+  };
+
+  return (
+    record.edit_id ??
+    record.id ??
+    record.data?.edit_id ??
+    record.data?.id ??
+    null
+  );
+}
+
 export function useUpload(): UploadHookReturn {
   const [state, setState] = useState<UploadState>(INITIAL_STATE);
   const { user } = useAuth();
   const router = useRouter();
   const { mutateAsync: createProject } = useCreateProject();
+  const createProjectPromiseRef = useRef<Promise<{
+    projectId: number;
+    videoId?: number;
+  } | null> | null>(null);
+  const redirectedProjectRef = useRef<number | null>(null);
+  const hideProgressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // We rely on backend to include `videoId` in SSE completed events.
   // Use React Query mutation
@@ -79,8 +144,57 @@ export function useUpload(): UploadHookReturn {
   const sseSessionActive =
     state.status === "uploading" ||
     state.status === "pending" ||
-    state.status === "processing" ||
-    state.status === "failed";
+    state.status === "processing";
+
+  const createOrGetProjectForClip = useCallback(
+    async (
+      clip: UploadState["clips"][number],
+    ): Promise<{ projectId: number; videoId?: number } | null> => {
+      if (!clip?.url || !resolveUserId(user?.id)) return null;
+
+      const existingProjectId = state.createdProjectId;
+      if (existingProjectId) {
+        return clip.videoId
+          ? { projectId: existingProjectId, videoId: clip.videoId }
+          : { projectId: existingProjectId };
+      }
+
+      if (createProjectPromiseRef.current) {
+        return createProjectPromiseRef.current;
+      }
+
+      const promise = (async () => {
+        const resolvedVideoId = clip.videoId ?? null;
+        const now = new Date();
+        const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
+
+        const createdProject = await createProject({
+          session_name: projectName,
+          video_id: resolvedVideoId,
+        });
+
+        const projectId = resolveProjectId(createdProject);
+        if (!projectId) return null;
+
+        setState((prev) => ({
+          ...prev,
+          createdProjectId: prev.createdProjectId ?? projectId,
+        }));
+
+        return resolvedVideoId
+          ? { projectId, videoId: resolvedVideoId }
+          : { projectId };
+      })();
+
+      createProjectPromiseRef.current = promise;
+      try {
+        return await promise;
+      } finally {
+        createProjectPromiseRef.current = null;
+      }
+    },
+    [user?.id, state.createdProjectId, createProject],
+  );
 
   // Real-time events via SSE (Server-Sent Events)
   useEffect(() => {
@@ -99,14 +213,11 @@ export function useUpload(): UploadHookReturn {
         }
 
         // New format: Job stage update (has jobId, stage)
-        if (payload.jobId && payload.stage) {
-          // Resolve event job id from possible locations (normalized top-level or nested)
-          const eventJobId =
-            (payload as any).jobId ??
-            (payload as any).job_id ??
-            (payload as any).data?.jobId ??
-            (payload as any).data?.job_id;
-
+        const envelope = payload as UploadEventEnvelope;
+        const eventJobId = readEventJobId(envelope);
+        const eventStage =
+          typeof envelope.stage === "string" ? envelope.stage : undefined;
+        if (eventJobId && eventStage) {
           // Only update if this is for the current job
           if (
             eventJobId &&
@@ -117,10 +228,7 @@ export function useUpload(): UploadHookReturn {
           }
 
           // Normalize stage string (trim extra whitespace that backend might include)
-          const rawStage =
-            typeof payload.stage === "string"
-              ? payload.stage.trim()
-              : String(payload.stage);
+          const rawStage = eventStage.trim();
 
           // Try to extract X/Y from stage like "1/4: Transcribing"
           let stageProgress: number | undefined;
@@ -159,15 +267,7 @@ export function useUpload(): UploadHookReturn {
     };
 
     const onCompleted = (payload: VideoCompletedPayload) => {
-      // Support normalized payloads: top-level or nested `data` may hold fields
-      const url = (payload as any)?.data?.url ?? (payload as any)?.url;
-      const videoId =
-        (payload as any)?.data?.videoId ?? (payload as any)?.videoId;
-      const jobId =
-        (payload as any)?.data?.job_id ??
-        (payload as any)?.data?.jobId ??
-        (payload as any)?.job_id ??
-        (payload as any)?.jobId;
+      const { url, videoId, jobId } = readCompletedEvent(payload);
 
       if (!url) {
         console.warn("[useUpload] Completion event missing URL");
@@ -200,11 +300,7 @@ export function useUpload(): UploadHookReturn {
         if (prev.status === "completed") return prev;
 
         // Check if this error is for the current job
-        const errorJobId =
-          (payload as any).jobId ??
-          (payload as any).job_id ??
-          (payload as any).data?.jobId ??
-          (payload as any).data?.job_id;
+        const errorJobId = readEventJobId(payload as UploadEventEnvelope);
         if (
           errorJobId &&
           prev.jobId &&
@@ -250,7 +346,7 @@ export function useUpload(): UploadHookReturn {
     }
 
     const firstClip = state.clips[0];
-    if (!firstClip?.url || !user?.id) {
+    if (!firstClip?.url || !resolveUserId(user?.id)) {
       return;
     }
 
@@ -258,48 +354,31 @@ export function useUpload(): UploadHookReturn {
 
     const createProjectAndRedirect = async () => {
       try {
-        // Auto-create project for completed clip — prefer videoId from SSE
-        const resolvedVideoId = firstClip.videoId ?? null;
-
-        const now = new Date();
-        const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
-
-        const createdProject = await createProject({
-          session_name: projectName,
-          video_id: resolvedVideoId,
-        });
+        const result = await createOrGetProjectForClip(firstClip);
 
         if (!isMounted) return;
-
-        const projectId = (() => {
-          const record = createdProject as {
-            edit_id?: number;
-            id?: number;
-            data?: { edit_id?: number; id?: number };
-          };
-          return (
-            record?.edit_id ??
-            record?.id ??
-            record?.data?.edit_id ??
-            record?.data?.id
-          );
-        })();
-        if (projectId) {
-          console.debug(
-            "[useUpload] Project created, redirecting to editor:",
-            projectId,
-          );
-          setState((prev) => ({ ...prev, createdProjectId: projectId }));
-          const paramsObj: Record<string, string> = {
-            edit_id: String(projectId),
-            src: firstClip.url,
-          };
-          if (resolvedVideoId) paramsObj.video_id = String(resolvedVideoId);
-          const params = new URLSearchParams(paramsObj);
-          router.push(`/editor?${params.toString()}`);
-        } else {
+        if (!result) {
           console.warn("[useUpload] No project ID returned from create");
+          return;
         }
+
+        if (redirectedProjectRef.current === result.projectId) {
+          return;
+        }
+        redirectedProjectRef.current = result.projectId;
+
+        console.debug(
+          "[useUpload] Project created, redirecting to editor:",
+          result.projectId,
+        );
+        const paramsObj: Record<string, string> = {
+          edit_id: String(result.projectId),
+          src: firstClip.url,
+        };
+        if (result.videoId) paramsObj.video_id = String(result.videoId);
+        const params = new URLSearchParams(paramsObj);
+
+        router.push(`/editor?${params.toString()}`);
       } catch (error) {
         console.error("[useUpload] Failed to auto-create project:", error);
         // Fail silently - user can still manually create project if needed
@@ -311,53 +390,12 @@ export function useUpload(): UploadHookReturn {
     return () => {
       isMounted = false;
     };
-  }, [state.status, state.clips, user?.id, router, createProject]);
+  }, [state.status, state.clips, user?.id, router, createOrGetProjectForClip]);
 
   const ensureProjectForClip = async (
     clip: UploadState["clips"][number],
   ): Promise<{ projectId: number; videoId?: number } | null> => {
-    if (!clip?.url || !user?.id) return null;
-
-    const existingProjectId = state.createdProjectId;
-    if (existingProjectId && clip.videoId) {
-      return { projectId: existingProjectId, videoId: clip.videoId };
-    }
-
-    // Use videoId from clip (provided by SSE) when available. Backend should provide it.
-    const resolvedVideoId = clip.videoId ?? null;
-
-    if (existingProjectId && resolvedVideoId) {
-      return { projectId: existingProjectId, videoId: resolvedVideoId };
-    }
-
-    const now = new Date();
-    const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
-    // Create project even if we couldn't resolve a videoId yet. Backend accepts null.
-    const createdProject = await createProject({
-      session_name: projectName,
-      video_id: resolvedVideoId,
-    });
-
-    const projectId = (() => {
-      const record = createdProject as {
-        edit_id?: number;
-        id?: number;
-        data?: { edit_id?: number; id?: number };
-      };
-      return (
-        record?.edit_id ??
-        record?.id ??
-        record?.data?.edit_id ??
-        record?.data?.id
-      );
-    })();
-
-    if (!projectId) return null;
-
-    setState((prev) => ({ ...prev, createdProjectId: projectId }));
-    return resolvedVideoId
-      ? { projectId, videoId: resolvedVideoId }
-      : { projectId };
+    return createOrGetProjectForClip(clip);
   };
 
   // ============================================================================
@@ -409,7 +447,10 @@ export function useUpload(): UploadHookReturn {
       });
 
       // Hide progress bar after completion
-      setTimeout(() => {
+      if (hideProgressTimeoutRef.current) {
+        clearTimeout(hideProgressTimeoutRef.current);
+      }
+      hideProgressTimeoutRef.current = setTimeout(() => {
         updateState({ progress: null });
       }, 500);
     } catch (err) {
@@ -423,6 +464,10 @@ export function useUpload(): UploadHookReturn {
   // ============================================================================
   const cancel = () => {
     console.debug("[useUpload] Canceling upload");
+    if (hideProgressTimeoutRef.current) {
+      clearTimeout(hideProgressTimeoutRef.current);
+      hideProgressTimeoutRef.current = null;
+    }
     setState(INITIAL_STATE);
   };
 
@@ -431,6 +476,10 @@ export function useUpload(): UploadHookReturn {
   // ============================================================================
   const reset = () => {
     console.debug("[useUpload] Resetting state");
+    if (hideProgressTimeoutRef.current) {
+      clearTimeout(hideProgressTimeoutRef.current);
+      hideProgressTimeoutRef.current = null;
+    }
     updateState({
       progress: null,
       status: "idle",
@@ -441,6 +490,14 @@ export function useUpload(): UploadHookReturn {
       error: null,
     });
   };
+
+  useEffect(() => {
+    return () => {
+      if (hideProgressTimeoutRef.current) {
+        clearTimeout(hideProgressTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // ============================================================================
   // RETURN
