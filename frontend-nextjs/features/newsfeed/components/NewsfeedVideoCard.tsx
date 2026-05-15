@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
 import { useNewsfeedFeedDetailStats, useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
+import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
 import { getInitials } from "./newsfeed-ui";
 
 function sanitizeDescriptionHtml(input?: string) {
@@ -87,6 +88,12 @@ export function NewsfeedVideoCard({
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
   const interactMutation = useNewsfeedInteractMutation();
+  useNewsfeedViewTracker({
+    feedId: video.feedId,
+    isActive,
+    currentTime,
+    duration,
+  });
 
   useEffect(() => {
     setIsLiked(video.isLiked);

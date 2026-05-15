@@ -1,44 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowBigDownDash, ArrowBigUpDash, Clapperboard } from "lucide-react";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNewsfeedVideoFeed } from "../hooks/useNewsfeedVideoFeed";
 import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
-import { getInitials } from "./newsfeed-ui";
-import { NewsfeedHeader } from "./NewsfeedHeader";
 import { NewsfeedOptionBox } from "./NewsfeedOptionBox";
 import { NewsfeedShareDialog } from "./NewsfeedShareDialog";
-import { NewsfeedSidebar } from "./NewsfeedSidebar";
 import { NewsfeedVideoFeed } from "./NewsfeedVideoFeed";
+import { useNewsfeedHistory } from "../hooks/useNewsfeedHistory";
 
-export function NewsfeedPage() {
-	const [searchValue, setSearchValue] = useState("");
-	const [submittedSearch, setSubmittedSearch] = useState("");
-	const feed = useNewsfeedVideoFeed(true, submittedSearch);
+interface NewsfeedPageProps {
+	initialVideoId?: number | null;
+}
+
+export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
+	const feed = useNewsfeedVideoFeed(true, "", initialVideoId);
 	const {
 		isMenuOpen,
 		isOptionBoxOpen,
 		optionBoxContentType,
 		closeMenu,
-		toggleMenu,
 		openOptionBox,
 		closeOptionBox,
 		setActiveVideoId,
 	} = useNewsfeedUiStore();
-	const { user } = useAuth();
 	const [shareOpen, setShareOpen] = useState(false);
 	const [shareUrl, setShareUrl] = useState("");
+	const { recordHistoryItem } = useNewsfeedHistory();
 
 	const activeVideo = feed.activeVideo;
 
 	useEffect(() => {
 		setActiveVideoId(activeVideo?.id ?? null);
 	}, [activeVideo?.id, setActiveVideoId]);
+
+	useEffect(() => {
+		if (!activeVideo) {
+			return;
+		}
+
+		recordHistoryItem(activeVideo);
+	}, [activeVideo, recordHistoryItem]);
 
 	const { goNext, goPrev, jumpTo } = feed;
 
@@ -116,20 +122,9 @@ export function NewsfeedPage() {
 		[jumpTo],
 	);
 
-	const viewerName = useMemo(
-		() => user?.firstName ?? user?.email ?? "bạn",
-		[user?.email, user?.firstName],
-	);
-
-	const normalizedSearch = submittedSearch.trim();
-
-	const handleSearchSubmit = useCallback((value: string) => {
-		setSubmittedSearch(value.trim());
-	}, []);
-
 	if (feed.isLoading) {
 		return (
-			<div className="h-screen bg-background">
+			<div className="min-h-[calc(100vh-64px)] bg-background">
 				<PageLoader message="Đang tải video cho bảng tin..." className="h-full" />
 			</div>
 		);
@@ -139,7 +134,7 @@ export function NewsfeedPage() {
 		const message = feed.error instanceof Error ? feed.error.message : "Không thể tải bảng tin";
 
 		return (
-			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-destructive" />
 				<h2 className="text-2xl font-bold">Tải bảng tin thất bại</h2>
 				<p className="text-muted-foreground max-w-xl">
@@ -163,7 +158,7 @@ export function NewsfeedPage() {
 
 	if (!activeVideo) {
 		return (
-			<div className="h-screen bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
+			<div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
 				<Clapperboard className="h-12 w-12 text-primary" />
 				<h2 className="text-2xl font-bold">Chưa có video để hiển thị</h2>
 				<p className="text-muted-foreground max-w-xl">
@@ -178,24 +173,10 @@ export function NewsfeedPage() {
 	}
 
 	return (
-		<div className="relative h-screen overflow-hidden bg-gradient-to-br from-primary/5 via-background to-muted/30 text-foreground dark:from-primary/10 dark:via-background dark:to-background">
-			<NewsfeedHeader
-				onToggleMenu={toggleMenu}
-				userInitials={getInitials(user?.firstName ?? user?.email ?? "U")}
-				userName={user?.firstName ?? user?.email ?? null}
-				searchValue={searchValue}
-				onSearchValueChange={setSearchValue}
-				onSearchSubmit={(value) => {
-					setSearchValue(value);
-					handleSearchSubmit(value);
-				}}
-			/>
-
-			<NewsfeedSidebar isExpanded={isMenuOpen} onClose={closeMenu} />
-
+		<div className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-gradient-to-br from-primary/5 via-background to-muted/30 text-foreground dark:from-primary/10 dark:via-background dark:to-background">
 			<main
 				className={cn(
-					"h-full pt-16 transition-all duration-300",
+					"h-[calc(100vh-64px)] pt-0 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
 					isOptionBoxOpen ? "md:pr-[592px] pr-[72px]" : "pr-[72px]",
 				)}
@@ -217,7 +198,7 @@ export function NewsfeedPage() {
 				isOpen={isOptionBoxOpen}
 				contentType={optionBoxContentType}
 				video={activeVideo}
-				viewerName={viewerName}
+				viewerName="bạn"
 				onClose={closeOptionBox}
 			/>
 
@@ -250,7 +231,7 @@ export function NewsfeedPage() {
 
 			{feed.endReached ? (
 				<div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-background/90 px-4 py-2 text-xs shadow-lg">
-					{normalizedSearch ? "Không còn kết quả phù hợp." : "Đã xem hết video đề xuất."}
+					Đã xem hết video đề xuất.
 				</div>
 			) : null}
 		</div>
