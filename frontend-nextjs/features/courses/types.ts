@@ -80,7 +80,7 @@ export interface FeedbackItem {
   isVisible: boolean;
   created_at: string;
   updated_at: string;
-  user: { id: number; firstName: string; lastName: string };
+  user: { id: number; firstName: string; lastName: string; avatarUrl?: string | null };
   reactionSummary?: ReactionSummary;
 }
 

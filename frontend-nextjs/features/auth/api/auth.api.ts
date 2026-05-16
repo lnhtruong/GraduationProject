@@ -34,6 +34,9 @@ function normalizeAuthUser(raw: unknown): User {
     lastName:
       readNullableString(source.lastName) ??
       readNullableString(source.last_name),
+    avatarUrl:
+      readNullableString(source.avatarUrl) ??
+      readNullableString(source.avatar_url),
   };
 }
 

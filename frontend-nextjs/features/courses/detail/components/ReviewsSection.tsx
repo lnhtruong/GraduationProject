@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Star, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getInitials } from "../../utils";
@@ -182,12 +182,13 @@ interface ReviewCardProps {
 }
 
 function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
-  const fullName = item.user
-    ? `${item.user.firstName} ${item.user.lastName}`.trim()
-    : "Học viên";
+  const firstName = item.user?.firstName ?? "";
+  const lastName = item.user?.lastName ?? "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Học viên";
   const initials = item.user
     ? getInitials(item.user.firstName, item.user.lastName)
     : "HV";
+  const avatarUrl = item.user?.avatarUrl;
   const date = new Date(item.created_at).toLocaleDateString("vi-VN", {
     day: "numeric",
     month: "long",
@@ -216,6 +217,7 @@ function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
   return (
     <div className={cn("flex gap-4 py-5", isOwn && "rounded-lg bg-primary/5 px-3")}>
       <Avatar className="h-10 w-10 shrink-0">
+        {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} />}
         <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
           {initials}
         </AvatarFallback>
@@ -248,43 +250,37 @@ function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
 
         {/* Reaction buttons — hidden on own review */}
         {!isOwn && (
-          <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs text-muted-foreground">Đánh giá hữu ích?</span>
+          <div className="flex items-center gap-2 pt-1.5">
+            <span className="text-xs text-muted-foreground">Hữu ích?</span>
             <button
               onClick={() => handleReaction("help_ful")}
               disabled={isPending || !currentUserId}
               className={cn(
-                "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                 currentReaction === "help_ful"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                !currentUserId && "cursor-default opacity-50",
+                  ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground",
+                (isPending || !currentUserId) && "cursor-default opacity-50",
               )}
-              title={!currentUserId ? "Đăng nhập để đánh giá" : undefined}
+              title={!currentUserId ? "Đăng nhập để đánh giá" : (currentReaction === "help_ful" ? "Bỏ đánh giá" : "Đánh dấu hữu ích")}
             >
-              <ThumbsUp className="h-3.5 w-3.5" />
-              <span>Có ích</span>
-              {helpfulCount > 0 && (
-                <span className="font-medium">({helpfulCount})</span>
-              )}
+              <ThumbsUp className="h-3 w-3" />
+              {helpfulCount > 0 ? helpfulCount : "Có ích"}
             </button>
             <button
               onClick={() => handleReaction("dislike")}
               disabled={isPending || !currentUserId}
               className={cn(
-                "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                 currentReaction === "dislike"
-                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                !currentUserId && "cursor-default opacity-50",
+                  ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-400"
+                  : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground",
+                (isPending || !currentUserId) && "cursor-default opacity-50",
               )}
-              title={!currentUserId ? "Đăng nhập để đánh giá" : undefined}
+              title={!currentUserId ? "Đăng nhập để đánh giá" : (currentReaction === "dislike" ? "Bỏ đánh giá" : "Không hữu ích")}
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
-              <span>Không</span>
-              {dislikeCount > 0 && (
-                <span className="font-medium">({dislikeCount})</span>
-              )}
+              <ThumbsDown className="h-3 w-3" />
+              {dislikeCount > 0 ? dislikeCount : "Không"}
             </button>
           </div>
         )}
