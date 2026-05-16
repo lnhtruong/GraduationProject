@@ -2,8 +2,7 @@ import type { Course } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
 import type { InstructorUser } from "../api/admin-courses.api";
 
-// Flip to false when real API is ready — components require no changes
-export const USE_MOCK = true;
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_ADMIN_REVIEW === "true";
 
 export const MOCK_ADMIN_COURSES: Course[] = [
   {

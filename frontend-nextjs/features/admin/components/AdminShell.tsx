@@ -27,7 +27,7 @@ export function AdminShell({ children }: Props) {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-muted/10">
+    <div className="flex min-h-screen bg-muted/10">
       <AdminSidebar />
       <main className="min-w-0 flex-1 overflow-y-auto p-6">
         {children}

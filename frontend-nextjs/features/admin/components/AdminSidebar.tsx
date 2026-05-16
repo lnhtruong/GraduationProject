@@ -23,11 +23,7 @@ const NAV_ITEMS = [
     href: "/admin/courses",
     icon: BookOpen,
   },
-  {
-    label: "Người dùng",
-    href: "/admin/users",
-    icon: Users,
-  },
+  // { label: "Người dùng", href: "/admin/users", icon: Users },
   {
     label: "Báo cáo vi phạm",
     href: "/admin/reports",
