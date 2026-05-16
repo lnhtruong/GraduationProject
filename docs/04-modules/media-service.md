@@ -109,6 +109,7 @@ File: `feed/feed.controller.ts` (16 endpoints — đây là module có nhiều e
 | GET | `/feed` | Cursor-paginated feed (`mode=recommended|search`, sessionId for personalization) |
 | GET | `/feed/viewed` | Feeds user đã xem |
 | GET | `/feed/saved` | Feeds user đã save |
+| GET | `/feed/mine` | Feeds user (lecturer/admin) đã đăng — phân trang offset (`page/pageSize`), filter `courseId/status`, sort `created_at|id|title` × `asc|desc`, trả `pagination` envelope (`total`, `totalPages`) |
 | GET | `/feed/trending` | Public trending |
 | GET | `/feed/stats/creator` | Creator analytics (lecturer/admin) |
 | GET | `/feed/stats/trending` | Trending analytics (admin) |

@@ -683,6 +683,140 @@ export class FeedService {
     });
   }
 
+  /**
+   * Offset-paginated list of feeds posted by the current user (lecturer/admin).
+   *
+   * "Mine" semantics: a feed item is `mine` if the underlying course is owned
+   * by the current user (i.e. `course.userId === userId`). All statuses
+   * (active/hidden/removed) are returned by default so the lecturer can
+   * manage drafts and removed posts — the response includes `status` and
+   * `created_at` to support a typical "my posts" management UI.
+   *
+   * Offset-based pagination (page / pageSize) was chosen because the
+   * management UI needs a total count and "jump to page" behaviour — which
+   * cursor pagination doesn't naturally support.
+   *
+   * @param userId    Current lecturer/admin id
+   * @param page      1-indexed page number. Default 1.
+   * @param pageSize  Page size. Clamped to [1, 100], default 20.
+   * @param courseId  Optional course filter.
+   * @param status    Optional status filter (`active|hidden|removed`).
+   * @param sortBy    Sort column — one of `created_at | id | title`. Default `created_at`.
+   * @param order     Sort direction — `asc | desc`. Default `desc`.
+   */
+  async getMyFeeds(
+    userId: number,
+    page = 1,
+    pageSize = 20,
+    courseId?: number,
+    status?: HighlightFeedStatus,
+    sortBy: 'created_at' | 'id' | 'title' = 'created_at',
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<{
+    data: Array<FeedResponseItem & {
+      status: HighlightFeedStatus;
+      created_at: Date | string | null;
+    }>;
+    pagination: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+    const safePageSize = Number.isInteger(pageSize) && pageSize > 0
+      ? Math.min(pageSize, 100)
+      : 20;
+    const offset = (safePage - 1) * safePageSize;
+
+    const allowedSortBy: ReadonlySet<string> = new Set(['created_at', 'id', 'title']);
+    const sortColumn = allowedSortBy.has(sortBy) ? sortBy : 'created_at';
+    const sortDirection = order === 'asc' ? 'ASC' : 'DESC';
+
+    const whereClause: WhereOptions<HighlightFeed> = {
+      ...(courseId && Number.isFinite(courseId) && courseId > 0 ? { course_id: courseId } : {}),
+      ...(status ? { status } : {}),
+    };
+
+    // `findAndCountAll` returns `{ rows, count }`. We use `distinct: true` so
+    // the count is on DISTINCT highlight_feed.id even when we join other
+    // tables (defensive — HighlightFeed → Course is 1:1 but this future-proofs
+    // against adding any 1-to-many include).
+    const { rows: feeds, count } = await this.highlightFeedModel.findAndCountAll({
+      where: whereClause,
+      include: [
+        { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+        {
+          model: Course,
+          required: true,
+          // Scope to feeds whose course belongs to the requester. Course
+          // status is NOT filtered here — lecturer can see feeds even after
+          // they unpublish the course.
+          where: { userId },
+          include: [{ model: User, attributes: ['id', 'firstName', 'lastName'] }],
+        },
+      ],
+      order: [[sortColumn, sortDirection]],
+      limit: safePageSize,
+      offset,
+      distinct: true,
+      // `subQuery: false` matters when combining `where` on an associated
+      // table with `limit/offset` — otherwise Sequelize applies the limit
+      // BEFORE the JOIN and the page can come back short.
+      subQuery: false,
+    });
+
+    // `findAndCountAll` with `include` may return `count` as an array when the
+    // GROUP BY clause is implicit. Normalise.
+    const total = typeof count === 'number'
+      ? count
+      : Array.isArray(count)
+        ? (count as Array<{ count: number }>).length
+        : 0;
+    const totalPages = total > 0 ? Math.ceil(total / safePageSize) : 0;
+
+    if (feeds.length === 0) {
+      return {
+        data: [],
+        pagination: { page: safePage, pageSize: safePageSize, total, totalPages },
+      };
+    }
+
+    const feedIds = feeds.map((feed) => feed.id);
+    const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(feedIds, userId);
+
+    const data = feeds
+      .map((feed) => {
+        if (!feed.video || !feed.course) {
+          return null;
+        }
+        const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+        const { user, ...courseData } = feed.course.toJSON();
+        return {
+          feed_id: feed.id,
+          title: feed.title,
+          caption: feed.caption ?? null,
+          hashtags: feed.hashtags,
+          video_type: feed.video.type,
+          video: feed.video.toJSON(),
+          course: courseData,
+          lecturer: user,
+          stats,
+          is_liked: likedSet.has(feed.id),
+          is_saved: savedSet.has(feed.id),
+          status: feed.status,
+          created_at: (feed.get('created_at') as Date | string | null) ?? null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    return {
+      data,
+      pagination: { page: safePage, pageSize: safePageSize, total, totalPages },
+    };
+  }
+
   private async assertFeedStatsAccess(
     feedId: number,
     requesterUserId: number,

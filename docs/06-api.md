@@ -225,6 +225,7 @@ Tất cả endpoint **đều phải qua gateway** (port 3000 local). Prefix `/ap
 | GET | `/api/media/feed?cursor&limit&mode&search&sessionId` | auth | `…getFeed()` |
 | GET | `/api/media/feed/viewed` | auth | `…getViewedFeeds()` |
 | GET | `/api/media/feed/saved` | auth | `…getSavedFeeds()` |
+| GET | `/api/media/feed/mine?page&pageSize&courseId&status&sortBy&order` | `[ADMIN\|LECTURER]` | `…getMyFeeds()` |
 | GET | `/api/media/feed/trending` | public | `…getPublicTrending()` |
 | GET | `/api/media/feed/stats/creator` | `[ADMIN|LECTURER]` | `…getCreatorStats()` |
 | GET | `/api/media/feed/stats/trending` | `[ADMIN|LECTURER]` | `…getTrendingStats()` |
