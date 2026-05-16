@@ -15,6 +15,7 @@ import {
   AlertCircle,
   User,
 } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -61,12 +62,28 @@ function formatPrice(price: number) {
   return price === 0 ? "Miễn phí" : `${price.toLocaleString("vi-VN")}đ`;
 }
 
-function formatDurationMins(mins?: number) {
-  if (!mins || mins <= 0) return null;
-  const h = Math.floor(mins / 60);
-  const m = Math.round(mins % 60);
+// duration từ BE là TIME(3) string "HH:MM:SS.mmm" hoặc number seconds
+function formatDuration(raw?: number | string | null): string | null {
+  if (raw == null) return null;
+  if (typeof raw === "number") {
+    if (raw <= 0) return null;
+    const h = Math.floor(raw / 3600);
+    const m = Math.floor((raw % 3600) / 60);
+    const s = Math.round(raw % 60);
+    if (h > 0) return `${h}g${m > 0 ? ` ${m}p` : ""}`;
+    if (m > 0) return `${m}p${s > 0 ? ` ${s}s` : ""}`;
+    return `${s}s`;
+  }
+  // "HH:MM:SS.mmm" or "HH:MM:SS"
+  const match = String(raw).match(/^(\d+):(\d{2}):(\d{2})/);
+  if (!match) return null;
+  const h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const s = parseInt(match[3], 10);
+  if (h === 0 && m === 0 && s === 0) return null;
   if (h > 0) return `${h}g${m > 0 ? ` ${m}p` : ""}`;
-  return `${m}p`;
+  if (m > 0) return `${m}p${s > 0 ? ` ${s}s` : ""}`;
+  return `${s}s`;
 }
 
 // ── Lesson list ──────────────────────────────────────────────────────────────
@@ -109,7 +126,6 @@ function LessonList({ courseId }: { courseId: number }) {
   }
 
   const videoCount = lessons.filter((l) => l.contentType === "video").length;
-  const textCount = lessons.filter((l) => l.contentType === "text").length;
 
   return (
     <div className="space-y-3">
@@ -125,30 +141,25 @@ function LessonList({ courseId }: { courseId: number }) {
             {videoCount} video
           </span>
         )}
-        {textCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            <FileText className="h-3 w-3" />
-            {textCount} tài liệu
-          </span>
-        )}
       </div>
 
       {/* List */}
       <div className="divide-y divide-border/50 rounded-xl border border-border/60 bg-muted/10">
-        {lessons.map((lesson, index) => (
-          <div key={lesson.id} className="flex items-center gap-3 px-3 py-2.5">
-            <span className="w-5 shrink-0 text-center text-xs text-muted-foreground/50">
-              {index + 1}
-            </span>
-            <LessonTypeIcon type={lesson.contentType} />
-            <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
-            {lesson.duration != null && lesson.duration > 0 && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {formatDurationMins(lesson.duration)}
+        {lessons.map((lesson, index) => {
+          const dur = formatDuration(lesson.duration);
+          return (
+            <div key={lesson.id} className="flex items-center gap-3 px-3 py-2.5">
+              <span className="w-5 shrink-0 text-center text-xs text-muted-foreground/50">
+                {index + 1}
               </span>
-            )}
-          </div>
-        ))}
+              <LessonTypeIcon type={lesson.contentType} />
+              <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
+              {dur && (
+                <span className="shrink-0 text-xs text-muted-foreground">{dur}</span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -177,11 +188,18 @@ function InstructorInfo({ userId }: { userId: number }) {
         instructor.email
       : `ID #${userId}`;
   const initials = instructor?.firstName?.[0]?.toUpperCase() ?? "?";
+  const avatar = instructor?.avatarUrl;
 
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-        {initials}
+      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-primary/15">
+        {avatar ? (
+          <Image src={avatar} alt={fullName} fill className="object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-xs font-bold text-primary">
+            {initials}
+          </span>
+        )}
       </div>
       <div className="min-w-0">
         <p className="truncate text-sm font-medium leading-tight">{fullName}</p>

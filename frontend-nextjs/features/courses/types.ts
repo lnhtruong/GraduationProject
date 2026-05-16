@@ -143,7 +143,8 @@ export type CourseStatus =
   | "pending"
   | "approved"
   | "rejected"
-  | "publish";
+  | "publish"
+  | "banned";
 
 export type CourseReviewAction = "accepted" | "rejected";
 

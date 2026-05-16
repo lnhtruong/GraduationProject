@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<CourseStatus, { label: string; className: string }> 
   },
   draft: {
     label: "Bản nháp",
-    className: "bg-muted text-muted-foreground",
+    className: "bg-muted text-muted-foreground border-border",
   },
   pending: {
     label: "Chờ duyệt",
@@ -25,6 +25,11 @@ const STATUS_CONFIG: Record<CourseStatus, { label: string; className: string }> 
   rejected: {
     label: "Từ chối",
     className: "bg-destructive/10 text-destructive border-destructive/20",
+  },
+  banned: {
+    label: "Đã bị cấm",
+    className:
+      "bg-zinc-900 text-zinc-100 border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
   },
 };
 
