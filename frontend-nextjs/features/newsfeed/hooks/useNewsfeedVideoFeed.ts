@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
+import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
 
-export function useNewsfeedVideoFeed(enabled = true, searchTerm = "") {
+export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVideoId?: number | null) {
   const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm);
   const [activeIndex, setActiveIndex] = useState(0);
+  const appliedInitialVideoIdRef = useRef<number | null>(null);
 
   const videos = useMemo(
     () =>
@@ -19,7 +21,30 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "") {
 
   useEffect(() => {
     setActiveIndex(0);
+    appliedInitialVideoIdRef.current = null;
   }, [searchTerm]);
+
+  useEffect(() => {
+    if (initialVideoId == null) {
+      appliedInitialVideoIdRef.current = null;
+      return;
+    }
+
+    if (appliedInitialVideoIdRef.current === initialVideoId) {
+      return;
+    }
+
+    const targetIndex = videos.findIndex(
+      (item) => item.feedId === initialVideoId || item.id === initialVideoId,
+    );
+
+    if (targetIndex < 0) {
+      return;
+    }
+
+    setActiveIndex(targetIndex);
+    appliedInitialVideoIdRef.current = initialVideoId;
+  }, [initialVideoId, videos]);
 
   const safeIndex = useMemo(() => {
     if (!totalVideos) {
@@ -34,9 +59,14 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "") {
     }
 
     const remainingVideos = totalVideos - 1 - safeIndex;
-    const shouldPrefetch = remainingVideos <= 2;
 
-    if (shouldPrefetch && hasMore && !isFetchingNextPage) {
+    if (
+      shouldPrefetchNewsfeedPage({
+        remainingItems: remainingVideos,
+        hasMore,
+        isFetchingNextPage,
+      })
+    ) {
       void feedQuery.fetchNextPage();
     }
   }, [enabled, feedQuery.fetchNextPage, hasMore, isFetchingNextPage, safeIndex, totalVideos]);

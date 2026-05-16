@@ -2,7 +2,6 @@ export type NewsfeedActionType =
 	| "course"
 	| "like"
 	| "comment"
-	| "bookmark"
 	| "save"
 	| "share";
 
@@ -75,6 +74,7 @@ export interface NewsfeedLecturer {
 export interface NewsfeedRawItem {
 	feed_id: number;
 	title?: string;
+	caption?: string | null;
 	hashtags?: string[] | null;
 	video_type?: string;
 	video: NewsfeedVideoData;
@@ -136,6 +136,88 @@ export interface NewsfeedCommentDetailResponse {
 	origin_cmt: number;
 	data: NewsfeedCommentItem[];
 	next_cursor: number | null;
+}
+
+export interface NewsfeedFeedStatsSummary {
+	totalFeeds: number;
+	views: number;
+	likes: number;
+	saves: number;
+	shares: number;
+	comments: number;
+	completionRate: number;
+}
+
+export interface NewsfeedCreatorStatsItem {
+	feedId: number;
+	title: string;
+	caption: string | null;
+	course: {
+		id: number;
+		name: string;
+	};
+	stats: {
+		views: number;
+		uniqueViewers: number;
+		completedViews: number;
+		completionRate: number;
+		averageWatchDuration: number;
+		likes: number;
+		saves: number;
+		shares: number;
+		comments: number;
+		engagementRate: number;
+	};
+}
+
+export interface NewsfeedCreatorStatsResponse {
+	summary: NewsfeedFeedStatsSummary;
+	data: NewsfeedCreatorStatsItem[];
+}
+
+export interface NewsfeedTrendingStatsItem {
+	feedId: number;
+	title: string;
+	caption: string | null;
+	course: {
+		id: number;
+		name: string;
+	};
+	rank: number;
+	stats: {
+		views: number;
+		uniqueViewers: number;
+		completedViews: number;
+		completionRate: number;
+		averageWatchDuration: number;
+		likes: number;
+		saves: number;
+		shares: number;
+		comments: number;
+		score: number;
+	};
+}
+
+export interface NewsfeedTrendingStatsResponse {
+	period: string;
+	data: NewsfeedTrendingStatsItem[];
+}
+
+export interface NewsfeedFeedMutationResponse {
+	[key: string]: unknown;
+}
+
+export interface NewsfeedViewRecordResponse {
+	recorded: boolean;
+}
+
+export interface NewsfeedCommentMutationResponse {
+	id: number;
+	content: string;
+	origin_cmt?: number | null;
+	created_at: string;
+	updated_at: string;
+	is_owner: boolean;
 }
 
 export interface NewsfeedNavItem {

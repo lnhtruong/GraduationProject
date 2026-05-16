@@ -1,9 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
+import { Image } from 'src/images_mascot/images.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
 import { NotificationService } from 'src/notifications/notification.service';
+import {
+    NotificationEventType,
+    NotificationSourceType,
+    NotificationSseEventType,
+} from 'src/notifications/notification.enums';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -54,6 +60,8 @@ export class WebhookService {
     constructor(
         @InjectModel(Video)
         private readonly videoModel: typeof Video,
+        @InjectModel(Image)
+        private readonly imageModel: typeof Image,
         // private readonly websocketService: WebsocketService,
         private readonly notificationService: NotificationService,
         private readonly bunnyService: BunnyService,
@@ -172,11 +180,11 @@ export class WebhookService {
 
         await this.notificationService.createAndEmit({
             userId: row.user_id,
-            eventType: 'video.upload.completed',
-            sseEventType: 'upload-video:completed',
+            eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
             title: 'Video upload completed',
             message: 'Your course video is ready to use',
-            sourceType: 'video',
+            sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
                 videoId: row.id,
@@ -239,9 +247,7 @@ export class WebhookService {
                 userId,
                 jobId,
             });
-        }
-
-        if (rt === 'raw') {
+        } else if (rt === 'raw') {
             if (!jobId) {
                 this.logger.warn('Cloudinary webhook missing job_id in context.custom');
                 return { ignored: true, reason: 'missing_job_id' };
@@ -249,6 +255,17 @@ export class WebhookService {
             return this.handleCloudinaryRawSrt({
                 assetUrl,
                 format,
+                userId,
+                jobId,
+            });
+        } else if (rt === 'image') {
+            return this.handleCloudinaryImage({
+                assetUrl,
+                public_id,
+                format,
+                display_name,
+                original_filename,
+                custom,
                 userId,
                 jobId,
             });
@@ -369,11 +386,11 @@ export class WebhookService {
 
         await this.notificationService.createAndEmit({
             userId,
-            eventType: 'video.upload.completed',
-            sseEventType: 'upload-video:completed',
+            eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
             title: 'Video upload completed',
             message: 'Your video has been uploaded successfully',
-            sourceType: 'video',
+            sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
                 videoId: row.id,
@@ -467,13 +484,13 @@ export class WebhookService {
                 // Bắn SSE báo progress cho FE
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.progress',
-                    sseEventType: 'video:progress',
+                    eventType: NotificationEventType.VIDEO_JOB_PROGRESS,
+                    sseEventType: NotificationSseEventType.VIDEO_PROGRESS,
                     title: 'Video processing update',
                     message: payload.stage
                         ? `Current stage: ${payload.stage}`
                         : 'Your video is being processed',
-                    sourceType: 'video_job',
+                    sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         jobId: payload.job_id,
                         type: typeForSse,
@@ -487,11 +504,11 @@ export class WebhookService {
                 // Bắn SSE báo lỗi
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.failed',
-                    sseEventType: 'video:error',
+                    eventType: NotificationEventType.VIDEO_JOB_FAILED,
+                    sseEventType: NotificationSseEventType.VIDEO_ERROR,
                     title: 'Video processing failed',
                     message: payload.error_message ?? 'Unexpected error while processing video',
-                    sourceType: 'video_job',
+                    sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         success: false,
                         jobId: payload.job_id,
@@ -534,11 +551,11 @@ export class WebhookService {
                 // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.completed',
-                    sseEventType: 'video:completed',
+                    eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
+                    sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
                     title: 'Video processing completed',
                     message: 'Your highlight video is ready',
-                    sourceType: 'video',
+                    sourceType: NotificationSourceType.VIDEO,
                     sourceId: videoId,
                     payload: {
                         videoId,
@@ -559,5 +576,97 @@ export class WebhookService {
         }
 
         return { success: true, videoId: completedVideoId };
+    }
+
+    private async handleCloudinaryImage(params: {
+        assetUrl: string;
+        public_id?: string;
+        format?: string;
+        display_name?: string;
+        original_filename?: string;
+        custom?: CloudinaryContextCustom;
+        userId: number;
+        jobId?: string;
+    }) {
+        const {
+            assetUrl,
+            public_id,
+            format,
+            display_name,
+            original_filename,
+            userId,
+            jobId,
+        } = params;
+
+        const resolvedName =
+            original_filename?.trim() ||
+            display_name?.trim() ||
+            null;
+
+        let row: Image;
+
+        if (jobId) {
+            const [img, created] = await this.imageModel.findOrCreate({
+                where: { job_id: jobId },
+                defaults: {
+                    job_id: jobId,
+                    user_id: userId,
+                    url: assetUrl,
+                    thumbnail: assetUrl,
+                    public_id: public_id ?? null,
+                    format: format ?? null,
+                    name: resolvedName,
+                },
+            });
+
+            row = img;
+
+            if (!created) {
+                await row.update({
+                    user_id: userId,
+                    url: assetUrl,
+                    thumbnail: assetUrl,
+                    public_id: public_id ?? row.public_id,
+                    format: format ?? row.format,
+                    ...(resolvedName ? { name: resolvedName } : {}),
+                });
+                this.logger.log(`Updated image row image_id=${row.image_id} job_id=${jobId}`);
+            } else {
+                this.logger.log(
+                    `Created image row image_id=${row.image_id} job_id=${jobId} user_id=${userId}`,
+                );
+            }
+        } else {
+            row = await this.imageModel.create({
+                job_id: null,
+                user_id: userId,
+                url: assetUrl,
+                thumbnail: assetUrl,
+                public_id: public_id ?? null,
+                format: format ?? null,
+                name: resolvedName,
+            });
+            this.logger.log(
+                `Created direct-upload image row image_id=${row.image_id} user_id=${userId} (no job_id)`,
+            );
+        }
+
+        await this.notificationService.createAndEmit({
+            userId,
+            eventType: NotificationEventType.IMAGE_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_IMAGE_COMPLETED,
+            title: 'Image upload completed',
+            message: 'Your image has been uploaded successfully',
+            sourceType: NotificationSourceType.IMAGE,
+            sourceId: row.image_id,
+            payload: {
+                imageId: row.image_id,
+                url: row.url,
+                name: row.name,
+                job_id: jobId,
+            },
+        });
+
+        return { success: true, id: row.image_id };
     }
 }

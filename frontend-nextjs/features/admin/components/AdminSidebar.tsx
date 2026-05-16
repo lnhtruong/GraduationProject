@@ -8,6 +8,7 @@ import {
   Users,
   ShieldCheck,
   ChevronRight,
+  Flag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,11 @@ const NAV_ITEMS = [
     label: "Người dùng",
     href: "/admin/users",
     icon: Users,
+  },
+  {
+    label: "Báo cáo vi phạm",
+    href: "/admin/reports",
+    icon: Flag,
   },
 ];
 

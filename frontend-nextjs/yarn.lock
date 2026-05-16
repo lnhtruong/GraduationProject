@@ -2219,7 +2219,7 @@
 
 "@tiptap/extension-image@^2.11.5":
   version "2.27.2"
-  resolved "https://registry.npmjs.org/@tiptap/extension-image/-/extension-image-2.27.2.tgz#c962eaae3d390e1641cffacdbd61af613306c32c"
+  resolved "https://registry.npmjs.org/@tiptap/extension-image/-/extension-image-2.27.2.tgz#c962eaae3d390e1641cffacdbd61af613307c32c"
   integrity sha512-5zL/BY41FIt72azVrCrv3n+2YJ/JyO8wxCcA4Dk1eXIobcgVyIdo4rG39gCqIOiqziAsqnqoj12QHTBtHsJ6mQ==
 
 "@tiptap/extension-italic@^2.27.2":

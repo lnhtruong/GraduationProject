@@ -37,3 +37,14 @@ export function totalLessonsDuration(lessons: { duration: number }[]): number {
 export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.trim()[0] ?? ""}${lastName.trim()[0] ?? ""}`.toUpperCase();
 }
+
+/** Parse "HH:MM:SS.mmm" or "HH:MM:SS" duration string from backend into seconds */
+export function parseHHMMSS(duration: string | null | undefined): number {
+  if (!duration) return 0;
+  const parts = duration.split(":");
+  if (parts.length < 3) return 0;
+  const h = parseInt(parts[0], 10) || 0;
+  const m = parseInt(parts[1], 10) || 0;
+  const s = parseFloat(parts[2]) || 0;
+  return h * 3600 + m * 60 + Math.floor(s);
+}

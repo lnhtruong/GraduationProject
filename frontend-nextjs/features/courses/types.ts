@@ -126,9 +126,6 @@ export interface CourseDetail {
   language: string;
   /** 0 = free */
   price: number;
-  originalPrice?: number;
-  /** ISO datetime string; show countdown when set */
-  discountEndAt?: string;
   hasCertificate: boolean;
   instructor: CourseInstructor;
   lessons: Lesson[];

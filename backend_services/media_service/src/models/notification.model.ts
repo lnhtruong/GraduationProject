@@ -1,5 +1,12 @@
 import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
 import { User } from './user.model';
+import type { NotificationEventType, NotificationSourceType } from '../notifications/notification.enums';
+import {
+  NOTIFICATION_EVENT_TYPE_MYSQL_ENUM,
+  NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM,
+} from '../notifications/notification.enums';
+
+/** Domain + MySQL ENUM — lists in `../notifications/notification.enums.ts` / knex `021_*`. */
 
 @Table({
   tableName: 'notifications',
@@ -27,10 +34,10 @@ export class Notification extends Model {
   declare user: User;
 
   @Column({
-    type: DataType.STRING(100),
+    type: DataType.ENUM(...NOTIFICATION_EVENT_TYPE_MYSQL_ENUM),
     allowNull: false,
   })
-  declare event_type: string;
+  declare event_type: NotificationEventType;
 
   @Column({
     type: DataType.STRING(255),
@@ -58,10 +65,10 @@ export class Notification extends Model {
   declare is_read: boolean;
 
   @Column({
-    type: DataType.STRING(100),
+    type: DataType.ENUM(...NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM),
     allowNull: true,
   })
-  declare source_type: string | null;
+  declare source_type: NotificationSourceType | null;
 
   @Column({
     type: DataType.INTEGER,

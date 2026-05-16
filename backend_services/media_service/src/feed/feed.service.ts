@@ -12,6 +12,11 @@ import { Course } from '../models/course.model';
 import { User } from '../models/user.model';
 import { RedisService } from '../redis/redis.service';
 import { NotificationService } from '../notifications/notification.service';
+import {
+  NotificationEventType,
+  NotificationSourceType,
+  NotificationSseEventType,
+} from '../notifications/notification.enums';
 
 type FeedResponseItem = {
   feed_id: number;
@@ -2134,13 +2139,13 @@ export class FeedService {
     if (parentComment && parentComment.user_id !== userId) {
       await this.notificationService.createAndEmit({
         userId: parentComment.user_id,
-        eventType: 'feed.comment.reply',
-        sseEventType: 'notify:created',
+        eventType: NotificationEventType.FEED_COMMENT_REPLY,
+        sseEventType: NotificationSseEventType.NOTIFY_CREATED,
         title: 'New reply to your comment',
         message: fullName
           ? `${fullName} replied to your comment`
           : 'Someone replied to your comment',
-        sourceType: 'feed_comment',
+        sourceType: NotificationSourceType.FEED_COMMENT,
         sourceId: comment.id,
         payload: {
           feedId,
@@ -2158,13 +2163,13 @@ export class FeedService {
       if (feedOwnerId != null && feedOwnerId !== userId) {
         await this.notificationService.createAndEmit({
           userId: feedOwnerId,
-          eventType: 'feed.comment.created',
-          sseEventType: 'notify:created',
+          eventType: NotificationEventType.FEED_COMMENT_CREATED,
+          sseEventType: NotificationSseEventType.NOTIFY_CREATED,
           title: 'New comment on your feed',
           message: fullName
             ? `${fullName} commented on your post`
             : 'Someone commented on your post',
-          sourceType: 'feed_comment',
+          sourceType: NotificationSourceType.FEED_COMMENT,
           sourceId: comment.id,
           payload: {
             feedId,

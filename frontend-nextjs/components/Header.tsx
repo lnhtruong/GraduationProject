@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Search,
+  ShoppingCart,
   X,
   Menu,
   User,
@@ -32,9 +33,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { canAccessInstructor } from "@/lib/roles";
 import { useUiModeStore } from "@/store/ui-mode";
+import { useCartSummary } from "@/features/cart/api/cart.hooks";
 
 const LEARNER_NAV_ITEMS = [
   { label: "Home", href: "/" },
@@ -61,6 +64,8 @@ export function Header() {
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
+  const { data: cartSummary } = useCartSummary();
+  const cartCount = isAuthenticated ? (cartSummary?.itemCount ?? 0) : 0;
 
   useEffect(() => {
     if (
@@ -237,11 +242,36 @@ export function Header() {
             </Button>
           )}
 
+          {/* Cart icon — chỉ hiện khi không phải teacher mode */}
+          {isAuthenticated && !isTeacherMode && (
+            <div className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative rounded-full border border-border/70"
+                asChild
+              >
+                <Link href="/cart" aria-label="Giỏ hàng">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                      {cartCount > 9 ? "9+" : cartCount}
+                    </span>
+                  )}
+                </Link>
+              </Button>
+            </div>
+          )}
+
           <div
             className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
           >
             <ThemeToggle />
           </div>
+
+          {isAuthenticated ? (
+            <NotificationBell className="md:inline-flex" />
+          ) : null}
 
           {/* Auth Section */}
           {isAuthenticated ? (

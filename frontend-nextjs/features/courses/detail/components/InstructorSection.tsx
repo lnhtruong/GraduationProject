@@ -1,23 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Users, BookOpen } from "lucide-react";
+import { Star, Users, BookOpen, MoreHorizontal, Flag } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ReportDialog } from "@/features/reports/components/ReportDialog";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { getInitials } from "../../utils";
 import type { CourseInstructor } from "../../types";
 
 interface Props {
   instructor: CourseInstructor;
+  courseId: number;
 }
 
-export function InstructorSection({ instructor }: Props) {
+type ReportTarget = "course" | "teacher" | null;
+
+export function InstructorSection({ instructor, courseId }: Props) {
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ReportTarget>(null);
+  const { isAuthenticated } = useAuthState();
+
   const initials = getInitials(instructor.firstName, instructor.lastName);
   const fullName = `${instructor.firstName} ${instructor.lastName}`;
 
   return (
     <section id="instructor" className="rounded-xl border border-border/60 bg-card p-6">
-      <h2 className="mb-5 text-xl font-bold">Giảng viên</h2>
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="text-xl font-bold">Giảng viên</h2>
+        {isAuthenticated && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                className="gap-2 text-muted-foreground"
+                onClick={() => setReportTarget("course")}
+              >
+                <Flag className="h-3.5 w-3.5" />
+                Báo cáo khóa học
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 text-muted-foreground"
+                onClick={() => setReportTarget("teacher")}
+              >
+                <Flag className="h-3.5 w-3.5" />
+                Báo cáo giảng viên
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       <div className="flex gap-4">
         {/* Avatar */}
@@ -77,6 +119,22 @@ export function InstructorSection({ instructor }: Props) {
           )}
         </div>
       </div>
+
+      {/* Report dialogs */}
+      <ReportDialog
+        open={reportTarget === "course"}
+        onClose={() => setReportTarget(null)}
+        targetType="course"
+        targetId={courseId}
+        targetLabel="khóa học này"
+      />
+      <ReportDialog
+        open={reportTarget === "teacher"}
+        onClose={() => setReportTarget(null)}
+        targetType="teacher"
+        targetId={instructor.id}
+        targetLabel={`giảng viên ${fullName}`}
+      />
     </section>
   );
 }
