@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FeedService } from './feed.service';
 import { FeedInteractionType } from '../models/feed_interactions.model';
+import { HighlightFeedStatus } from '../models/highlight_feed.model';
 
 @Controller('feed')
 export class FeedController {
@@ -64,7 +65,7 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('courseId') courseId?: string,
-    @Query('mode') mode?: 'recommended' | 'search',
+    @Query('mode') mode: 'recommended' | 'search' = 'search',
     @Query('search') search?: string,
     @Query('sessionId') sessionId?: string,
     @Headers('x-user-id') userIdHeader?: string,
@@ -95,6 +96,81 @@ export class FeedController {
   async getSavedFeeds(@Headers('x-user-id') userIdHeader?: string) {
     const userId = this.parseRequiredUserId(userIdHeader);
     return this.feedService.getSavedFeeds(userId);
+  }
+
+  /**
+   * GET /feed/mine — feeds the current user (lecturer/admin) has posted.
+   *
+   * Offset-based pagination tailored to the lecturer management UI: returns
+   * a `pagination` envelope with `total` and `totalPages` so the frontend can
+   * render a pager and jump to a specific page.
+   *
+   * Query params (all optional):
+   *  - `page`     1-indexed page number, default 1
+   *  - `pageSize` Items per page, default 20, max 100
+   *  - `courseId` Filter by course id
+   *  - `status`   `active | hidden | removed` — defaults to all
+   *  - `sortBy`   `created_at | id | title` — default `created_at`
+   *  - `order`    `asc | desc` — default `desc`
+   *
+   * Returns all statuses by default so the lecturer can manage drafts.
+   * The response item includes `status` and `created_at` fields on top of
+   * the standard feed shape.
+   */
+  @Get('mine')
+  async getMyFeeds(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('courseId') courseId?: string,
+    @Query('status') status?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order?: string,
+  ) {
+    const userId = this.parseRequiredUserId(userIdHeader);
+
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
+    const courseIdNum = courseId ? parseInt(courseId, 10) : undefined;
+
+    if (page && (!Number.isFinite(pageNum) || pageNum < 1)) {
+      throw new BadRequestException('Invalid page (must be a positive integer)');
+    }
+    if (pageSize && (!Number.isFinite(pageSizeNum) || pageSizeNum < 1)) {
+      throw new BadRequestException('Invalid pageSize (must be a positive integer)');
+    }
+    if (courseId && (courseIdNum === undefined || Number.isNaN(courseIdNum) || courseIdNum <= 0)) {
+      throw new BadRequestException('Invalid courseId');
+    }
+
+    let statusEnum: HighlightFeedStatus | undefined;
+    if (status) {
+      const allowed = Object.values(HighlightFeedStatus);
+      if (!(allowed as string[]).includes(status)) {
+        throw new BadRequestException(
+          `Invalid status. Allowed: ${(allowed as string[]).join(', ')}`,
+        );
+      }
+      statusEnum = status as HighlightFeedStatus;
+    }
+
+    const allowedSort = ['created_at', 'id', 'title'] as const;
+    type SortBy = typeof allowedSort[number];
+    const sortByVal: SortBy = (allowedSort as readonly string[]).includes(sortBy ?? '')
+      ? (sortBy as SortBy)
+      : 'created_at';
+
+    const orderVal: 'asc' | 'desc' = order === 'asc' ? 'asc' : 'desc';
+
+    return this.feedService.getMyFeeds(
+      userId,
+      pageNum,
+      pageSizeNum,
+      courseIdNum,
+      statusEnum,
+      sortByVal,
+      orderVal,
+    );
   }
 
   @Get('trending')
