@@ -61,6 +61,10 @@ function buildFeedHref(video: NewsfeedItem) {
 	return `/newsfeed?videoId=${video.feedId}`;
 }
 
+function normalizeHashtag(tag: string) {
+	return tag.replace(/^#+/, "").trim();
+}
+
 interface NewsfeedVideoGridProps {
 	videos: NewsfeedItem[];
 	emptyTitle: string;
@@ -96,7 +100,12 @@ export function NewsfeedVideoGrid({ videos, emptyTitle, emptyDescription, badgeL
 				{videos.map((video) => {
 					const authorName = getAuthorName(video);
 					const href = buildFeedHref(video);
-					const descriptionText = stripHtml(video.description);
+					const captionText = stripHtml(video.caption ?? video.description);
+					const hashtagText = (video.hashtags ?? [])
+						.map((tag) => normalizeHashtag(tag))
+						.filter(Boolean)
+						.map((tag) => `#${tag}`)
+						.join(" ");
 					const authorInitials = getAuthorInitials(authorName);
 
 					return (
@@ -130,8 +139,8 @@ export function NewsfeedVideoGrid({ videos, emptyTitle, emptyDescription, badgeL
 							</div>
 
 							<div className="space-y-1.5 p-3">
-								<p className="line-clamp-1 text-sm font-medium leading-5 text-foreground">
-									{descriptionText || video.title}
+								<p className="line-clamp-2 text-sm font-medium leading-5 text-foreground">
+									{[captionText || video.title, hashtagText].filter(Boolean).join(" ")}
 								</p>
 								<div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
 									<div className="flex min-w-0 items-center gap-2">

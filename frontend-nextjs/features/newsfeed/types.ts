@@ -99,6 +99,7 @@ export interface NewsfeedItem {
 	id: number;
 	feedId: number;
 	title: string;
+	caption: string | null;
 	description: string;
 	videoUrl: string;
 	thumbnail: string | null;
