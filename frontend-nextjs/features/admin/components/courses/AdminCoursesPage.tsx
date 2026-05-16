@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AdminCourseTable } from "./AdminCourseTable";
 import { AdminCourseReviewModal } from "./AdminCourseReviewModal";
 import {
@@ -22,6 +30,7 @@ import {
   useRejectCourse,
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
+import { useDebounce } from "@/hooks/useDebounce";
 
 type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
 type PriceFilter = "all" | "free" | "under200" | "200to500" | "over500";
@@ -36,6 +45,8 @@ const PRICE_RANGES: Record<PriceFilter, { label: string; test: (p: number) => bo
   over500:   { label: "Trên 500k",     test: (p) => p > 500_000 },
 };
 
+type ConfirmAction = { type: "approve"; course: Course } | { type: "reject"; course: Course };
+
 export default function AdminCoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [search, setSearch] = useState("");
@@ -45,16 +56,19 @@ export default function AdminCoursesPage() {
   const [allPage, setAllPage] = useState(1);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
-  const { data: pendingData, isLoading: isPendingLoading } = useAdminCoursesPaginated({
+  const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminCoursesPaginated({
     status: "pending",
     page: pendingPage,
     limit: PAGE_SIZE,
   });
-  const { data: allData, isLoading: isAllLoading } = useAdminCoursesPaginated({
+  const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminCoursesPaginated({
     page: allPage,
     limit: PAGE_SIZE,
   });
+
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data: pendingStats } = useAdminCourseStats("pending");
   const { data: approvedStats } = useAdminCourseStats("approved");
@@ -71,7 +85,7 @@ export default function AdminCoursesPage() {
 
   // Client-side filters: search + level + price (applied on current page)
   function applyClientFilters(courses: Course[]) {
-    const keyword = search.trim().toLowerCase();
+    const keyword = debouncedSearch.trim().toLowerCase();
     return courses.filter((c) => {
       const bySearch =
         !keyword ||
@@ -95,29 +109,35 @@ export default function AdminCoursesPage() {
   const approve = useApproveCourse();
   const reject  = useRejectCourse();
 
-  const handleInlineApprove = async (course: Course) => {
-    setApprovingId(course.id);
-    try {
-      await approve.mutateAsync(course.id);
-      toast.success(`Đã duyệt: "${course.name}"`);
-    } catch {
-      toast.error("Duyệt thất bại. Vui lòng thử lại.");
-    } finally {
-      setApprovingId(null);
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    const { course } = confirmAction;
+    if (confirmAction.type === "approve") {
+      setApprovingId(course.id);
+      try {
+        await approve.mutateAsync(course.id);
+        toast.success(`Đã duyệt: "${course.name}"`);
+      } catch {
+        toast.error("Duyệt thất bại. Vui lòng thử lại.");
+      } finally {
+        setApprovingId(null);
+      }
+    } else {
+      setRejectingId(course.id);
+      try {
+        await reject.mutateAsync(course.id);
+        toast.success(`Đã từ chối: "${course.name}"`);
+      } catch {
+        toast.error("Từ chối thất bại. Vui lòng thử lại.");
+      } finally {
+        setRejectingId(null);
+      }
     }
+    setConfirmAction(null);
   };
 
-  const handleInlineReject = async (course: Course) => {
-    setRejectingId(course.id);
-    try {
-      await reject.mutateAsync(course.id);
-      toast.success(`Đã từ chối: "${course.name}"`);
-    } catch {
-      toast.error("Từ chối thất bại. Vui lòng thử lại.");
-    } finally {
-      setRejectingId(null);
-    }
-  };
+  const handleInlineApprove = (course: Course) => setConfirmAction({ type: "approve", course });
+  const handleInlineReject  = (course: Course) => setConfirmAction({ type: "reject",  course });
 
   return (
     <div className="space-y-6">
@@ -238,23 +258,29 @@ export default function AdminCoursesPage() {
               <span className="text-sm font-semibold">Khóa học chờ duyệt</span>
               <span className="text-xs text-muted-foreground">{stats.pending} khóa học</span>
             </div>
-            <AdminCourseTable
-              courses={filteredPending}
-              isLoading={isPendingLoading}
-              showActions
-              approvingId={approvingId}
-              rejectingId={rejectingId}
-              onApprove={handleInlineApprove}
-              onReject={handleInlineReject}
-              onViewDetail={setSelectedCourse}
-            />
-            <Pagination
-              page={pendingPage}
-              totalPages={pendingTotalPages}
-              totalItems={pendingData?.pagination.totalItems ?? 0}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPendingPage}
-            />
+            {isPendingError ? (
+              <ErrorRetry onRetry={() => refetchPending()} />
+            ) : (
+              <>
+                <AdminCourseTable
+                  courses={filteredPending}
+                  isLoading={isPendingLoading}
+                  showActions
+                  approvingId={approvingId}
+                  rejectingId={rejectingId}
+                  onApprove={handleInlineApprove}
+                  onReject={handleInlineReject}
+                  onViewDetail={setSelectedCourse}
+                />
+                <Pagination
+                  page={pendingPage}
+                  totalPages={pendingTotalPages}
+                  totalItems={pendingData?.pagination.totalItems ?? 0}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPendingPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
 
@@ -267,23 +293,29 @@ export default function AdminCoursesPage() {
                 {allData?.pagination.totalItems ?? 0} khóa học
               </span>
             </div>
-            <AdminCourseTable
-              courses={filteredAll}
-              isLoading={isAllLoading}
-              showActions
-              approvingId={approvingId}
-              rejectingId={rejectingId}
-              onApprove={handleInlineApprove}
-              onReject={handleInlineReject}
-              onViewDetail={setSelectedCourse}
-            />
-            <Pagination
-              page={allPage}
-              totalPages={allTotalPages}
-              totalItems={allData?.pagination.totalItems ?? 0}
-              pageSize={PAGE_SIZE}
-              onPageChange={setAllPage}
-            />
+            {isAllError ? (
+              <ErrorRetry onRetry={() => refetchAll()} />
+            ) : (
+              <>
+                <AdminCourseTable
+                  courses={filteredAll}
+                  isLoading={isAllLoading}
+                  showActions
+                  approvingId={approvingId}
+                  rejectingId={rejectingId}
+                  onApprove={handleInlineApprove}
+                  onReject={handleInlineReject}
+                  onViewDetail={setSelectedCourse}
+                />
+                <Pagination
+                  page={allPage}
+                  totalPages={allTotalPages}
+                  totalItems={allData?.pagination.totalItems ?? 0}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setAllPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -293,6 +325,47 @@ export default function AdminCoursesPage() {
         open={selectedCourse !== null}
         onClose={() => setSelectedCourse(null)}
       />
+
+      <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              {confirmAction?.type === "approve" ? "Duyệt khóa học" : "Từ chối khóa học"}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {confirmAction?.type === "approve" ? (
+                <>Bạn có chắc muốn <strong>duyệt</strong> khóa học <strong>"{confirmAction.course.name}"</strong>?</>
+              ) : (
+                <>Bạn có chắc muốn <strong>từ chối</strong> khóa học <strong>"{confirmAction?.course.name}"</strong>? Giảng viên sẽ cần chỉnh sửa và gửi lại.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>Huỷ</Button>
+            <Button
+              variant={confirmAction?.type === "reject" ? "destructive" : "default"}
+              onClick={handleConfirm}
+              disabled={approve.isPending || reject.isPending}
+            >
+              {approve.isPending || reject.isPending ? "Đang xử lý..." : "Xác nhận"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ErrorRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+      <AlertTriangle className="h-8 w-8 text-destructive/60" />
+      <p className="text-sm text-muted-foreground">Không thể tải dữ liệu</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+        Thử lại
+      </Button>
     </div>
   );
 }

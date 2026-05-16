@@ -9,21 +9,23 @@ import {
   ShieldCheck,
   ChevronRight,
   Flag,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  {
-    label: "Tổng quan",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-  },
+  //TODO: tạm ẩn sẽ mở sau do chưa phù hợp với businessrule lắm
+  // {
+  //   label: "Tổng quan",
+  //   href: "/admin/dashboard",
+  //   icon: LayoutDashboard,
+  // },
   {
     label: "Duyệt khóa học",
     href: "/admin/courses",
     icon: BookOpen,
   },
-  // { label: "Người dùng", href: "/admin/users", icon: Users },
+  { label: "Người dùng", href: "/admin/users", icon: Users },
   {
     label: "Báo cáo vi phạm",
     href: "/admin/reports",
@@ -87,9 +89,16 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      {/* Footer hint */}
-      <div className="border-t border-border/60 px-4 py-3">
-        <p className="text-[11px] text-muted-foreground/50">
+      {/* Footer */}
+      <div className="border-t border-border/60 px-3 py-3 space-y-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+          Quay về trang chính
+        </Link>
+        <p className="px-3 text-[10px] text-muted-foreground/40">
           Chỉ Admin mới truy cập được khu vực này
         </p>
       </div>

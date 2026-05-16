@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
-import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, AlertTriangle, RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -38,13 +38,13 @@ export default function AdminReportsPage() {
 
   const targetType = typeFilter === "all" ? undefined : typeFilter;
 
-  const { data: pendingData, isLoading: isPendingLoading } = useAdminReports({
+  const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminReports({
     status: "pending",
     targetType,
     page: pendingPage,
     limit: PAGE_SIZE,
   });
-  const { data: allData, isLoading: isAllLoading } = useAdminReports({
+  const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminReports({
     targetType,
     page: allPage,
     limit: PAGE_SIZE,
@@ -190,18 +190,24 @@ export default function AdminReportsPage() {
                 {stats.pending} báo cáo
               </span>
             </div>
-            <AdminReportTable
-              reports={sortedPending}
-              isLoading={isPendingLoading}
-              onViewDetail={setSelectedReport}
-            />
-            <Pagination
-              page={pendingPage}
-              totalPages={pendingTotalPages}
-              totalItems={stats.pending}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPendingPage}
-            />
+            {isPendingError ? (
+              <ErrorRetry onRetry={() => refetchPending()} />
+            ) : (
+              <>
+                <AdminReportTable
+                  reports={sortedPending}
+                  isLoading={isPendingLoading}
+                  onViewDetail={setSelectedReport}
+                />
+                <Pagination
+                  page={pendingPage}
+                  totalPages={pendingTotalPages}
+                  totalItems={stats.pending}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPendingPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
 
@@ -214,18 +220,24 @@ export default function AdminReportsPage() {
                 {allData?.pagination.totalItems ?? 0} báo cáo
               </span>
             </div>
-            <AdminReportTable
-              reports={sortedAll}
-              isLoading={isAllLoading}
-              onViewDetail={setSelectedReport}
-            />
-            <Pagination
-              page={allPage}
-              totalPages={allTotalPages}
-              totalItems={allData?.pagination.totalItems ?? 0}
-              pageSize={PAGE_SIZE}
-              onPageChange={setAllPage}
-            />
+            {isAllError ? (
+              <ErrorRetry onRetry={() => refetchAll()} />
+            ) : (
+              <>
+                <AdminReportTable
+                  reports={sortedAll}
+                  isLoading={isAllLoading}
+                  onViewDetail={setSelectedReport}
+                />
+                <Pagination
+                  page={allPage}
+                  totalPages={allTotalPages}
+                  totalItems={allData?.pagination.totalItems ?? 0}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setAllPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -235,6 +247,19 @@ export default function AdminReportsPage() {
         open={selectedReport !== null}
         onClose={() => setSelectedReport(null)}
       />
+    </div>
+  );
+}
+
+function ErrorRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+      <AlertTriangle className="h-8 w-8 text-destructive/60" />
+      <p className="text-sm text-muted-foreground">Không thể tải dữ liệu</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+        Thử lại
+      </Button>
     </div>
   );
 }

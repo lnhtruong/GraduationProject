@@ -47,18 +47,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initAuth();
   }, []);
 
-  // Keep provider focused on auth-page behavior only.
+  // Nếu đã đăng nhập mà vẫn còn ở auth page (ví dụ: back browser về /signin)
+  // thì redirect ra khỏi auth page. SignInForm tự redirect sau login nên
+  // useEffect này chỉ là fallback cho trường hợp đặc biệt (browser back, bookmark).
   useEffect(() => {
     if (!isInitialized) return;
+    if (!isAuthenticated) return;
+    if (!isAuthPage) return;
 
-    if (isAuthenticated && isAuthPage) {
-      const params =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search)
-          : null;
-      const returnUrl = getSafeReturnUrl(params?.get("returnUrl") ?? null);
-      router.replace(returnUrl ?? "/");
-    }
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const returnUrl = getSafeReturnUrl(params?.get("returnUrl") ?? null);
+    router.replace(returnUrl ?? "/");
   }, [isInitialized, isAuthenticated, isAuthPage, router]);
 
   // Show loading while initializing

@@ -14,6 +14,8 @@ import {
   BookOpen,
   AlertCircle,
   User,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -37,6 +39,7 @@ import {
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
+import { useState } from "react";
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: "Sơ cấp",
@@ -94,8 +97,11 @@ function LessonTypeIcon({ type }: { type: Lesson["contentType"] }) {
     : <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />;
 }
 
+const LESSON_PAGE_SIZE = 10;
+
 function LessonList({ courseId }: { courseId: number }) {
   const { data: lessons, isLoading, isError } = useCourseLessons(courseId);
+  const [page, setPage] = useState(1);
 
   if (isLoading) {
     return (
@@ -126,6 +132,8 @@ function LessonList({ courseId }: { courseId: number }) {
   }
 
   const videoCount = lessons.filter((l) => l.contentType === "video").length;
+  const totalPages = Math.ceil(lessons.length / LESSON_PAGE_SIZE);
+  const paged = lessons.slice((page - 1) * LESSON_PAGE_SIZE, page * LESSON_PAGE_SIZE);
 
   return (
     <div className="space-y-3">
@@ -145,12 +153,13 @@ function LessonList({ courseId }: { courseId: number }) {
 
       {/* List */}
       <div className="divide-y divide-border/50 rounded-xl border border-border/60 bg-muted/10">
-        {lessons.map((lesson, index) => {
+        {paged.map((lesson, index) => {
+          const globalIndex = (page - 1) * LESSON_PAGE_SIZE + index;
           const dur = formatDuration(lesson.duration);
           return (
             <div key={lesson.id} className="flex items-center gap-3 px-3 py-2.5">
               <span className="w-5 shrink-0 text-center text-xs text-muted-foreground/50">
-                {index + 1}
+                {globalIndex + 1}
               </span>
               <LessonTypeIcon type={lesson.contentType} />
               <span className="min-w-0 flex-1 truncate text-sm">{lesson.title}</span>
@@ -161,6 +170,24 @@ function LessonList({ courseId }: { courseId: number }) {
           );
         })}
       </div>
+
+      {/* Lesson pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-muted-foreground">
+            {(page - 1) * LESSON_PAGE_SIZE + 1}–{Math.min(page * LESSON_PAGE_SIZE, lessons.length)} / {lessons.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page}/{totalPages}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
