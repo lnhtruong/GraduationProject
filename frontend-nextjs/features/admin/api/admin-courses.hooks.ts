@@ -111,7 +111,12 @@ export function useInstructorUser(userId: number | null) {
   return useQuery({
     queryKey: ["admin", "user", userId],
     queryFn: USE_MOCK
-      ? () => Promise.resolve(MOCK_USERS[userId ?? 0] ?? null)
+      ? () => {
+          const user = MOCK_USERS[userId ?? 0];
+          // Simulate isError when userId not in mock map (e.g. userId=999)
+          if (user === undefined) return Promise.reject(new Error("User not found"));
+          return Promise.resolve(user);
+        }
       : () => adminCourseApi.getUserById(userId!),
     enabled: userId !== null,
     staleTime: 5 * 60_000,
