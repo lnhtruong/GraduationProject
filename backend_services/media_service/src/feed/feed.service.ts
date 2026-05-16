@@ -60,6 +60,26 @@ export class FeedService {
   private readonly TRENDING_MAX_LIMIT = 50;
   private readonly TRENDING_DEFAULT_LIMIT = 20;
 
+  // ─── Recommendation tuning (centralised so they can be A/B tested) ──────
+  // Half-life (in hours) used for time-decay on freshness signal.
+  private readonly FRESHNESS_HALF_LIFE_HOURS = 36;
+  // Weight applied to the global engagement signal (likes/saves/shares/etc).
+  private readonly W_GLOBAL = 1.0;
+  // Weight applied to the personalisation signal (course/hashtag affinity).
+  private readonly W_PERSONAL = 1.5;
+  // Weight applied to the freshness (time decay) signal.
+  private readonly W_FRESHNESS = 1.2;
+  // Penalty multiplier per repeated view of the same feed item.
+  private readonly REPEAT_VIEW_PENALTY = 0.8;
+  // Maximum cumulative repeat-view penalty.
+  private readonly REPEAT_VIEW_PENALTY_CAP = 3;
+  // Exploration: probability of injecting a random fresh item every K slots.
+  private readonly EXPLORATION_RATIO = 0.15;
+  // Maximum number of consecutive items from the same lecturer/course.
+  private readonly MAX_SAME_COURSE_RUN = 2;
+  // Window (in hours) used to fetch global engagement signal for ranking.
+  private readonly GLOBAL_ENGAGEMENT_WINDOW_HOURS = 7 * 24;
+
   private parseNumberValue(value: unknown): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -1001,7 +1021,15 @@ export class FeedService {
   }
 
   private async invalidateRecommendCache(userId: number, _courseId?: number): Promise<void> {
+    // Drop the active session pointer plus any cached ranked lists for this user.
+    // Without this the user keeps paginating an out-of-date queue after an
+    // interaction, which is a common source of "I liked it but feed didn't
+    // change" complaints.
     await this.redisService.del(this.buildRecommendSessionKey(userId));
+    const listKeys = await this.redisService.scanKeys(`feed:rec:list:${userId}:*`);
+    if (listKeys.length > 0) {
+      await this.redisService.delMany(listKeys);
+    }
   }
 
   private async updateProfileAffinity(
@@ -1022,21 +1050,111 @@ export class FeedService {
     await this.setCachedProfile(userId, courseAffinity, hashtagAffinity);
   }
 
-  async precomputeRecommendedForActiveUsers(): Promise<void> {
-    const members = await this.redisService.sMembers(this.buildInteractedUsersKey());
-    const userIds = members
-      .map((value) => Number(value))
-      .filter((id) => Number.isFinite(id));
-
-    for (const userId of userIds) {
-      const sessionId = this.generateRecommendSessionId();
-      const { rankedFeeds } = await this.computeRankedCandidates(userId);
-      const rankedIds = rankedFeeds.map((item) => item.feed.id);
-      await this.setCachedRecommendList(userId, sessionId, undefined, rankedIds);
-      await this.setLatestRecommendSessionId(userId, sessionId);
+  /**
+   * Pre-compute recommendation queues for users who have recently interacted
+   * with the feed. Designed to be called by a cron job.
+   *
+   * Improvements over the previous implementation:
+   *  - Acquires a Redis lock so concurrent cron ticks don't trample each other.
+   *  - Reuses the existing session id if it's still valid (avoids burning a
+   *    fresh sessionId — and a fresh Redis key — every run).
+   *  - Processes users with bounded concurrency (8 at a time) instead of
+   *    serialising the whole batch.
+   *  - Returns lightweight stats for observability.
+   */
+  async precomputeRecommendedForActiveUsers(options?: {
+    concurrency?: number;
+    maxBatch?: number;
+  }): Promise<{ processed: number; skipped: number }> {
+    const lockKey = 'feed:rec:precompute:lock';
+    const acquired = await this.redisService.acquireLock(lockKey, 60);
+    if (!acquired) {
+      return { processed: 0, skipped: 0 };
     }
+    try {
+      const members = await this.redisService.sMembers(this.buildInteractedUsersKey());
+      const userIds = members
+        .map((value) => Number(value))
+        .filter((id) => Number.isFinite(id) && id > 0);
 
-    await this.redisService.sRem(this.buildInteractedUsersKey(), members);
+      if (userIds.length === 0) {
+        return { processed: 0, skipped: 0 };
+      }
+
+      const maxBatch = options?.maxBatch ?? 500;
+      const batch = userIds.slice(0, maxBatch);
+      const concurrency = Math.max(1, options?.concurrency ?? 8);
+      let processed = 0;
+      let skipped = 0;
+
+      const runOne = async (userId: number) => {
+        try {
+          const existingSessionId = await this.getLatestRecommendSessionId(userId);
+          const sessionId = existingSessionId ?? this.generateRecommendSessionId();
+          const { rankedFeeds } = await this.computeRankedCandidates(userId);
+          const rankedIds = rankedFeeds.map((item) => item.feed.id);
+          if (rankedIds.length === 0) {
+            skipped += 1;
+            return;
+          }
+          await this.setCachedRecommendList(userId, sessionId, undefined, rankedIds);
+          await this.setLatestRecommendSessionId(userId, sessionId);
+          processed += 1;
+        } catch (err) {
+          skipped += 1;
+          // Swallow per-user errors so one bad profile doesn't abort the batch.
+          // eslint-disable-next-line no-console
+          console.error('precompute failed for user', userId, err);
+        }
+      };
+
+      // Bounded-concurrency map
+      const queue = [...batch];
+      const workers = Array.from({ length: concurrency }, async () => {
+        while (queue.length > 0) {
+          const next = queue.shift();
+          if (next === undefined) {
+            break;
+          }
+          await runOne(next);
+        }
+      });
+      await Promise.all(workers);
+
+      // Drop the users we processed from the queue so they won't be retried
+      // until they interact again.
+      await this.redisService.sRem(
+        this.buildInteractedUsersKey(),
+        batch.map(String),
+      );
+
+      return { processed, skipped };
+    } finally {
+      await this.redisService.releaseLock(lockKey);
+    }
+  }
+
+  /**
+   * Refresh the public trending cache. Safe to call from a cron job — uses a
+   * lock so concurrent ticks don't recompute the same window twice.
+   */
+  async refreshTrendingCache(): Promise<{ count: number } | { skipped: true }> {
+    const lockKey = 'feed:trending:refresh:lock';
+    const acquired = await this.redisService.acquireLock(lockKey, 30);
+    if (!acquired) {
+      return { skipped: true };
+    }
+    try {
+      const ids = await this.computeTrendingFeedIds();
+      await this.redisService.set(
+        this.buildTrendingCacheKey(),
+        JSON.stringify(ids),
+        this.TRENDING_CACHE_TTL_SECONDS,
+      );
+      return { count: ids.length };
+    } finally {
+      await this.redisService.releaseLock(lockKey);
+    }
   }
 
   private async getFeedBasicStats(feedId: number) {
@@ -1054,6 +1172,220 @@ export class FeedService {
     return { views, likes, saves };
   }
 
+  /**
+   * Fetch richer global stats (likes / saves / shares / views / comments /
+   * completion-rate) for a list of feed ids, scoped to a recency window.
+   *
+   * This is used by the ranker so popularity is measured over the last N hours
+   * (default: 7 days) rather than lifetime — preventing "first-ever feed item
+   * dominates forever" failure mode.
+   */
+  private async getRankingSignals(
+    feedIds: number[],
+    windowHours: number,
+  ): Promise<Map<number, {
+    likes: number;
+    saves: number;
+    shares: number;
+    views: number;
+    comments: number;
+    completedViews: number;
+    avgWatchDuration: number;
+  }>> {
+    const map = new Map<number, {
+      likes: number;
+      saves: number;
+      shares: number;
+      views: number;
+      comments: number;
+      completedViews: number;
+      avgWatchDuration: number;
+    }>();
+    if (feedIds.length === 0) {
+      return map;
+    }
+
+    const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+    const [interactionRows, viewRows, commentRows] = await Promise.all([
+      this.feedInteractionModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          created_at: { [Op.gte]: since },
+        },
+        attributes: [
+          'highlight_id',
+          [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
+          [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedViewModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          viewed_at: { [Op.gte]: since },
+        },
+        attributes: [
+          'highlight_id',
+          [fn('COUNT', col('id')), 'views'],
+          [fn('SUM', literal('CASE WHEN completed = true THEN 1 ELSE 0 END')), 'completedViews'],
+          [fn('AVG', col('watch_duration')), 'avgWatchDuration'],
+        ],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedCommentModel.findAll({
+        where: {
+          highlight_id: { [Op.in]: feedIds },
+          created_at: { [Op.gte]: since },
+        },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+    ]);
+
+    const ensure = (id: number) => {
+      const existing = map.get(id);
+      if (existing) {
+        return existing;
+      }
+      const fresh = {
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        views: 0,
+        comments: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+      };
+      map.set(id, fresh);
+      return fresh;
+    };
+
+    for (const row of interactionRows as unknown as Array<Record<string, unknown>>) {
+      const id = this.parseNumberValue(row.highlight_id);
+      const entry = ensure(id);
+      entry.likes = this.parseNumberValue(row.likes);
+      entry.saves = this.parseNumberValue(row.saves);
+      entry.shares = this.parseNumberValue(row.shares);
+    }
+    for (const row of viewRows as unknown as Array<Record<string, unknown>>) {
+      const id = this.parseNumberValue(row.highlight_id);
+      const entry = ensure(id);
+      entry.views = this.parseNumberValue(row.views);
+      entry.completedViews = this.parseNumberValue(row.completedViews);
+      entry.avgWatchDuration = this.parseNumberValue(row.avgWatchDuration);
+    }
+    for (const row of commentRows as unknown as Array<Record<string, unknown>>) {
+      const id = this.parseNumberValue(row.highlight_id);
+      const entry = ensure(id);
+      entry.comments = this.parseNumberValue(row.comments);
+    }
+
+    return map;
+  }
+
+  /**
+   * Standard "Reddit/Hacker News"-style time decay using a half-life.
+   * Older items decay smoothly toward 0 instead of being a hard cutoff.
+   */
+  private freshnessScore(createdAt?: Date | string | null): number {
+    if (!createdAt) {
+      return 0;
+    }
+    const ts = createdAt instanceof Date ? createdAt.getTime() : new Date(createdAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return 0;
+    }
+    const ageHours = Math.max((Date.now() - ts) / (60 * 60 * 1000), 0);
+    // 0.5 ^ (ageHours / halfLife) → 1.0 brand-new, 0.5 after one half-life, etc.
+    return Math.pow(0.5, ageHours / this.FRESHNESS_HALF_LIFE_HOURS);
+  }
+
+  /**
+   * Wilson-style smoothed "engagement per view" so we don't reward a feed that
+   * got 1 like out of 1 view the same as 1000 likes out of 1000 views.
+   * Uses Laplace smoothing instead of full Wilson interval to keep it cheap.
+   */
+  private engagementRate(positives: number, total: number, prior = 50): number {
+    return (positives + 1) / (total + prior);
+  }
+
+  /**
+   * Greedy re-ranker that avoids showing >MAX_SAME_COURSE_RUN consecutive
+   * items from the same course/lecturer. This produces a TikTok-like
+   * interleaved feed instead of a "5 in a row from one creator" block.
+   */
+  private diversifyByCourse<T extends { feed: HighlightFeed }>(items: T[]): T[] {
+    if (items.length <= 2) {
+      return items;
+    }
+    const result: T[] = [];
+    const remaining = [...items];
+    let lastCourse: number | null = null;
+    let runLen = 0;
+    while (remaining.length > 0) {
+      let pickIndex = 0;
+      if (lastCourse !== null && runLen >= this.MAX_SAME_COURSE_RUN) {
+        const altIndex = remaining.findIndex((it) => it.feed.course_id !== lastCourse);
+        if (altIndex >= 0) {
+          pickIndex = altIndex;
+        }
+      }
+      const picked = remaining.splice(pickIndex, 1)[0];
+      if (picked.feed.course_id === lastCourse) {
+        runLen += 1;
+      } else {
+        lastCourse = picked.feed.course_id;
+        runLen = 1;
+      }
+      result.push(picked);
+    }
+    return result;
+  }
+
+  /**
+   * Mix a small fraction of "exploration" items (random, fresh, unseen) into
+   * the top of the ranked list so the user doesn't get stuck in a filter
+   * bubble. Cf. epsilon-greedy bandit.
+   */
+  private injectExploration<T extends { feed: HighlightFeed; explorationScore: number }>(
+    ranked: T[],
+  ): T[] {
+    if (ranked.length <= 4 || this.EXPLORATION_RATIO <= 0) {
+      return ranked;
+    }
+    const everyN = Math.max(2, Math.round(1 / this.EXPLORATION_RATIO));
+    // Items the ranker did NOT put in the top — pick the freshest among them
+    // and splice them in every `everyN` slots.
+    const topCutoff = Math.min(ranked.length, Math.ceil(ranked.length / 2));
+    const tail = ranked.slice(topCutoff).sort((a, b) => b.explorationScore - a.explorationScore);
+    if (tail.length === 0) {
+      return ranked;
+    }
+    const result = ranked.slice(0, topCutoff);
+    let tailCursor = 0;
+    const finalList: T[] = [];
+    for (let i = 0; i < result.length; i += 1) {
+      finalList.push(result[i]);
+      if ((i + 1) % everyN === 0 && tailCursor < tail.length) {
+        finalList.push(tail[tailCursor]);
+        tailCursor += 1;
+      }
+    }
+    // Append leftover tail (already de-duplicated by index in finalList).
+    const inserted = new Set(finalList.map((it) => it.feed.id));
+    for (const item of tail.slice(tailCursor)) {
+      if (!inserted.has(item.feed.id)) {
+        finalList.push(item);
+      }
+    }
+    return finalList;
+  }
+
   private async computeRankedCandidates(
     userId: number,
     courseId?: number,
@@ -1066,6 +1398,7 @@ export class FeedService {
     courseAffinity: Map<number, number>;
     hashtagAffinity: Map<string, number>;
   }> {
+    // ─── 1. Build / refresh the user behavioural profile ─────────────────
     const cachedProfile = await this.getCachedProfile(userId);
     const userViews = await this.feedViewModel.findAll({
       where: { user_id: userId },
@@ -1079,25 +1412,24 @@ export class FeedService {
     const viewedCount = new Map<number, number>();
 
     if (!cachedProfile) {
+      // Cold-start: replay recent views to seed affinities.
       for (const view of userViews) {
         const highlight = view.highlight;
         if (!highlight) {
           continue;
         }
-
-        const behaviorWeight = (view.completed ? 2 : 1) + Math.min((view.watch_duration || 0) / 30, 2);
+        const behaviorWeight =
+          (view.completed ? 2 : 1) + Math.min((view.watch_duration || 0) / 30, 2);
         viewedCount.set(highlight.id, (viewedCount.get(highlight.id) || 0) + 1);
         courseAffinity.set(
           highlight.course_id,
           (courseAffinity.get(highlight.course_id) || 0) + behaviorWeight,
         );
-
         const tags = this.normalizeHashtags(highlight.hashtags);
         for (const tag of tags) {
           hashtagAffinity.set(tag, (hashtagAffinity.get(tag) || 0) + behaviorWeight);
         }
       }
-
       await this.setCachedProfile(userId, courseAffinity, hashtagAffinity);
     } else {
       for (const view of userViews) {
@@ -1109,6 +1441,11 @@ export class FeedService {
       }
     }
 
+    // Pre-compute affinity normalisers so the personal score is bounded.
+    const maxCourseAffinity = Math.max(1, ...Array.from(courseAffinity.values()));
+    const maxHashtagAffinity = Math.max(1, ...Array.from(hashtagAffinity.values()));
+
+    // ─── 2. Fetch candidate feeds (unseen first, with a relaxed fallback) ─
     const seenIds = await this.getRecentSeenFeedIds(userId, 1000);
     const baseWhere = {
       status: HighlightFeedStatus.ACTIVE,
@@ -1150,30 +1487,89 @@ export class FeedService {
       });
     }
 
+    // ─── 3. Gather signals (lifetime user-state + window-scoped popularity) ─
     const feedIds = candidateFeeds.map((feed) => feed.id);
     const { statsByFeed, likedSet, savedSet } = await this.getStatsAndInteractions(feedIds, userId);
+    const signals = await this.getRankingSignals(feedIds, this.GLOBAL_ENGAGEMENT_WINDOW_HOURS);
 
-    const rankedFeeds = candidateFeeds
-      .map((feed) => {
-        const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
-        const courseScore = courseAffinity.get(feed.course_id) || 0;
-        const tags = this.normalizeHashtags(feed.hashtags);
-        const tagScore = tags.reduce((sum, tag) => sum + (hashtagAffinity.get(tag) || 0), 0);
-        const repeatedViewPenalty = Math.min((viewedCount.get(feed.id) || 0) * 0.6, 2);
+    // Normalise the lifetime "views" so a global engagement score is in a
+    // similar range to the personal/freshness signals.
+    const allViewCounts = Array.from(statsByFeed.values()).map((s) => s.views);
+    const maxViews = Math.max(1, ...allViewCounts);
 
-        const globalScore = stats.likes * 3 + stats.saves * 4 + stats.views * 0.5;
-        const personalScore = courseScore * 2 + tagScore * 1.2;
-        const recommendationScore = globalScore + personalScore - repeatedViewPenalty;
+    // ─── 4. Score every candidate ─────────────────────────────────────────
+    const scored = candidateFeeds.map((feed) => {
+      const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+      const sig = signals.get(feed.id) ?? {
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        views: 0,
+        comments: 0,
+        completedViews: 0,
+        avgWatchDuration: 0,
+      };
 
-        return { feed, stats, recommendationScore };
-      })
-      .sort((a, b) => {
-        if (b.recommendationScore !== a.recommendationScore) {
-          return b.recommendationScore - a.recommendationScore;
-        }
-        return b.feed.id - a.feed.id;
-      })
-      .map(({ feed, stats }) => ({ feed, stats }));
+      // 4a. Global popularity — Wilson-smoothed engagement rate, so 5 likes
+      //     out of 10 views beats 5 likes out of 1000 views.
+      const positives = sig.likes + sig.saves * 1.5 + sig.shares * 2 + sig.comments * 1.2;
+      const engagement = this.engagementRate(positives, Math.max(sig.views, 1));
+      // Completion rate (0..1) — strong signal that a short video is "good".
+      const completionRate = sig.views > 0 ? Math.min(sig.completedViews / sig.views, 1) : 0;
+      // log-scaled raw popularity to avoid runaway scores from viral items.
+      const popularity = Math.log10(1 + sig.views + sig.likes * 2 + sig.saves * 3 + sig.shares * 4);
+      const globalScore = engagement * 5 + completionRate * 3 + popularity;
+
+      // 4b. Personalisation — bounded to [0..1] each so the weights mean
+      //     something across users with very different histories.
+      const courseScore = (courseAffinity.get(feed.course_id) || 0) / maxCourseAffinity;
+      const tags = this.normalizeHashtags(feed.hashtags);
+      const tagScoreRaw = tags.reduce((sum, tag) => sum + (hashtagAffinity.get(tag) || 0), 0);
+      // Average tag affinity per matching tag, then normalise.
+      const tagScore = tags.length > 0
+        ? (tagScoreRaw / tags.length) / maxHashtagAffinity
+        : 0;
+      const personalScore = courseScore * 0.7 + tagScore * 0.3;
+
+      // 4c. Freshness with smooth time-decay.
+      const fresh = this.freshnessScore(feed.get('created_at') as Date | undefined);
+
+      // 4d. Repeat-view penalty — cap so a user can still see something they
+      //     liked again after the cool-down.
+      const repeatedViewPenalty = Math.min(
+        (viewedCount.get(feed.id) || 0) * this.REPEAT_VIEW_PENALTY,
+        this.REPEAT_VIEW_PENALTY_CAP,
+      );
+
+      // 4e. Normalised view-count factor (mild boost for already-popular items).
+      const viewBoost = Math.log10(1 + stats.views) / Math.log10(1 + maxViews);
+
+      const recommendationScore =
+        this.W_GLOBAL * globalScore +
+        this.W_PERSONAL * personalScore +
+        this.W_FRESHNESS * fresh +
+        0.3 * viewBoost -
+        repeatedViewPenalty;
+
+      // explorationScore: fresh items the ranker did NOT prioritise. We pick
+      // candidates whose personal score is low but freshness is high.
+      const explorationScore = fresh * 2 - personalScore;
+
+      return { feed, stats, recommendationScore, explorationScore };
+    });
+
+    // ─── 5. Sort, inject exploration, diversify by course ────────────────
+    scored.sort((a, b) => {
+      if (b.recommendationScore !== a.recommendationScore) {
+        return b.recommendationScore - a.recommendationScore;
+      }
+      return b.feed.id - a.feed.id;
+    });
+
+    const explored = this.injectExploration(scored);
+    const diversified = this.diversifyByCourse(explored);
+
+    const rankedFeeds = diversified.map(({ feed, stats }) => ({ feed, stats }));
 
     return {
       rankedFeeds,
