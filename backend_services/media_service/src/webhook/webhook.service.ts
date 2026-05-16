@@ -5,6 +5,11 @@ import { Image } from 'src/images_mascot/images.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
 import { NotificationService } from 'src/notifications/notification.service';
+import {
+    NotificationEventType,
+    NotificationSourceType,
+    NotificationSseEventType,
+} from 'src/notifications/notification.enums';
 
 interface CloudinaryContextCustom {
     userId?: string;
@@ -175,11 +180,11 @@ export class WebhookService {
 
         await this.notificationService.createAndEmit({
             userId: row.user_id,
-            eventType: 'video.upload.completed',
-            sseEventType: 'upload-video:completed',
+            eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
             title: 'Video upload completed',
             message: 'Your course video is ready to use',
-            sourceType: 'video',
+            sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
                 videoId: row.id,
@@ -381,11 +386,11 @@ export class WebhookService {
 
         await this.notificationService.createAndEmit({
             userId,
-            eventType: 'video.upload.completed',
-            sseEventType: 'upload-video:completed',
+            eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
             title: 'Video upload completed',
             message: 'Your video has been uploaded successfully',
-            sourceType: 'video',
+            sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
                 videoId: row.id,
@@ -479,13 +484,13 @@ export class WebhookService {
                 // Bắn SSE báo progress cho FE
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.progress',
-                    sseEventType: 'video:progress',
+                    eventType: NotificationEventType.VIDEO_JOB_PROGRESS,
+                    sseEventType: NotificationSseEventType.VIDEO_PROGRESS,
                     title: 'Video processing update',
                     message: payload.stage
                         ? `Current stage: ${payload.stage}`
                         : 'Your video is being processed',
-                    sourceType: 'video_job',
+                    sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         jobId: payload.job_id,
                         type: typeForSse,
@@ -499,11 +504,11 @@ export class WebhookService {
                 // Bắn SSE báo lỗi
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.failed',
-                    sseEventType: 'video:error',
+                    eventType: NotificationEventType.VIDEO_JOB_FAILED,
+                    sseEventType: NotificationSseEventType.VIDEO_ERROR,
                     title: 'Video processing failed',
                     message: payload.error_message ?? 'Unexpected error while processing video',
-                    sourceType: 'video_job',
+                    sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         success: false,
                         jobId: payload.job_id,
@@ -546,11 +551,11 @@ export class WebhookService {
                 // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
                 await this.notificationService.createAndEmit({
                     userId,
-                    eventType: 'video.job.completed',
-                    sseEventType: 'video:completed',
+                    eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
+                    sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
                     title: 'Video processing completed',
                     message: 'Your highlight video is ready',
-                    sourceType: 'video',
+                    sourceType: NotificationSourceType.VIDEO,
                     sourceId: videoId,
                     payload: {
                         videoId,
@@ -648,11 +653,11 @@ export class WebhookService {
 
         await this.notificationService.createAndEmit({
             userId,
-            eventType: 'image.upload.completed',
-            sseEventType: 'upload-image:completed',
+            eventType: NotificationEventType.IMAGE_UPLOAD_COMPLETED,
+            sseEventType: NotificationSseEventType.UPLOAD_IMAGE_COMPLETED,
             title: 'Image upload completed',
             message: 'Your image has been uploaded successfully',
-            sourceType: 'image',
+            sourceType: NotificationSourceType.IMAGE,
             sourceId: row.image_id,
             payload: {
                 imageId: row.image_id,

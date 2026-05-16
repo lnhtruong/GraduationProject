@@ -6,15 +6,20 @@ import { Notification } from 'src/models/notification.model';
 import { SseService } from 'src/sse/sse.service';
 import { PatchNotificationDto } from './dto/patch-notification.dto';
 import { BulkUpdateNotificationsDto } from './dto/bulk-update-notifications.dto';
+import {
+  NotificationEventType,
+  NotificationSourceType,
+  NotificationSseEventType,
+} from './notification.enums';
 
-type CreateNotificationInput = {
+export type CreateNotificationInput = {
   userId: number;
-  eventType: string;
-  sseEventType: string;
+  eventType: NotificationEventType;
+  sseEventType: NotificationSseEventType;
   title: string;
   message?: string | null;
   payload?: Record<string, unknown>;
-  sourceType?: string;
+  sourceType?: NotificationSourceType;
   sourceId?: number;
 };
 
@@ -24,19 +29,23 @@ export class NotificationService {
     @InjectModel(Notification)
     private readonly notificationModel: typeof Notification,
     private readonly sseService: SseService,
-  ) {}
+  ) { }
 
   async createAndEmit(input: CreateNotificationInput): Promise<Notification> {
-    const notification = await this.notificationModel.create({
-      user_id: input.userId,
-      event_type: input.eventType,
-      title: input.title,
-      message: input.message ?? null,
-      payload: input.payload ?? null,
-      source_type: input.sourceType ?? null,
-      source_id: input.sourceId ?? null,
-      is_read: false,
-    });
+    let notification;
+    if (input.eventType !== NotificationEventType.VIDEO_JOB_PROGRESS) {
+      notification = await this.notificationModel.create({
+        user_id: input.userId,
+        event_type: input.eventType,
+        title: input.title,
+        message: input.message ?? null,
+        payload: input.payload ?? null,
+        source_type: input.sourceType ?? null,
+        source_id: input.sourceId ?? null,
+        is_read: false,
+      });
+    }
+
 
     const event: MessageEvent = {
       type: input.sseEventType,
