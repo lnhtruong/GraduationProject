@@ -1,4 +1,3 @@
-import { Header } from "@/components/Header";
 import { AdminShell } from "@/features/admin/components/AdminShell";
 
 export default function AdminLayout({
@@ -6,10 +5,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <Header />
-      <AdminShell>{children}</AdminShell>
-    </>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }

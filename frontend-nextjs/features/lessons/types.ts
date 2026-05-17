@@ -6,10 +6,18 @@ export type LessonActivityStatus = "draft" | "public" | "archived" | "removed";
 
 export type LessonActivityType = "quiz" | "assignment";
 
+export interface LessonVideo {
+  id: number;
+  url: string | null;
+  duration: number | null;
+  thumbnail: string | null;
+}
+
 export interface Lesson {
   id: number;
   courseId: number;
   videoId?: number | null;
+  video?: LessonVideo | null;
   title: string;
   contentType: LessonContentType;
   content: Record<string, unknown>;

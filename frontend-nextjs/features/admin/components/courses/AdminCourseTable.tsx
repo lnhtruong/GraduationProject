@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Loader2, BookOpen, Eye } from "lucide-react";
+import { Check, X, Loader2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,8 +40,6 @@ interface Props {
   showActions?: boolean;
   approvingId?: number | null;
   rejectingId?: number | null;
-  /** courseId → lesson count, pre-fetched by parent */
-  lessonCounts?: Record<number, number>;
   onApprove?: (course: Course) => void;
   onReject?: (course: Course) => void;
   onViewDetail?: (course: Course) => void;
@@ -49,7 +47,6 @@ interface Props {
 
 export function AdminCourseTable({
   courses,
-  lessonCounts,
   isLoading,
   showActions = true,
   approvingId,
@@ -89,7 +86,6 @@ export function AdminCourseTable({
           <TableHead className="w-[38%] pl-5 font-medium text-muted-foreground">
             Khóa học
           </TableHead>
-          <TableHead className="font-medium text-muted-foreground">Bài học</TableHead>
           <TableHead className="font-medium text-muted-foreground">Level</TableHead>
           <TableHead className="font-medium text-muted-foreground">Giá</TableHead>
           <TableHead className="font-medium text-muted-foreground">Gửi lúc</TableHead>
@@ -134,24 +130,6 @@ export function AdminCourseTable({
                     </span>
                   )}
                 </div>
-              </TableCell>
-
-              {/* Lesson count */}
-              <TableCell>
-                {lessonCounts !== undefined ? (
-                  <span className="inline-flex items-center gap-1 text-sm">
-                    <BookOpen className="h-3.5 w-3.5 text-muted-foreground/60" />
-                    <span className={
-                      (lessonCounts[course.id] ?? 0) === 0
-                        ? "font-medium text-destructive"
-                        : "text-foreground"
-                    }>
-                      {lessonCounts[course.id] ?? 0}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/40">—</span>
-                )}
               </TableCell>
 
               <TableCell className="text-sm text-muted-foreground">

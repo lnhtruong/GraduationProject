@@ -16,6 +16,7 @@ function mergeUserProfile(user: User): User {
     ...user,
     firstName: user.firstName ?? currentUser.firstName ?? null,
     lastName: user.lastName ?? currentUser.lastName ?? null,
+    avatarUrl: user.avatarUrl ?? currentUser.avatarUrl ?? null,
   };
 }
 

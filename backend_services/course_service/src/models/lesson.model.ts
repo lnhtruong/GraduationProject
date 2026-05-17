@@ -1,5 +1,6 @@
 // src/models/lessons/models/lesson.model.ts
-import { Column, DataType, Model, Table, Index } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, Model, Table, Index } from 'sequelize-typescript';
+import { Video } from './video.model';
 // import { ContentType, LessonStatus } from '../enums/lesson.enum';
 
 // src/models/lessons/enums/lesson.enum.ts
@@ -38,12 +39,16 @@ export class Lesson extends Model {
   declare courseId: number;
 
   @Index('idx_lessons_video_id')
+  @ForeignKey(() => Video)
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'video_id',
   })
   declare videoId: number | null;
+
+  @BelongsTo(() => Video, { foreignKey: 'video_id', constraints: false })
+  declare video?: Video;
 
   @Column({
     type: DataType.STRING(255),

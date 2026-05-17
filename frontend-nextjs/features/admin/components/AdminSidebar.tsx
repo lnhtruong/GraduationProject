@@ -9,25 +9,25 @@ import {
   ShieldCheck,
   ChevronRight,
   Flag,
+  ArrowLeft,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const NAV_ITEMS = [
-  {
-    label: "Tổng quan",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-  },
+  //TODO: tạm ẩn sẽ mở sau do chưa phù hợp với businessrule lắm
+  // {
+  //   label: "Tổng quan",
+  //   href: "/admin/dashboard",
+  //   icon: LayoutDashboard,
+  // },
   {
     label: "Duyệt khóa học",
     href: "/admin/courses",
     icon: BookOpen,
   },
-  {
-    label: "Người dùng",
-    href: "/admin/users",
-    icon: Users,
-  },
+  { label: "Người dùng", href: "/admin/users", icon: Users },
   {
     label: "Báo cáo vi phạm",
     href: "/admin/reports",
@@ -37,6 +37,7 @@ const NAV_ITEMS = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-background">
@@ -91,11 +92,22 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      {/* Footer hint */}
-      <div className="border-t border-border/60 px-4 py-3">
-        <p className="text-[11px] text-muted-foreground/50">
-          Chỉ Admin mới truy cập được khu vực này
-        </p>
+      {/* Footer */}
+      <div className="border-t border-border/60 px-3 py-3 space-y-1">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+          Quay về trang chủ
+        </Link>
+        <button
+          onClick={() => logout()}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive/80 hover:bg-destructive/5 hover:text-destructive transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5 shrink-0" />
+          Đăng xuất
+        </button>
       </div>
     </aside>
   );

@@ -16,6 +16,7 @@ import {
   FolderOpen,
   BookOpen,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -29,13 +30,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { canAccessInstructor } from "@/lib/roles";
+import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
 import { useUiModeStore } from "@/store/ui-mode";
 import { useCartSummary } from "@/features/cart/api/cart.hooks";
 
@@ -291,6 +292,7 @@ export function Header() {
                       className="relative h-9 w-9 rounded-full border border-border/70"
                     >
                       <Avatar className="h-9 w-9">
+                        <AvatarImage src={user?.avatarUrl ?? undefined} alt={getUserDisplayName()} />
                         <AvatarFallback>{getUserInitials()}</AvatarFallback>
                       </Avatar>
                     </Button>
@@ -304,6 +306,9 @@ export function Header() {
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user?.email}
+                      </p>
+                      <p className="text-[10px] leading-none text-muted-foreground/50">
+                        {getRoleName(user?.role ?? 0)}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -320,6 +325,18 @@ export function Header() {
                       <span>Thư viện video & ảnh</span>
                     </Link>
                   </DropdownMenuItem>
+                  {/* Admin Panel — chỉ hiện với ADMIN */}
+                  {user?.role === ROLES.ADMIN && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="cursor-pointer">
+                          <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
+                          <span className="font-medium text-primary">Admin Panel</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {/* Teacher Mode — chỉ hiện với LECTURER và ADMIN */}
                   {canAccessInstructor(user?.role) && (
                     <>
