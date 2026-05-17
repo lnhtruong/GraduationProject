@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bookmark,
   Ellipsis,
@@ -51,6 +52,16 @@ function stripHtml(input?: string) {
   return safeHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function normalizeHashtag(tag: string) {
+  return tag.replace(/^#+/, "").trim();
+}
+
+interface CaptionSegment {
+  kind: "text" | "hashtag";
+  text: string;
+  tag?: string;
+}
+
 interface NewsfeedVideoCardProps {
   video: NewsfeedItem;
   isActive: boolean;
@@ -68,6 +79,7 @@ export function NewsfeedVideoCard({
   onOpenComments,
   onOpenShare,
 }: NewsfeedVideoCardProps) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
@@ -85,6 +97,7 @@ export function NewsfeedVideoCard({
   const [isSeeking, setIsSeeking] = useState(false);
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [isSaved, setIsSaved] = useState(video.isSaved);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
   const interactMutation = useNewsfeedInteractMutation();
@@ -103,33 +116,95 @@ export function NewsfeedVideoCard({
     setIsSaved(video.isSaved);
   }, [video.feedId, video.isSaved]);
 
-  const isPortraitVideo = videoAspectRatio < 1;
-  const descriptionText = useMemo(() => stripHtml(video.description), [video.description]);
-  const shortDescription = useMemo(() => {
-    if (descriptionText.length <= 90) {
-      return descriptionText;
-    }
-    return `${descriptionText.slice(0, 90)}...`;
-  }, [descriptionText]);
+  useEffect(() => {
+    setIsCaptionExpanded(false);
+  }, [video.feedId]);
 
-  const hashtags = useMemo(
+  const isPortraitVideo = videoAspectRatio < 1;
+  const captionText = useMemo(
+    () => stripHtml(video.caption ?? video.description),
+    [video.caption, video.description],
+  );
+  const hashtagItems = useMemo(
     () =>
-      video.hashtags.length > 0
-        ? video.hashtags.slice(0, 4).map((tag) => `#${tag}`).join(" ")
-        : "",
+      video.hashtags
+        .map((tag) => normalizeHashtag(tag))
+        .filter((tag) => tag.length > 0),
     [video.hashtags],
   );
+  const fullCaptionSegments = useMemo(() => {
+    const segments: CaptionSegment[] = [];
 
-  const captionLine = useMemo(() => {
-    const combined = [shortDescription, hashtags].filter(Boolean).join(" ");
-    return combined;
-  }, [hashtags, shortDescription]);
+    if (captionText) {
+      segments.push({ kind: "text", text: captionText });
+    }
+
+    hashtagItems.forEach((tag) => {
+      segments.push({ kind: "hashtag", text: `#${tag}`, tag });
+    });
+
+    return segments;
+  }, [captionText, hashtagItems]) as CaptionSegment[];
+  const collapsedCaptionSegments = useMemo(() => {
+    const limit = 110;
+    const segments: CaptionSegment[] = [];
+    let consumedLength = 0;
+
+    for (const segment of fullCaptionSegments) {
+      const separatorLength = segments.length > 0 ? 1 : 0;
+      const availableLength = limit - consumedLength - separatorLength;
+
+      if (availableLength <= 0) {
+        break;
+      }
+
+      if (separatorLength > 0) {
+        consumedLength += separatorLength;
+      }
+
+      if (segment.text.length <= availableLength) {
+        segments.push(segment);
+        consumedLength += segment.text.length;
+        continue;
+      }
+
+      if (segment.kind === "text") {
+        const clippedText = segment.text.slice(0, availableLength).trimEnd();
+        if (clippedText) {
+          segments.push({ kind: "text", text: clippedText });
+        }
+      }
+
+      break;
+    }
+
+    return segments;
+  }, [fullCaptionSegments]);
+  const fullCaptionText = useMemo(
+    () => fullCaptionSegments.map((segment) => segment.text).join(" "),
+    [fullCaptionSegments],
+  );
+  const collapsedCaptionText = useMemo(
+    () => collapsedCaptionSegments.map((segment) => segment.text).join(" "),
+    [collapsedCaptionSegments],
+  );
+  const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
 
   const displayStats = feedStatsQuery.data?.stats ?? video.stats;
-
-  const hasSeeMore = descriptionText.length > 90;
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const volumePercent = isMuted ? 0 : volume * 100;
+
+  const handleHashtagClick = useCallback(
+    (tag: string) => {
+      const query = normalizeHashtag(tag);
+      if (!query) {
+        return;
+      }
+      router.push(`/newsfeed/search?q=${encodeURIComponent(query)}`);
+    },
+    [router],
+  );
 
   const toggleInteraction = useCallback(
     async (type: "like" | "save") => {
@@ -248,14 +323,6 @@ export function NewsfeedVideoCard({
     }
   };
 
-  const handleClick = () => {
-    if (longPressTriggered.current) {
-      longPressTriggered.current = false;
-      return;
-    }
-    void handleTogglePlay();
-  };
-
   const seekFromClientX = useCallback(
     (clientX: number) => {
       const track = timelineRef.current;
@@ -305,6 +372,15 @@ export function NewsfeedVideoCard({
     }
   };
 
+  const handleVideoClick = () => {
+    if (isCaptionExpanded) {
+      setIsCaptionExpanded(false);
+      return;
+    }
+
+    void handleTogglePlay();
+  };
+
   return (
     <article
       ref={containerRef}
@@ -327,7 +403,7 @@ export function NewsfeedVideoCard({
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
-          onClick={handleClick}
+          onClick={handleVideoClick}
         >
           <video
             ref={videoRef}
@@ -393,25 +469,36 @@ export function NewsfeedVideoCard({
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={isMuted ? 0 : volume}
-              onChange={(event) => handleVolumeChange(Number(event.target.value))}
+            <div
               className={cn(
-                "h-1 w-0 appearance-none bg-transparent opacity-0 transition-all pointer-events-none",
-                "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent",
-                "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
-                "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm",
-                "[&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-sm",
-                isVolumeHovered && "w-24 opacity-100 pointer-events-auto",
+                "relative h-9 overflow-hidden rounded-full border border-white/10 bg-black/65 px-3 shadow-lg backdrop-blur-sm transition-all duration-200",
+                isVolumeHovered
+                  ? "w-28 opacity-100"
+                  : "w-0 opacity-0 pointer-events-none",
               )}
-              style={{
-                background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) 100%)`,
-              }}
-            />
+            >
+              <div className="absolute inset-x-3 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-150"
+                  style={{ width: `${volumePercent}%` }}
+                />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={isMuted ? 0 : volume}
+                onChange={(event) => handleVolumeChange(Number(event.target.value))}
+                className={cn(
+                  "relative z-10 h-full w-full appearance-none bg-transparent",
+                  "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent",
+                  "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
+                  "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm",
+                  "[&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-sm",
+                )}
+              />
+            </div>
           </div>
 
           <div
@@ -486,17 +573,65 @@ export function NewsfeedVideoCard({
             <p className="text-lg font-semibold leading-tight">
               {video.title}
             </p>
-            <div className="mt-1 flex items-baseline gap-2 text-sm text-white/85">
-              <p className="line-clamp-1">{captionLine}</p>
-              {hasSeeMore ? (
+            <div
+              className={cn(
+                "mt-1 rounded-2xl px-3 py-2 text-sm leading-6 text-white/90 transition-all duration-200",
+                isCaptionExpanded
+                  ? "bg-black/35 backdrop-blur-sm"
+                  : "bg-black/20 backdrop-blur-[1px]",
+              )}
+            >
+              <div className="whitespace-normal break-words">
+                {(isCaptionExpanded ? fullCaptionSegments : collapsedCaptionSegments).map(
+                  (segment, index) => {
+                    const content =
+                      segment.kind === "hashtag" && segment.tag ? (
+                        <button
+                          key={`${segment.text}-${index}`}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleHashtagClick(segment.tag ?? segment.text);
+                          }}
+                          className="font-bold text-white underline-offset-2 transition-opacity hover:underline hover:opacity-90"
+                        >
+                          {segment.text}
+                        </button>
+                      ) : (
+                        <span key={`${segment.text}-${index}`}>{segment.text}</span>
+                      );
+
+                    return (
+                      <span key={`${segment.text}-${index}`}>
+                        {index > 0 ? " " : null}
+                        {content}
+                      </span>
+                    );
+                  },
+                )}
+                {!isCaptionExpanded && captionHasOverflow ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsCaptionExpanded(true);
+                    }}
+                    className="ml-1 font-bold text-primary underline-offset-2 hover:underline"
+                  >
+                    ...xem thêm
+                  </button>
+                ) : null}
+              </div>
+              {isCaptionExpanded ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    onOpenCourse();
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsCaptionExpanded(false);
                   }}
-                  className="shrink-0 text-primary"
+                  className="mt-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
                 >
-                  ...xem them
+                  ẩn bớt
                 </button>
               ) : null}
             </div>

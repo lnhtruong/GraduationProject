@@ -20,7 +20,8 @@ const FEED_ENDPOINT = "/media/feed";
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
   const courseName = raw.course?.name?.trim() || "Khóa học";
   const title = raw.title?.trim() || courseName || "Video";
-  const description = raw.caption?.trim() || raw.course?.description?.trim() || title;
+  const caption = raw.caption?.trim() || null;
+  const description = caption || raw.course?.description?.trim() || title;
   const video = raw.video;
   const categories = Array.isArray(raw.course?.categories)
     ? raw.course.categories.filter((tag) => typeof tag === "string")
@@ -30,6 +31,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     id: raw.feed_id,
     feedId: raw.feed_id,
     title,
+    caption,
     description,
     videoUrl: video.url,
     thumbnail: video.thumbnail ?? null,

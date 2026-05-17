@@ -16,7 +16,7 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const { user } = useAuth();
+	const { user, isAuthenticated, logout } = useAuth();
 	const { isMenuOpen, closeMenu, toggleMenu } = useNewsfeedUiStore();
 	const initialSearchValue = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
 	const [searchValue, setSearchValue] = useState(initialSearchValue);
@@ -43,8 +43,13 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 		<div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 via-background to-muted/30 text-foreground dark:from-primary/10 dark:via-background dark:to-background">
 			<NewsfeedHeader
 				onToggleMenu={toggleMenu}
+				isAuthenticated={isAuthenticated}
 				userInitials={userInitials}
 				userName={userName}
+				onLogout={() => {
+					void logout();
+					router.push("/signin");
+				}}
 				searchValue={searchValue}
 				onSearchValueChange={setSearchValue}
 				onSearchSubmit={handleSearchSubmit}
