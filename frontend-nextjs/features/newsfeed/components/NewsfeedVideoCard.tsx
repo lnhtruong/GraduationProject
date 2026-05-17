@@ -193,6 +193,7 @@ export function NewsfeedVideoCard({
   const displayStats = feedStatsQuery.data?.stats ?? video.stats;
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const volumePercent = isMuted ? 0 : volume * 100;
 
   const handleHashtagClick = useCallback(
     (tag: string) => {
@@ -468,25 +469,36 @@ export function NewsfeedVideoCard({
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={isMuted ? 0 : volume}
-              onChange={(event) => handleVolumeChange(Number(event.target.value))}
+            <div
               className={cn(
-                "h-1 w-0 appearance-none bg-transparent opacity-0 transition-all pointer-events-none",
-                "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent",
-                "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
-                "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm",
-                "[&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-sm",
-                isVolumeHovered && "w-24 opacity-100 pointer-events-auto",
+                "relative h-9 overflow-hidden rounded-full border border-white/10 bg-black/65 px-3 shadow-lg backdrop-blur-sm transition-all duration-200",
+                isVolumeHovered
+                  ? "w-28 opacity-100"
+                  : "w-0 opacity-0 pointer-events-none",
               )}
-              style={{
-                background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) ${volume * 100}%, hsl(var(--muted-foreground) / 0.28) 100%)`,
-              }}
-            />
+            >
+              <div className="absolute inset-x-3 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-150"
+                  style={{ width: `${volumePercent}%` }}
+                />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={isMuted ? 0 : volume}
+                onChange={(event) => handleVolumeChange(Number(event.target.value))}
+                className={cn(
+                  "relative z-10 h-full w-full appearance-none bg-transparent",
+                  "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent",
+                  "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
+                  "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm",
+                  "[&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-sm",
+                )}
+              />
+            </div>
           </div>
 
           <div
