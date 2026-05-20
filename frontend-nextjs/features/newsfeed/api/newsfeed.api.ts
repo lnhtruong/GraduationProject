@@ -7,7 +7,6 @@ import type {
   NewsfeedActionType,
   NewsfeedCreatorStatsResponse,
   NewsfeedFeedMutationResponse,
-  NewsfeedFeedDetailStatsResponse,
   NewsfeedItem,
   NewsfeedTrendingStatsResponse,
   NewsfeedPageResponse,
@@ -17,12 +16,49 @@ import type {
 
 const FEED_ENDPOINT = "/media/feed";
 
+const MEDIA_EXTENSIONS = ["mp4", "webm", "mov", "m4v"] as const;
+
+function normalizeMediaUrl(url?: string | null) {
+  if (!url) {
+    return "";
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const pathname = parsedUrl.pathname;
+    const duplicatedSegmentPattern = new RegExp(
+      `^(.*\/)([^/]+\\.(?:${MEDIA_EXTENSIONS.join("|")}))\/\\2$`,
+      "i",
+    );
+    const collapsedPathname = pathname.replace(
+      duplicatedSegmentPattern,
+      "$1$2",
+    );
+
+    if (collapsedPathname !== pathname) {
+      parsedUrl.pathname = collapsedPathname;
+      return parsedUrl.toString();
+    }
+  } catch {
+    // Keep the original string when it is not a valid absolute URL.
+  }
+
+  return trimmed;
+}
+
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
   const courseName = raw.course?.name?.trim() || "Khóa học";
   const title = raw.title?.trim() || courseName || "Video";
   const caption = raw.caption?.trim() || null;
   const description = caption || raw.course?.description?.trim() || title;
   const video = raw.video;
+  const videoUrl = normalizeMediaUrl(video.url);
+  const thumbnailUrl = normalizeMediaUrl(video.thumbnail);
   const categories = Array.isArray(raw.course?.categories)
     ? raw.course.categories.filter((tag) => typeof tag === "string")
     : [];
@@ -33,8 +69,8 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     title,
     caption,
     description,
-    videoUrl: video.url,
-    thumbnail: video.thumbnail ?? null,
+    videoUrl,
+    thumbnail: thumbnailUrl || null,
     type: raw.video_type ?? video.type ?? "không xác định",
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
     lecturer: raw.lecturer,
@@ -58,7 +94,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
       userId: Number(raw.course?.userId ?? 0),
       status: raw.course?.status ?? "published",
       categories,
-      thumbnail: raw.course?.thumbnail ?? video.thumbnail ?? null,
+      thumbnail: raw.course?.thumbnail ?? (thumbnailUrl || null),
       description,
       created_at:
         raw.course?.created_at ?? video.created_at ?? new Date().toISOString(),
@@ -253,13 +289,6 @@ export const newsfeedApi = createApi({
         content,
         origin_cmt: originCmt ?? null,
       },
-    );
-    return data;
-  },
-
-  getFeedDetailStats: async ({ feedId }: { feedId: number }): Promise<NewsfeedFeedDetailStatsResponse> => {
-    const { data } = await apiHttpClient.get<NewsfeedFeedDetailStatsResponse>(
-      `${FEED_ENDPOINT}/${feedId}/stats`,
     );
     return data;
   },
