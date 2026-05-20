@@ -12,6 +12,7 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
@@ -40,18 +41,22 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(loginDto);
-
-    res.cookie(
-      COOKIE_CONFIG.REFRESH_TOKEN_NAME,
-      result.refreshToken,
-      COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+    return this.respondWithAuthTokens(
+      await this.authService.login(loginDto),
+      res,
     );
+  }
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-    };
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async googleLogin(
+    @Body() googleLoginDto: GoogleLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.respondWithAuthTokens(
+      await this.authService.googleLogin(googleLoginDto),
+      res,
+    );
   }
 
   @Post('refresh')
@@ -115,5 +120,21 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async checkOtp(@Body() checkOtpDto: CheckOtpDto) {
     return this.authService.checkOtpAndResetPassword(checkOtpDto);
+  }
+
+  private respondWithAuthTokens(
+    result: { user: object; accessToken: string; refreshToken: string },
+    res: Response,
+  ) {
+    res.cookie(
+      COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+      result.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+    );
+
+    return {
+      user: result.user,
+      accessToken: result.accessToken,
+    };
   }
 }
