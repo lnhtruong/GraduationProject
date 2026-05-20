@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
 import type { NewsfeedOptionBoxContentType } from "../store/newsfeed-ui.store";
-import { useNewsfeedFeedDetailStats } from "../api/newsfeed.hooks";
 import { NewsfeedCommentsPanel } from "./NewsfeedCommentsPanel";
 import { NewsfeedCoursePanel } from "./NewsfeedCoursePanel";
 
@@ -28,12 +27,7 @@ export function NewsfeedOptionBox({
   onClose,
 }: NewsfeedOptionBoxProps) {
   const [sortOrder, setSortOrder] = useState<CommentSortOrder>("newest");
-  const feedStatsQuery = useNewsfeedFeedDetailStats(
-    video?.feedId ?? null,
-    isOpen && contentType === "comments" && Boolean(video),
-  );
-
-  const commentCount = feedStatsQuery.data?.stats.comments ?? video?.stats.comments ?? 0;
+  const commentCount = video?.stats.comments ?? 0;
   const commentCountLabel = useMemo(() => commentCount.toLocaleString("vi-VN"), [commentCount]);
 
   return (

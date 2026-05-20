@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
-import { useNewsfeedFeedDetailStats, useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
+import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
 import { getInitials } from "./newsfeed-ui";
 
@@ -54,6 +54,10 @@ function stripHtml(input?: string) {
 
 function normalizeHashtag(tag: string) {
   return tag.replace(/^#+/, "").trim();
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 interface CaptionSegment {
@@ -99,7 +103,6 @@ export function NewsfeedVideoCard({
   const [isSaved, setIsSaved] = useState(video.isSaved);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const timelineRef = useRef<HTMLDivElement | null>(null);
-  const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
   const interactMutation = useNewsfeedInteractMutation();
   useNewsfeedViewTracker({
     feedId: video.feedId,
@@ -190,7 +193,7 @@ export function NewsfeedVideoCard({
   );
   const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
 
-  const displayStats = feedStatsQuery.data?.stats ?? video.stats;
+  const displayStats = video.stats;
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const volumePercent = isMuted ? 0 : volume * 100;
@@ -237,9 +240,18 @@ export function NewsfeedVideoCard({
       try {
         await element.play();
         setIsPaused(false);
-      } catch {
+      } catch (error) {
+        if (isAbortError(error)) {
+          return;
+        }
         element.muted = true;
         setIsMuted(true);
+        try {
+          await element.play();
+          setIsPaused(false);
+        } catch {
+          // Ignore secondary playback failures.
+        }
       }
       return;
     }
@@ -284,12 +296,25 @@ export function NewsfeedVideoCard({
 
     if (isActive) {
       element.currentTime = 0;
-      void element.play().catch(() => {
-        element.muted = true;
-        setIsMuted(true);
-        void element.play();
-      });
-      setIsPaused(false);
+      void element.play()
+        .then(() => {
+          setIsPaused(false);
+        })
+        .catch((error) => {
+          if (isAbortError(error)) {
+            return;
+          }
+
+          element.muted = true;
+          setIsMuted(true);
+          void element.play()
+            .then(() => {
+              setIsPaused(false);
+            })
+            .catch(() => {
+              // Ignore secondary playback failures.
+            });
+        });
       return;
     }
 
@@ -408,7 +433,6 @@ export function NewsfeedVideoCard({
           <video
             ref={videoRef}
             key={video.id}
-            src={video.videoUrl}
             poster={video.thumbnail ?? undefined}
             data-active={isActive}
             className="h-full w-full object-contain"
@@ -417,6 +441,7 @@ export function NewsfeedVideoCard({
             loop
             muted={isMuted}
             preload={shouldPreload ? "auto" : "metadata"}
+            crossOrigin="anonymous"
             onLoadedMetadata={(event) => {
               const { videoWidth, videoHeight } = event.currentTarget;
               if (videoWidth > 0 && videoHeight > 0) {
@@ -427,7 +452,9 @@ export function NewsfeedVideoCard({
             onTimeUpdate={(event) => {
               setCurrentTime(event.currentTarget.currentTime || 0);
             }}
-          />
+          >
+            <source src={video.videoUrl} type="video/mp4" />
+          </video>
 
           <div
             className={cn(
