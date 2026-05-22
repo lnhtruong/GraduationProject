@@ -1,9 +1,5 @@
-// import Home from "@/features/home";
-import GoogleLoginTest from "./components/login_google.test";
-// import SseTestClient from "./components/SseTestClient";
+import Home from "@/features/home";
 
 export default function HomePage() {
-  // return <Home />;
-  // return <SseTestClient />;
-  return <GoogleLoginTest />;
+  return <Home />;
 }

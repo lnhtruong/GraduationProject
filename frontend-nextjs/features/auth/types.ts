@@ -16,6 +16,10 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface GoogleLoginRequest {
+  credential: string;
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
@@ -26,6 +30,12 @@ export interface RegisterRequest {
 export interface LoginResponse {
   user: User;
   accessToken: string;
+}
+
+export interface GoogleLoginResponse {
+  user: User;
+  accessToken: string;
+  refreshToken?: string;
 }
 
 export interface RegisterResponse {
