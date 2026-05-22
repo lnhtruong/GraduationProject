@@ -66,3 +66,7 @@ tmp/
 .temp/
 *.tmp
 *.swp
+
+.claude
+.codegraph
+.claude.json

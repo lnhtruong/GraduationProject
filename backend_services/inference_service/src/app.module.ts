@@ -1,20 +1,26 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
-// import databaseConfig from './config/database.config';
-// import { SequelizeModule } from '@nestjs/sequelize';
+
+import { RedisModule } from './redis/redis.module';
+import { ColabModule } from './colab/colab.module';
+import colabConfig from './config/colab.config';
+import redisConfig from './config/redis.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      // load: [databaseConfig],
+      load: [colabConfig, redisConfig],
     }),
     HttpModule,
+    RedisModule,
+    ColabModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

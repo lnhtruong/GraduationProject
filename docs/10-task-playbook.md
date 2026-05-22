@@ -113,6 +113,17 @@
 | UI primitive | `frontend-nextjs/components/ui/` (shadcn) |
 | Update | `frontend-nextjs.md` nếu thêm feature folder mới |
 
+### Inference (Colab pool) / highlight-reel / generate-quiz / job status
+| Bước | Hành động |
+|------|-----------|
+| Đọc | `docs/04-modules/inference-service.md` |
+| Code | `backend_services/inference_service/src/app.controller.ts` + `app.service.ts` |
+| Pool | `backend_services/inference_service/src/colab/colab-pool.service.ts` (round-robin + health) |
+| Job mapping | `backend_services/inference_service/src/colab/job-registry.service.ts` (Redis) |
+| Env | `COLAB_API_URLS` (multi, comma-separated), Redis vars — xem `.env.example` |
+| Access rule | `api_gateway/src/middleware/access-policy.ts` đã có `/api/mascot_colab/**` (auth) |
+| Update | `inference-service.md`, `06-api.md` |
+
 ### API Gateway (route mới, access rule, rate limit)
 | Bước | Hành động |
 |------|-----------|

@@ -252,13 +252,26 @@ Tất cả endpoint **đều phải qua gateway** (port 3000 local). Prefix `/ap
 | GET | `/api/payment/return` | public | HTML success |
 | GET | `/api/payment/cancel` | public | HTML cancel |
 
-## `/api/mascot_colab/*` → mascot AI model service (deploy-model)
+## `/api/mascot_colab/*` → inference_service (Colab pool)
 
-| Method | Path | Auth |
-|--------|------|------|
-| `*` | `/api/mascot_colab/**` | auth |
+Service đích là `backend_services/inference_service` (NestJS). Service này
+forward request đến **pool các Colab notebook** (ngrok). Mỗi POST trả `job_id`;
+mapping `jobId → colabUrl` được lưu trong Redis để route đúng worker khi
+poll status / download.
 
-> Service đích là Python (FastAPI?) ở `deploy-model/`. Endpoint chi tiết xem `deploy-model/main.py`.
+| Method | Path | Auth | Handler (inference_service) |
+|--------|------|------|------------------------------|
+| GET | `/api/mascot_colab/` | auth | `AppController.getHome()` |
+| GET | `/api/mascot_colab/pool/status` | auth | `AppController.getPoolStatus()` |
+| POST | `/api/mascot_colab/highlight-reel` | auth | `AppController.createHighlightReel()` (multipart) |
+| POST | `/api/mascot_colab/highlight-reel-link` | auth | `AppController.createHighlightReelLink()` (JSON `{ video_url }`) |
+| POST | `/api/mascot_colab/generate-quiz` | auth | `AppController.generateQuiz()` |
+| POST | `/api/mascot_colab/mascot` | auth | `AppController.createMascotJob()` |
+| GET | `/api/mascot_colab/jobs/status/:job_id` | auth | `AppController.getJobStatus()` — Redis lookup |
+| GET | `/api/mascot_colab/download/:job_id` | auth | `AppController.downloadVideo()` — Redis lookup, stream |
+
+Access rule chung: `{ method: '*', pattern: '/api/mascot_colab/**', access: 'authenticated' }`.
+Chi tiết flow xem `docs/04-modules/inference-service.md`.
 
 ## WebSocket / Socket.IO
 
