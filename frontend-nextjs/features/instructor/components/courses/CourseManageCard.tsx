@@ -69,7 +69,12 @@ function StatusBadge({ status }: { status: CourseStatus }) {
       className: "bg-destructive/10 text-destructive",
     },
   };
-  const { label, className } = config[status];
+  const { label, className } =
+    config[status] ??
+    {
+      label: status ?? "Unknown",
+      className: "bg-muted text-muted-foreground",
+    };
   return (
     <Badge variant="outline" className={cn("text-[11px]", className)}>
       {label}

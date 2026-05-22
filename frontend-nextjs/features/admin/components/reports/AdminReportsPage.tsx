@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo, type ReactNode } from "react";
+import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, AlertTriangle, RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -17,24 +17,34 @@ import { useAdminReports } from "../../api/admin-reports.hooks";
 import type { Report, ReportTargetType } from "../../types/report.types";
 
 type TypeFilter = "all" | ReportTargetType;
+type SortOrder = "newest" | "oldest";
 
 const PAGE_SIZE = 10;
+
+function sortReports(reports: Report[], order: SortOrder): Report[] {
+  return [...reports].sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    return order === "newest" ? tb - ta : ta - tb;
+  });
+}
 
 export default function AdminReportsPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [pendingPage, setPendingPage] = useState(1);
   const [allPage, setAllPage] = useState(1);
 
   const targetType = typeFilter === "all" ? undefined : typeFilter;
 
-  const { data: pendingData, isLoading: isPendingLoading } = useAdminReports({
+  const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminReports({
     status: "pending",
     targetType,
     page: pendingPage,
     limit: PAGE_SIZE,
   });
-  const { data: allData, isLoading: isAllLoading } = useAdminReports({
+  const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminReports({
     targetType,
     page: allPage,
     limit: PAGE_SIZE,
@@ -51,7 +61,9 @@ export default function AdminReportsPage() {
   const pendingTotalPages = pendingData?.pagination.totalPages ?? 1;
   const allTotalPages = allData?.pagination.totalPages ?? 1;
 
-  // Reset to page 1 when filter changes
+  const sortedPending = useMemo(() => sortReports(pendingData?.items ?? [], sortOrder), [pendingData, sortOrder]);
+  const sortedAll     = useMemo(() => sortReports(allData?.items     ?? [], sortOrder), [allData,     sortOrder]);
+
   const handleTypeFilter = (v: string) => {
     setTypeFilter(v as TypeFilter);
     setPendingPage(1);
@@ -98,8 +110,9 @@ export default function AdminReportsPage() {
       {/* Tabs */}
       <Tabs defaultValue="pending" className="space-y-4">
         {/* Toolbar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="h-9 rounded-lg bg-muted/50 p-0.5">
+        <div className="flex flex-col gap-3">
+          {/* Row 1: tabs */}
+          <TabsList className="h-9 w-fit rounded-lg bg-muted/50 p-0.5">
             <TabsTrigger value="pending" className="h-8 gap-2 rounded-md px-4 text-sm">
               Chờ xử lý
               {stats.pending > 0 && (
@@ -113,32 +126,59 @@ export default function AdminReportsPage() {
             </TabsTrigger>
           </TabsList>
 
-          <Select value={typeFilter} onValueChange={handleTypeFilter}>
-            <SelectTrigger size="sm" className="h-9 w-40 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả loại</SelectItem>
-              <SelectItem value="teacher">
-                <span className="flex items-center gap-1.5">
-                  <GraduationCap className="h-3.5 w-3.5 text-orange-500" />
-                  Giảng viên
-                </span>
-              </SelectItem>
-              <SelectItem value="course">
-                <span className="flex items-center gap-1.5">
-                  <BookOpen className="h-3.5 w-3.5 text-blue-500" />
-                  Khóa học
-                </span>
-              </SelectItem>
-              <SelectItem value="lesson">
-                <span className="flex items-center gap-1.5">
-                  <PlayCircle className="h-3.5 w-3.5 text-purple-500" />
-                  Bài học
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Row 2: filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+            {/* Type filter */}
+            <Select value={typeFilter} onValueChange={handleTypeFilter}>
+              <SelectTrigger size="sm" className="h-8 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả loại</SelectItem>
+                <SelectItem value="teacher">
+                  <span className="flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5 text-orange-500" />Giảng viên
+                  </span>
+                </SelectItem>
+                <SelectItem value="course">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-blue-500" />Khóa học
+                  </span>
+                </SelectItem>
+                <SelectItem value="lesson">
+                  <span className="flex items-center gap-1.5">
+                    <PlayCircle className="h-3.5 w-3.5 text-purple-500" />Bài học
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sort by time */}
+            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+              <SelectTrigger size="sm" className="h-8 w-[150px] text-xs">
+                <ArrowUpDown className="mr-1.5 h-3 w-3 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Mới nhất trước</SelectItem>
+                <SelectItem value="oldest">Cũ nhất trước</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Clear filters */}
+            {(typeFilter !== "all" || sortOrder !== "newest") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => { setTypeFilter("all"); setSortOrder("newest"); setPendingPage(1); setAllPage(1); }}
+              >
+                Xóa filter
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tab: pending */}
@@ -150,18 +190,24 @@ export default function AdminReportsPage() {
                 {stats.pending} báo cáo
               </span>
             </div>
-            <AdminReportTable
-              reports={pendingData?.items ?? []}
-              isLoading={isPendingLoading}
-              onViewDetail={setSelectedReport}
-            />
-            <Pagination
-              page={pendingPage}
-              totalPages={pendingTotalPages}
-              totalItems={stats.pending}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPendingPage}
-            />
+            {isPendingError ? (
+              <ErrorRetry onRetry={() => refetchPending()} />
+            ) : (
+              <>
+                <AdminReportTable
+                  reports={sortedPending}
+                  isLoading={isPendingLoading}
+                  onViewDetail={setSelectedReport}
+                />
+                <Pagination
+                  page={pendingPage}
+                  totalPages={pendingTotalPages}
+                  totalItems={stats.pending}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPendingPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
 
@@ -174,18 +220,24 @@ export default function AdminReportsPage() {
                 {allData?.pagination.totalItems ?? 0} báo cáo
               </span>
             </div>
-            <AdminReportTable
-              reports={allData?.items ?? []}
-              isLoading={isAllLoading}
-              onViewDetail={setSelectedReport}
-            />
-            <Pagination
-              page={allPage}
-              totalPages={allTotalPages}
-              totalItems={allData?.pagination.totalItems ?? 0}
-              pageSize={PAGE_SIZE}
-              onPageChange={setAllPage}
-            />
+            {isAllError ? (
+              <ErrorRetry onRetry={() => refetchAll()} />
+            ) : (
+              <>
+                <AdminReportTable
+                  reports={sortedAll}
+                  isLoading={isAllLoading}
+                  onViewDetail={setSelectedReport}
+                />
+                <Pagination
+                  page={allPage}
+                  totalPages={allTotalPages}
+                  totalItems={allData?.pagination.totalItems ?? 0}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setAllPage}
+                />
+              </>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -195,6 +247,19 @@ export default function AdminReportsPage() {
         open={selectedReport !== null}
         onClose={() => setSelectedReport(null)}
       />
+    </div>
+  );
+}
+
+function ErrorRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+      <AlertTriangle className="h-8 w-8 text-destructive/60" />
+      <p className="text-sm text-muted-foreground">Không thể tải dữ liệu</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+        Thử lại
+      </Button>
     </div>
   );
 }

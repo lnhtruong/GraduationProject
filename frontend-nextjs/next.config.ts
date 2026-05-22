@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "placehold.co",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
       // TODO: thêm các hostname khác khi dùng ảnh từ CDN/backend
     ],
   },

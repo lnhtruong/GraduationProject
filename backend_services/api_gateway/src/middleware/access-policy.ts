@@ -291,26 +291,22 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'GET',
     pattern: '/api/course/carts',
-    access: 'roles',
-    roles: [UserRole.STUDENT],
+    access: 'authenticated',
   },
   {
     method: 'POST',
     pattern: '/api/course/carts/items',
-    access: 'roles',
-    roles: [UserRole.STUDENT],
+    access: 'authenticated',
   },
   {
     method: 'DELETE',
     pattern: '/api/course/carts/items/:courseId',
-    access: 'roles',
-    roles: [UserRole.STUDENT],
+    access: 'authenticated',
   },
   {
     method: 'DELETE',
     pattern: '/api/course/carts',
-    access: 'roles',
-    roles: [UserRole.STUDENT],
+    access: 'authenticated',
   },
   {
     method: 'GET',

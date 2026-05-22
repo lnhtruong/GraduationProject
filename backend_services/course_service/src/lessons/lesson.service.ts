@@ -6,6 +6,7 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 // import { LessonStatus } from './enums/lesson.enum';
 import { Op } from 'sequelize';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
+import { Video } from 'src/models/video.model';
 import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
 import { GetLessonsQueryDto } from './dto/get-lessons-query.dto';
 import { CoursesService } from 'src/course/course.service';
@@ -60,6 +61,13 @@ export class LessonsService {
 
     const { rows, count } = await this.lessonModel.findAndCountAll({
       where: whereCondition,
+      include: [
+        {
+          model: Video,
+          attributes: ['id', 'url', 'duration', 'thumbnail'],
+          required: false,
+        },
+      ],
       limit,
       offset,
       order: [['id', 'ASC']],
