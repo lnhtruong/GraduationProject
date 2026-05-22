@@ -41,6 +41,7 @@ interface RawUser {
   id?: number;
   firstName?: string;
   lastName?: string;
+  avatarUrl?: string | null;
 }
 
 interface RawLessonListResponse {
@@ -71,6 +72,7 @@ function mapInstructor(raw: RawUser): CourseInstructor {
     id: raw.id ?? 0,
     firstName: raw.firstName ?? "",
     lastName: raw.lastName ?? "",
+    avatarUrl: raw.avatarUrl ?? undefined,
   };
 }
 

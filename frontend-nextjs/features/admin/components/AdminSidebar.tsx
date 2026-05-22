@@ -16,12 +16,11 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const NAV_ITEMS = [
-  //TODO: tạm ẩn sẽ mở sau do chưa phù hợp với businessrule lắm
-  // {
-  //   label: "Tổng quan",
-  //   href: "/admin/dashboard",
-  //   icon: LayoutDashboard,
-  // },
+  {
+    label: "Tổng quan",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
   {
     label: "Duyệt khóa học",
     href: "/admin/courses",

@@ -17,7 +17,7 @@ export interface UpdateUserDto {
   lastName?: string;
   role?: number;
   avatarUrl?: string;
-  // isBanned: chờ backend thêm field vào UpdateUserDto và fix @IsOptional() trên password
+  isBanned?: boolean;
 }
 
 export const adminUsersApi = {
