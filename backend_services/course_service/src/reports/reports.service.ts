@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
@@ -191,16 +192,24 @@ export class ReportsService {
       throw new ConflictException('Report đã được duyệt trước đó');
     }
 
-    if (payload.decision === ReportStatus.APPROVED && payload.banTarget) {
-      await this.banTarget(report.targetType, report.targetId);
-    }
-
     await report.update({
       status: payload.decision,
       approverId,
       reviewNote: payload.reviewNote ?? null,
       reviewedAt: new Date(),
     });
+
+    if (payload.decision === ReportStatus.APPROVED && payload.banTarget) {
+      await this.banTarget(report.targetType, report.targetId);
+      await this.reportModel.destroy({
+        where: {
+          targetType: report.targetType,
+          targetId: report.targetId,
+          status: ReportStatus.PENDING,
+          id: { [Op.ne]: report.id },
+        },
+      });
+    }
 
     return report;
   }
@@ -275,10 +284,6 @@ export class ReportsService {
       const user = await this.userModel.findByPk(targetId);
       if (user) await user.update({ isBanned: true });
     }
-
-    await this.reportModel.destroy({
-      where: { targetType, targetId },
-    });
   }
 
   private async getTargetSnapshot(
