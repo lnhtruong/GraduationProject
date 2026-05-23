@@ -88,7 +88,7 @@ export const courseFeedHooks = createCrudHooks<
 >("instructor-course-feed", courseFeedApi);
 
 export const {
-  useList: useInstructorCourses,
+  useListMine: useInstructorCourses,
   useDetail: useInstructorCourseById,
   useCreate: useCreateCourse,
   useUpdate: useUpdateCourse,
@@ -120,7 +120,7 @@ export const {
 } = quizHooks;
 
 export const {
-  useList: useCourseFeeds,
+  useListMine: useCourseFeeds,
   useDetail: useCourseFeedById,
   useCreate: useCreateCourseFeed,
   useUpdate: useUpdateCourseFeed,
@@ -250,9 +250,13 @@ type MediaVideoRaw = {
   type?: string;
 };
 
-export function useCourseFeed(courseId: number | null, enabled = true) {
+export function useCourseFeed(
+  courseId: number | null,
+  enabled = true,
+  params: CourseFeedListParams = {},
+) {
   return useCourseFeeds(
-    { courseId: courseId ?? undefined },
+    { courseId: courseId ?? undefined, ...params },
     enabled && courseId !== null,
   );
 }

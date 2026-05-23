@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feed Algorithms — Recommendation & Trending</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #6c8aff;
+      --accent2: #ff7c5c;
+      --accent3: #5cd4a4;
+      --accent4: #f5c842;
+      --text: #e2e8f0;
+      --text-muted: #8892b0;
+      --code-bg: #141722;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: 100vh; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav .logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    nav ul { list-style: none; }
+    nav ul li a {
+      display: block;
+      padding: 6px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    nav ul li a:hover, nav ul li a.active {
+      color: var(--text);
+      background: var(--surface2);
+      border-left-color: var(--accent);
+      text-decoration: none;
+    }
+    nav ul li.section-header {
+      padding: 14px 20px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    nav ul li.sub a { padding-left: 32px; }
+
+    main {
+      flex: 1;
+      padding: 48px 56px;
+      max-width: 1000px;
+    }
+
+    /* ── Typography ── */
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 40px; }
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 48px 0 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    h2 .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 10px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    h3 { font-size: 1.05rem; font-weight: 700; margin: 28px 0 10px; color: var(--accent); }
+    h4 { font-size: .95rem; font-weight: 600; margin: 20px 0 8px; color: var(--accent4); }
+    p { margin-bottom: 12px; }
+
+    /* ── Code ── */
+    pre, code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+    }
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--accent3);
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin: 14px 0;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text);
+    }
+    .keyword { color: #c792ea; }
+    .comment { color: #546e7a; font-style: italic; }
+    .string { color: #c3e88d; }
+    .number { color: #f78c6c; }
+    .fn { color: #82aaff; }
+    .type { color: #ffcb6b; }
+    .op { color: var(--accent2); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .card.highlight { border-left: 3px solid var(--accent); }
+    .card.warning { border-left: 3px solid var(--accent4); }
+    .card.success { border-left: 3px solid var(--accent3); }
+    .card.danger { border-left: 3px solid var(--accent2); }
+
+    /* ── Formula box ── */
+    .formula {
+      background: #0d1021;
+      border: 1px solid #3a4080;
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      margin: 16px 0;
+      font-family: 'Cascadia Code', monospace;
+      font-size: 14px;
+      line-height: 2;
+    }
+    .formula .main { font-size: 16px; color: #e8f0ff; font-weight: 600; }
+    .formula .where { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+    .formula .term { color: var(--accent4); }
+    .formula .eq { color: var(--text-muted); }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th {
+      background: var(--surface2);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    td code { font-size: 12px; }
+
+    /* ── Pipeline flow ── */
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin: 20px 0;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      position: relative;
+    }
+    .pipeline-step:not(:last-child)::after {
+      content: '↓';
+      position: absolute;
+      bottom: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--text-muted);
+      font-size: 16px;
+      z-index: 1;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+    }
+    .step-content strong { display: block; margin-bottom: 4px; }
+    .step-content p { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+    /* ── Signal cards ── */
+    .signals { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 16px 0; }
+    .signal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+    }
+    .signal-card .signal-name {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 8px;
+    }
+    .signal-card .signal-weight {
+      float: right;
+      background: var(--surface2);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .signal-card p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+    /* ── Redis key table ── */
+    .redis-key { font-family: monospace; color: var(--accent4); font-size: 12px; }
+    .ttl { color: var(--accent3); font-weight: 700; font-size: 12px; }
+    .ds-badge {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    /* ── Timeline/flow ── */
+    .flow {
+      border-left: 2px solid var(--border);
+      padding-left: 20px;
+      margin: 16px 0;
+    }
+    .flow-event {
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .flow-event::before {
+      content: '';
+      position: absolute;
+      left: -25px;
+      top: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+    }
+    .flow-event .trigger {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+    .flow-event strong { display: block; font-size: 14px; }
+    .flow-event p { font-size: 13px; color: var(--text-muted); margin: 3px 0 0; }
+
+    /* ── Callout ── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .callout .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout p { margin: 0; color: var(--text-muted); }
+    .callout strong { color: var(--text); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .badge-blue { background: #1e3a6e; color: #93c5fd; }
+    .badge-green { background: #1a3d2e; color: #6ee7b7; }
+    .badge-orange { background: #3d2a10; color: #fbbf24; }
+    .badge-red { background: #3d1515; color: #fca5a5; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3e4570; }
+
+    /* ── Section divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <nav>
+    <div class="logo">Feed Algorithms</div>
+    <ul>
+      <li class="section-header">Overview</li>
+      <li><a href="#overview">Tổng quan hệ thống</a></li>
+      <li><a href="#data-models">Data Models</a></li>
+
+      <li class="section-header">Trending Feed</li>
+      <li><a href="#trending-cron">Cron Job (5 phút)</a></li>
+      <li><a href="#trending-compute">Tính điểm Trending</a></li>
+      <li><a href="#trending-formula">Công thức điểm</a></li>
+      <li><a href="#trending-redis">Redis Cache</a></li>
+      <li><a href="#trending-api">API flow</a></li>
+
+      <li class="section-header">Recommendation</li>
+      <li><a href="#rec-cron">Cron Job (1 phút)</a></li>
+      <li><a href="#rec-profile">User Profile</a></li>
+      <li><a href="#rec-candidates">Candidate Pool</a></li>
+      <li><a href="#rec-signals">5 Signals</a></li>
+      <li><a href="#rec-formula">Công thức điểm</a></li>
+      <li><a href="#rec-exploration">Exploration</a></li>
+      <li><a href="#rec-diversity">Diversification</a></li>
+      <li><a href="#rec-pipeline">Full Pipeline</a></li>
+
+      <li class="section-header">Redis & Interactions</li>
+      <li><a href="#redis-schema">Redis Schema</a></li>
+      <li><a href="#interaction-flow">Interaction Flow</a></li>
+      <li><a href="#session-pagination">Session & Pagination</a></li>
+
+      <li class="section-header">Tuning</li>
+      <li><a href="#constants">Hằng số tuning</a></li>
+      <li><a href="#ab-test">A/B Testing</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Main content ── -->
+  <main>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <h1>Feed Algorithms<br/><span>Recommendation & Trending</span></h1>
+    <p class="subtitle">
+      Tài liệu chi tiết thuật toán gợi ý video cá nhân hoá và bảng xếp hạng trending —
+      từ cron job, Redis, công thức tính điểm đến toàn bộ pipeline.
+    </p>
+
+    <!-- ── Overview ── -->
+    <h2 id="overview">Tổng quan hệ thống</h2>
+    <p>
+      Hệ thống feed gồm hai luồng song song, mỗi luồng có cron job riêng và Redis cache riêng:
+    </p>
+    <div class="card highlight">
+      <table>
+        <thead><tr><th>Luồng</th><th>Mục tiêu</th><th>Cron</th><th>Redis TTL</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Personalized Recommendation</strong></td>
+            <td>Gợi ý video phù hợp với từng user dựa trên lịch sử hành vi</td>
+            <td><code>EVERY_MINUTE</code></td>
+            <td><code>600s</code></td>
+          </tr>
+          <tr>
+            <td><strong>Trending Feed</strong></td>
+            <td>Bảng xếp hạng công khai — video hot nhất trong 1 giờ qua</td>
+            <td><code>EVERY_5_MINUTES</code></td>
+            <td><code>300s</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Cả hai job đều được bảo vệ bởi <strong>hai lớp khóa</strong>: cờ <code>isPrecomputing</code>
+      / <code>isRefreshingTrending</code> tại process level (chặn overlap trong cùng một replica)
+      và Redis distributed lock (chặn overlap khi deploy nhiều replica).
+    </p>
+
+    <h3>File liên quan</h3>
+    <table>
+      <thead><tr><th>File</th><th>Vai trò</th></tr></thead>
+      <tbody>
+        <tr><td><code>feed/feed-recommendation.worker.ts</code></td><td>Định nghĩa 2 cron job với <code>@Cron</code></td></tr>
+        <tr><td><code>feed/feed.service.ts</code></td><td>Toàn bộ logic thuật toán (~2 500 dòng)</td></tr>
+        <tr><td><code>feed/feed.controller.ts</code></td><td>HTTP endpoints (16 routes)</td></tr>
+        <tr><td><code>redis/redis.service.ts</code></td><td>Wrapper ioredis: lock, sorted-set, scan, …</td></tr>
+        <tr><td><code>models/highlight_feed.model.ts</code></td><td>Bảng <code>highlight_feed</code></td></tr>
+        <tr><td><code>models/feed_interactions.model.ts</code></td><td>Bảng <code>feed_interactions</code></td></tr>
+        <tr><td><code>models/feed_views.model.ts</code></td><td>Bảng <code>feed_views</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- ── Data Models ── -->
+    <h2 id="data-models">Data Models</h2>
+    <div class="signals">
+      <div class="signal-card">
+        <div class="signal-name" style="color:var(--accent)">highlight_feed</div>
+        <p><code>id</code>, <code>video_id</code>, <code>course_id</code>, <code>title</code>,
+        <code>caption</code>, <code>hashtags</code> (JSON array), <code>status</code>
+        (active / hidden / removed), <code>created_at</code></p>
+      </div>
+      <div class="signal-card">
+        <div class="signal-name" style="color:var(--accent3)">feed_interactions</div>
+        <p><code>id</code>, <code>user_id</code>, <code>highlight_id</code>,
+        <code>type</code> (like / save / share), <code>created_at</code>.<br/>
+        Like &amp; save là toggle; share luôn insert mới.</p>
+      </div>
+      <div class="signal-card">
+        <div class="signal-name" style="color:var(--accent4)">feed_views</div>
+        <p><code>id</code>, <code>user_id</code>, <code>highlight_id</code>,
+        <code>watch_duration</code> (giây, float), <code>completed</code> (boolean),
+        <code>viewed_at</code>.</p>
+      </div>
+      <div class="signal-card">
+        <div class="signal-name" style="color:var(--accent2)">feed_comments</div>
+        <p><code>id</code>, <code>highlight_id</code>, <code>user_id</code>,
+        <code>content</code>, <code>origin_cmt</code> (nullable, reply to),
+        <code>created_at</code>.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--                  TRENDING FEED                      -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <h2 id="trending-cron">
+      Trending Feed — Cron Job
+      <span class="tag" style="background:#1a3a2e;color:#6ee7b7">EVERY_5_MINUTES</span>
+    </h2>
+
+    <p>
+      File <code>feed-recommendation.worker.ts</code>, method <code>handleTrendingRefresh()</code>,
+      được đăng ký với NestJS Scheduler qua decorator <code>@Cron(CronExpression.EVERY_5_MINUTES)</code>.
+    </p>
+
+    <pre><code><span class="comment">// feed-recommendation.worker.ts</span>
+<span class="keyword">private</span> isRefreshingTrending = <span class="keyword">false</span>;  <span class="comment">// cờ process-level</span>
+
+<span class="fn">@Cron</span>(CronExpression.<span class="type">EVERY_5_MINUTES</span>)
+<span class="keyword">async</span> <span class="fn">handleTrendingRefresh</span>(): <span class="type">Promise</span>&lt;<span class="keyword">void</span>&gt; {
+  <span class="keyword">if</span> (<span class="keyword">this</span>.isRefreshingTrending) {
+    <span class="keyword">return</span>;  <span class="comment">// bỏ tick này nếu job trước chưa xong</span>
+  }
+  <span class="keyword">this</span>.isRefreshingTrending = <span class="keyword">true</span>;
+  <span class="keyword">try</span> {
+    <span class="keyword">const</span> result = <span class="keyword">await this</span>.feedService.<span class="fn">refreshTrendingCache</span>();
+    <span class="comment">// log: items=N duration=Xms</span>
+  } <span class="keyword">finally</span> {
+    <span class="keyword">this</span>.isRefreshingTrending = <span class="keyword">false</span>;
+  }
+}</code></pre>
+
+    <div class="callout">
+      <div class="icon">🔒</div>
+      <p><strong>Lớp bảo vệ thứ 2:</strong> Bên trong <code>refreshTrendingCache()</code>,
+      service gọi <code>redisService.acquireLock("feed:trending:refresh:lock", 30)</code>
+      trước khi tính toán. Nếu lock đang bị giữ (replica khác đang chạy),
+      method trả về <code>&#123; skipped: true &#125;</code> ngay lập tức.</p>
+    </div>
+
+    <h2 id="trending-compute">Tính điểm Trending — <code>computeTrendingFeedIds()</code></h2>
+
+    <p>Hàm thực hiện 4 bước:</p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>Lấy danh sách feed ứng viên</strong>
+          <p>Query <code>highlight_feed</code> với <code>status = 'active'</code> JOIN
+          <code>courses</code> với <code>status = 'PUBLISH'</code>. Chỉ feed thuộc khoá học
+          đang mở mới được xét.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>Xác định cửa sổ thời gian</strong>
+          <p><code>startDate = now − TRENDING_WINDOW_MS</code> → mặc định là <strong>1 giờ</strong>
+          (3 600 000 ms). Chỉ các tương tác sau thời điểm này được tính.</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>Aggregate tương tác (3 query song song)</strong>
+          <p>
+            <code>feedInteractionModel</code> → SUM likes, saves, shares theo <code>highlight_id</code><br/>
+            <code>feedViewModel</code> → COUNT views theo <code>highlight_id</code><br/>
+            <code>feedCommentModel</code> → COUNT comments theo <code>highlight_id</code><br/>
+            Ba query chạy đồng thời qua <code>Promise.all()</code>.
+          </p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>Tính điểm, sort, trả danh sách ID</strong>
+          <p>Áp công thức trending score cho mỗi feed, sort DESC, tiebreaker là
+          <code>feedId DESC</code> (feed mới hơn thắng khi bằng điểm).</p>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="trending-formula">Công thức điểm Trending</h2>
+
+    <div class="formula">
+      <div class="main">
+        trendingScore <span class="eq">=</span>
+        <span class="term">likes</span> <span class="op">×</span> 3
+        <span class="op">+</span> <span class="term">saves</span> <span class="op">×</span> 4
+        <span class="op">+</span> <span class="term">shares</span> <span class="op">×</span> 5
+        <span class="op">+</span> <span class="term">comments</span> <span class="op">×</span> 2
+        <span class="op">+</span> <span class="term">views</span> <span class="op">×</span> 0.5
+      </div>
+      <div class="where">
+        Tất cả giá trị là số tương tác <strong>trong 1 giờ gần nhất</strong><br/>
+        Feed không có tương tác nào → score = 0 → đứng cuối (hoặc không xuất hiện)
+      </div>
+    </div>
+
+    <h3>Lý do chọn trọng số</h3>
+    <table>
+      <thead><tr><th>Tín hiệu</th><th>Trọng số</th><th>Lý do</th></tr></thead>
+      <tbody>
+        <tr><td>share</td><td class="badge badge-red">×5</td><td>Share tốn effort cao nhất — người dùng thực sự thấy có giá trị mới share</td></tr>
+        <tr><td>save</td><td class="badge badge-orange">×4</td><td>Save = "muốn xem lại" — intent rõ ràng hơn like</td></tr>
+        <tr><td>like</td><td class="badge badge-blue">×3</td><td>Positive signal nhưng cost thấp, dễ click</td></tr>
+        <tr><td>comment</td><td class="badge badge-blue">×2</td><td>Engagement đủ mạnh nhưng volume thấp hơn like</td></tr>
+        <tr><td>view</td><td class="badge badge-green">×0.5</td><td>View đông nhưng passive — không bằng chứng chất lượng, chỉ boost nhẹ</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <div class="icon">📝</div>
+      <p><strong>Trending stats API</strong> (<code>GET /feed/stats/trending</code>) dùng công thức
+      <em>mở rộng</em> hơn: thêm <code>+ completionRate × 2</code> để admin thấy thêm chiều
+      "watch-through quality". Công thức trên (không có completion rate) là công thức public
+      trending dùng cho trang người dùng.</p>
+    </div>
+
+    <h2 id="trending-redis">Redis Cache cho Trending</h2>
+
+    <pre><code><span class="comment">// refreshTrendingCache() — feed.service.ts:1280</span>
+<span class="keyword">async</span> <span class="fn">refreshTrendingCache</span>() {
+  <span class="keyword">const</span> lockKey = <span class="string">'feed:trending:refresh:lock'</span>;
+  <span class="keyword">const</span> acquired = <span class="keyword">await this</span>.redisService.<span class="fn">acquireLock</span>(lockKey, <span class="number">30</span>); <span class="comment">// TTL 30s</span>
+  <span class="keyword">if</span> (!acquired) <span class="keyword">return</span> &#123; skipped: <span class="keyword">true</span> &#125;;
+
+  <span class="keyword">try</span> &#123;
+    <span class="keyword">const</span> ids = <span class="keyword">await this</span>.<span class="fn">computeTrendingFeedIds</span>();
+    <span class="keyword">await this</span>.redisService.<span class="fn">set</span>(
+      <span class="string">'feed:trending:1h'</span>,
+      JSON.<span class="fn">stringify</span>(ids),
+      <span class="number">300</span>,  <span class="comment">// TTL 300 giây = 5 phút</span>
+    );
+    <span class="keyword">return</span> &#123; count: ids.length &#125;;
+  &#125; <span class="keyword">finally</span> &#123;
+    <span class="keyword">await this</span>.redisService.<span class="fn">releaseLock</span>(lockKey);
+  &#125;
+}</code></pre>
+
+    <table>
+      <thead><tr><th>Key</th><th>Type</th><th>TTL</th><th>Nội dung</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="redis-key">feed:trending:1h</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">300s</td>
+          <td>JSON array các <code>feed_id</code> sorted by trendingScore DESC, tối đa 50 items</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:trending:refresh:lock</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">30s</td>
+          <td>Distributed lock — value = <code>"1"</code>, tự hết hạn sau 30s</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="trending-api">API Flow — <code>GET /feed/trending</code></h2>
+
+    <div class="flow">
+      <div class="flow-event">
+        <div class="trigger">Request</div>
+        <strong>GET /feed/trending?limit=20</strong>
+        <p>Có thể gọi không cần auth. <code>limit</code> tối đa <code>TRENDING_MAX_LIMIT = 50</code>.</p>
+      </div>
+      <div class="flow-event">
+        <div class="trigger">Cache check</div>
+        <strong>Redis GET feed:trending:1h</strong>
+        <p>Nếu có → parse JSON array, slice theo limit, fetch chi tiết từ DB, trả về.</p>
+      </div>
+      <div class="flow-event">
+        <div class="trigger">Cache miss</div>
+        <strong>Tính toán on-demand</strong>
+        <p>Gọi <code>computeTrendingFeedIds()</code>, lưu kết quả vào Redis 300s, tiếp tục trả về.</p>
+      </div>
+      <div class="flow-event">
+        <div class="trigger">Response</div>
+        <strong>&#123; data: FeedResponseItem[], next_cursor: null &#125;</strong>
+        <p>Trending không có cursor pagination — luôn trả full list theo limit.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--              PERSONALIZED RECOMMENDATION           -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <h2 id="rec-cron">
+      Recommendation — Cron Job
+      <span class="tag" style="background:#1e3a6e;color:#93c5fd">EVERY_MINUTE</span>
+    </h2>
+
+    <p>
+      Method <code>handlePrecompute()</code> chạy mỗi 60 giây, gọi vào
+      <code>feedService.precomputeRecommendedForActiveUsers(&#123; concurrency: 8, maxBatch: 500 &#125;)</code>.
+    </p>
+
+    <div class="card warning">
+      <strong>Tại sao cần precompute?</strong>
+      <p style="margin-top:6px;font-size:14px">
+        Khi user mở app và gọi <code>GET /feed?mode=recommended</code>, họ kỳ vọng response
+        &lt;100ms. Tính toán ranking real-time cho 100 video candidates với đầy đủ DB query
+        không thể đạt được latency đó. Precompute giải quyết vấn đề này: cron job tính trước,
+        lưu kết quả vào Redis, request của user chỉ việc đọc cache.
+      </p>
+    </div>
+
+    <h3>Luồng <code>precomputeRecommendedForActiveUsers()</code></h3>
+
+    <pre><code><span class="comment">// feed.service.ts:1204</span>
+<span class="keyword">async</span> <span class="fn">precomputeRecommendedForActiveUsers</span>(options?) &#123;
+  <span class="comment">// 1. Acquire distributed lock (TTL 60s)</span>
+  <span class="keyword">const</span> acquired = <span class="keyword">await this</span>.redisService.<span class="fn">acquireLock</span>(<span class="string">'feed:rec:precompute:lock'</span>, <span class="number">60</span>);
+  <span class="keyword">if</span> (!acquired) <span class="keyword">return</span> &#123; processed: <span class="number">0</span>, skipped: <span class="number">0</span> &#125;;
+
+  <span class="keyword">try</span> &#123;
+    <span class="comment">// 2. Lấy user queue từ Redis set 'feed:rec:interacted-users'</span>
+    <span class="keyword">const</span> members = <span class="keyword">await this</span>.redisService.<span class="fn">sMembers</span>(<span class="string">'feed:rec:interacted-users'</span>);
+    <span class="keyword">const</span> batch = userIds.slice(<span class="number">0</span>, maxBatch); <span class="comment">// lấy tối đa 500 user/lần</span>
+
+    <span class="comment">// 3. Process với bounded concurrency (8 user song song)</span>
+    <span class="keyword">const</span> workers = Array.<span class="fn">from</span>(&#123; length: <span class="number">8</span> &#125;, <span class="keyword">async</span> () =&gt; &#123;
+      <span class="keyword">while</span> (queue.length &gt; <span class="number">0</span>) &#123;
+        <span class="keyword">const</span> userId = queue.<span class="fn">shift</span>();
+        <span class="keyword">const</span> sessionId = existingSession ?? <span class="fn">generateNew</span>(); <span class="comment">// tái dùng session</span>
+        <span class="keyword">const</span> &#123; rankedFeeds &#125; = <span class="keyword">await this</span>.<span class="fn">computeRankedCandidates</span>(userId);
+        <span class="keyword">await this</span>.<span class="fn">setCachedRecommendList</span>(userId, sessionId, rankedIds);
+        <span class="keyword">await this</span>.<span class="fn">setLatestRecommendSessionId</span>(userId, sessionId);
+      &#125;
+    &#125;);
+    <span class="keyword">await</span> Promise.<span class="fn">all</span>(workers);
+
+    <span class="comment">// 4. Xóa processed users khỏi queue</span>
+    <span class="keyword">await this</span>.redisService.<span class="fn">sRem</span>(<span class="string">'feed:rec:interacted-users'</span>, batch.<span class="fn">map</span>(String));
+  &#125; <span class="keyword">finally</span> &#123;
+    <span class="keyword">await this</span>.redisService.<span class="fn">releaseLock</span>(<span class="string">'feed:rec:precompute:lock'</span>);
+  &#125;
+&#125;</code></pre>
+
+    <h2 id="rec-profile">Bước 1 — Xây dựng User Profile</h2>
+
+    <p>
+      User profile là bộ <strong>affinity scores</strong> lưu trong Redis, dùng để đo
+      mức độ yêu thích của user với từng khoá học và hashtag.
+    </p>
+
+    <h4>Cold Start (profile chưa có trong cache)</h4>
+    <div class="flow">
+      <div class="flow-event">
+        <strong>Đọc 200 view gần nhất từ DB</strong>
+        <p>Query <code>feed_views</code> JOIN <code>highlight_feed</code>, ORDER BY id DESC, LIMIT 200.</p>
+      </div>
+      <div class="flow-event">
+        <strong>Tính behavior weight cho mỗi view</strong>
+        <p><code>weight = (completed ? 2 : 1) + min(watchDuration / 30, 2)</code><br/>
+        Ví dụ: xem 60s không xong = (1 + 2) = 3 điểm. Xem hết 10s = (2 + 0.33) ≈ 2.33 điểm.</p>
+      </div>
+      <div class="flow-event">
+        <strong>Cộng dồn vào Map&lt;courseId, number&gt; và Map&lt;hashtag, number&gt;</strong>
+        <p>Mỗi video được xem thêm weight vào <code>courseAffinity[course_id]</code>
+        và từng tag trong <code>hashtagAffinity[tag]</code>.</p>
+      </div>
+      <div class="flow-event">
+        <strong>Lưu profile vào Redis 24h</strong>
+        <p>Key <code>feed:rec:profile:&#123;userId&#125;</code>, TTL 86400s. Serialize Maps thành JSON plain object.</p>
+      </div>
+    </div>
+
+    <h4>Warm Path (profile đã có trong cache)</h4>
+    <p>
+      Load từ Redis. Chỉ cần đọc <code>feed_views</code> để build <code>viewedCount</code>
+      (dùng cho repeat-view penalty) — không cần rebuild affinity từ đầu.
+    </p>
+
+    <h4>Online Update (khi user tương tác)</h4>
+    <p>
+      Mỗi lần user like, save, hoặc view video, hàm <code>updateProfileAffinity()</code>
+      được gọi ngay lập tức để cập nhật cache. Không cần đợi cron.
+    </p>
+    <table>
+      <thead><tr><th>Hành động</th><th>Behavior Weight</th></tr></thead>
+      <tbody>
+        <tr><td>View (không hoàn thành, 30s)</td><td><code>(1) + min(30/30, 2) = 2.0</code></td></tr>
+        <tr><td>View (hoàn thành, 15s)</td><td><code>(2) + min(15/30, 2) = 2.5</code></td></tr>
+        <tr><td>View (hoàn thành, 60s+)</td><td><code>(2) + min(60/30, 2) = 4.0</code> (max)</td></tr>
+        <tr><td>Like</td><td><code>1.2</code></td></tr>
+        <tr><td>Save</td><td><code>2.0</code></td></tr>
+        <tr><td>Share</td><td>Không cập nhật affinity (chỉ ghi interaction)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="rec-candidates">Bước 2 — Lấy Candidate Pool</h2>
+
+    <pre><code><span class="comment">// Lấy 1000 feed_id đã xem trong 6h gần nhất từ Redis sorted set</span>
+<span class="keyword">const</span> seenIds = <span class="keyword">await this</span>.<span class="fn">getRecentSeenFeedIds</span>(userId, <span class="number">1000</span>);
+
+<span class="comment">// Primary: lấy 100 feed CHƯA xem (loc bỏ seenIds)</span>
+<span class="keyword">let</span> candidates = <span class="keyword">await</span> highlightFeedModel.<span class="fn">findAll</span>(&#123;
+  where: &#123; status: <span class="string">'active'</span>, id: &#123; [Op.notIn]: seenIds &#125; &#125;,
+  limit: <span class="number">100</span>,  <span class="comment">// RECOMMEND_CACHE_SIZE</span>
+&#125;);
+
+<span class="comment">// Fallback: nếu pool &lt; 10 items (user đã xem gần hết)</span>
+<span class="keyword">if</span> (candidates.length &lt; <span class="number">10</span>) &#123;
+  candidates = <span class="keyword">await</span> highlightFeedModel.<span class="fn">findAll</span>(&#123;
+    where: &#123; status: <span class="string">'active'</span> &#125;,  <span class="comment">// không lọc seen</span>
+    limit: <span class="number">100</span>,
+  &#125;);
+&#125;</code></pre>
+
+    <div class="callout">
+      <div class="icon">💡</div>
+      <p><strong>Cooldown window 6h:</strong> Redis sorted set <code>feed:rec:seen:&#123;userId&#125;</code>
+      lưu <code>(feedId, timestamp)</code>. Khi query, lọc những item có timestamp
+      <code>&gt;= now - 6h</code>. Sau 6h, item tự động ra khỏi "seen" và có thể xuất hiện lại.</p>
+    </div>
+
+    <h2 id="rec-signals">Bước 3 — Thu thập Signals</h2>
+
+    <p>
+      Sau khi có candidate pool, service chạy 2 query song song để lấy dữ liệu cho scoring:
+    </p>
+    <ul style="margin-left:20px;line-height:2">
+      <li><code>getStatsAndInteractions(feedIds, userId)</code> — lấy likes, saves, views (mọi thời gian) + trạng thái liked/saved của user hiện tại</li>
+      <li><code>getRankingSignals(feedIds, 168h)</code> — aggregate tương tác trong cửa sổ <code>GLOBAL_ENGAGEMENT_WINDOW_HOURS = 7 ngày</code>: likes, saves, shares, views, completedViews, avgWatchDuration</li>
+    </ul>
+
+    <h2 id="rec-formula">Bước 4 — Công thức điểm Recommendation</h2>
+
+    <div class="formula">
+      <div class="main">
+        recommendationScore <span class="eq">=</span>
+        <span class="term">W_GLOBAL</span> <span class="op">×</span> globalScore
+        <span class="op">+</span> <span class="term">W_PERSONAL</span> <span class="op">×</span> personalScore
+        <span class="op">+</span> <span class="term">W_FRESHNESS</span> <span class="op">×</span> freshnessScore
+        <span class="op">+</span> 0.3 <span class="op">×</span> viewBoost
+        <span class="op">−</span> <span class="term">repeatViewPenalty</span>
+      </div>
+      <div class="where">
+        W_GLOBAL = 1.0 &nbsp;|&nbsp; W_PERSONAL = 1.5 &nbsp;|&nbsp; W_FRESHNESS = 1.2
+      </div>
+    </div>
+
+    <h3>Chi tiết từng thành phần</h3>
+
+    <div class="signals">
+
+      <div class="signal-card">
+        <div class="signal-name">
+          Global Score
+          <span class="signal-weight" style="color:var(--accent)">×1.0</span>
+        </div>
+        <p>Độ phổ biến toàn cục trong 7 ngày qua:</p>
+        <pre style="margin-top:8px;font-size:11px"><code>positives = likes + saves×1.5
+          + shares×2 + comments×1.2
+engagement = (positives + 1)/(views + 50)
+    <span class="comment">// Wilson/Laplace smoothing</span>
+completionRate = completedViews / views
+popularity = log₁₀(1 + views + likes×2
+    + saves×3 + shares×4)
+globalScore = engagement×5
+    + completionRate×3 + popularity</code></pre>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-name">
+          Personal Score
+          <span class="signal-weight" style="color:var(--accent3)">×1.5</span>
+        </div>
+        <p>Mức độ khớp với sở thích user:</p>
+        <pre style="margin-top:8px;font-size:11px"><code>courseScore = courseAffinity[course_id]
+    / maxCourseAffinity  <span class="comment">// [0..1]</span>
+
+tagScore = avg(hashtagAffinity[tag])
+    / maxHashtagAffinity  <span class="comment">// [0..1]</span>
+
+personalScore = courseScore×0.7
+    + tagScore×0.3</code></pre>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-name">
+          Freshness
+          <span class="signal-weight" style="color:var(--accent4)">×1.2</span>
+        </div>
+        <p>Decay theo thời gian (half-life 36h):</p>
+        <pre style="margin-top:8px;font-size:11px"><code>ageHours = (now - created_at) / 3600000
+freshnessScore = 0.5 ^ (ageHours / 36)
+
+<span class="comment">// Ví dụ:</span>
+<span class="comment">// mới tạo → 1.0</span>
+<span class="comment">// 36h    → 0.5</span>
+<span class="comment">// 72h    → 0.25</span>
+<span class="comment">// 1 tuần → ~0.03</span></code></pre>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-name">
+          View Boost
+          <span class="signal-weight" style="color:#a0aec0">×0.3</span>
+        </div>
+        <p>Boost nhẹ cho item đã có traction:</p>
+        <pre style="margin-top:8px;font-size:11px"><code>viewBoost = log₁₀(1 + views)
+    / log₁₀(1 + maxViews)
+<span class="comment">// Normalised về [0..1]</span>
+<span class="comment">// Không để viral item áp đảo mãi</span></code></pre>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-name">
+          Repeat View Penalty
+          <span class="signal-weight" style="color:var(--accent2)">−</span>
+        </div>
+        <p>Trừ điểm nếu user đã xem nhiều lần:</p>
+        <pre style="margin-top:8px;font-size:11px"><code>penalty = min(
+    viewCount × 0.8,
+    3.0  <span class="comment">// cap tối đa</span>
+)
+<span class="comment">// 1 lần: −0.8</span>
+<span class="comment">// 2 lần: −1.6</span>
+<span class="comment">// ≥4 lần: −3.0 (capped)</span></code></pre>
+      </div>
+
+      <div class="signal-card">
+        <div class="signal-name">
+          Exploration Score
+          <span class="signal-weight" style="color:#a0aec0">phụ trợ</span>
+        </div>
+        <p>Dùng để chọn item chèn vào exploration slots:</p>
+        <pre style="margin-top:8px;font-size:11px"><code>explorationScore = fresh × 2
+    − personalScore
+<span class="comment">// Item mới + chưa trong sở thích</span>
+<span class="comment">// user → candidate tốt để khám phá</span></code></pre>
+      </div>
+
+    </div>
+
+    <h3>Ví dụ tính điểm cụ thể</h3>
+
+    <div class="card highlight">
+      <strong>Video A</strong> — trending, nhưng user đã xem 2 lần, ngoài sở thích
+      <table style="margin-top:10px;font-size:13px">
+        <tr><td>globalScore</td><td>engagement=0.4 → 0.4×5=2.0; completionRate=0.6 → 1.8; popularity=2.1 → <strong>5.9</strong></td></tr>
+        <tr><td>personalScore</td><td>courseScore=0.1, tagScore=0.05 → 0.1×0.7+0.05×0.3 = <strong>0.085</strong></td></tr>
+        <tr><td>freshnessScore</td><td>24h tuổi → 0.5^(24/36) = <strong>0.63</strong></td></tr>
+        <tr><td>viewBoost</td><td>1000 views, maxViews=5000 → log(1001)/log(5001) = <strong>0.75</strong></td></tr>
+        <tr><td>penalty</td><td>2 lần xem → min(1.6, 3) = <strong>−1.6</strong></td></tr>
+        <tr style="font-weight:bold;background:var(--surface2)"><td>Total</td><td>1.0×5.9 + 1.5×0.085 + 1.2×0.63 + 0.3×0.75 − 1.6 = <strong>5.9 + 0.13 + 0.76 + 0.23 − 1.6 = 5.42</strong></td></tr>
+      </table>
+    </div>
+
+    <div class="card success">
+      <strong>Video B</strong> — mới đăng, đúng sở thích user, ít người xem
+      <table style="margin-top:10px;font-size:13px">
+        <tr><td>globalScore</td><td>engagement=0.1 → 0.5; completionRate=0.8 → 2.4; popularity=1.0 → <strong>3.9</strong></td></tr>
+        <tr><td>personalScore</td><td>courseScore=0.9, tagScore=0.8 → 0.9×0.7+0.8×0.3 = <strong>0.87</strong></td></tr>
+        <tr><td>freshnessScore</td><td>2h tuổi → 0.5^(2/36) = <strong>0.96</strong></td></tr>
+        <tr><td>viewBoost</td><td>10 views → nhỏ → <strong>0.2</strong></td></tr>
+        <tr><td>penalty</td><td>chưa xem → <strong>0</strong></td></tr>
+        <tr style="font-weight:bold;background:var(--surface2)"><td>Total</td><td>1.0×3.9 + 1.5×0.87 + 1.2×0.96 + 0.3×0.2 − 0 = <strong>3.9 + 1.31 + 1.15 + 0.06 = 6.42</strong></td></tr>
+      </table>
+    </div>
+
+    <p>Video B thắng dù ít popular hơn — đây là điểm mấu chốt của personalization:
+    <strong>W_PERSONAL = 1.5</strong> đủ mạnh để đẩy nội dung phù hợp lên trên dù chưa viral.</p>
+
+    <h2 id="rec-exploration">Bước 5a — Exploration Injection (epsilon-greedy)</h2>
+
+    <p>
+      Sau khi sort, list kết quả có thể bị "filter bubble" — toàn video cùng loại user đã thích.
+      Hàm <code>injectExploration()</code> phá vỡ điều này:
+    </p>
+
+    <pre><code><span class="keyword">const</span> everyN = Math.<span class="fn">round</span>(<span class="number">1</span> / EXPLORATION_RATIO); <span class="comment">// ≈ 7</span>
+<span class="comment">// Tách top 50% và bottom 50%</span>
+<span class="keyword">const</span> topCutoff = Math.<span class="fn">ceil</span>(ranked.length / <span class="number">2</span>);
+<span class="keyword">const</span> tail = ranked.slice(topCutoff)
+  .<span class="fn">sort</span>((a, b) =&gt; b.explorationScore - a.explorationScore);
+
+<span class="comment">// Cứ mỗi 7 slot trong top, chèn 1 item từ tail</span>
+<span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; result.length; i++) &#123;
+  finalList.<span class="fn">push</span>(result[i]);
+  <span class="keyword">if</span> ((i + <span class="number">1</span>) % everyN === <span class="number">0</span> &amp;&amp; tailCursor &lt; tail.length) &#123;
+    finalList.<span class="fn">push</span>(tail[tailCursor++]);  <span class="comment">// chèn exploration item</span>
+  &#125;
+&#125;</code></pre>
+
+    <div class="card">
+      <strong>Ví dụ với 14 items:</strong>
+      <p style="font-size:13px;margin-top:6px">
+        Top 7: [A, B, C, D, E, F, G] + Bottom 7: [H, I, J, K, L, M, N] (sort theo explorationScore)<br/>
+        Kết quả: [A, B, C, D, E, F, G→<span style="color:var(--accent3)">H</span>, ...] —
+        H là item mới nhất chưa trong sở thích user.
+      </p>
+    </div>
+
+    <h2 id="rec-diversity">Bước 5b — Course Diversification</h2>
+
+    <p>
+      Tránh tình trạng TikTok-clump: 5 video liên tiếp từ cùng 1 khoá học.
+      Hàm <code>diversifyByCourse()</code> dùng greedy re-rank:
+    </p>
+
+    <pre><code><span class="comment">// Nếu đã có MAX_SAME_COURSE_RUN (=2) item liên tiếp cùng course</span>
+<span class="comment">// → tìm item tiếp theo có course khác và đặt lên trước</span>
+<span class="keyword">if</span> (lastCourse !== <span class="keyword">null</span> &amp;&amp; runLen &gt;= MAX_SAME_COURSE_RUN) &#123;
+  <span class="keyword">const</span> altIndex = remaining.<span class="fn">findIndex</span>(
+    (it) =&gt; it.feed.course_id !== lastCourse
+  );
+  <span class="keyword">if</span> (altIndex &gt;= <span class="number">0</span>) pickIndex = altIndex;
+&#125;</code></pre>
+
+    <h2 id="rec-pipeline">Full Recommendation Pipeline</h2>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">→</div>
+        <div class="step-content">
+          <strong>User tương tác (view / like / save)</strong>
+          <p>Ghi vào DB → update Redis profile → mark seen → <strong>invalidate recommendation cache</strong> → thêm userId vào <code>feed:rec:interacted-users</code></p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">C</div>
+        <div class="step-content">
+          <strong>[CRON mỗi 60s] Precompute phase</strong>
+          <p>Acquire lock → đọc interacted-users → batch 500, concurrency 8 → <code>computeRankedCandidates()</code> → cache ranked list → release lock → remove processed users</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>Build / load user profile</strong>
+          <p>Warm: đọc Redis <code>feed:rec:profile</code> (24h TTL) | Cold: replay 200 views từ DB → seed affinities → cache</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>Fetch candidates (unseen-first)</strong>
+          <p>Lọc theo seen cooldown 6h (sorted set), lấy 100 feed active từ khoá đang publish</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>Gather signals</strong>
+          <p>Query stats (mọi thời gian) + ranking signals (7 ngày window) chạy song song qua Promise.all</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>Score mỗi candidate</strong>
+          <p>5 components: globalScore + personalScore + freshnessScore + viewBoost − penalty → sort DESC</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <strong>Post-ranking</strong>
+          <p>Inject exploration (1/7 slots) → diversify by course (max 2 liên tiếp)</p>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">↑</div>
+        <div class="step-content">
+          <strong>User gọi GET /feed?mode=recommended</strong>
+          <p>Đọc session → load cached ranked list → cursor-paginate → fetch stats → trả response</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--                  REDIS SCHEMA                      -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <h2 id="redis-schema">Redis Schema đầy đủ</h2>
+
+    <table>
+      <thead><tr><th>Key Pattern</th><th>Type</th><th>TTL</th><th>Mô tả</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="redis-key">feed:rec:session:{userId}</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">600s</td>
+          <td>Session ID hiện tại của user — pointer đến cached ranked list</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:rec:list:{userId}:{sessionId}:{courseId|0}</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">600s</td>
+          <td>JSON array các <code>feed_id</code> đã được rank, sẵn sàng để page</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:rec:profile:{userId}</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">86400s</td>
+          <td>JSON object <code>&#123; courseAffinity, hashtagAffinity &#125;</code> — user behavioral profile</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:rec:seen:{userId}</td>
+          <td><span class="ds-badge">Sorted Set</span></td>
+          <td class="ttl">auto-trim</td>
+          <td>Member = feedId, Score = viewed_at timestamp. Window 6h, 1000 items max</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:rec:interacted-users</td>
+          <td><span class="ds-badge">Set</span></td>
+          <td class="ttl">none</td>
+          <td>Queue userId cần precompute lại. Cron drain theo batch 500</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:rec:precompute:lock</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">60s</td>
+          <td>Distributed lock — SET NX EX, value = "1"</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:trending:1h</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">300s</td>
+          <td>JSON array feed_id sorted by trendingScore DESC, max 50 items</td>
+        </tr>
+        <tr>
+          <td class="redis-key">feed:trending:refresh:lock</td>
+          <td><span class="ds-badge">String</span></td>
+          <td class="ttl">30s</td>
+          <td>Distributed lock cho trending cron</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Redis operations được dùng</h3>
+    <table>
+      <thead><tr><th>Operation</th><th>Dùng ở đâu</th></tr></thead>
+      <tbody>
+        <tr><td><code>SET key value EX ttl NX</code></td><td>acquireLock (set-if-not-exists)</td></tr>
+        <tr><td><code>DEL key</code></td><td>releaseLock, invalidateRecommendCache</td></tr>
+        <tr><td><code>GET / SET / SETEX</code></td><td>Đọc/ghi session, list, profile, trending</td></tr>
+        <tr><td><code>ZADD / ZRANGEBYSCORE</code></td><td>seen sorted set: thêm view, query trong 6h window</td></tr>
+        <tr><td><code>SADD / SMEMBERS / SREM</code></td><td>interacted-users queue</td></tr>
+        <tr><td><code>SCAN key pattern</code></td><td>Tìm tất cả <code>feed:rec:list:{userId}:*</code> để xoá khi invalidate</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ── Interaction Flow ── -->
+    <h2 id="interaction-flow">Interaction Flow</h2>
+
+    <p>Mỗi hành động của user kích hoạt một chuỗi cập nhật:</p>
+
+    <h4>POST /feed/:id/view</h4>
+    <div class="flow">
+      <div class="flow-event">
+        <strong>Insert feed_views record</strong>
+        <p><code>&#123; user_id, highlight_id, watch_duration, completed &#125;</code></p>
+      </div>
+      <div class="flow-event">
+        <strong>updateProfileAffinity(weight)</strong>
+        <p><code>weight = (completed ? 2 : 1) + min(watchDuration/30, 2)</code>
+        → cộng vào courseAffinity và hashtagAffinity trong Redis</p>
+      </div>
+      <div class="flow-event">
+        <strong>markFeedSeen(userId, feedId)</strong>
+        <p>ZADD <code>feed:rec:seen:{userId}</code> score=now member=feedId
+        → trim giữ tối đa 1000 items gần nhất</p>
+      </div>
+      <div class="flow-event">
+        <strong>invalidateRecommendCache(userId)</strong>
+        <p>DEL <code>feed:rec:session:{userId}</code>
+        + SCAN &amp; DEL tất cả <code>feed:rec:list:{userId}:*</code></p>
+      </div>
+      <div class="flow-event">
+        <strong>markUserInteracted(userId)</strong>
+        <p>SADD <code>feed:rec:interacted-users</code> userId
+        → cron job sẽ precompute lại cho user này ≤60s sau</p>
+      </div>
+    </div>
+
+    <h4>POST /feed/:id/interact (like/save)</h4>
+    <div class="flow">
+      <div class="flow-event">
+        <strong>Toggle interaction trong DB</strong>
+        <p>Nếu đã có → DELETE (unlike/unsave). Nếu chưa có → INSERT.</p>
+      </div>
+      <div class="flow-event">
+        <strong>updateProfileAffinity (chỉ khi thêm mới)</strong>
+        <p>Like: weight=1.2 | Save: weight=2.0</p>
+      </div>
+      <div class="flow-event">
+        <strong>invalidateRecommendCache + markUserInteracted</strong>
+        <p>Tương tự view flow bên trên.</p>
+      </div>
+    </div>
+
+    <!-- ── Session & Pagination ── -->
+    <h2 id="session-pagination">Session Management &amp; Cursor Pagination</h2>
+
+    <p>
+      Recommendation dùng <strong>session-based pagination</strong> thay vì offset, để đảm bảo
+      thứ tự feed ổn định khi user scroll (không bị duplicate hoặc miss khi list thay đổi).
+    </p>
+
+    <div class="card">
+      <strong>Cách hoạt động:</strong>
+      <ol style="margin:8px 0 0 20px;font-size:14px;line-height:2.2">
+        <li>Lần đầu gọi: server tạo/lấy <code>sessionId</code>, tính ranked list, cache cả list vào Redis 600s</li>
+        <li>Response trả về <code>session_id</code> và <code>next_cursor</code> (= feed_id của item cuối trong page)</li>
+        <li>Request tiếp theo: gửi kèm <code>session_id</code> + <code>cursor</code>, server đọc <em>cùng</em> cached list, skip đến sau cursor</li>
+        <li>User tương tác → cache bị invalidate → lần gọi tiếp sẽ tạo session mới, tính lại</li>
+        <li>Session hết hạn (600s) → tương tự tạo mới</li>
+      </ol>
+    </div>
+
+    <pre><code><span class="comment">// getRecommendedFeed() — feed.service.ts:1077</span>
+<span class="comment">// 1. Kiểm tra session và cached list</span>
+<span class="keyword">let</span> cachedList = <span class="keyword">await this</span>.<span class="fn">getCachedRecommendList</span>(userId, sessionId);
+
+<span class="keyword">if</span> (cachedList &amp;&amp; cachedList.length &gt; <span class="number">0</span>) &#123;
+  <span class="comment">// Fast path: chỉ page từ cache</span>
+  <span class="keyword">const</span> pageIds = <span class="keyword">this</span>.<span class="fn">pageFeedIds</span>(cachedList, cursor, limit);
+  <span class="keyword">return</span> &#123; data, next_cursor, session_id &#125;;
+&#125;
+
+<span class="comment">// Slow path: tính lại từ đầu</span>
+<span class="keyword">const</span> &#123; rankedFeeds &#125; = <span class="keyword">await this</span>.<span class="fn">computeRankedCandidates</span>(userId);
+<span class="keyword">await this</span>.<span class="fn">setCachedRecommendList</span>(userId, sessionId, rankedIds); <span class="comment">// cache 600s</span>
+<span class="keyword">await this</span>.<span class="fn">setLatestRecommendSessionId</span>(userId, sessionId);     <span class="comment">// cache 600s</span></code></pre>
+
+    <hr class="divider" />
+
+    <!-- ── Constants ── -->
+    <h2 id="constants">Hằng số Tuning</h2>
+
+    <p>
+      Tất cả tham số được khai báo tập trung ở đầu <code>FeedService</code>
+      (dòng 60–86), không hard-code rải rác → dễ A/B test:
+    </p>
+
+    <table>
+      <thead><tr><th>Hằng số</th><th>Giá trị mặc định</th><th>Ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td><code>FRESHNESS_HALF_LIFE_HOURS</code></td><td>36</td><td>Sau 36h, freshness giảm còn 0.5</td></tr>
+        <tr><td><code>W_GLOBAL</code></td><td>1.0</td><td>Trọng số global engagement signal</td></tr>
+        <tr><td><code>W_PERSONAL</code></td><td>1.5</td><td>Trọng số personalisation — cao nhất</td></tr>
+        <tr><td><code>W_FRESHNESS</code></td><td>1.2</td><td>Trọng số freshness signal</td></tr>
+        <tr><td><code>REPEAT_VIEW_PENALTY</code></td><td>0.8</td><td>Trừ điểm mỗi lần xem lặp</td></tr>
+        <tr><td><code>REPEAT_VIEW_PENALTY_CAP</code></td><td>3.0</td><td>Penalty tối đa (sau 4+ lần xem)</td></tr>
+        <tr><td><code>EXPLORATION_RATIO</code></td><td>0.15</td><td>15% slots → exploration items</td></tr>
+        <tr><td><code>MAX_SAME_COURSE_RUN</code></td><td>2</td><td>Tối đa 2 video liên tiếp cùng course</td></tr>
+        <tr><td><code>GLOBAL_ENGAGEMENT_WINDOW_HOURS</code></td><td>168 (7 ngày)</td><td>Cửa sổ tính popularity</td></tr>
+        <tr><td><code>TRENDING_WINDOW_MS</code></td><td>3 600 000 (1h)</td><td>Cửa sổ tính trending score</td></tr>
+        <tr><td><code>TRENDING_CACHE_TTL_SECONDS</code></td><td>300</td><td>TTL Redis trending list</td></tr>
+        <tr><td><code>TRENDING_MAX_LIMIT</code></td><td>50</td><td>Max items trending trả về</td></tr>
+        <tr><td><code>RECOMMEND_CACHE_SIZE</code></td><td>100</td><td>Số candidates đưa vào ranking</td></tr>
+        <tr><td><code>SEEN_COOLDOWN_SECONDS</code></td><td>21600 (6h)</td><td>Cooldown trước khi feed xuất hiện lại</td></tr>
+        <tr><td><code>PROFILE_TTL_SECONDS</code></td><td>86400 (24h)</td><td>TTL Redis user profile</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="ab-test">A/B Testing &amp; Điều chỉnh</h2>
+
+    <div class="card warning">
+      <strong>Cách điều chỉnh an toàn:</strong>
+      <ul style="margin:8px 0 0 20px;font-size:14px;line-height:2">
+        <li>Sửa các hằng số trong <code>FeedService</code> → deploy → observe metrics</li>
+        <li><strong>Tăng W_PERSONAL</strong> → feed cá nhân hoá hơn, ít khám phá mới</li>
+        <li><strong>Tăng EXPLORATION_RATIO</strong> → nhiều video ngoài sở thích hơn (phá filter bubble)</li>
+        <li><strong>Giảm FRESHNESS_HALF_LIFE_HOURS</strong> → ưu tiên video rất mới hơn</li>
+        <li><strong>Tăng TRENDING_WINDOW_MS</strong> → trending phản ánh xu hướng dài hơn (ít sensitive hơn)</li>
+        <li><strong>Giảm SEEN_COOLDOWN_SECONDS</strong> → video xuất hiện lại sớm hơn khi user ít nội dung mới</li>
+      </ul>
+    </div>
+
+    <div class="callout">
+      <div class="icon">📁</div>
+      <p>Source code chính: <strong>feed.service.ts</strong> dòng 60–86 (hằng số),
+      1528–1722 (computeRankedCandidates), 438–534 (computeTrendingFeedIds),
+      1434–1444 (freshnessScore), 1452–1454 (engagementRate),
+      1456–1487 (diversifyByCourse), 1489–1526 (injectExploration),
+      1204–1274 (precomputeRecommendedForActiveUsers).</p>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut, User, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,7 +97,10 @@ export function InstructorNav() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 gap-1.5 px-2">
                 <Avatar className="h-7 w-7">
-                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={getUserDisplayName()} />
+                  <AvatarImage
+                    src={user?.avatarUrl ?? undefined}
+                    alt={getUserDisplayName()}
+                  />
                   <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
                     {getUserInitials()}
                   </AvatarFallback>

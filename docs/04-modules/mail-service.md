@@ -1,72 +1,156 @@
 # Mail Service
 
-## Mục đích
-- Gửi email transactional qua Nodemailer (SMTP Gmail)
-- 3 loại mail: OTP đăng ký / forgot password / custom
-- Lưu OTP vào Redis (TTL 5 phút) — service khác (auth_service) có thể đọc để verify
+> Entry: `backend_services/mail_service/src/server.js` · Express + plain JS · Port mặc định `3000`
 
-## File / Folder
+Service nhỏ nhất: gửi email transactional qua **Nodemailer** (SMTP) và quản lý OTP trong Redis.
 
-| Path | Mô tả |
-|------|------|
-| `backend_services/mail_service/src/server.js` | Entry — Express listen |
-| `backend_services/mail_service/src/app.js` | Express app: cors, json, mount routes |
-| `backend_services/mail_service/src/configs/mail.config.js` | Nodemailer transporter (SMTP) |
-| `backend_services/mail_service/src/configs/redis.config.js` | Redis client (ioredis) |
-| `backend_services/mail_service/src/configs/index.js` | Re-export |
-| `backend_services/mail_service/src/controllers/mail.controller.js` | 3 endpoints handler |
-| `backend_services/mail_service/src/controllers/index.js` | Re-export |
-| `backend_services/mail_service/src/routes/mail.route.js` | Router `/mail/*` |
-| `backend_services/mail_service/src/routes/index.js` | Re-export |
-| `backend_services/mail_service/src/services/mail.service.js` | `sendOTP(email, otp)`, `sendForgotPassword(email, link)`, `sendCustom(email, message)` |
-| `backend_services/mail_service/src/services/index.js` | Re-export |
-| `backend_services/mail_service/src/templates/mail.template.js` | HTML template cho mỗi loại mail |
-| `backend_services/mail_service/src/templates/index.js` | Re-export |
-| `backend_services/mail_service/src/utils/otp.util.js` | `generateOTP()` — 6 digit random |
-| `backend_services/mail_service/src/utils/index.js` | Re-export |
-| `backend_services/mail_service/src/middlewares/validate.middleware.js` | Body validation |
-| `backend_services/mail_service/src/middlewares/error.middleware.js` | Global error handler |
-| `backend_services/mail_service/src/middlewares/index.js` | Re-export |
+Chức năng:
 
-## Endpoints
+- Sinh OTP 6 chữ số, lưu Redis key `MAIL_OTP:{email}` (TTL 300s = 5 phút).
+- Gửi OTP qua email.
+- Gửi link reset password.
+- Gửi mail tự do (custom message).
 
-(Service này **không qua api_gateway** — auth_service gọi trực tiếp qua HTTP env `MAIL_SERVICE_URL`)
+`auth_service` gọi vào service này qua HTTP (xem `auth-service.md > forgot-password`). OTP key sau đó được `auth_service` đọc/xoá khi user submit `/auth/check-otp`.
 
-| Method | Path | Body | Mô tả |
-|--------|------|------|------|
-| POST | `/mail/send-otp` | `{ email }` | Gen OTP, lưu Redis `MAIL_OTP:<email>` TTL 300s, gửi mail |
-| POST | `/mail/send-forgot-password` | `{ email, link }` | Gửi mail reset có link |
-| POST | `/mail/send-custom` | `{ email, message }` | Gửi mail tùy chỉnh |
+---
 
-> **TODO: xác minh** — endpoint exact paths nằm trong `routes/mail.route.js`. Tên endpoint có thể khác (vd `/send-otp` không có prefix `/mail`).
+## Sequence: gửi OTP
 
-## Redis usage
+```mermaid
+sequenceDiagram
+    autonumber
+    participant AS as auth_service
+    participant MS as mail_service
+    participant R as Redis
+    participant SMTP as SMTP (Gmail/...)
 
-- Key: `MAIL_OTP:<email_lowercased>` (xem `controllers/mail.controller.js` line 11)
-- Value: OTP 6 digit
-- TTL: 300s (5 phút) — set qua `redis.set(key, otp, 'EX', 300)`
+    AS->>MS: POST /mail/otp { email }
+    MS->>MS: validateEmail middleware
+    MS->>MS: generateOTP() → 6 digits
+    MS->>R: SET MAIL_OTP:{email} = otp EX 300
+    MS->>SMTP: sendMail({ to, subject:'Your OTP Code', html })
+    SMTP-->>MS: ok
+    MS-->>AS: { statusCode: 200, message: 'OTP sent' }
+```
 
-## Dependencies
+---
 
-- SMTP: env `MAIL_HOST` (mặc định `smtp.gmail.com`), `MAIL_PORT` (587), `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM`
-- Redis: shared với auth_service (cùng instance) → auth_service đọc OTP từ Redis hoặc gọi lại endpoint verify (TODO: xác minh)
+## Module tree
 
-## Pattern
+```
+src/
+├── server.js              # bootstrap (listen 0.0.0.0:PORT)
+├── app.js                 # express.json + routes + errorMiddleware
+├── routes/
+│   ├── index.js
+│   └── mail.route.js
+├── controllers/
+│   ├── index.js
+│   └── mail.controller.js
+├── services/
+│   ├── index.js
+│   └── mail.service.js    # transporter.sendMail wrapper
+├── templates/
+│   ├── index.js
+│   └── mail.template.js   # otp / forgotPassword / custom HTML
+├── middlewares/
+│   └── validateEmail, errorMiddleware
+├── configs/
+│   ├── mail.config.js     # nodemailer.createTransport
+│   └── redis.config.js    # ioredis client
+└── utils/
+    └── otp.util.js        # generateOTP(length=6)
+```
 
-- Module export style: mỗi feature có `index.js` re-export — pattern dùng `require('../services').mailService` để gọi
-- `next(err)` truyền error xuống `error.middleware`
+---
 
-## Quirks
+## Endpoints (mount tại `/mail`)
 
-- `gmail` thường require **App Password** (không phải password thường) — phải set 2FA + tạo app password riêng
-- TTL OTP 5 phút hardcode trong controller, không config qua env
-- `package.json` dùng Express 5 (mới) — chú ý syntax khác với Express 4
+| Method | Path | Middleware | Body | Mô tả |
+|---|---|---|---|---|
+| POST | `/mail/otp` | `validateEmail` | `{ email }` | Sinh OTP, lưu Redis (TTL 5 phút), gửi mail. **Trả 200 nếu thành công, không trả OTP về** |
+| POST | `/mail/forgot-password` | `validateEmail` | `{ email, link }` | Gửi link reset (link do caller cung cấp) |
+| POST | `/mail/custom` | `validateEmail` | `{ email, message }` | Gửi mail tự do |
 
-## Cách chạy local
+> Service này **không** mount qua gateway — `auth_service` gọi trực tiếp vào `MAIL_SERVICE_URL` (server-to-server).
+
+---
+
+## OTP convention
+
+- Key: `MAIL_OTP:{email lowercase trim}`
+- Value: 6 chữ số (string)
+- TTL: `300` (giây)
+- Producer: `mail_service`
+- Consumer: `auth_service > checkOtpAndResetPassword` (đọc + xoá khi reset xong)
+
+```js
+// utils/otp.util.js
+exports.generateOTP = function (length = 6) {
+  return Math.floor(
+    Math.pow(10, length - 1) + Math.random() * Math.pow(10, length - 1)
+  ).toString();
+};
+```
+
+> Hàm này không phải cryptographic-secure (dùng `Math.random`). Đủ cho OTP đăng ký nhưng nếu cần audit chặt → đổi sang `crypto.randomInt`.
+
+---
+
+## Mail templates (`templates/mail.template.js`)
+
+```js
+exports.otp = (otp) => ({
+  subject: 'Your OTP Code',
+  html: `<h2>Your OTP: ${otp}</h2><p>Expires in 5 minutes</p>`,
+});
+
+exports.forgotPassword = (link) => ({
+  subject: 'Reset Password',
+  html: `<a href="${link}">Reset your password</a>`,
+});
+
+exports.custom = (message) => ({
+  html: `<p>${message}</p>`, // không có subject
+});
+```
+
+> Template hiện rất tối giản. Nếu cần email branded thì replace bằng MJML/Handlebars + render.
+
+---
+
+## Environment variables
+
+| Env | Mô tả |
+|---|---|
+| `PORT` | Port (default `3000`) |
+| `MAIL_HOST` | SMTP host (vd `smtp.gmail.com`) |
+| `MAIL_PORT` | SMTP port (vd `587`) |
+| `MAIL_USER` | Account SMTP |
+| `MAIL_PASS` | App password (Gmail yêu cầu App Password, không phải password thường) |
+| `MAIL_FROM` | Địa chỉ "From" hiển thị trong mail |
+| `REDIS_HOST` | Redis host (default `127.0.0.1`) |
+| `REDIS_PORT` | Default `6379` |
+| `REDIS_PASSWORD` | Default empty |
+
+Note: `mail.config.js` set `secure: false` — phù hợp Gmail port 587 (STARTTLS). Nếu dùng port 465 cần đổi `secure: true`.
+
+---
+
+## Scripts
 
 ```bash
-cd backend_services/mail_service
-cp .env.example .env  # MAIL_USER, MAIL_PASS, MAIL_FROM, REDIS_*
-npm install
-npm run dev           # nodemon, port 10000 prod / TODO local
+yarn start        # node src/server.js
+yarn dev          # nodemon src/server.js
 ```
+
+---
+
+## Tips
+
+- **Gmail Auth error** → bật 2FA và tạo App Password. `MAIL_PASS` không phải password Google chính.
+- **OTP không vào hộp thư** → check spam, check log Nodemailer, thử với `smtp.ethereal.email` để debug.
+- **OTP key không tồn tại khi check** → TTL 5 phút đã hết, user submit chậm. Re-gửi OTP mới.
+- **Đổi TTL** → sửa hardcode `'EX', 300` trong `mail.controller.js > sendOTP`. (Nên đưa lên env.)
+- **Service crash khi Redis down** → `ioredis` retry tự động; mail vẫn gửi được nhưng Redis SET sẽ fail → OTP không lưu → check-otp fail. Theo dõi log `Redis error:`.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatRelativeTime } from "../../mock-data";
 import type { RecentQAItem } from "../../types";
 
@@ -30,6 +30,12 @@ export function RecentQA({ items }: Props) {
         {items.map((item) => (
           <li key={item.id} className="flex gap-3">
             <Avatar className="mt-0.5 h-8 w-8 shrink-0">
+              {/* If authorAvatar provided on item, load it; otherwise fallback to initials */}
+              {/* item.authorAvatar is optional — if your data includes it, it will be used */}
+              <AvatarImage
+                src={(item as any).authorAvatar ?? undefined}
+                alt={item.authorName}
+              />
               <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
                 {item.authorName
                   .split(" ")

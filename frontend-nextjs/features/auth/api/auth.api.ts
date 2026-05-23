@@ -5,6 +5,8 @@ import { clearAuthSession, syncAuthSession } from "@/lib/auth-session";
 import type {
   LoginRequest,
   LoginResponse,
+  GoogleLoginRequest,
+  GoogleLoginResponse,
   RegisterRequest,
   RegisterResponse,
   RefreshTokenResponse,
@@ -48,6 +50,25 @@ export const authApi = createApi({
   login: async (data: LoginRequest) => {
     const { data: response } = await authClient.post<LoginResponse>(
       "/login",
+      data,
+    );
+
+    const normalizedUser = normalizeAuthUser(response.user);
+
+    syncAuthSession({
+      accessToken: response.accessToken,
+      user: normalizedUser,
+    });
+
+    return {
+      ...response,
+      user: normalizedUser,
+    };
+  },
+
+  googleLogin: async (data: GoogleLoginRequest) => {
+    const { data: response } = await authClient.post<GoogleLoginResponse>(
+      "/google",
       data,
     );
 

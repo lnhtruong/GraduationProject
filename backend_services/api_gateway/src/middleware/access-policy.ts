@@ -33,6 +33,7 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/health', access: 'public' },
   { method: 'POST', pattern: '/api/auth/register', access: 'public' },
   { method: 'POST', pattern: '/api/auth/login', access: 'public' },
+  { method: 'POST', pattern: '/api/auth/google', access: 'public' },
   { method: 'POST', pattern: '/api/auth/refresh', access: 'public' },
   { method: 'POST', pattern: '/api/auth/forgot-password', access: 'public' },
   { method: 'POST', pattern: '/api/auth/check-otp', access: 'public' },

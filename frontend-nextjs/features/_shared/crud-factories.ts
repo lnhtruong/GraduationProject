@@ -25,6 +25,7 @@ export interface CrudApi<
   TDelete = unknown,
 > {
   list?: (params?: TListParams) => Promise<TItem[]>;
+  listMine?: (params?: TListParams) => Promise<TItem[]>;
   listPaginated?: (params?: TListParams) => Promise<PaginatedResponse<TItem>>;
   listByParent?: (parentId: TParentId) => Promise<TItem[]>;
   getOne: (id: TId) => Promise<TItem>;
@@ -370,6 +371,19 @@ export function createCrudHooks<
     });
   }
 
+  function useListMine(params?: TListParams, enabled = true) {
+    return useQuery({
+      queryKey: keys.custom("mine", params ?? {}),
+      queryFn: async () => {
+        const data = api.listMine ? await api.listMine(params) : [];
+        onSuccess?.list?.(data);
+        return data;
+      },
+      enabled: enabled && !!api.listMine,
+      staleTime: listStaleTimeMs,
+    });
+  }
+
   function useListByParent(parentId: TParentId | null, enabled = true) {
     return useQuery({
       queryKey: keys.custom(parentListKey, parentId),
@@ -491,6 +505,7 @@ export function createCrudHooks<
 
     // Queries
     useList,
+    useListMine,
     useListByParent,
     useDetail,
 
