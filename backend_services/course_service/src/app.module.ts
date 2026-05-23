@@ -18,6 +18,7 @@ import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions
 import { EnrollsModule } from './enrolls/enrolls.module';
 import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 import { ReportsModule } from './reports/reports.module';
+import { AuditLogsModule } from './audit_logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ReportsModule } from './reports/reports.module';
     //   global: true,
     // }),
     DatabaseModule,
+    AuditLogsModule,
     UsersModule,
     CoursesModule,
     LessonsModule,

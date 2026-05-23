@@ -48,6 +48,13 @@ const ACCESS_RULES: AccessRule[] = [
 
   // User service
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
+  // Audit logs — admin only. Must precede /api/users/:id matcher.
+  {
+    method: 'GET',
+    pattern: '/api/users/audit-logs',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
   {
     method: 'GET',

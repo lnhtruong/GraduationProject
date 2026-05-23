@@ -15,6 +15,7 @@ import { Enroll } from '../models/enroll.model';
 import { LessonProgress } from '../models/lesson-progress.model';
 import { MascotImage } from 'src/models/images.model';
 import { Report } from '../models/report.model';
+import { AuditLog } from '../audit_logs/audit-log.model';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { Report } from '../models/report.model';
             Enroll,
             LessonProgress,
             Report,
+            AuditLog,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)

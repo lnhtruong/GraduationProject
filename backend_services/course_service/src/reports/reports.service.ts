@@ -16,6 +16,8 @@ import {
 import { User } from 'src/users/user.model';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ReviewReportDto } from './dto/review-report.dto';
+import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
+import { RequesterContext } from 'src/audit_logs/requester.types';
 
 const LECTURER_ROLE = 3;
 
@@ -26,6 +28,7 @@ export class ReportsService {
     @InjectModel(Course) private readonly courseModel: typeof Course,
     @InjectModel(Lesson) private readonly lessonModel: typeof Lesson,
     @InjectModel(User) private readonly userModel: typeof User,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async create(reporterId: number, payload: CreateReportDto): Promise<Report> {
@@ -175,6 +178,7 @@ export class ReportsService {
     id: number,
     approverId: number,
     payload: ReviewReportDto,
+    requester?: RequesterContext,
   ): Promise<Report> {
     if (
       payload.decision !== ReportStatus.APPROVED &&
@@ -191,6 +195,13 @@ export class ReportsService {
       throw new ConflictException('Report đã được duyệt trước đó');
     }
 
+    const before = {
+      id: report.id,
+      status: report.status,
+      targetType: report.targetType,
+      targetId: report.targetId,
+    };
+
     if (payload.decision === ReportStatus.APPROVED && payload.banTarget) {
       await this.banTarget(report.targetType, report.targetId);
     }
@@ -201,6 +212,31 @@ export class ReportsService {
       reviewNote: payload.reviewNote ?? null,
       reviewedAt: new Date(),
     });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'report.review',
+        targetType: 'report',
+        targetId: report.id,
+        before,
+        after: {
+          status: report.status,
+          reviewNote: report.reviewNote,
+          reviewedAt: report.reviewedAt,
+        },
+        metadata: {
+          decision: payload.decision,
+          banTarget: payload.banTarget === true,
+          reportTargetType: report.targetType,
+          reportTargetId: report.targetId,
+          reviewNote: payload.reviewNote ?? null,
+        },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
 
     return report;
   }

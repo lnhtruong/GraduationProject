@@ -95,10 +95,17 @@ export class ReportsController {
     @Param('id', ParseIntPipe) id: number,
     @Headers('x-user-id') userIdHeader: string,
     @Headers('x-user-role') roleHeader: string,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('user-agent') userAgent: string,
     @Body() payload: ReviewReportDto,
   ) {
     this.assertAdmin(roleHeader);
     const approverId = this.parseUserId(userIdHeader);
-    return await this.reportsService.review(id, approverId, payload);
+    return await this.reportsService.review(id, approverId, payload, {
+      userId: approverId,
+      role: parseInt(roleHeader, 10),
+      ip: forwardedFor?.split(',')[0]?.trim() ?? null,
+      userAgent: userAgent ?? null,
+    });
   }
 }

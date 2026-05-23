@@ -14,6 +14,8 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
+import { RequesterContext } from 'src/audit_logs/requester.types';
 
 @Injectable()
 export class CoursesService {
@@ -28,7 +30,17 @@ export class CoursesService {
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
+    private readonly auditLogsService: AuditLogsService,
   ) { }
+
+  private auditableCourseSnapshot(course: Course) {
+    return {
+      id: course.id,
+      name: (course as Course & { name?: string }).name ?? null,
+      status: course.status,
+      userId: (course as Course & { userId?: number }).userId ?? null,
+    };
+  }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
@@ -518,9 +530,23 @@ export class CoursesService {
     return await course.update({ ...updateCourseDto, status: CourseStatus.DRAFT });
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, requester?: RequesterContext): Promise<void> {
     const course = await this.findOne(id);
+    const before = this.auditableCourseSnapshot(course);
     await course.destroy();
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.delete',
+        targetType: 'course',
+        targetId: id,
+        before,
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
   }
 
   private parseTimeToMilliseconds(value: string | null | undefined): number {
@@ -603,6 +629,7 @@ export class CoursesService {
   async review(
     id: number,
     status: 'accepted' | 'rejected',
+    requester?: RequesterContext,
   ): Promise<Course> {
     const course = await this.findOne(id);
     await this.ensureCourseHasLessons(id);
@@ -612,18 +639,54 @@ export class CoursesService {
       );
     }
 
+    const before = this.auditableCourseSnapshot(course);
     const newStatus =
       status === 'accepted' ? CourseStatus.APPROVED : CourseStatus.REJECTED;
-    return await course.update({ status: newStatus });
+    const updated = await course.update({ status: newStatus });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.review',
+        targetType: 'course',
+        targetId: id,
+        before,
+        after: this.auditableCourseSnapshot(updated),
+        metadata: { decision: status },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
+    return updated;
   }
 
-  async publish(id: number): Promise<Course> {
+  async publish(id: number, requester?: RequesterContext): Promise<Course> {
     const course = await this.findOne(id);
     if (course.status !== CourseStatus.APPROVED) {
       throw new BadRequestException(
         `Course must be in APPROVED status to publish. Current status: ${course.status}`,
       );
     }
-    return await course.update({ status: CourseStatus.PUBLISH });
+
+    const before = this.auditableCourseSnapshot(course);
+    const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.publish',
+        targetType: 'course',
+        targetId: id,
+        before,
+        after: this.auditableCourseSnapshot(updated),
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
+    return updated;
   }
 }
