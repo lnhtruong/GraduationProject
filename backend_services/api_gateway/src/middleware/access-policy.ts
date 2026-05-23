@@ -47,6 +47,35 @@ const ACCESS_RULES: AccessRule[] = [
 
   // User service
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
+  // Lecturer upgrade requests — must precede /api/users/:id matchers
+  {
+    method: 'POST',
+    pattern: '/api/users/lecturer-requests',
+    access: 'roles',
+    roles: [UserRole.STUDENT],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/users/lecturer-requests/mine',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/users/lecturer-requests',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/users/lecturer-requests/:id/review',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/users/lecturer-requests/:id',
+    access: 'authenticated',
+  },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
   {
     method: 'GET',

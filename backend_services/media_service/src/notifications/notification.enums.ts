@@ -6,6 +6,8 @@ export const NotificationEventType = {
   VIDEO_JOB_FAILED: 'video.job.failed',
   VIDEO_JOB_COMPLETED: 'video.job.completed',
   IMAGE_UPLOAD_COMPLETED: 'image.upload.completed',
+  LECTURER_REQUEST_APPROVED: 'lecturer_request.approved',
+  LECTURER_REQUEST_REJECTED: 'lecturer_request.rejected',
 } as const;
 
 export type NotificationEventType =
@@ -17,6 +19,7 @@ export const NotificationSourceType = {
   VIDEO: 'video',
   VIDEO_JOB: 'video_job',
   IMAGE: 'image',
+  LECTURER_REQUEST: 'lecturer_request',
 } as const;
 
 export type NotificationSourceType =
@@ -29,6 +32,7 @@ export const NotificationSseEventType = {
   VIDEO_PROGRESS: 'video:progress',
   VIDEO_ERROR: 'video:error',
   VIDEO_COMPLETED: 'video:completed',
+  NOTIFY_LECTURER_REQUEST: 'notify:lecturer-request',
 } as const;
 
 export type NotificationSseEventType =
@@ -43,6 +47,8 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.VIDEO_JOB_FAILED,
   NotificationEventType.VIDEO_JOB_COMPLETED,
   NotificationEventType.IMAGE_UPLOAD_COMPLETED,
+  NotificationEventType.LECTURER_REQUEST_APPROVED,
+  NotificationEventType.LECTURER_REQUEST_REJECTED,
 ] as const;
 
 export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [
@@ -50,4 +56,5 @@ export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [
   NotificationSourceType.VIDEO,
   NotificationSourceType.VIDEO_JOB,
   NotificationSourceType.IMAGE,
+  NotificationSourceType.LECTURER_REQUEST,
 ] as const;
