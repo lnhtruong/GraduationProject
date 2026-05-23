@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
-import { useCartStore } from "../hooks/useCartStore";
 
 interface CartMobileBottomBarProps {
   items: CartItem[]; // chỉ in-cart items
@@ -11,27 +10,17 @@ interface CartMobileBottomBarProps {
 }
 
 export function CartMobileBottomBar({ items, onCheckout }: CartMobileBottomBarProps) {
-  const { discountAmount } = useCartStore();
-
-  // [MOCK] tính từ local — [SWAP] lấy từ useCartSummary() khi có backend
-  const subtotal = items.reduce((sum, i) => sum + i.price, 0);
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = items.reduce((sum, i) => sum + i.price, 0);
 
   // Không render nếu không có item
   if (items.length === 0) return null;
 
   return (
-    // Pattern giống courses/detail/index.tsx:166
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
       <div className="flex flex-col">
         <span className="text-base font-extrabold text-foreground">
           {formatPrice(total)}
         </span>
-        {discountAmount > 0 && (
-          <span className="text-xs text-muted-foreground line-through">
-            {formatPrice(subtotal)}
-          </span>
-        )}
       </div>
       <Button
         size="lg"

@@ -22,15 +22,7 @@ export interface CartItem {
 }
 
 export interface CartSummary {
-  subtotal: number;       // SUM(Courses.price) for in-cart items
-  discountAmount: number; // từ coupon
-  couponCode?: string;
-  total: number;          // subtotal - discountAmount
-  itemCount: number;      // COUNT of in-cart items (không tính saved)
-}
-
-export interface CouponResult {
-  valid: boolean;
-  discountAmount?: number;
-  message?: string;       // "Mã không hợp lệ", "Đã hết hạn", v.v.
+  subtotal: number;
+  total: number;
+  itemCount: number;
 }
