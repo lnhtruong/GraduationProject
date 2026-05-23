@@ -1,4 +1,12 @@
-import { Column, DataType, Model, Table } from 'sequelize-typescript';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  ForeignKey,
+  Model,
+  Table,
+} from 'sequelize-typescript';
+import { User } from 'src/users/user.model';
 
 @Table({
   tableName: 'audit_logs',
@@ -12,12 +20,16 @@ export class AuditLog extends Model {
   })
   declare id: number;
 
+  @ForeignKey(() => User)
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
     field: 'actor_user_id',
   })
   declare actorUserId: number;
+
+  @BelongsTo(() => User, { foreignKey: 'actorUserId', as: 'actor' })
+  declare actor?: User;
 
   @Column({
     type: DataType.INTEGER,

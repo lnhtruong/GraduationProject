@@ -70,6 +70,14 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'PATCH', pattern: '/api/users/:id', access: 'authenticated' },
 
+  // Course service - audit logs (admin only)
+  {
+    method: 'GET',
+    pattern: '/api/course/audit-logs',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Course service - public reads
   {
     method: 'GET',
