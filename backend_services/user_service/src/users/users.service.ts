@@ -31,6 +31,7 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      emailVerified: user.emailVerified,
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

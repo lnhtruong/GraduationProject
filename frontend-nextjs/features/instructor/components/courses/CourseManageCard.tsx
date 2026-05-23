@@ -68,6 +68,10 @@ function StatusBadge({ status }: { status: CourseStatus }) {
       label: "Rejected",
       className: "bg-destructive/10 text-destructive",
     },
+    banned: {
+      label: "Banned",
+      className: "bg-destructive text-destructive-foreground"
+    },
   };
   const { label, className } =
     config[status] ??

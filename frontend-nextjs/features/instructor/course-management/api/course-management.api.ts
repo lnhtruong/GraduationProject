@@ -37,6 +37,11 @@ import type {
 
 export type CourseFeedListParams = {
   courseId?: number;
+  status?: "active" | "hidden" | "removed";
+  page?: number;
+  pageSize?: number;
+  sortBy?: "created_at" | "id" | "title";
+  order?: "asc" | "desc";
 };
 
 type FeedListResponse = {
@@ -133,6 +138,10 @@ function toInstructorCourse(item: Course): InstructorCourse {
 export const courseApi = {
   list: (params?: CourseListParams): Promise<InstructorCourse[]> =>
     (baseCourseApi.list?.(params) ?? Promise.resolve([])).then((items) =>
+      items.map(toInstructorCourse),
+    ),
+  listMine: (params?: CourseListParams): Promise<InstructorCourse[]> =>
+    (baseCourseApi.listMine?.(params) ?? Promise.resolve([])).then((items) =>
       items.map(toInstructorCourse),
     ),
   getOne: (id: number): Promise<InstructorCourse> =>
@@ -232,17 +241,40 @@ const courseFeedCrudApi = createResourceApi<
     return item.data ?? ({} as CourseFeedItem);
   },
   mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
-  getListPath: (params) =>
-    withQueryPath("/media/feed", {
-      courseId: params?.courseId,
-      limit: 100,
-    }),
+  getListPath: (params) => withQueryPath("/media/feed", params),
   getOnePath: (id) => `/media/feed/${id}`,
   getUpdatePath: (id) => `/media/feed/${id}`,
   getDeletePath: (id) => `/media/feed/${id}`,
 });
 
-export const courseFeedApi = courseFeedCrudApi;
+const courseFeedMineCrudApi = createResourceApi<
+  FeedItemResponse,
+  CourseFeedItem,
+  CourseFeedCreatePayload,
+  CourseFeedUpsertPayload,
+  number,
+  CourseFeedListParams,
+  { message?: string },
+  FeedListResponse | CourseFeedItem[]
+>({
+  basePath: "/media/feed/mine",
+  mapItem: (item) => {
+    if ("feed_id" in item) {
+      return item;
+    }
+    return item.data ?? ({} as CourseFeedItem);
+  },
+  mapListResponse: (raw) => (Array.isArray(raw) ? raw : (raw.data ?? [])),
+  getListPath: (params) => withQueryPath("/media/feed/mine", params),
+  getOnePath: (id) => `/media/feed/${id}`,
+  getUpdatePath: (id) => `/media/feed/${id}`,
+  getDeletePath: (id) => `/media/feed/${id}`,
+});
+
+export const courseFeedApi = {
+  ...courseFeedCrudApi,
+  listMine: courseFeedMineCrudApi.list,
+};
 export { lessonActivityApi };
 
 export type {

@@ -5,7 +5,8 @@ export type CourseStatus =
   | "pending"
   | "approved"
   | "rejected"
-  | "publish";
+  | "publish"
+  | "banned";
 
 type LessonContentType = "video" | "text";
 

@@ -22,9 +22,9 @@ export class User extends Model {
 
   @Column({
     type: DataType.STRING(255),
-    allowNull: false,
+    allowNull: true,
   })
-  declare password: string;
+  declare password: string | null;
 
   @Column({
     type: DataType.STRING(100),
@@ -45,6 +45,20 @@ export class User extends Model {
   declare role: number | null;
 
   @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  declare googleId: string | null;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  })
+  declare emailVerified: boolean;
+
+  @Column({
     type: DataType.BOOLEAN,
     allowNull: false,
     defaultValue: false,
@@ -53,7 +67,7 @@ export class User extends Model {
   declare isBanned: boolean;
 
   @Column({
-    type: DataType.STRING(512),
+    type: DataType.STRING(500),
     allowNull: true,
   })
   declare avatarUrl: string | null;
