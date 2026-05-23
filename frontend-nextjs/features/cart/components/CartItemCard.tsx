@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Play, Star, Trash2, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Play, Star, Trash2, Bookmark, BookmarkCheck } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
 
@@ -77,7 +77,8 @@ export function CartItemCard({
         ${isRemoving ? "pointer-events-none opacity-40" : ""}`}
     >
       {/* ── Thumbnail ─────────────────────────────────────────────── */}
-      <div
+      <Link
+        href={`/courses/${item.courseId}`}
         className="group relative aspect-video w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-[140px]"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -128,14 +129,16 @@ export function CartItemCard({
             Xem thử
           </span>
         )}
-      </div>
+      </Link>
 
       {/* ── Content ───────────────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         {/* Title */}
-        <h3 className="line-clamp-2 text-[15px] font-bold leading-snug">
-          {item.title}
-        </h3>
+        <Link href={`/courses/${item.courseId}`}>
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug hover:text-primary transition-colors">
+            {item.title}
+          </h3>
+        </Link>
 
         {/* Meta */}
         <p className="text-xs text-muted-foreground">
