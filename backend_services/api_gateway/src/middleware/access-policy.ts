@@ -91,7 +91,8 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/course/roadmaps', access: 'public' },
   { method: 'GET', pattern: '/api/course/roadmaps/:id', access: 'public' },
-  { method: 'GET', pattern: '/api/course/users/:id', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/users/:id', access: 'public' },
+  { method: 'GET', pattern: '/api/course/feedbacks/check/:courseId', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/feedbacks/**', access: 'public' },
   {
     method: 'GET',
