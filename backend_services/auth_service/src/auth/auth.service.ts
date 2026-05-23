@@ -12,7 +12,11 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
-import { JwtTokenService, TokenPayload } from './jwt/jwt.service';
+import {
+  JwtTokenService,
+  RefreshTokenPayload,
+  TokenPayload,
+} from './jwt/jwt.service';
 import { RedisService } from '../redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -123,28 +127,42 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
-    const payload = await this.jwtTokenService.decodeToken(refreshToken);
-
-    if (!payload) {
+    let payload: RefreshTokenPayload;
+    try {
+      payload = await this.jwtTokenService.verifyRefreshToken(refreshToken);
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const storedToken = await this.redisService.get(
-      this.getRefreshTokenKey(payload.userId),
-    );
+    if (!payload?.jti) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
-    if (!storedToken || storedToken !== refreshToken) {
+    const redisKey = this.getRefreshTokenKey(payload.userId);
+    const storedJti = await this.redisService.get(redisKey);
+
+    if (!storedJti) {
       throw new UnauthorizedException('Refresh token not found or expired');
     }
 
-    const newAccessToken = await this.jwtTokenService.generateAccessToken({
+    if (storedJti !== payload.jti) {
+      // Reuse detected — wipe the session so the legitimate user is also forced
+      // to re-login (defensive: assume the token has leaked).
+      await this.redisService.del(redisKey);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    const tokenPair = await this.jwtTokenService.generateTokenPair({
       userId: payload.userId,
       email: payload.email,
       role: payload.role,
     });
 
+    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
+
     return {
-      accessToken: newAccessToken,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -157,15 +175,12 @@ export class AuthService {
   }
 
   async issueToken(payload: TokenPayload) {
-    const tokenPair = this.jwtTokenService.generateTokenPair(payload);
-    await this.storeRefreshToken(
-      payload.userId,
-      (await tokenPair).refreshToken,
-    );
+    const tokenPair = await this.jwtTokenService.generateTokenPair(payload);
+    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
 
     return {
-      accessToken: (await tokenPair).accessToken,
-      refreshToken: (await tokenPair).refreshToken,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -261,11 +276,12 @@ export class AuthService {
       role: user.role ?? DEFAULT_USER_ROLE,
     });
 
-    await this.storeRefreshToken(user.id, tokenPair.refreshToken);
+    await this.storeRefreshToken(user.id, tokenPair.refreshJti);
 
     return {
       user: this.toAuthUserResponse(user),
-      ...tokenPair,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -313,11 +329,11 @@ export class AuthService {
     }
   }
 
-  private async storeRefreshToken(userId: number, refreshToken: string) {
+  private async storeRefreshToken(userId: number, refreshJti: string) {
     const ttl = this.configService.get('redis.ttl');
     await this.redisService.set(
       this.getRefreshTokenKey(userId),
-      refreshToken,
+      refreshJti,
       ttl,
     );
   }
