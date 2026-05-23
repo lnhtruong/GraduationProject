@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   UseInterceptors,
   UploadedFile,
   Res,
@@ -17,16 +18,41 @@ import {
 import { AppService } from './app.service';
 import type { Response } from 'express';
 
+function parseUserId(userIdHeader?: string): number | undefined {
+  return typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+    ? Number(userIdHeader)
+    : undefined;
+}
+
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) { }
+  constructor(private readonly appService: AppService) {}
 
   @Get()
   getHome() {
-    return { message: 'Mascot Video Share Service API Gateway' };
+    return {
+      service: 'Inference Service (Colab Pool)',
+      message:
+        'Forwards inference workload to a pool of Colab notebooks behind ngrok.',
+      endpoints: {
+        highlight_upload: 'POST /highlight-reel (FormData)',
+        highlight_link: 'POST /highlight-reel-link (JSON)',
+        generate_quiz: 'POST /generate-quiz',
+        mascot: 'POST /mascot (legacy)',
+        job_status: 'GET /jobs/status/:job_id',
+        download: 'GET /download/:job_id',
+        pool_status: 'GET /pool/status',
+      },
+    };
   }
 
-  // Map với /highlight-reel
+  // GET /pool/status — Ops/debug
+  @Get('pool/status')
+  async getPoolStatus(@Query('force') force?: string) {
+    return this.appService.getPoolStatus(force === '1' || force === 'true');
+  }
+
+  // POST /highlight-reel — multipart upload
   @Post('highlight-reel')
   @UseInterceptors(FileInterceptor('video'))
   async createHighlightReel(
@@ -35,14 +61,38 @@ export class AppController {
     @Headers('x-user-id') userIdHeader?: string,
   ): Promise<unknown> {
     if (!video) throw new BadRequestException('Video file is required');
-    const userId =
-      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
-        ? Number(userIdHeader)
-        : undefined;
-    return this.appService.createHighlightReel(video, body, userId);
+    return this.appService.createHighlightReel(
+      video,
+      body,
+      parseUserId(userIdHeader),
+    );
   }
 
-  // Map với /mascot
+  // POST /highlight-reel-link — JSON với video_url
+  @Post('highlight-reel-link')
+  async createHighlightReelLink(
+    @Body() body: unknown,
+    @Headers('x-user-id') userIdHeader?: string,
+  ): Promise<unknown> {
+    const videoUrl =
+      typeof body === 'object' &&
+      body !== null &&
+      'video_url' in body &&
+      typeof (body as Record<string, unknown>).video_url === 'string'
+        ? (body as Record<string, string>).video_url
+        : undefined;
+
+    if (!videoUrl || videoUrl.trim().length === 0) {
+      throw new BadRequestException('video_url is required');
+    }
+
+    return this.appService.createHighlightReelLink(
+      body,
+      parseUserId(userIdHeader),
+    );
+  }
+
+  // POST /mascot
   @Post('mascot')
   @UseInterceptors(FileInterceptor('audio'))
   async createMascotJob(
@@ -52,9 +102,9 @@ export class AppController {
   ): Promise<unknown> {
     const mascotImageUrl =
       typeof body === 'object' &&
-        body !== null &&
-        'mascot_image_url' in body &&
-        typeof (body as Record<string, unknown>).mascot_image_url === 'string'
+      body !== null &&
+      'mascot_image_url' in body &&
+      typeof (body as Record<string, unknown>).mascot_image_url === 'string'
         ? (body as Record<string, string>).mascot_image_url
         : undefined;
 
@@ -64,9 +114,9 @@ export class AppController {
 
     const originFileName =
       typeof body === 'object' &&
-        body !== null &&
-        'origin_file_name' in body &&
-        typeof (body as Record<string, unknown>).origin_file_name === 'string'
+      body !== null &&
+      'origin_file_name' in body &&
+      typeof (body as Record<string, unknown>).origin_file_name === 'string'
         ? (body as Record<string, string>).origin_file_name
         : undefined;
 
@@ -74,34 +124,29 @@ export class AppController {
       throw new BadRequestException('origin_file_name is required');
     }
 
-    const userId =
-      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
-        ? Number(userIdHeader)
-        : undefined;
-
-    console.log('check userid: ', userId);
-
-    return this.appService.createMascot(mascotImageUrl, originFileName, audio, body, userId);
+    return this.appService.createMascot(
+      mascotImageUrl,
+      originFileName,
+      audio,
+      body,
+      parseUserId(userIdHeader),
+    );
   }
 
-  // Map với /generate-quiz
+  // POST /generate-quiz
   @Post('generate-quiz')
   @UseInterceptors(NoFilesInterceptor())
   async generateQuiz(@Body() body: unknown): Promise<unknown> {
     return this.appService.generateQuiz(body);
   }
 
-  // Map với /jobs/status/{job_id}
+  // GET /jobs/status/:job_id
   @Get('jobs/status/:job_id')
-  async getJobStatus(@Param('job_id') jobId: string, @Headers('x-user-id') userIdHeader?: string): Promise<unknown> {
-    const userId =
-      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
-        ? Number(userIdHeader)
-        : undefined;
-    return this.appService.getJobStatus(jobId, userId);
+  async getJobStatus(@Param('job_id') jobId: string): Promise<unknown> {
+    return this.appService.getJobStatus(jobId);
   }
 
-  // Map với /download/{job_id}
+  // GET /download/:job_id
   @Get('download/:job_id')
   async downloadVideo(@Param('job_id') jobId: string, @Res() res: Response) {
     return this.appService.downloadVideo(jobId, res);
