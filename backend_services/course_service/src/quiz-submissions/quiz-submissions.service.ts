@@ -460,8 +460,15 @@ export class QuizSubmissionsService {
       (sum, q) => sum + this.toPoints(q.point),
       0,
     );
+
+    const totalQuestions = questions.length;
+    const correctCount = answerSnapshots.filter((a) => a.isCorrect).length;
+
     const percent =
-      maxScore > 0 ? this.round2((score / maxScore) * 100) : null;
+      maxScore > 0
+        ? this.round2((score / maxScore) * 100)
+        : this.round2((correctCount / totalQuestions) * 100);
+
     const passed = this.resolvePassed(quiz.passingScore, percent);
 
     return {
@@ -497,14 +504,14 @@ export class QuizSubmissionsService {
 
   private resolvePassed(
     passingScore: number | null | undefined,
-    percent: number | null,
+    percent: number,
   ): boolean {
     if (passingScore === null || passingScore === undefined) {
       return true;
     }
-    if (percent === null) {
-      return true;
-    }
+    // if (percent === null) {
+    //   return true;
+    // }
     return percent >= Number(passingScore);
   }
 
