@@ -9,7 +9,8 @@ import type {
   NewsfeedFeedMutationResponse,
   NewsfeedItem,
   NewsfeedTrendingStatsResponse,
-  NewsfeedPageResponse,
+  NewsfeedFeedPageResponse,
+  NewsfeedFeedResponse,
   NewsfeedRawItem,
   NewsfeedViewRecordResponse,
 } from "../types";
@@ -17,6 +18,22 @@ import type {
 const FEED_ENDPOINT = "/media/feed";
 
 const MEDIA_EXTENSIONS = ["mp4", "webm", "mov", "m4v"] as const;
+
+function parseFeedResponse(response: NewsfeedFeedResponse) {
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      nextCursor: null as number | null,
+      sessionId: null as string | null,
+    };
+  }
+
+  return {
+    items: Array.isArray(response.data) ? response.data : [],
+    nextCursor: typeof response.next_cursor === "number" ? response.next_cursor : null,
+    sessionId: typeof response.session_id === "string" ? response.session_id : null,
+  };
+}
 
 function normalizeMediaUrl(url?: string | null) {
   if (!url) {
@@ -78,7 +95,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
       likes: raw.stats?.likes ?? 0,
       comments: raw.stats?.comments ?? 0,
       saves: raw.stats?.saves ?? 0,
-      shares: 0,
+      shares: raw.stats?.shares ?? 0,
       views: raw.stats?.views ?? 0,
     },
     isLiked: Boolean(raw.is_liked),
@@ -118,7 +135,7 @@ export const newsfeedApi = createApi({
     search?: string;
     courseId?: number;
   }): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-    const { data } = await apiHttpClient.get<NewsfeedPageResponse>(
+    const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(
       withQueryPath(FEED_ENDPOINT, {
         cursor,
         limit,
@@ -128,30 +145,35 @@ export const newsfeedApi = createApi({
       }),
     );
 
+    const { items, nextCursor } = parseFeedResponse(data);
+
     return {
-      items: (Array.isArray(data.data) ? data.data : [])
+      items: items
         .map(mapFeedItem)
         .filter((item) => Boolean(item.videoUrl)),
-      nextCursor:
-        typeof data.next_cursor === "number" ? data.next_cursor : null,
+      nextCursor,
     };
   },
 
     getViewedFeeds: async (): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-      const { data } = await apiHttpClient.get<NewsfeedRawItem[]>(`${FEED_ENDPOINT}/viewed`);
+      const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(`${FEED_ENDPOINT}/viewed`);
+
+      const { items, nextCursor } = parseFeedResponse(data);
 
       return {
-        items: (Array.isArray(data) ? data : []).map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
-        nextCursor: null,
+        items: items.map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
+        nextCursor,
       };
     },
 
     getSavedFeeds: async (): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-      const { data } = await apiHttpClient.get<NewsfeedRawItem[]>(`${FEED_ENDPOINT}/saved`);
+      const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(`${FEED_ENDPOINT}/saved`);
+
+      const { items, nextCursor } = parseFeedResponse(data);
 
       return {
-        items: (Array.isArray(data) ? data : []).map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
-        nextCursor: null,
+        items: items.map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
+        nextCursor,
       };
     },
 

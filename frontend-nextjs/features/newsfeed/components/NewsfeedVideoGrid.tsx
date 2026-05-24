@@ -153,7 +153,7 @@ export function NewsfeedVideoGrid({ videos, emptyTitle, emptyDescription, badgeL
 										<span className="truncate text-[11px] font-medium text-foreground/85">{authorName}</span>
 									</div>
 									<span className="shrink-0 text-[11px] font-medium">
-										{formatDateLabel(video.course.created_at)}
+										{formatDateLabel(video.video.created_at ?? video.course.created_at)}
 									</span>
 								</div>
 							</div>
