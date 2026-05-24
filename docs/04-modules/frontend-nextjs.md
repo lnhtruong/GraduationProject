@@ -1,228 +1,242 @@
 # Frontend Next.js
 
-## Mục đích
-Web app chính cho 3 user role (student / lecturer / admin). Next.js 16 App Router, React 19, Tailwind v4 + Radix UI shadcn-style. Real-time qua Socket.IO + SSE.
+> Entry: `frontend-nextjs/app/layout.tsx` · Next.js 16 (App Router) · React 19 · TypeScript
 
-## Tech stack chi tiết
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **React**: 19
-- **Styling**: Tailwind CSS v4 + `@tailwindcss/postcss`, custom utility ở `app/globals.css`
-- **UI primitives**: Radix UI (accordion, dialog, dropdown, popover, select, tabs, …) — gói gọn trong `components/ui/` theo shadcn pattern
-- **Icons**: `lucide-react`
-- **Animations**: `framer-motion`, `embla-carousel-react`
-- **Forms**: `react-hook-form` v7 + `zod` v4 + `@hookform/resolvers`
-- **Server state**: `@tanstack/react-query` v5 (+ devtools)
-- **Client state**: `zustand` v5
-- **Rich text**: TipTap v2 (preferred) + CKEditor 5 (legacy)
-- **Drag-drop**: `@dnd-kit/core` + `sortable` + `modifiers` + `utilities`
-- **Date**: `date-fns` v4 + `react-day-picker` v9
-- **Charts**: `recharts`
-- **Toast**: `sonner`
-- **Theme**: `next-themes`
-- **Video**: `tus-js-client` (resumable upload Bunny), HTML5 video tag
-- **Realtime**: `socket.io-client` v4, native EventSource cho SSE
+Web app chính cho 3 role: **Student**, **Lecturer**, **Admin**. Stack:
 
-## Folder structure (chi tiết)
+- Next.js 16 App Router (client-side routing, App folder `/app`).
+- React 19 + Tailwind v4.
+- Radix UI primitives (shadcn-style components, folder `components/ui`).
+- TanStack Query (`@tanstack/react-query`) cho server state.
+- Zustand (`store/auth.ts`, `store/ui-mode.ts`) cho client state, có `persist` để keep accessToken.
+- Axios `apiClient` (`lib/http.ts`) — interceptor auto refresh token.
+- Socket.IO client cho realtime, namespace `/media`.
+- CKEditor + Tiptap cho rich-text.
+
+---
+
+## Sequence: bootstrap + auth refresh interceptor
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User
+    participant App as Next.js App (client)
+    participant AS as zustand authStore
+    participant HTTP as apiClient (axios)
+    participant GW as API Gateway
+
+    User->>App: Mở /
+    App->>AS: rehydrate (persist localStorage)
+    AS-->>App: { user, accessToken }
+    App->>HTTP: GET /api/users/profile (interceptor gắn Bearer)
+    HTTP->>GW: GET /api/users/profile
+    GW-->>HTTP: 401 (token hết hạn)
+    HTTP->>HTTP: refreshAccessToken() — gọi POST /api/auth/refresh (withCredentials)
+    HTTP->>GW: POST /api/auth/refresh (cookie refreshToken)
+    GW-->>HTTP: { accessToken } mới
+    HTTP->>AS: setAccessToken(new)
+    HTTP->>GW: retry GET /api/users/profile (token mới)
+    GW-->>App: 200 { user profile }
+```
+
+---
+
+## Folder structure
 
 ```
 frontend-nextjs/
-├── app/                     # Next.js App Router
-│   ├── layout.tsx           # Root layout: <html><body> + QueryProvider + AuthProvider + theme + Toaster
-│   ├── globals.css          # Tailwind + custom CSS variables (theme)
-│   ├── (app)/               # Route group: app chính có nav bar
-│   │   ├── layout.tsx       # Layout có Header
-│   │   ├── page.tsx         # Home page
-│   │   ├── courses/         # Browse courses
-│   │   ├── library/         # Khóa học đã mua
-│   │   ├── profile/         # Profile user
-│   │   ├── upload/          # Upload video (cho lecturer / mascot editor)
-│   │   ├── workspace/       # ?
-│   │   ├── unauthorized/
-│   │   └── components/SseTestClient.tsx
-│   ├── (auth)/              # Route group: signin/signup (no nav)
-│   │   ├── layout.tsx
-│   │   ├── signin/page.tsx, signup/page.tsx
-│   │   ├── forgot-password/page.tsx, reset-password/page.tsx
-│   ├── (instructor)/instructor/   # Dashboard lecturer
-│   │   ├── layout.tsx, page.tsx, dashboard/page.tsx
-│   │   ├── courses/[courseId]/{lessons,feed}/...
-│   │   ├── roadmaps/[roadmapId]/page.tsx
-│   │   ├── analytics/, shorts/, qa/
-│   ├── (admin)/admin/       # Dashboard admin
-│   │   ├── layout.tsx
-│   │   └── courses/page.tsx
-│   ├── cart/page.tsx
-│   ├── editor/page.tsx      # Video editor (mascot overlay)
-│   └── newsfeed/page.tsx
+├── app/                       # App Router (Next.js 16)
+│   ├── layout.tsx             # Root layout (ThemeProvider, AuthProvider, QueryProvider)
+│   ├── globals.css            # Tailwind v4 entry
+│   ├── (auth)/                # signin / signup / forgot-password / reset-password
+│   ├── (app)/                 # User app: courses, library, cart, payment, profile, workspace, upload
+│   ├── (admin)/               # admin/* — dashboard, users, courses, reports
+│   ├── (instructor)/          # instructor/* — dashboard, courses, analytics, shorts, roadmaps, qa
+│   ├── editor/                # Mascot overlay editor
+│   └── newsfeed/              # Short-video feed
 │
-├── features/                # ← MÃ LOGIC CHÍNH (organize by domain)
-│   ├── auth/
-│   │   └── components/SignInForm.tsx
-│   ├── upload/              # Upload video (lesson/mascot)
-│   │   ├── index.tsx
-│   │   ├── types.ts
-│   │   ├── hooks/useUpload.tsx
-│   │   ├── components/{UploadDropzone, ProcessingStatus}.tsx
-│   │   └── api/upload.websocket.ts          # Subscribe Socket.IO progress
-│   ├── video/
-│   │   ├── types.ts
-│   │   ├── api/video.api.ts                 # Axios calls /api/media/videos
-│   │   └── upload/{useLessonVideoUpload.ts, lesson-video-upload.manager.ts}
-│   ├── newsfeed/            # Feed UI
-│   │   ├── index.tsx, types.ts
-│   │   ├── api/{newsfeed.api,newsfeed.hooks}.ts
-│   │   ├── hooks/useNewsfeedVideoFeed.ts
-│   │   └── components/Newsfeed{Page,VideoCard,VideoFeed,Header,Sidebar,CoursePanel,OptionBox,ShareDialog,CommentsPanel}.tsx
-│   ├── courses/
-│   │   ├── detail/{index.tsx, components/{ReviewsSection,WriteReviewForm}.tsx}
-│   │   └── learn/components/LessonVideoCard.tsx
-│   ├── cart/components/Cart*.tsx
-│   ├── editor/components/EditorMediaDropzone.tsx
-│   ├── home/component/CourseCard.tsx
-│   ├── instructor/
-│   │   ├── components/courses/{CoursesPage, CourseManageCard}.tsx
-│   │   ├── components/analytics/{AnalyticsPage, CourseStatsSection, FeedStatsSection, TrendingFeedSection}.tsx
-│   │   ├── components/dashboard/DashboardPage.tsx
-│   │   ├── course-management/
-│   │   │   ├── CourseOverviewPage.tsx, CourseFormPage.tsx, LessonFormPage.tsx
-│   │   │   ├── CourseFeedManagementPage.tsx, CourseFeedCreatePage.tsx, CourseFeedEditPage.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── LessonForm.tsx, LessonForm/{LessonMetadataForm, VideoSelectionSection, VideoPreview, ActivitiesDisplay, OutsideQuizEditorDialog}.tsx
-│   │   │   │   ├── CourseForm.tsx, CourseManagementHeader.tsx
-│   │   │   │   ├── ActivityCreationDialog.tsx + sub: {QuizModeSection, InvalidVideoWarning, ActivityDialogFooter, AssignmentForm}
-│   │   │   │   ├── ActivityQuizForm.tsx
-│   │   │   │   ├── ManagementPageShell.tsx
-│   │   │   │   ├── QuizEditor.tsx, QuizEditor/{QuestionEditor, QuestionList, QuizMetadataForm}.tsx
-│   │   │   └── utils/quiz-editor-page.utils.ts
-│   │   └── roadmap-management/
-│   │       ├── RoadmapList.tsx, RoadmapCreate.tsx, RoadmapDetail.tsx
-│   │       ├── components/RoadmapCourseCard.tsx
-│   │       └── components/roadmap-detail/{RoadmapInfoForm, RoadmapCourseSection, RoadmapDialogs, useRoadmapDetailEditor.ts}
-│   ├── admin/components/{AdminShell, AdminSidebar, CourseStatusBadge}.tsx
-│   │             courses/{AdminCoursesPage, AdminCourseTable, AdminCourseReviewModal}.tsx
-│   ├── roadmap/api/{roadmap.api, roadmap.hooks}.ts
-│   └── lessons/{types.ts, api/lesson.api.ts}
+├── components/
+│   ├── ui/                    # shadcn primitives (button, dialog, ...)
+│   ├── providers/             # AuthProvider, QueryProvider, ThemeProvider
+│   ├── Header / Footer / ProtectedRoute / RoleGuard / PageLoader / ThemeToggle
+│   ├── RichTextBoxCKE.tsx     # CKEditor wrapper
+│   ├── RichTextBoxTiptap.tsx  # Tiptap wrapper
+│   └── DraggableItem.tsx
 │
-├── components/              # Shared cross-feature
-│   ├── Header.tsx           # Navigation chính
-│   ├── ProtectedRoute.tsx   # Wrap page yêu cầu auth
-│   ├── ScrollToTopButton.tsx
-│   ├── RichTextBoxCKE.tsx, RichTextBoxTiptap.tsx
-│   ├── providers/
-│   │   ├── AuthProvider.tsx     # Context: user, login, logout, refresh
-│   │   └── QueryProvider.tsx    # QueryClient + devtools
-│   └── ui/                  # shadcn primitives (button, dialog, ...)
-├── lib/                     # Util chung (axios instance, helpers) — TODO: xác minh có folder này không
-├── public/                  # Static assets
+├── features/                  # Feature-first modules
+│   ├── _shared/               # cross-feature helpers
+│   ├── auth/                  # signin/up forms, OAuth Google flow
+│   ├── courses/               # api/, detail/, learn/, types, utils
+│   ├── lessons/               # api/, types
+│   ├── quizzes/
+│   ├── newsfeed/              # api, components, hooks, store, types
+│   ├── notifications/         # Socket.IO + SSE consumer
+│   ├── cart/, payment/        # PayOS checkout flow
+│   ├── upload/                # Bunny TUS uploader + Cloudinary signed upload
+│   ├── editor/, project/      # Mascot editor
+│   ├── workspace/
+│   ├── library/
+│   ├── home/
+│   ├── instructor/, admin/, reports/, roadmap/
+│   └── cloudinary/, image/, video/
+│
+├── hooks/                     # useDebounce, useTheme, use-mobile
+├── lib/
+│   ├── env.ts                 # NEXT_PUBLIC_API_BASE_URL, WS_GATEWAY_URL, GOOGLE_CLIENT_ID
+│   ├── http.ts                # apiClient + inferenceClient (axios) + auto-refresh
+│   ├── auth-session.ts        # hydrate session ban đầu
+│   ├── auth-routes.ts         # isPublicAuthRoute()
+│   ├── roles.ts               # ROLES = { ADMIN:1, STUDENT:2, LECTURER:3 }
+│   ├── route-access.ts        # ROUTE_ACCESS map + getRoleAccess()
+│   ├── queryClient.ts         # TanStack QueryClient instance
+│   ├── queryKeys.ts           # createKeyFactory helper
+│   ├── async.ts               # poll() helper cho polling job
+│   └── utils.ts               # cn() helper (tailwind merge)
+│
+├── store/
+│   ├── auth.ts                # Zustand + persist (user, accessToken)
+│   └── ui-mode.ts             # Teacher/Student mode toggle
+│
+├── proxy.ts                   # NextResponse.next() — route protection client-side only
 ├── next.config.ts
-├── tsconfig.json
 └── package.json
 ```
 
-## Pattern feature folder
+---
 
-Mỗi feature ở `features/<domain>/`:
+## Route groups & access control
 
+```mermaid
+graph TD
+    R[/ root /] --> AUTH[(auth)/ signin signup forgot reset]
+    R --> APP[(app)/ public app]
+    R --> ADMIN[(admin)/admin/*]
+    R --> INST[(instructor)/instructor/*]
+    R --> EDIT[editor/]
+    R --> FEED[newsfeed/]
+    ADMIN -- RoleGuard --> ROLE_ADMIN[ROLES.ADMIN = 1]
+    INST -- ProtectedRoute --> ROLE_LECTURER[ROLES.LECTURER = 3 hoặc ADMIN]
+    APP -- (mostly public + signin) --> USER[ROLES.STUDENT / any]
 ```
-features/<domain>/
-├── index.tsx              # Page component (export default)
-├── types.ts               # TypeScript types cho feature
-├── api/
-│   ├── <domain>.api.ts    # Axios functions (fetch/mutate)
-│   └── <domain>.hooks.ts  # TanStack Query wrapper (useXxxQuery, useXxxMutation)
-├── hooks/                 # Custom React hooks không gắn data fetching
-└── components/            # UI components scoped feature
-```
 
-## Data fetching pattern
+Vì backend set cookie `refreshToken` với `SameSite=None; Secure`, **Next.js server-side proxy không đọc được cookie**. Do đó route protection được làm hoàn toàn **client-side**:
 
-`features/<domain>/api/<domain>.api.ts`:
+- `app/(admin)/layout.tsx` bọc `RoleGuard` (kiểm `role === ADMIN`, redirect `/unauthorized`).
+- `app/(instructor)/layout.tsx` bọc `ProtectedRoute` (kiểm canAccessInstructor: LECTURER hoặc ADMIN).
+- API Gateway vẫn enforce authorization server-side cho mọi call — frontend chỉ ẩn UI.
+
+`proxy.ts` chỉ là pass-through (`NextResponse.next()`) với `matcher: []` — không thực sự intercept request nào.
+
+---
+
+## Roles
+
 ```ts
-import { api } from '@/lib/api';  // Axios instance with interceptor
+// lib/roles.ts
+export const ROLES = { ADMIN: 1, STUDENT: 2, LECTURER: 3 };
 
-export const fetchCourses = (params) => api.get('/api/course/courses', { params }).then(r => r.data);
-export const createCourse = (data) => api.post('/api/course/courses', data).then(r => r.data);
-```
-
-`features/<domain>/api/<domain>.hooks.ts`:
-```ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as api from './<domain>.api';
-
-export const useCourses = (params) => useQuery({
-  queryKey: ['courses', params],
-  queryFn: () => api.fetchCourses(params),
-});
-
-export const useCreateCourse = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: api.createCourse,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] }),
-  });
+// lib/route-access.ts
+export const ROUTE_ACCESS = {
+  instructor: [ROLES.LECTURER, ROLES.ADMIN],
+  student:    [ROLES.STUDENT],
+  admin:      [ROLES.ADMIN],
+  public:     [],
 };
 ```
 
-> **TODO: xác minh** — Axios instance file (`lib/api.ts`?) có thực sự tồn tại không. Nếu không, mỗi file `*.api.ts` import axios trực tiếp.
+> Khớp 1-1 với enum `UserRole` ở `api_gateway/src/middleware/access-policy.ts` và `course_service`.
 
-## Auth flow client side
+---
 
-`components/providers/AuthProvider.tsx`:
-- Context cung cấp `{ user, accessToken, login, logout, refresh }`
-- Lưu `accessToken` trong memory (Zustand store?) — không localStorage để tránh XSS
-- Refresh token tự động qua cookie (HttpOnly) khi access hết hạn
-- Axios interceptor catch 401 → gọi `/api/auth/refresh` → retry
+## Auth flow
 
-`components/ProtectedRoute.tsx`:
-- Wrap component, check `useAuth().user`, redirect tới `/signin` nếu chưa auth
-- Có thể check role để redirect tới `/unauthorized`
+`lib/http.ts`:
 
-## Routing
+- 2 axios client cùng `baseURL = NEXT_PUBLIC_API_BASE_URL`:
+  - `apiClient` — interceptor gắn `Authorization: Bearer ${accessToken}` từ `authStorageHelper.getAccessToken()`.
+  - `inferenceClient` — `withCredentials = false` (gọi inference qua gateway, không cần cookie).
+- Khi response 401 → `refreshAccessToken()`:
+  - Gọi `POST {API_URL}/auth/refresh` với `withCredentials: true` (gửi cookie `refreshToken`).
+  - Update store `accessToken`.
+  - Replay request gốc với token mới.
+  - Concurrent 401s sẽ chờ qua queue `refreshSubscribers`.
+- Nếu refresh fail → clear store + redirect signin (logic ở `AuthProvider`).
+- Nếu request là public auth route (`/auth/login`, `/auth/register`, ...) → bỏ qua refresh.
 
-- App Router theo file system, route groups `(app)`, `(auth)`, `(instructor)`, `(admin)` không ảnh hưởng URL nhưng chia layout
-- Dynamic: `[courseId]`, `[lessonId]`, `[roadmapId]`, `[feedId]`, `[id]`
-- Public routes: `/`, `/courses`, `/courses/[id]`, `/newsfeed`, `/signin`, `/signup`
-- Protected: tất cả trong `(app)/`, `(instructor)/`, `(admin)/`
+`store/auth.ts` (Zustand persist):
 
-## State management
-
-- **TanStack Query**: server state (courses, lessons, feed, etc.)
-- **Zustand**: client state cuộc đời session (auth token, UI state, upload progress)
-- **React Hook Form**: form state local
-- **URL state**: filters/search dùng query params + `useSearchParams`
-
-## Realtime
-
-- **Socket.IO** (`socket.io-client`): video upload progress, video processing events
-  - Connect: `io(NEXT_PUBLIC_API_URL, { auth: { token } })`
-  - Subscribe events: `video:processing:progress`, `video:ready`
-- **SSE**: notifications stream — `new EventSource('/api/media/sse/users/<userId>/events')`
-
-## Quirks
-
-- Có 2 rich text editor: TipTap (mới) + CKEditor 5 (legacy) — ưu tiên TipTap khi viết feature mới
-- Upload trực tiếp lên Bunny qua TUS (resumable), không qua Next.js server
-- `frontend/` (Vite) legacy không sync — đừng đụng
-- Tailwind v4 syntax: dùng `@theme` trong CSS, không cần `tailwind.config.ts`
-- Path alias `@/` thường trỏ `frontend-nextjs/` root (TODO: xác minh ở `tsconfig.json`)
-
-## Env
-
-`.env.local`:
-```
-NEXT_PUBLIC_API_URL=http://localhost:3000      # Gateway URL
-NEXT_PUBLIC_BUNNY_LIBRARY_ID=...
-NEXT_PUBLIC_BUNNY_STREAM_URL=...
+```ts
+{
+  user, accessToken, isLoading, error,
+  setUser, setAccessToken, setLoading, setError, clearAuth,
+  isAuthenticated(), getAuthHeader()
+}
 ```
 
-## Cách chạy local
+---
+
+## Realtime layers
+
+- **Socket.IO** (`features/notifications/*`): client connect namespace `/media`, query `userId`. Bắt event `notification`, `feed:update`, ... Gateway forward upgrade qua `/socket.io`.
+- **SSE** (`features/notifications/*`): fallback `EventSource('/api/media/sse/users/:userId/events')` cho khi WS không kết nối được.
+
+Server endpoints xem `media-service.md`.
+
+---
+
+## Major features (entry points)
+
+| Folder | Route(s) | Mô tả |
+|---|---|---|
+| `features/auth` | `app/(auth)/signin\|signup\|forgot-password\|reset-password` | Email/password + Google OAuth (`@react-oauth/google`). Forgot password flow gồm 2 bước: gửi OTP rồi reset |
+| `features/home` | `app/(app)/page.tsx` | Landing |
+| `features/courses` | `app/(app)/courses/*`, `app/(instructor)/instructor/courses/*` | Public catalog + course detail + lecturer CRUD |
+| `features/courses/learn` | `app/(app)/courses/[id]/learn` | Player + lesson navigation + quiz overlay |
+| `features/lessons` + `features/quizzes` | nested trong courses | |
+| `features/cart` | `app/(app)/cart` | Giỏ hàng, gọi `/api/course/carts/*` |
+| `features/payment` | `app/(app)/payment` | Tạo PayOS link, polling order-status, redirect return/cancel |
+| `features/library` | `app/(app)/library` | Khóa đã mua (enrolled) |
+| `features/workspace` | `app/(app)/workspace` | Profile + dashboard cá nhân |
+| `features/upload` | `app/(app)/upload` | TUS upload long video lên Bunny (qua `/api/media/bunny/videos/init-upload`) |
+| `features/newsfeed` + `app/newsfeed` | `app/newsfeed` | Short-video feed, like/save/comment |
+| `features/editor` + `features/project` + `app/editor` | `app/editor/*` | Mascot overlay editor — kéo thả nhân vật lên video |
+| `features/instructor` | `app/(instructor)/*` | Lecturer dashboard, analytics, shorts management, roadmaps, QA |
+| `features/admin` | `app/(admin)/*` | Admin dashboard, users, courses (review/publish/ban), reports |
+| `features/reports` | nested admin + report-modal | Báo cáo course/lesson/teacher |
+| `features/notifications` | hook + bell | SSE + Socket.IO consumer |
+| `features/cloudinary` + `image` + `video` | utils | Cloudinary signed upload, image resize, video player |
+
+---
+
+## Environment variables (`lib/env.ts`)
+
+| Env | Mô tả |
+|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | Base URL gateway (vd `https://abc.ngrok.io/api`) |
+| `NEXT_PUBLIC_WS_GATEWAY_URL` | WebSocket gateway URL (cho Socket.IO client) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+
+> Mọi env phải bắt đầu bằng `NEXT_PUBLIC_` để inject vào client bundle.
+
+---
+
+## Scripts
 
 ```bash
-cd frontend-nextjs
-npm install   # or yarn
-npm run dev   # port 3000 (Next default) — clash với gateway! Cần đổi gateway port hoặc Next port
-npm run build && npm start
-npm run lint
+yarn dev      # next dev
+yarn build    # next build
+yarn start    # next start
+yarn lint
 ```
 
-> **TODO: xác minh** — Default cả gateway và Next đều port 3000. Phải set 1 trong 2 sang port khác. Thường gateway giữ 3000, Next dev port 3001.
+---
+
+## Tips
+
+- **401 lặp lại không stop** → refresh token hết hạn / cookie không được gửi (do `SameSite=None; Secure` mà domain không HTTPS). Login lại để có cookie mới.
+- **CORS lỗi** → backend gateway đang set `origin: function(...) { callback(null, true) }` (cho tất). Nếu deploy production cần whitelist explicit.
+- **Socket.IO không connect qua ngrok** → cần header `ngrok-skip-browser-warning` trong `transportOptions` của client, và URL phải full bao gồm namespace `/media`.
+- **TanStack Query stale data** → check `queryKeys.ts` — id trong key phải match (string vs number). Dùng `queryKeyFactory.detail(id)` thay vì manual array.
+- **Build fail Next 16** → check `next.config.ts`, `next-env.d.ts`; React 19 có một số API breaking (deprecated `useFormState`).
+- **Theme flash** → ThemeProvider của `next-themes` cần `suppressHydrationWarning` ở `<html>` (xem `app/layout.tsx`).

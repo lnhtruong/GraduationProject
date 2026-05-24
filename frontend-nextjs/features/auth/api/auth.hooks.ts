@@ -9,6 +9,8 @@ import { authStorageHelper } from "@/store/auth";
 import type {
   LoginRequest,
   LoginResponse,
+  GoogleLoginRequest,
+  GoogleLoginResponse,
   RegisterRequest,
   RegisterResponse,
   ForgotPasswordRequest,
@@ -35,6 +37,24 @@ export function useLogin(options?: {
   onError?: (error: Error) => void;
 }) {
   return useLoginBase(options);
+}
+
+// ============================================================================
+// GOOGLE LOGIN
+// ============================================================================
+
+const useGoogleLoginBase = createMutationHooks<
+  GoogleLoginResponse,
+  GoogleLoginRequest
+>("auth", "google-login", authApi.googleLogin, {
+  retry: false,
+});
+
+export function useGoogleLogin(options?: {
+  onSuccess?: (data: GoogleLoginResponse) => void;
+  onError?: (error: Error) => void;
+}) {
+  return useGoogleLoginBase(options);
 }
 
 // ============================================================================

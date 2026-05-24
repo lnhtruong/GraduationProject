@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -245,7 +245,9 @@ export function Header() {
 
           {/* Cart icon — chỉ hiện khi không phải teacher mode */}
           {isAuthenticated && !isTeacherMode && (
-            <div className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}>
+            <div
+              className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
+            >
               <Button
                 variant="ghost"
                 size="icon"
@@ -292,7 +294,10 @@ export function Header() {
                       className="relative h-9 w-9 rounded-full border border-border/70"
                     >
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={user?.avatarUrl ?? undefined} alt={getUserDisplayName()} />
+                        <AvatarImage
+                          src={user?.avatarUrl ?? undefined}
+                          alt={getUserDisplayName()}
+                        />
                         <AvatarFallback>{getUserInitials()}</AvatarFallback>
                       </Avatar>
                     </Button>
@@ -332,7 +337,9 @@ export function Header() {
                       <DropdownMenuItem asChild>
                         <Link href="/admin" className="cursor-pointer">
                           <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-                          <span className="font-medium text-primary">Admin Panel</span>
+                          <span className="font-medium text-primary">
+                            Admin Panel
+                          </span>
                         </Link>
                       </DropdownMenuItem>
                     </>

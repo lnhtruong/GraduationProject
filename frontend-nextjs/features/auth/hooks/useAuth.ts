@@ -2,6 +2,7 @@ import { useAuthStore } from "@/store/auth";
 import { authSession } from "@/lib/auth-session";
 import { authApi } from "@/features/auth/api/auth.api";
 import {
+  useGoogleLogin,
   useLogin,
   useLogout,
   useRegister,
@@ -13,6 +14,7 @@ export function useAuth() {
   const isLoading = useAuthStore((state) => state.isLoading);
   const error = useAuthStore((state) => state.error);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const googleLoginMutation = useGoogleLogin();
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const logoutMutation = useLogout();
@@ -23,6 +25,7 @@ export function useAuth() {
     isLoading,
     error,
     isAuthenticated,
+    googleLogin: googleLoginMutation.mutateAsync,
     login: loginMutation.mutateAsync,
     register: registerMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,

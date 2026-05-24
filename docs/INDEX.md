@@ -39,7 +39,7 @@
 | [`payment-service.md`](./04-modules/payment-service.md) | PayOS integration, transactions, Redis events | Express + JS |
 | [`mail-service.md`](./04-modules/mail-service.md) | Nodemailer, OTP send | Express + JS |
 | [`ai-service.md`](./04-modules/ai-service.md) | OpenAI quiz generation (offline tool) | Node.js + OpenAI |
-| [`inference-service.md`](./04-modules/inference-service.md) | Inference scaffolding | NestJS (mostly empty) |
+| [`inference-service.md`](./04-modules/inference-service.md) | Orchestrator forward request inference đến pool Colab (ngrok), round-robin + health check, lưu jobId→worker vào Redis | NestJS + ioredis |
 | [`frontend-nextjs.md`](./04-modules/frontend-nextjs.md) | Web app chính | Next.js 16 + React 19 |
 | [`database.md`](./04-modules/database.md) | Knex migrations, schema | Knex + MySQL |
 
