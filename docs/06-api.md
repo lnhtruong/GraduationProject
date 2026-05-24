@@ -222,11 +222,12 @@ Tất cả endpoint **đều phải qua gateway** (port 3000 local). Prefix `/ap
 | Method | Path | Auth | Handler |
 |--------|------|------|---------|
 | POST | `/api/media/feed` | `[LECTURER|ADMIN]` | `feed/feed.controller.ts.addToFeed()` |
-| GET | `/api/media/feed?cursor&limit&mode&search&sessionId` | auth | `…getFeed()` |
+| GET | `/api/media/feed?cursor&limit&mode&search&sessionId&hashtag` | auth | `…getFeed()` — `hashtag` filter via `JSON_CONTAINS(hashtags, JSON_QUOTE(:tag))`, combine với mọi `mode` |
 | GET | `/api/media/feed/viewed` | auth | `…getViewedFeeds()` |
 | GET | `/api/media/feed/saved` | auth | `…getSavedFeeds()` |
 | GET | `/api/media/feed/mine?page&pageSize&courseId&status&sortBy&order` | `[ADMIN\|LECTURER]` | `…getMyFeeds()` |
 | GET | `/api/media/feed/trending` | public | `…getPublicTrending()` |
+| GET | `/api/media/feed/hashtags/trending?days&limit` | public | `…getTrendingHashtags()` — top hashtag theo count N ngày (default 7), kèm `growthPct` so kỳ trước |
 | GET | `/api/media/feed/stats/creator` | `[ADMIN|LECTURER]` | `…getCreatorStats()` |
 | GET | `/api/media/feed/stats/trending` | `[ADMIN|LECTURER]` | `…getTrendingStats()` |
 | GET | `/api/media/feed/:id/stats` | `[ADMIN|LECTURER]` | `…getFeedDetailStats()` |

@@ -19,6 +19,7 @@ import { EnrollsModule } from './enrolls/enrolls.module';
 import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
+import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AuditLogsModule } from './audit_logs/audit-logs.module';
     EnrollsModule,
     LessonProgressModule,
     ReportsModule,
+    QuizSubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

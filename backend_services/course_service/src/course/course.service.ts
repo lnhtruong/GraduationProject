@@ -5,12 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Includeable } from 'sequelize';
+import { Includeable, Order } from 'sequelize';
 import { col, fn, literal, Op } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
+import { LessonActivity, ActivityStatus } from 'src/models/lesson-activity.model';
+import { Quiz } from 'src/models/quiz.model';
+import { QuizQuestion } from 'src/models/quiz-question.model';
+import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
@@ -203,14 +207,168 @@ export class CoursesService {
     };
   }
 
+  /**
+   * Build the nested include tree to eager-load:
+   *   Course → Video
+   *           → Lessons (active/blocked, not removed)
+   *               → Video (lesson video, minimal fields)
+   *               → LessonActivities (not removed)
+   *                   → Quizzes
+   *                       → QuizQuestions
+   *                           → QuizOptions
+   *
+   * Goal: replace 1+N round-trips with a single (left-joined) query.
+   * `attributes` are pruned per level so we don't ship big text columns we don't need.
+   */
+  private buildCourseDetailInclude(): Includeable[] {
+    return [
+      // Preview video gắn ở Course level
+      {
+        model: Video,
+        as: 'video',
+        required: false,
+        attributes: ['id', 'url', 'duration', 'thumbnail', 'type'],
+      },
+      {
+        model: Lesson,
+        as: 'lessons',
+        required: false,
+        where: { status: { [Op.ne]: LessonStatus.REMOVED } },
+        attributes: [
+          'id',
+          'courseId',
+          'videoId',
+          'title',
+          'contentType',
+          'duration',
+          'status',
+          'description',
+        ],
+        include: [
+          {
+            model: Video,
+            required: false,
+            attributes: ['id', 'url', 'duration', 'thumbnail'],
+          },
+          {
+            model: LessonActivity,
+            as: 'lessonActivities',
+            required: false,
+            where: { status: { [Op.ne]: ActivityStatus.REMOVED } },
+            attributes: [
+              'id',
+              'lessonId',
+              'activityType',
+              'title',
+              'orderIndex',
+              'maxAttempts',
+              'status',
+            ],
+            include: [
+              {
+                model: Quiz,
+                as: 'quizzes',
+                required: false,
+                attributes: [
+                  'id',
+                  'lessonActivityId',
+                  'name',
+                  'shuffleQuestion',
+                  'shuffleOption',
+                  'passingScore',
+                  'timeLimitMinutes',
+                  'isInVideo',
+                ],
+                include: [
+                  {
+                    model: QuizQuestion,
+                    as: 'questions',
+                    required: false,
+                    attributes: [
+                      'id',
+                      'quizId',
+                      'quesType',
+                      'quesText',
+                      'point',
+                      'correctAns',
+                      'orderIndex',
+                      'videoTimestamp',
+                    ],
+                    include: [
+                      {
+                        model: QuizOption,
+                        as: 'options',
+                        required: false,
+                        attributes: [
+                          'id',
+                          'questionId',
+                          'optionText',
+                          'isCorrect',
+                          'orderIndex',
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+  }
+
+  private buildCourseDetailOrder(): Order {
+    // Sequelize hỗ trợ order theo nested association ở dạng
+    //   [assoc1, assoc2, ..., column, direction]
+    // nhưng kiểu định nghĩa TypeScript chỉ phủ tới 4 cấp. Cast về Order để
+    // tránh phải xếp lại bằng raw literal (vẫn type-safe ở runtime).
+    return [
+      [{ model: Lesson, as: 'lessons' }, 'id', 'ASC'],
+      [
+        { model: Lesson, as: 'lessons' },
+        { model: LessonActivity, as: 'lessonActivities' },
+        'orderIndex',
+        'ASC',
+      ],
+      [
+        { model: Lesson, as: 'lessons' },
+        { model: LessonActivity, as: 'lessonActivities' },
+        { model: Quiz, as: 'quizzes' },
+        'id',
+        'ASC',
+      ],
+      [
+        { model: Lesson, as: 'lessons' },
+        { model: LessonActivity, as: 'lessonActivities' },
+        { model: Quiz, as: 'quizzes' },
+        { model: QuizQuestion, as: 'questions' },
+        'orderIndex',
+        'ASC',
+      ],
+      [
+        { model: Lesson, as: 'lessons' },
+        { model: LessonActivity, as: 'lessonActivities' },
+        { model: Quiz, as: 'quizzes' },
+        { model: QuizQuestion, as: 'questions' },
+        { model: QuizOption, as: 'options' },
+        'orderIndex',
+        'ASC',
+      ],
+    ] as unknown as Order;
+  }
+
   async findOne(id: number): Promise<Course> {
     const course = await this.courseModel.findByPk(id, {
-      include: [Video],
+      include: this.buildCourseDetailInclude(),
+      order: this.buildCourseDetailOrder(),
+      // findByPk → một row Course duy nhất, không phân trang → set subQuery: false
+      // để Sequelize tạo một SELECT JOIN duy nhất thay vì wrap subquery.
+      subQuery: false,
     });
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
-    console.log('check res: ', course);
     return course;
   }
 

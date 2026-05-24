@@ -120,6 +120,7 @@ exports.down = async function (knex) {
 | `021_notifications_event_source_mysql_enum.js` | `notifications` | Enum chuẩn hoá |
 | `021_reports_add_deleted_at.js` | `reports` | Soft delete (paranoid) |
 | `022_users_google_oauth.js` | `users` | `google_id` unique, `email_verified` boolean |
+| `023_highlight_feed_hashtags_index.js` | `highlight_feed` | Multi-valued index `idx_highlight_feed_hashtags_mv` trên JSON `hashtags` để tăng tốc `JSON_CONTAINS(...)` (MySQL 8.0.17+) |
 
 > Có 2 cặp file dùng cùng số (`012_`, `019_`, `020_`, `021_`) — Knex chạy theo thứ tự alphabet của filename, không phải số riêng. Đặt tên phải bảo đảm thứ tự đúng.
 

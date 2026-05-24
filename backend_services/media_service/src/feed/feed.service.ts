@@ -986,9 +986,10 @@ export class FeedService {
     mode?: string,
     search?: string,
     sessionId?: string,
+    hashtag?: string,
   ) {
     if (mode === 'recommended') {
-      return this.getRecommendedFeed(cursor, limit, userId, courseId, sessionId);
+      return this.getRecommendedFeed(cursor, limit, userId, courseId, sessionId, hashtag);
     }
 
     if (mode !== 'recommended' && mode !== 'search') {
@@ -1015,6 +1016,16 @@ export class FeedService {
       ];
     }
 
+    // Hashtag filter (#javascript hoặc javascript đều hợp lệ).
+    // MySQL JSON_CONTAINS(hashtags, JSON_QUOTE(:tag)) → kiểm tra tag có nằm
+    // trong JSON array hay không. Khi có cả `?search=` và `?hashtag=` thì
+    // bắt buộc match cả hai (AND-kết hợp).
+    const hashtagClause = this.buildHashtagWhereLiteral(hashtag);
+    if (hashtagClause) {
+      const existingAnd = (whereClause[Op.and] as unknown[] | undefined) ?? [];
+      whereClause[Op.and] = [...existingAnd, hashtagClause] as any;
+    }
+
     const feeds = await this.highlightFeedModel.findAll({
       where: whereClause,
       include: [
@@ -1027,7 +1038,7 @@ export class FeedService {
       ],
       order: [['id', 'DESC']], // mới nhất trước
       limit,
-      ...(term ? { subQuery: false } : {}),
+      ...(term || hashtagClause ? { subQuery: false } : {}),
     });
 
     // console.log('check data: ', feeds);
@@ -1080,6 +1091,7 @@ export class FeedService {
     userId?: number,
     courseId?: number,
     sessionId?: string,
+    hashtag?: string,
   ) {
     if (!userId) {
       throw new BadRequestException('User not authenticated for recommendation mode');
@@ -1087,11 +1099,16 @@ export class FeedService {
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 20) : 10;
 
+    // Hashtag filter bypass Redis cache: ranked list cache hiện tại không
+    // key theo hashtag → để tránh phục vụ kết quả sai, compute lại tại chỗ
+    // và filter candidate feeds bằng JSON_CONTAINS.
+    const hashtagVariants = this.hashtagQueryVariants(hashtag);
+
     const normalizedSessionId = this.normalizeSessionId(sessionId);
     let activeSessionId = normalizedSessionId ?? (await this.getLatestRecommendSessionId(userId));
     let cachedList: number[] | null = null;
 
-    if (activeSessionId) {
+    if (activeSessionId && hashtagVariants.length === 0) {
       cachedList = await this.getCachedRecommendList(userId, activeSessionId, courseId);
     }
 
@@ -1118,6 +1135,7 @@ export class FeedService {
     const { rankedFeeds, statsByFeed, likedSet, savedSet } = await this.computeRankedCandidates(
       userId,
       courseId,
+      hashtag,
     );
     if (!rankedFeeds.length) {
       if (!activeSessionId) {
@@ -1136,7 +1154,10 @@ export class FeedService {
     }
 
     const rankedIds = rankedFeeds.map((item) => item.feed.id);
-    await this.setCachedRecommendList(userId, activeSessionId, courseId, rankedIds);
+    // Khi filter hashtag, KHÔNG persist vào cache (cache không key theo tag).
+    if (hashtagVariants.length === 0) {
+      await this.setCachedRecommendList(userId, activeSessionId, courseId, rankedIds);
+    }
     await this.setLatestRecommendSessionId(userId, activeSessionId);
 
     const pageIds = this.pageFeedIds(rankedIds, cursor, safeLimit);
@@ -1157,6 +1178,114 @@ export class FeedService {
       .filter((tag) => typeof tag === 'string')
       .map((tag) => tag.trim().toLowerCase())
       .filter((tag) => tag.length > 0);
+  }
+
+  /**
+   * Trả về cặp biến thể (có/không có `#`) của tag để query DB. Lý do: dữ liệu
+   * cũ có thể được lưu cả 2 dạng — FE cũ store "javascript", FE mới store
+   * "#javascript". Filter cần match cả 2 để không sót kết quả.
+   */
+  private hashtagQueryVariants(tag?: string | null): string[] {
+    if (!tag) return [];
+    const lower = tag.trim().toLowerCase();
+    if (!lower) return [];
+    const withoutHash = lower.startsWith('#') ? lower.slice(1) : lower;
+    if (!withoutHash) return [];
+    const withHash = `#${withoutHash}`;
+    return [withoutHash, withHash];
+  }
+
+  /**
+   * Build literal `JSON_CONTAINS(...)` cho where clause. Trả `null` nếu
+   * hashtag rỗng — caller dùng để bỏ qua filter.
+   */
+  private buildHashtagWhereLiteral(tag?: string | null): ReturnType<typeof literal> | null {
+    const variants = this.hashtagQueryVariants(tag);
+    if (variants.length === 0) return null;
+    const seq = this.highlightFeedModel.sequelize!;
+    const parts = variants.map(
+      (v) => `JSON_CONTAINS(HighlightFeed.hashtags, JSON_QUOTE(${seq.escape(v)}))`,
+    );
+    return literal(`(${parts.join(' OR ')})`);
+  }
+
+  /**
+   * Top hashtag trong N ngày gần đây + growth so với cửa sổ N ngày liền
+   * trước. Trả về `{ items: [{ tag, count, growthPct }] }`.
+   *
+   * Aggregation trên JS (thay vì JSON_TABLE) để portable hơn — query DB chỉ
+   * scan 2 cửa sổ thời gian, mỗi cửa sổ tối đa vài trăm feed ngắn → an toàn
+   * cho memory. Nếu volume tăng có thể move sang `JSON_TABLE` (MySQL 8.0+).
+   */
+  async getTrendingHashtags(
+    days = 7,
+    limit = 20,
+  ): Promise<{ items: Array<{ tag: string; count: number; growthPct: number | null }> }> {
+    const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 90) : 7;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 20;
+
+    const now = Date.now();
+    const windowMs = safeDays * 24 * 60 * 60 * 1000;
+    const currentStart = new Date(now - windowMs);
+    const previousStart = new Date(now - 2 * windowMs);
+    const previousEnd = currentStart;
+
+    const [currentRows, previousRows] = await Promise.all([
+      this.highlightFeedModel.findAll({
+        where: {
+          status: HighlightFeedStatus.ACTIVE,
+          created_at: { [Op.gte]: currentStart },
+        },
+        attributes: ['id', 'hashtags'],
+        raw: true,
+      }),
+      this.highlightFeedModel.findAll({
+        where: {
+          status: HighlightFeedStatus.ACTIVE,
+          created_at: { [Op.gte]: previousStart, [Op.lt]: previousEnd },
+        },
+        attributes: ['id', 'hashtags'],
+        raw: true,
+      }),
+    ]);
+
+    const tally = (rows: Array<{ hashtags?: unknown }>): Map<string, number> => {
+      const counter = new Map<string, number>();
+      for (const row of rows) {
+        const tags = this.normalizeHashtags(row.hashtags);
+        const uniqueInThisFeed = new Set<string>();
+        for (const raw of tags) {
+          const tag = raw.startsWith('#') ? raw : `#${raw}`;
+          if (uniqueInThisFeed.has(tag)) continue; // tránh đếm trùng trong 1 feed
+          uniqueInThisFeed.add(tag);
+          counter.set(tag, (counter.get(tag) || 0) + 1);
+        }
+      }
+      return counter;
+    };
+
+    const currentCount = tally(currentRows as Array<{ hashtags?: unknown }>);
+    const previousCount = tally(previousRows as Array<{ hashtags?: unknown }>);
+
+    const items = Array.from(currentCount.entries())
+      .map(([tag, count]) => {
+        const prev = previousCount.get(tag) ?? 0;
+        let growthPct: number | null;
+        if (prev === 0) {
+          // Không có dữ liệu kỳ trước → không tính growth (FE hiển thị "new").
+          growthPct = count > 0 ? null : 0;
+        } else {
+          growthPct = Number((((count - prev) / prev) * 100).toFixed(2));
+        }
+        return { tag, count, growthPct };
+      })
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.tag.localeCompare(b.tag);
+      })
+      .slice(0, safeLimit);
+
+    return { items };
   }
 
   private async invalidateRecommendCache(userId: number, _courseId?: number): Promise<void> {
@@ -1528,6 +1657,7 @@ export class FeedService {
   private async computeRankedCandidates(
     userId: number,
     courseId?: number,
+    hashtag?: string,
   ): Promise<{
     rankedFeeds: Array<{ feed: HighlightFeed; stats: { likes: number; saves: number; views: number } }>;
     statsByFeed: Map<number, { likes: number; saves: number; views: number }>;
@@ -1586,9 +1716,11 @@ export class FeedService {
 
     // ─── 2. Fetch candidate feeds (unseen first, with a relaxed fallback) ─
     const seenIds = await this.getRecentSeenFeedIds(userId, 1000);
+    const hashtagClause = this.buildHashtagWhereLiteral(hashtag);
     const baseWhere = {
       status: HighlightFeedStatus.ACTIVE,
       ...(courseId && { course_id: courseId }),
+      ...(hashtagClause ? { [Op.and]: [hashtagClause] } : {}),
     } as Record<string, unknown>;
 
     const whereWithSeen = {
