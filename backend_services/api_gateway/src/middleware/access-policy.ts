@@ -566,6 +566,7 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',
