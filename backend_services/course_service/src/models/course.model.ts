@@ -1,5 +1,6 @@
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from 'sequelize-typescript';
 import { Video } from './video.model';
+import { Lesson } from './lesson.model';
 
 export enum CourseLevel {
   BEGINNER = 'Beginner',
@@ -102,4 +103,7 @@ export class Course extends Model {
     defaultValue: CourseStatus.DRAFT,
   })
   declare status: CourseStatus;
+
+  @HasMany(() => Lesson, { foreignKey: 'course_id', sourceKey: 'id', as: 'lessons' })
+  declare lessons?: Lesson[];
 }
