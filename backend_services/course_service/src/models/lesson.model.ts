@@ -1,6 +1,7 @@
 // src/models/lessons/models/lesson.model.ts
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table, Index } from 'sequelize-typescript';
+import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table, Index } from 'sequelize-typescript';
 import { Video } from './video.model';
+import { LessonActivity } from './lesson-activity.model';
 // import { ContentType, LessonStatus } from '../enums/lesson.enum';
 
 // src/models/lessons/enums/lesson.enum.ts
@@ -85,4 +86,7 @@ export class Lesson extends Model {
     allowNull: true,
   })
   declare description: string;
+
+  @HasMany(() => LessonActivity, { foreignKey: 'lesson_id', sourceKey: 'id', as: 'lessonActivities' })
+  declare lessonActivities?: LessonActivity[];
 }

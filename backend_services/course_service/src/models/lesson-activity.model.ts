@@ -1,5 +1,6 @@
 // src/models/lesson-activities/models/lesson-activity.model.ts
-import { Column, DataType, Model, Table, Index } from 'sequelize-typescript';
+import { Column, DataType, HasMany, Model, Table, Index } from 'sequelize-typescript';
+import { Quiz } from './quiz.model';
 // import { ActivityStatus, ActivityType } from '../enums/lesson-activity.enum';
 
 export enum ActivityStatus {
@@ -82,4 +83,7 @@ export class LessonActivity extends Model {
     field: 'created_by',
   })
   declare createdBy: number;
+
+  @HasMany(() => Quiz, { foreignKey: 'lesson_activity_id', sourceKey: 'id', as: 'quizzes' })
+  declare quizzes?: Quiz[];
 }
