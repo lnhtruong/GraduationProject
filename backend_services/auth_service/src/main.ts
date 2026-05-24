@@ -6,6 +6,10 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Behind api_gateway (http-proxy-middleware), trust forwarded headers so
+  // req.ip resolves to the real client and the per-IP rate limiter works.
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
+
   const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [];
 
   app.use(cookieParser());
