@@ -34,6 +34,9 @@ import {
   useDeleteCourseFeed,
   useInstructorCourseById,
 } from "./api/course-management.hooks";
+
+type FeedStatusFilter = "all" | "active" | "hidden" | "removed";
+
 interface Props {
   courseId: number;
 }
@@ -41,7 +44,18 @@ interface Props {
 export default function CourseFeedManagementPage({ courseId }: Props) {
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  const { data: feeds, isLoading: feedLoading } = useCourseFeed(courseId);
+  const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>("all");
+  const { data: feeds, isLoading: feedLoading } = useCourseFeed(
+    courseId,
+    true,
+    {
+      page: 1,
+      pageSize: 100,
+      sortBy: "created_at",
+      order: "desc",
+      status: statusFilter === "all" ? undefined : statusFilter,
+    },
+  );
   const { isLoading: candidateLoading } =
     useCourseFeedCandidateVideos(courseId);
 
@@ -197,11 +211,25 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
         </div>
 
         <div className="rounded-xl border border-border/60 bg-background p-2.5 sm:p-3">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm theo tiêu đề, hashtag hoặc feed id..."
-          />
+          <div className="grid gap-2 sm:grid-cols-[1fr_220px]">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo tiêu đề, hashtag hoặc feed id..."
+            />
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as FeedStatusFilter)
+              }
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Active</option>
+              <option value="hidden">Hidden</option>
+              <option value="removed">Removed</option>
+            </select>
+          </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Hiển thị {filteredFeeds.length}/{feeds?.length ?? 0} feed
           </p>

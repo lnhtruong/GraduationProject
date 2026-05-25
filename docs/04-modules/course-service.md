@@ -1,205 +1,327 @@
 # Course Service
 
-## Mục đích
-Service trung tâm của LMS, quản lý toàn bộ "lớp học":
-- Course (khóa học) + workflow review/publish
-- Lesson (bài học, có thể là video/text/quiz)
-- Lesson Activity (quiz/assignment gắn vào lesson)
-- Quiz / Question / Option (manual + AI generation)
-- Enroll (student vào course)
-- Lesson Progress (tiến độ học)
-- Cart + cart items (giỏ hàng — student)
-- Feedback + Feedback Reaction (review course + like review)
-- Roadmap (lộ trình gồm nhiều course có thứ tự)
-- Report (báo cáo content cho admin)
+> Entry: `backend_services/course_service/src/main.ts` · NestJS · Port mặc định `8008`
 
-Đây là service to nhất (97 file `.ts`).
+Service trung tâm của LMS. Quản lý toàn bộ vòng đời nội dung học tập:
 
-## File / Folder
+- Course (workflow draft → pending → approved → publish/rejected → banned)
+- Lesson + LessonActivity (gồm Quiz embedded)
+- Quiz (thủ công + AI generate từ SRT)
+- Enroll + LessonProgress
+- Cart + CartItem (giỏ hàng course)
+- Roadmap + RoadmapCourse (lộ trình học có thứ tự)
+- Feedback + FeedbackReaction
+- Report (báo cáo course/lesson/teacher → ADMIN duyệt)
 
-### Bootstrap & infra
+Service nhận identity qua header `X-User-Id` / `X-User-Email` / `X-User-Role` từ gateway, không tự verify JWT.
 
-| Path | Mô tả |
-|------|-------|
-| `backend_services/course_service/src/main.ts` | NestJS bootstrap |
-| `backend_services/course_service/src/app.module.ts` | Root — import tất cả feature module (xem dưới) |
-| `backend_services/course_service/src/app.controller.ts` | `/` health |
-| `backend_services/course_service/src/database/database.module.ts` | SequelizeModule.forRootAsync |
-| `backend_services/course_service/src/config/database.config.ts` | DB env |
-| `backend_services/course_service/src/config/jwt.config.ts` | JWT env (chưa dùng — gateway verify rồi) |
+---
 
-### Models (gom trong `src/models/`)
+## Sequence: tạo quiz bằng AI từ video SRT
 
-| File | Bảng |
-|------|------|
-| `models/course.model.ts` | `courses` (có enum `CourseLevel`, `CourseStatus`) |
-| `models/lesson.model.ts` | `lessons` |
-| `models/lesson-activity.model.ts` | `lesson_activities` |
-| `models/lesson-progress.model.ts` | `lesson_progress` |
-| `models/quiz.model.ts` | `quizzes` |
-| `models/quiz-question.model.ts` | `quiz_questions` |
-| `models/quiz-option.model.ts` | `quiz_options` |
-| `models/enroll.model.ts` | `enrolls` |
-| `models/feedback.model.ts` | `course_feedback` (xem `008_course_feedback_tables.js`) |
-| `models/feedback-reaction.model.ts` | `course_feedback_reactions` |
-| `models/cart.model.ts` | `carts` |
-| `models/cart-item.model.ts` | `cart_items` |
-| `models/roadmap.model.ts` | `roadmaps` |
-| `models/roadmap-course.model.ts` | `roadmap_courses` (M:N table có order) |
-| `models/report.model.ts` | `reports` (có enum `ReportStatus`, `ReportTargetType`) |
-| `models/video.model.ts` | `videos` — **read-only mirror**, source-of-truth ở `media_service` |
-| `models/images.model.ts` | (TODO: xác minh dùng làm gì) |
-| `models/pagination.dto.ts` | DTO chung `{ page, limit }` |
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE
+    participant GW as API Gateway
+    participant CS as course_service
+    participant DB as MySQL
+    participant CDN as Cloudinary (SRT URL)
+    participant AI as OpenAI (gpt-4o-mini)
 
-### Feature modules
+    FE->>GW: POST /api/course/quizzes/ai { videoId, name, ... }
+    GW->>CS: POST /quizzes/ai
+    CS->>DB: SELECT srt_raw_url FROM videos WHERE id=:videoId
+    DB-->>CS: srt_raw_url (Cloudinary URL)
+    CS->>CDN: fetch(srt_raw_url) (timeout 30s)
+    CDN-->>CS: SRT plaintext
+    CS->>AI: chat.completions.create (MCQ 60% / T-F 20% / short 20%)
+    AI-->>CS: questions JSON
+    CS->>DB: INSERT INTO quizzes, quiz_questions, quiz_options
+    CS-->>FE: { quiz, questions, options }
+```
 
-Cấu trúc nhất quán: mỗi feature có `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`, `dto/*.dto.ts`.
+> `srt_raw_url` được set bởi webhook Cloudinary (xem `media_service/webhook`). Course service chỉ là consumer.
 
-#### `course/`
-| File | Mô tả |
-|------|------|
-| `course/course.module.ts` | Import models Course, Video |
-| `course/course.controller.ts` | `@Controller('courses')` — 11 endpoints |
-| `course/course.service.ts` | Business: CRUD + lifecycle (`submit-for-review`, `review`, `publish`) + stats |
-| `course/dto/create-course.dto.ts` | `{ name, description?, categories, level, duration?, language, price, video_id? }` |
-| `course/dto/update-course.dto.ts` | PartialType |
+---
 
-Endpoints (`/courses` local, `/api/course/courses` qua gateway):
-- `POST /` — create (LECTURER/ADMIN); inject `user_id` từ header
-- `GET /` — public list (filter status, paginate) — `findAllPublic`
-- `GET /mine` — list của user hiện tại (LECTURER xem courses của mình)
-- `GET /:id` — detail
-- `GET /stats/overview` — total stats cho lecturer/admin
-- `GET /:id/stats/overview` — stats cho 1 course (ownership check trong service)
-- `PATCH /:id` — update
-- `DELETE /:id` — admin only
-- `POST /:id/submit-for-review` — Lecturer chuyển status DRAFT → PENDING
-- `POST /:id/review` — Admin set ACCEPTED/REJECTED
-- `POST /:id/publish` — Admin set PUBLISH
+## Module tree (mỗi feature 1 Nest module)
 
-Workflow status: `draft → pending → approved/rejected → publish | banned`
+```
+src/
+├── main.ts
+├── app.module.ts             # import all feature modules
+├── config/                   # database.config, jwt.config
+├── database/                 # DatabaseModule (sequelize-typescript)
+├── users/                    # User model (đọc-only, dùng cho join)
+├── models/                   # các Sequelize model dùng chung
+├── course/                   # Course CRUD + review workflow
+├── lessons/                  # Lesson CRUD
+├── lessonActivities/         # LessonActivity (quiz-in-lesson)
+├── lessonProgress/           # tiến độ học của user
+├── quizzes/                  # Quiz CRUD + AI generation (OpenAI)
+│   ├── helper/quiz.gen.ts    # gọi OpenAI gpt-4o-mini
+│   ├── resolve-srt.ts        # fetch SRT từ Cloudinary URL
+│   └── quiz-payload.mapper.ts
+├── enrolls/                  # Enroll + check-mine-exists
+├── carts/                    # Giỏ hàng (1 cart / user)
+├── roadmaps/                 # Lộ trình học (ordered courses)
+├── feedbacks/                # Feedback per course
+├── feedback-reactions/       # Like/Dislike feedback
+└── reports/                  # Báo cáo course/lesson/teacher
+```
 
-#### `lessons/`
-| File | Mô tả |
-|------|------|
-| `lessons/lesson.controller.ts` | `@Controller('lessons')` — 5 endpoints |
-| `lessons/lesson.service.ts` | Tạo lesson, tìm theo `course_id`, paginate |
-| `lessons/dto/create-lesson.dto.ts` | `{ course_id, title, contentType, content?, duration?, description?, video_id? }` |
-| `lessons/dto/update-lesson.dto.ts` | PartialType |
-| `lessons/dto/get-lessons-query.dto.ts` | `{ course_id, page?, limit? }` |
+---
 
-Endpoints (`/lessons`):
-- `POST /` — create
-- `GET /course` — list by `course_id` (query) — **note: không phải `/course/:id`**
-- `GET /:id` — detail
-- `PATCH /:id` — update
-- `DELETE /:id` — remove
+## Endpoints
 
-#### `lessonActivities/`
-- `@Controller('lesson-activities')` — quiz/assignment activities gắn vào lesson
-- Endpoint: CRUD + `GET /user` (authenticated)
-- Status enum: `draft / public / archived / removed`
+### Course (`@Controller('courses')`)
 
-#### `quizzes/`
-| File | Mô tả |
-|------|------|
-| `quizzes/quizzes.controller.ts` | `@Controller('quizzes')` |
-| `quizzes/quizzes.service.ts` | `createOne`, `createMany`, `createOneByAI`, `createManyByAI`, CRUD |
-| `quizzes/quiz-payload.mapper.ts` | Map giữa nested DTO (quiz+question+option) và rows |
-| `quizzes/resolve-srt.ts` | Fetch URL SRT từ `video.srt_raw_url`, parse thành text chunks cho AI |
-| `quizzes/helper/quiz.gen.ts` | Gọi OpenAI Chat Completion để gen quiz từ transcript |
-| `quizzes/helper/index.quiz_gen.ts` | Re-export |
-| `quizzes/dto/create-quiz.dto.ts` | `{ lessonActivityId, name, shuffle_question?, shuffle_option?, passing_score?, time_limit_minutes?, is_in_video, questions: [...] }` |
-| `quizzes/dto/create-quiz-ai.dto.ts` | DTO cho AI gen (số question, level...) |
-| `quizzes/dto/update-quiz.dto.ts` | Partial |
+| Method | Path | Access (gateway) | Mô tả |
+|---|---|---|---|
+| POST | `/courses` | LECTURER, ADMIN | Tạo course mới (status mặc định `DRAFT`) |
+| GET | `/courses/mine` | authenticated | Course của chính lecturer |
+| GET | `/courses` | ADMIN, STUDENT | List có filter `status`, paging |
+| GET | `/courses/stats/overview` | ADMIN, LECTURER | Thống kê tổng |
+| GET | `/courses/:id/stats/overview` | ADMIN, LECTURER | Thống kê 1 course (enrolls active/completed) |
+| GET | `/courses/:id` | public | Detail eager-load tree (Course → Video preview, Lessons → Video → LessonActivities → Quizzes → QuizQuestions → QuizOptions) trong 1 SELECT JOIN (xem "Eager-loading detail" bên dưới) |
+| PATCH | `/courses/:id` | LECTURER, ADMIN | Update — nếu `status === PUBLISH` thì update kéo về `DRAFT` |
+| DELETE | `/courses/:id` | ADMIN | Soft/hard delete tuỳ logic |
+| POST | `/courses/:id/submit-for-review` | LECTURER | DRAFT → PENDING |
+| POST | `/courses/:id/review` | ADMIN | PENDING → APPROVED / REJECTED |
+| POST | `/courses/:id/publish` | ADMIN | APPROVED → PUBLISH |
 
-Endpoints (`/quizzes`):
-- `POST /` — body có thể là 1 object hoặc array (createMany)
-- `POST /ai` — gọi AI, body 1 object hoặc array
-- `GET /?lessonActivityId=...` — list filter
-- `GET /lesson/:lessonId?type=in_video|after_video` — lookup theo lesson, lọc theo loại quiz
-- `GET /:id`, `PATCH /:id`, `DELETE /:id`
+**Course status flow:**
 
-Quiz có 2 loại logic:
-- **in-video quiz**: `is_in_video=true`, có `video_timestamp` ở mỗi question (xem migration `007_quiz_video_columns.js`, `011_modify_quiz-question_video-timestamp.js`)
-- **after-video quiz**: làm sau khi xem xong lesson
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> PENDING: submit-for-review (lecturer)
+    PENDING --> APPROVED: review accepted (admin)
+    PENDING --> REJECTED: review rejected (admin)
+    APPROVED --> PUBLISH: publish (admin)
+    PUBLISH --> DRAFT: PATCH course (any edit pulls back)
+    REJECTED --> DRAFT: lecturer edit lại
+    PUBLISH --> BANNED: report approved (admin via reports)
+    BANNED --> [*]
+```
 
-#### `enrolls/`
-- `@Controller('enroll')` (số ít, **không phải** `enrolls`)
-- `POST /`, `GET /`, `GET /check-mine-exists?courseId=...`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
-- Logic enroll thường được trigger từ payment webhook (qua Redis event) hoặc trực tiếp khi free course
+### Lesson (`@Controller('lessons')`)
 
-#### `lessonProgress/`
-- `@Controller('lesson-progress')`
-- Track student progress: completed lessons, video watch %, quiz score
-- Field `video_completed_status` thêm sau (migration 014)
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/lessons` | LECTURER, ADMIN | Tạo lesson |
+| GET | `/lessons/course` | public | List lesson của course (query `courseId`) |
+| GET | `/lessons/:id` | public | Detail lesson (kèm video) |
+| PATCH | `/lessons/:id` | LECTURER, ADMIN | Update |
+| DELETE | `/lessons/:id` | LECTURER, ADMIN | Soft delete (status `REMOVED`) |
 
-#### `feedbacks/`
-- `@Controller('feedbacks')`
-- `POST /`, `GET /check/:courseId`, `GET /:courseId`, `PATCH /:id` (admin), `DELETE /:id` (admin)
-- Constant `ADMIN_ROLE = 1` hardcoded trong `feedbacks.controller.ts`
+### Quiz (`@Controller('quizzes')`)
 
-#### `feedback-reactions/`
-- `@Controller('feedback-reactions')`
-- Like/dislike feedback. Endpoint `POST /`, `DELETE /feedback/:id`
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/quizzes` | LECTURER, ADMIN | Body có thể là object hoặc array (createMany) |
+| POST | `/quizzes/ai` | LECTURER, ADMIN | Sinh quiz từ SRT của video (OpenAI gpt-4o-mini, 60% MCQ / 20% T-F / 20% short) |
+| GET | `/quizzes` | public | Filter `lessonActivityId`, `type=in_video\|after_video` |
+| GET | `/quizzes/lesson/:lessonId` | authenticated | Quiz theo lesson |
+| GET | `/quizzes/:id` | authenticated | Detail (kèm questions + options) |
+| PATCH | `/quizzes/:id` | LECTURER, ADMIN | Update (replace questions/options) |
+| DELETE | `/quizzes/:id` | LECTURER, ADMIN | |
 
-#### `carts/`
-- `@Controller('carts')`
-- `GET /` — cart của user hiện tại (theo `x-user-id`)
-- `POST /items { courseId }` — add
-- `DELETE /items/:courseId` — remove
-- `DELETE /` — clear all
-- Chỉ STUDENT (rule ở gateway)
+### Lesson Activity (`@Controller('lesson-activities')`)
 
-#### `roadmaps/`
-- `@Controller('roadmaps')`
-- CRUD roadmap + manage courses bên trong:
-  - `POST /:id/courses` — add 1 course
-  - `POST /:id/courses/bulk` — add nhiều
-  - `PATCH /:id/courses/reorder` — đổi thứ tự
-  - `PATCH /:id/courses/:courseId` — update entry (vd note, required)
-  - `DELETE /:id/courses/:courseId`
-- `roadmap_courses` table có `order_index`
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/lesson-activities` | LECTURER, ADMIN | |
+| GET | `/lesson-activities` | authenticated | Filter |
+| GET | `/lesson-activities/user` | authenticated | Của user hiện tại |
+| GET | `/lesson-activities/:id` | authenticated | Detail |
+| PATCH | `/lesson-activities/:id` | LECTURER, ADMIN | |
+| DELETE | `/lesson-activities/:id` | LECTURER, ADMIN | |
 
-#### `reports/`
-- `@Controller('reports')`
-- Báo cáo course/feedback/feed cho admin xử lý
-- Endpoints: `POST /`, `GET /mine`, `GET /` (admin), `GET /:id` (admin), `PATCH /:id/review` (admin)
-- Enum `ReportTargetType`, `ReportStatus` ở `models/report.model.ts`
-- Migration tạo: `020_reports_and_ban_columns.js` (cũng thêm column `banned` cho course/feedback)
+### Lesson Progress (`@Controller('lesson-progress')`)
 
-#### `users/`
-- Mirror users table (read-only) để JOIN trong query
-- `users.module.ts`, `users.controller.ts`, `users.service.ts`, `user.model.ts`
-- Có thể đã được sử dụng bởi feedback/course để hiển thị tên author — nhưng cũng có thể chỉ là dead code (gateway đã reverse-proxy `user_service`)
-- **TODO: xác minh** xem thực sự có endpoint nào trong course_service `/users` được expose qua gateway hay không
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/lesson-progress` | ADMIN, LECTURER | Tạo bản ghi tiến độ (thường do system tạo qua FE) |
+| GET | `/lesson-progress` | authenticated | List của user hiện tại |
+| GET | `/lesson-progress/:id` | authenticated | |
+| PATCH | `/lesson-progress/:id` | ADMIN, LECTURER | Update (FE thường call PATCH khi video xem xong) |
+| DELETE | `/lesson-progress/:id` | ADMIN, LECTURER | |
 
-## Pattern chung
+### Enroll (`@Controller('enroll')`)
 
-1. **Controller đọc header `x-user-id`, `x-user-role`** — không tự verify JWT
-2. Convert sang `number` rồi pass xuống service
-3. Service dùng Sequelize, return raw model hoặc plain object
-4. DTO validate bằng `class-validator` (chưa thấy global pipe — **TODO: xác minh** main.ts có `ValidationPipe` chưa)
-5. Error throw `BadRequestException`, `UnauthorizedException`, `ForbiddenException` — NestJS tự format response
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/enroll` | STUDENT, LECTURER, ADMIN | Body `{ courseId }`. `payment_service` cũng gọi endpoint này sau khi PayOS xác nhận |
+| GET | `/enroll` | authenticated | List enroll của user |
+| GET | `/enroll/check-mine-exists` | authenticated | `{ courseId }` → boolean |
+| GET | `/enroll/:id` | authenticated | |
+| PATCH | `/enroll/:id` | LECTURER, ADMIN | |
+| DELETE | `/enroll/:id` | ADMIN | |
 
-## Quirks
+### Cart (`@Controller('carts')`)
 
-- Path style không nhất quán: `/courses` (plural), `/lessons` (plural), `/quizzes` (plural), nhưng `/enroll` (singular), `/lesson-progress`, `/lesson-activities` (kebab)
-- `courses.controller.ts` tự define `parseRequiredUserId`, `parseRequiredRole` — repeat code (mỗi controller copy lại)
-- `ADMIN_ROLE = 1` hardcode ở `feedbacks.controller.ts` và `reports.controller.ts` — nên rút thành enum
-- `quizzes.controller.ts` chấp nhận body vừa là object vừa là array — duy nhất pattern này trong codebase
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| GET | `/carts` | authenticated | Cart của user (auto tạo nếu chưa có) |
+| POST | `/carts/items` | authenticated | Thêm course vào cart |
+| DELETE | `/carts/items/:courseId` | authenticated | Xoá 1 item. `payment_service` gọi endpoint này sau thanh toán thành công |
+| DELETE | `/carts` | authenticated | Empty cart |
 
-## Dependencies
+### Roadmap (`@Controller('roadmaps')`)
 
-- Gọi OpenAI (qua `quizzes/helper/quiz.gen.ts`, env `OPENAI_API_KEY`)
-- Fetch SRT từ URL (`resolve-srt.ts`) — URL nằm trong `videos.srt_raw_url`, do `media_service` upload
-- Không gọi service nội bộ qua HTTP
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/roadmaps` | LECTURER, ADMIN | |
+| GET | `/roadmaps` | public | List |
+| GET | `/roadmaps/:id` | public | Detail (kèm danh sách course đã sắp xếp) |
+| PATCH | `/roadmaps/:id` | LECTURER, ADMIN | |
+| DELETE | `/roadmaps/:id` | LECTURER, ADMIN | |
+| POST | `/roadmaps/:id/courses` | LECTURER, ADMIN | Thêm course vào roadmap |
+| POST | `/roadmaps/:id/courses/bulk` | LECTURER, ADMIN | Bulk-add |
+| PATCH | `/roadmaps/:id/courses/reorder` | LECTURER, ADMIN | Đổi thứ tự (drag & drop) |
+| PATCH | `/roadmaps/:id/courses/:courseId` | LECTURER, ADMIN | Update entry |
+| DELETE | `/roadmaps/:id/courses/:courseId` | LECTURER, ADMIN | |
 
-## Cách chạy local
+### Feedback (`@Controller('feedbacks')`)
+
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/feedbacks` | STUDENT, LECTURER, ADMIN | Tạo (1 user / course) |
+| GET | `/feedbacks/check/:courseId` | (theo policy `feedbacks/**` public) | Check đã feedback chưa |
+| GET | `/feedbacks/:courseId` | public | List feedback của course |
+| PATCH | `/feedbacks/:id` | ADMIN | |
+| DELETE | `/feedbacks/:id` | ADMIN | |
+
+### Feedback Reactions (`@Controller('feedback-reactions')`)
+
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/feedback-reactions` | STUDENT, LECTURER, ADMIN | Like / dislike |
+| DELETE | `/feedback-reactions/feedback/:feedbackId` | STUDENT, LECTURER, ADMIN | Bỏ react |
+| GET | `/feedback-reactions/feedback/:feedbackId` | public | Đếm reactions |
+
+### Reports (`@Controller('reports')`)
+
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/reports` | STUDENT, LECTURER, ADMIN | Báo cáo `targetType` ∈ `teacher` / `course` / `lesson` |
+| GET | `/reports/mine` | authenticated | Báo cáo của user |
+| GET | `/reports` | ADMIN | List tất cả |
+| GET | `/reports/:id` | ADMIN | Detail |
+| PATCH | `/reports/:id/review` | ADMIN | `approved` → ban target (set `is_banned` user hoặc `status=BANNED` course/lesson); `rejected` |
+
+---
+
+## Enum quan trọng
+
+```ts
+// models/course.model.ts
+export enum CourseStatus { DRAFT='draft', PENDING='pending', APPROVED='approved', REJECTED='rejected', PUBLISH='publish', BANNED='banned' }
+export enum CourseLevel  { BEGINNER='Beginner', INTERMEDIATE='Intermediate', ADVANCED='Advanced' }
+
+// models/enroll.model.ts
+export enum EnrollStatus { ACTIVE='active', COMPLETED='completed', DROPPED='dropped' }
+
+// models/lesson.model.ts
+export enum LessonStatus { ACTIVE='active', REMOVED='removed', BLOCKED='blocked' }
+export enum ContentType  { VIDEO='video', TEXT='text' }
+
+// models/report.model.ts
+export enum ReportTargetType { TEACHER='teacher', COURSE='course', LESSON='lesson' }
+export enum ReportStatus     { PENDING='pending', APPROVED='approved', REJECTED='rejected' }
+```
+
+---
+
+## Quiz AI: pipeline
+
+```
+videoId
+  └── SELECT srt_raw_url FROM videos
+        └── resolveSrtRawForQuiz()
+              ├── nếu là URL → fetch (timeout 30s)
+              └── nếu là inline text → dùng luôn
+                    └── generateQuizPayload(srt, name, opts)
+                          └── helper/quiz.gen.ts: OpenAI gpt-4o-mini
+                                ├── PCT_MCQ = 60
+                                ├── PCT_TRUE_FALSE = 20
+                                └── PCT_SHORT_TEXT = 20
+```
+
+> Yêu cầu env `OPENAI_API_KEY` ở `course_service`.
+
+---
+
+## Cross-service dependencies
+
+| Bên gọi | Endpoint | Khi nào |
+|---|---|---|
+| `payment_service` | `POST /enroll` | Sau khi PayOS webhook trả PAID → enroll user vào course |
+| `payment_service` | `DELETE /carts/items/:courseId` | Dọn cart sau khi mua thành công |
+| `media_service` | `srt_raw_url` (Cloudinary webhook ghi vào DB videos qua `course_service` migrations / shared DB) | Khi upload SRT |
+
+Course service **không** gọi service khác qua HTTP (zero outbound). Quiz AI gọi thẳng OpenAI.
+
+---
+
+## Environment variables
+
+| Env | Mặc định | Mô tả |
+|---|---|---|
+| `PORT` | `8008` | Port |
+| `DB_*` | như auth_service | MySQL shared |
+| `OPENAI_API_KEY` | — | Bắt buộc cho `POST /quizzes/ai` |
+| `JWT_SECRET`, `JWT_*_EXPIRES_IN` | (load nhưng chỉ verify khi service standalone, gateway luôn pre-verify) | |
+
+---
+
+## Scripts
 
 ```bash
-cd backend_services/course_service
-cp .env.example .env  # DB_*, JWT_SECRET, OPENAI_API_KEY
-yarn install
-yarn start:dev        # port 8008 (default)
+yarn start:dev
+yarn build
+yarn start:prod
 ```
+
+---
+
+## Eager-loading `GET /courses/:id`
+
+`course.service.findOne(id)` build 1 `findByPk` với include tree:
+
+```
+Course
+ ├─ video (BelongsTo Video, preview)
+ └─ lessons (HasMany Lesson, where status != REMOVED)
+      ├─ video (BelongsTo Video, lesson video)
+      └─ lessonActivities (HasMany LessonActivity, where status != REMOVED)
+           └─ quizzes (HasMany Quiz)
+                └─ questions (HasMany QuizQuestion)
+                     └─ options (HasMany QuizOption)
+```
+
+Trước đây cây này phải fetch riêng lessons → activities → quizzes → questions → options (1 + N query). Sau refactor, Sequelize tạo **1 SELECT JOIN duy nhất** (`subQuery: false`), `attributes` được pin từng level để không kéo cột text lớn không cần thiết. Public contract giữ nguyên — top-level fields của Course không đổi, FE chỉ thấy thêm các array lồng nhau.
+
+Associations bắt buộc cho cây này (đã thêm trong `src/models/*`):
+
+- `Course` `@HasMany(() => Lesson, { foreignKey: 'course_id', as: 'lessons' })`
+- `Lesson` `@HasMany(() => LessonActivity, { foreignKey: 'lesson_id', as: 'lessonActivities' })`
+- `LessonActivity` `@HasMany(() => Quiz, { foreignKey: 'lesson_activity_id', as: 'quizzes' })`
+- `Quiz` `@HasMany(() => QuizQuestion, { as: 'questions' })` *(đã có)*
+- `QuizQuestion` `@HasMany(() => QuizOption, { as: 'options' })` *(đã có)*
+
+> `Course` cũng phải register thêm các model `LessonActivity`, `Quiz`, `QuizQuestion`, `QuizOption` vào `SequelizeModule.forFeature([...])` của `CoursesModule` để khi inject Sequelize biết các tên association lồng nhau.
+
+Test reference: `src/course/course.service.spec.ts` (include tree + response shape), `src/models/associations.spec.ts` (associations + smoke-test circular import giữa LessonActivity ↔ Quiz).
+
+---
+
+## Tips
+
+- **AI quiz báo `Could not load SRT content`** → video chưa có `srt_raw_url` (Cloudinary webhook chưa chạy), hoặc URL hết hạn.
+- **Edit course xong nhảy về DRAFT** → đúng logic: `course.service.update` reset về DRAFT khi `status === PUBLISH`. Muốn giữ status phải qua workflow review lại.
+- **Enroll thất bại** → check user có trong DB không, course `PUBLISH` chưa, đã enroll trước đó chưa (`check-mine-exists`).
+- **Filter `type=in_video`/`after_video`** trong quiz: validate ở controller, sai value sẽ 400 `BadRequestException`.
+- **Report duyệt nhưng course không bị ban** → kiểm tra `reports.service.ts` logic cập nhật `courses.status = BANNED` / `users.is_banned = true`.

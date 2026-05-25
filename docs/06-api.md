@@ -222,11 +222,12 @@ Tất cả endpoint **đều phải qua gateway** (port 3000 local). Prefix `/ap
 | Method | Path | Auth | Handler |
 |--------|------|------|---------|
 | POST | `/api/media/feed` | `[LECTURER|ADMIN]` | `feed/feed.controller.ts.addToFeed()` |
-| GET | `/api/media/feed?cursor&limit&mode&search&sessionId` | auth | `…getFeed()` |
+| GET | `/api/media/feed?cursor&limit&mode&search&sessionId&hashtag` | auth | `…getFeed()` — `hashtag` filter via `JSON_CONTAINS(hashtags, JSON_QUOTE(:tag))`, combine với mọi `mode` |
 | GET | `/api/media/feed/viewed` | auth | `…getViewedFeeds()` |
 | GET | `/api/media/feed/saved` | auth | `…getSavedFeeds()` |
 | GET | `/api/media/feed/mine?page&pageSize&courseId&status&sortBy&order` | `[ADMIN\|LECTURER]` | `…getMyFeeds()` |
 | GET | `/api/media/feed/trending` | public | `…getPublicTrending()` |
+| GET | `/api/media/feed/hashtags/trending?days&limit` | public | `…getTrendingHashtags()` — top hashtag theo count N ngày (default 7), kèm `growthPct` so kỳ trước |
 | GET | `/api/media/feed/stats/creator` | `[ADMIN|LECTURER]` | `…getCreatorStats()` |
 | GET | `/api/media/feed/stats/trending` | `[ADMIN|LECTURER]` | `…getTrendingStats()` |
 | GET | `/api/media/feed/:id/stats` | `[ADMIN|LECTURER]` | `…getFeedDetailStats()` |
@@ -252,13 +253,26 @@ Tất cả endpoint **đều phải qua gateway** (port 3000 local). Prefix `/ap
 | GET | `/api/payment/return` | public | HTML success |
 | GET | `/api/payment/cancel` | public | HTML cancel |
 
-## `/api/mascot_colab/*` → mascot AI model service (deploy-model)
+## `/api/mascot_colab/*` → inference_service (Colab pool)
 
-| Method | Path | Auth |
-|--------|------|------|
-| `*` | `/api/mascot_colab/**` | auth |
+Service đích là `backend_services/inference_service` (NestJS). Service này
+forward request đến **pool các Colab notebook** (ngrok). Mỗi POST trả `job_id`;
+mapping `jobId → colabUrl` được lưu trong Redis để route đúng worker khi
+poll status / download.
 
-> Service đích là Python (FastAPI?) ở `deploy-model/`. Endpoint chi tiết xem `deploy-model/main.py`.
+| Method | Path | Auth | Handler (inference_service) |
+|--------|------|------|------------------------------|
+| GET | `/api/mascot_colab/` | auth | `AppController.getHome()` |
+| GET | `/api/mascot_colab/pool/status` | auth | `AppController.getPoolStatus()` |
+| POST | `/api/mascot_colab/highlight-reel` | auth | `AppController.createHighlightReel()` (multipart) |
+| POST | `/api/mascot_colab/highlight-reel-link` | auth | `AppController.createHighlightReelLink()` (JSON `{ video_url }`) |
+| POST | `/api/mascot_colab/generate-quiz` | auth | `AppController.generateQuiz()` |
+| POST | `/api/mascot_colab/mascot` | auth | `AppController.createMascotJob()` |
+| GET | `/api/mascot_colab/jobs/status/:job_id` | auth | `AppController.getJobStatus()` — Redis lookup |
+| GET | `/api/mascot_colab/download/:job_id` | auth | `AppController.downloadVideo()` — Redis lookup, stream |
+
+Access rule chung: `{ method: '*', pattern: '/api/mascot_colab/**', access: 'authenticated' }`.
+Chi tiết flow xem `docs/04-modules/inference-service.md`.
 
 ## WebSocket / Socket.IO
 

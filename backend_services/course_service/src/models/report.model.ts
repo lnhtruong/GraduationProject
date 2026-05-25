@@ -25,6 +25,8 @@ export enum ReportStatus {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  paranoid: true,
+  deletedAt: 'deleted_at',
 })
 export class Report extends Model {
   @Column({
@@ -96,4 +98,11 @@ export class Report extends Model {
     field: 'reviewed_at',
   })
   declare reviewedAt: Date | null;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+    field: 'deleted_at',
+  })
+  declare deletedAt: Date | null;
 }

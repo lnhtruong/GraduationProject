@@ -3,9 +3,13 @@ import {
   CheckCircle2,
   CircleHelp,
   Loader2,
+  Maximize,
+  Minimize,
   Pause,
   Play,
   PlayCircle,
+  Volume2,
+  VolumeX,
   Sparkles,
   XCircle,
 } from "lucide-react";
@@ -18,10 +22,19 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 interface Props {
   selectedLessonVideoUrl?: string;
@@ -49,9 +62,18 @@ interface Props {
   isTransitioningNext: boolean;
   nextLessonTitle?: string;
   showAfterLessonOverlay: boolean;
+  playbackRate: number;
+  volume: number;
+  isMuted: boolean;
+  isFullscreen: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   isQuizSolved: (point: InVideoQuizPoint) => boolean;
   onTogglePlayback: () => void;
+  onSetPlaybackRate: (rate: number) => void;
+  onToggleMute: () => void;
+  onVolumeChange: (vol: number) => void;
+  onToggleFullscreen: () => void;
+  onVideoKeyDown: (event: React.KeyboardEvent<HTMLVideoElement>) => void;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onVideoEnded: () => void;
   onVideoMetadataLoaded: (duration: number) => void;
@@ -90,9 +112,18 @@ export function LessonVideoCard({
   isTransitioningNext,
   nextLessonTitle,
   showAfterLessonOverlay,
+  playbackRate,
+  volume,
+  isMuted,
+  isFullscreen,
   videoRef,
   isQuizSolved,
   onTogglePlayback,
+  onSetPlaybackRate,
+  onToggleMute,
+  onVolumeChange,
+  onToggleFullscreen,
+  onVideoKeyDown,
   onTimeUpdate,
   onVideoEnded,
   onVideoMetadataLoaded,
@@ -123,6 +154,8 @@ export function LessonVideoCard({
                 playsInline
                 preload="metadata"
                 onClick={onTogglePlayback}
+                tabIndex={0}
+                onKeyDown={onVideoKeyDown}
                 onPlay={(event) => {
                   if (activeQuizPoint) {
                     event.currentTarget.pause();
@@ -490,82 +523,161 @@ export function LessonVideoCard({
             </AnimatePresence>
 
             <div
-              className={`absolute inset-x-2 bottom-2 z-20 rounded-lg border border-white/20 bg-black/60 px-2 py-2 opacity-95 backdrop-blur-sm sm:inset-x-3 sm:bottom-3 sm:px-2.5 ${playerBlocked ? "pointer-events-none opacity-40" : ""}`}
+              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/90 via-black/55 to-transparent px-4 pb-3 pt-10 transition-opacity duration-300 sm:px-5 sm:pb-4 ${playerBlocked ? "pointer-events-none opacity-40" : "opacity-100"}`}
             >
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onTogglePlayback}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white hover:bg-black/55"
-                  aria-label={isPlaying ? "Pause video" : "Play video"}
-                >
-                  {isPlaying ? (
-                    <Pause className="h-3.5 w-3.5" />
-                  ) : (
-                    <Play className="ml-0.5 h-3.5 w-3.5" />
-                  )}
-                </button>
-
-                <span className="w-12 shrink-0 text-[11px] text-white/90">
-                  {formatTime(currentTime)}
-                </span>
-
-                <div
-                  className="group relative flex-1 cursor-pointer"
-                  onClick={onOverlayScrubClick}
-                >
-                  <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/25">
-                    <div
-                      className="h-full bg-primary transition-[width] duration-200 ease-out"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-
-                  <input
-                    type="range"
-                    min={0}
-                    max={selectedLessonDuration}
-                    step={0.01}
-                    value={Math.min(
-                      selectedLessonDuration,
-                      Math.max(0, currentTime),
-                    )}
-                    onChange={(event) => {
-                      event.stopPropagation();
-                      onSeekChange(Number(event.target.value));
-                    }}
-                    className="relative z-10 h-4 w-full appearance-none bg-transparent"
+              <div
+                className="group relative mb-3 flex h-4 w-full cursor-pointer items-center"
+                onClick={onOverlayScrubClick}
+              >
+                <div className="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-white/25">
+                  <div
+                    className="h-full bg-primary transition-[width] duration-200 ease-out"
+                    style={{ width: `${progressPercent}%` }}
                   />
-
-                  {inVideoQuizPoints.map((point) => {
-                    const left = `${(point.timestamp / Math.max(1, selectedLessonDuration)) * 100}%`;
-                    const solved = isQuizSolved(point);
-
-                    return (
-                      <Tooltip key={`overlay-${point.id}`}>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/80 transition-transform hover:scale-125 ${solved ? "bg-primary" : "bg-accent"}`}
-                            style={{ left }}
-                            onClick={(clickEvent) => {
-                              clickEvent.stopPropagation();
-                              onJumpToQuizPoint(point);
-                            }}
-                            aria-label={`Đi tới quiz tại ${formatTime(point.timestamp)}`}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">
-                          {solved ? "Đã trả lời" : "Câu hỏi tương tác"}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
                 </div>
 
-                <span className="w-12 shrink-0 text-right text-[11px] text-white/90">
-                  {formatTime(selectedLessonDuration)}
-                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={selectedLessonDuration}
+                  step={0.01}
+                  value={Math.min(
+                    selectedLessonDuration,
+                    Math.max(0, currentTime),
+                  )}
+                  onChange={(event) => {
+                    event.stopPropagation();
+                    onSeekChange(Number(event.target.value));
+                  }}
+                  className="relative z-10 h-4 w-full cursor-pointer appearance-none bg-transparent opacity-0"
+                />
+
+                {inVideoQuizPoints.map((point) => {
+                  const left = `${(point.timestamp / Math.max(1, selectedLessonDuration)) * 100}%`;
+                  const solved = isQuizSolved(point);
+
+                  return (
+                    <Tooltip key={`overlay-${point.id}`}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-black/80 transition-transform hover:scale-150 ${solved ? "bg-primary" : "bg-amber-400"}`}
+                          style={{ left }}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation();
+                            onJumpToQuizPoint(point);
+                          }}
+                          aria-label={`Đi tới quiz tại ${formatTime(point.timestamp)}`}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {solved ? "Đã trả lời" : "Câu hỏi tương tác"}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={onTogglePlayback}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                    aria-label={isPlaying ? "Pause video" : "Play video"}
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="ml-0.5 h-5 w-5" />
+                    )}
+                  </button>
+
+                  <div className="group flex items-center">
+                    <button
+                      type="button"
+                      onClick={onToggleMute}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                      aria-label={
+                        isMuted || volume === 0
+                          ? "Bật âm lượng"
+                          : "Tắt âm lượng"
+                      }
+                      title="Âm lượng"
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="h-4.5 w-4.5" />
+                      ) : (
+                        <Volume2 className="h-4.5 w-4.5" />
+                      )}
+                    </button>
+
+                    <div className="w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:w-16 group-hover:opacity-100 sm:group-hover:w-20">
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={isMuted ? 0 : volume}
+                        onChange={(event) =>
+                          onVolumeChange(Number(event.target.value))
+                        }
+                        className="h-1 w-full cursor-pointer accent-primary"
+                        aria-label="Âm lượng"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 text-[13px] font-medium text-white/90">
+                    {formatTime(currentTime)}
+                    <span className="mx-1.5 text-white/40">/</span>
+                    {formatTime(selectedLessonDuration)}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Select
+                    value={String(playbackRate)}
+                    onValueChange={(value) => onSetPlaybackRate(Number(value))}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-17 border border-white/20 bg-black/45 px-2 text-[13px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.25)] transition-all hover:border-white/35 hover:bg-black/60 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_10px_24px_rgba(0,0,0,0.32)] focus:border-white/40 focus:ring-0 focus:ring-offset-0"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <SelectValue placeholder="1x" />
+                    </SelectTrigger>
+                    <SelectContent
+                      align="end"
+                      side="top"
+                      sideOffset={12}
+                      className="border-white/10 bg-black/90 text-white backdrop-blur-md"
+                    >
+                      {PLAYBACK_RATES.map((rate) => (
+                        <SelectItem
+                          key={rate}
+                          value={String(rate)}
+                          className="focus:bg-white/20 focus:text-white"
+                        >
+                          {rate}x
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <button
+                    type="button"
+                    onClick={onToggleFullscreen}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                    aria-label="Toàn màn hình"
+                    title="Toàn màn hình"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="h-4.5 w-4.5" />
+                    ) : (
+                      <Maximize className="h-4.5 w-4.5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

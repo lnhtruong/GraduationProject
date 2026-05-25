@@ -1,266 +1,338 @@
 # Media Service
 
-## Mục đích
-Trung tâm xử lý media + realtime + newsfeed:
-- Video CRUD + Bunny Stream upload/transcoding integration
-- Project editor (video chỉnh sửa với mascot overlay)
-- Mascot images library + mascot overlays (vị trí, scale, thời gian) trên video
-- Cloudinary signed upload (cho ảnh)
-- Highlight feed (short-video TikTok-like) + interactions + comments + recommendations
-- Notifications (in-app)
-- Real-time: Socket.IO gateway + SSE controller
-- Webhooks từ Bunny, Cloudinary, AI model
+> Entry: `backend_services/media_service/src/main.ts` · NestJS · Port mặc định `8003`
 
-## File / Folder
+Trung tâm media + realtime + social feed. Service lớn nhất, gom 12 feature module:
 
-### Bootstrap & infra
+- **Videos** — CRUD + tích hợp Bunny Stream (TUS upload, webhook).
+- **MascotImages** + **MascotOverlays** + **Projects** — editor mascot (overlay nhân vật lên video).
+- **Cloudinary** — sign-upload preset + raw upload (SRT, ảnh).
+- **Webhook** — Cloudinary, Bunny Stream, AI model (QStash callback).
+- **Feed** (Highlight feed) — newsfeed dạng short-video, interactions (like/save/view), comments, recommendation worker.
+- **Notifications** — DB-backed + push qua SSE/WebSocket.
+- **SSE** — Server-Sent Events theo user.
+- **WebSocket** — Socket.IO namespace `/media`, room `user:{id}`.
 
-| Path | Mô tả |
-|------|-------|
-| `backend_services/media_service/src/main.ts` | NestJS bootstrap (kèm Socket.IO adapter) |
-| `backend_services/media_service/src/app.module.ts` | Root — import 12 feature module + ScheduleModule |
-| `backend_services/media_service/src/app.controller.ts` | `/` health |
-| `backend_services/media_service/src/database/database.module.ts` | Sequelize bootstrap |
-| `backend_services/media_service/src/config/{database,jwt,redis}.config.ts` | Env configs |
-| `backend_services/media_service/src/redis/redis.module.ts` | ioredis module |
-| `backend_services/media_service/src/redis/redis.service.ts` | Cache wrapper (feed recommendation) |
+Identity từ header `X-User-Id` / `X-User-Role`. Một số endpoint (webhook, SSE) là public.
 
-### Models
+---
 
-`src/models/`:
+## Architecture overview
 
-| File | Bảng | Mô tả |
-|------|------|------|
-| `models/notification.model.ts` | `notifications` | In-app notification (migration 019) |
-| `models/highlight_feed.model.ts` | `highlight_feed` | Short video feed entries |
-| `models/feed_comments.model.ts` | `feed_comments` | Comments + replies (có `origin_cmt`) |
-| `models/feed_interactions.model.ts` | `feed_interactions` | Like/save/share — `enum FeedInteractionType` |
-| `models/feed_views.model.ts` | `feed_views` | Track view + watch duration |
-| `models/course.model.ts` | `courses` | Read-only mirror để JOIN |
-| `models/user.model.ts` | `users` | Read-only mirror |
+```mermaid
+graph TD
+    FE[Frontend]
+    GW[API Gateway]
+    MS[media_service]
+    DB[(MySQL)]
+    R[(Redis)]
+    BUN[Bunny Stream]
+    CLD[Cloudinary]
+    INF[inference_service<br/>(Colab pool)]
+    QS[Upstash QStash<br/>(AI callbacks)]
 
-`src/videos/video.model.ts`, `src/projects/project.model.ts`, `src/mascot_overlays/mascot_overlay.model.ts`, `src/images_mascot/images.model.ts` — models thuộc feature đó.
+    FE -- HTTP /api/media/* --> GW
+    FE -- Socket.IO /media --> GW
+    GW --> MS
+    MS --> DB
+    MS --> R
+    MS -- init TUS upload --> BUN
+    BUN -- webhook /webhooks/bunny-stream --> MS
+    FE -- raw upload (SRT, image) --> CLD
+    CLD -- webhook /webhooks/cloudinary/upload --> MS
+    INF -- result via QS --> QS
+    QS -- /webhooks/ai-model/result --> MS
+    MS -- SSE /sse/users/:userId/events --> FE
+    MS -- Socket.IO emit --> FE
+```
 
-### Feature modules
+---
 
-#### `videos/` — `@Controller('videos')`
-| File | Mô tả |
-|------|------|
-| `videos/video.controller.ts` | CRUD video |
-| `videos/video.service.ts` | Business |
-| `videos/video.model.ts` | Bảng `videos` (type: `highlight | mascot | long`) |
+## Module tree
 
-Endpoints:
-- `POST /videos` — create
-- `GET /videos/user/:type` — list by user + type
-- `GET /videos/:id`
-- `PATCH /videos/:id`
-- `DELETE /videos/:id`
+```
+src/
+├── main.ts                # rawBody:true (cần cho HMAC Bunny), CORS, ValidationPipe
+├── app.module.ts          # imports tất cả module + ScheduleModule
+├── config/                # database, jwt, redis
+├── database/              # DatabaseModule
+├── models/                # shared models (course, user, feed_*, notification)
+├── dto/                   # CreateVideoDto, UpdateVideoDto
+├── redis/                 # RedisService
+├── videos/                # Video CRUD
+├── images_mascot/         # MascotImage (Cloudinary backed)
+├── projects/              # Project (timeline editor)
+├── mascot_overlays/       # MascotOverlay (overlay items on project)
+├── cloudinary/            # sign + upload endpoints
+├── bunny/                 # TUS upload init + status/play-data
+├── webhook/               # Cloudinary + Bunny + AI model callbacks
+├── feed/                  # HighlightFeed + interactions + comments + worker
+├── notifications/         # Notification model + service + push
+├── sse/                   # Server-Sent Events
+├── websocket/             # Socket.IO gateway, namespace /media
+└── validators/
+```
 
-#### `projects/` — `@Controller('projects')` — Editor session
-| File | Mô tả |
-|------|------|
-| `projects/project.controller.ts` | CRUD project |
-| `projects/project.service.ts` | |
-| `projects/project.model.ts` | Bảng `projects` (= 1 edit session) — `status: draft | saved | finalized` |
+---
 
-Endpoints:
-- `POST /projects`
-- `GET /projects/user`
-- `GET /projects/:id`, `PATCH /:id`, `DELETE /:id`
+## Endpoints
 
-#### `mascot_overlays/` — `@Controller('mascot_overlays')`
-Overlay nhân vật mascot lên video (vị trí x/y, scale, start_time/end_time, layer_index).
-- `mascot_overlay.controller.ts`, `mascot_overlay.service.ts`, `mascot_overlay.model.ts`
-- Liên kết: `edit_id` → `projects(edit_id)`, `image_id` → `mascot_images(image_id)`
+### Videos (`@Controller('videos')`)
 
-#### `images_mascot/` — `@Controller('mascot_images')`
-Library mascot images do user upload:
-- `image_mascot.controller.ts`, `image_mascot.service.ts`, `images.model.ts`
-- Endpoint: `POST /`, `GET /user`, `GET /:id` (public), `PATCH /:id`, `DELETE /:id`
+| Method | Path | Access (gateway) |
+|---|---|---|
+| POST | `/videos` | authenticated |
+| GET | `/videos/user/:type` (type ∈ `highlight` \| `mascot` \| `long`) | authenticated |
+| GET | `/videos/:id` | authenticated |
+| PATCH | `/videos/:id` | authenticated |
+| DELETE | `/videos/:id` | authenticated |
 
-#### `bunny/` — `@Controller('bunny')` — Bunny Stream
-| Endpoint | Mô tả |
-|----------|------|
-| `POST /bunny/videos/init-upload` | Tạo placeholder video trên Bunny, trả TUS upload URL + auth signature |
-| `GET /bunny/videos/:bunnyVideoId/status` | Poll status (encoding/ready/failed) |
-| `GET /bunny/videos/:bunnyVideoId/play-data` | HLS URL, thumbnail, captions |
+> `VideoType` enum: `HIGHLIGHT`, `MASCOT`, `LONG` (Bunny long-form).
 
-Frontend gọi `init-upload` → upload thẳng lên Bunny qua `tus-js-client` → khi xong, Bunny gọi webhook `/api/media/webhooks/bunny-stream` (xem `webhook/`).
+### Bunny Stream (`@Controller('bunny')`)
 
-#### `cloudinary/` — `@Controller('cloudinary')`
-- `POST /cloudinary/sign` — Server-side sign upload params
-- `POST /cloudinary/upload` — (proxy upload trực tiếp?)
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/bunny/videos/init-upload` | authenticated | Tạo Bunny video, ký TUS signature, INSERT row `videos` (type=`LONG`). Trả `{ uploadUrl, authSignature, authExpire, videoId }` cho TUS client |
+| GET | `/bunny/videos/:bunnyVideoId/status` | authenticated | Polling trạng thái transcode |
+| GET | `/bunny/videos/:bunnyVideoId/play-data` | authenticated | HLS playlist URL + token |
 
-#### `webhook/` — `@Controller('webhooks')`
-Public endpoints (không auth — verify HMAC trong service):
-- `POST /webhooks/cloudinary/upload` — callback Cloudinary
-- `POST /webhooks/bunny-stream` — callback Bunny (verify HMAC)
-- `POST /webhooks/ai-model/result` — callback từ `deploy-model/` (mascot video gen)
+### Cloudinary (`@Controller('cloudinary')`)
 
-`webhook/webhook.service.ts` xử lý: update `videos.status`, `videos.bunny_video_guid`, `videos.url`, push notification + emit Socket.IO event.
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/cloudinary/sign` | authenticated | Ký signature cho frontend upload trực tiếp lên Cloudinary |
+| POST | `/cloudinary/upload` | authenticated | Backend-side upload (cho file ngắn) |
 
-#### `feed/` — `@Controller('feed')` — Newsfeed
-File: `feed/feed.controller.ts` (16 endpoints — đây là module có nhiều endpoint nhất).
+### Webhooks (`@Controller('webhooks')`) — **public**
+
+| Method | Path | Verify | Mô tả |
+|---|---|---|---|
+| POST | `/webhooks/cloudinary/upload` | (không HMAC — chỉ thêm IP allowlist nếu cần) | Cloudinary gửi sau upload; service ghi `srt_raw_url` / `image_url` vào DB |
+| POST | `/webhooks/ai-model/result` | header `upstash-signature` (chưa enforce trong code) | QStash callback từ `inference_service` sau khi Colab xong job (highlight/mascot) |
+| POST | `/webhooks/bunny-stream` | HMAC `x-bunnystream-signature` (sha256 timingSafeEqual) | Bunny Stream callback transcode-done; cập nhật `videos.bunny_video_guid`, status |
+
+### Mascot Images (`@Controller('mascot_images')`)
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/mascot_images` | authenticated |
+| GET | `/mascot_images/user` | authenticated |
+| GET | `/mascot_images/:id` | public |
+| PATCH | `/mascot_images/:id` | authenticated |
+| DELETE | `/mascot_images/:id` | authenticated |
+
+### Mascot Overlays (`@Controller('mascot_overlays')`)
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/mascot_overlays` | authenticated |
+| GET | `/mascot_overlays/edit/:edit_id` | authenticated |
+| GET | `/mascot_overlays/:id` | authenticated |
+| PATCH | `/mascot_overlays/:id` | authenticated |
+| DELETE | `/mascot_overlays/:id` | authenticated |
+
+### Projects (`@Controller('projects')`)
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/projects` | authenticated |
+| GET | `/projects/user` | authenticated |
+| GET | `/projects/:id` | authenticated |
+| PATCH | `/projects/:id` | authenticated |
+| DELETE | `/projects/:id` | authenticated |
+
+### Feed (`@Controller('feed')`) — highlight newsfeed
+
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| POST | `/feed` | authenticated (gateway: LECTURER/ADMIN write) | Add highlight vào feed |
+| GET | `/feed` | authenticated | Query `cursor, limit, courseId, mode (recommended\|search), search, sessionId, hashtag` — `hashtag` filter dùng `JSON_CONTAINS(hashtags, JSON_QUOTE(:tag))`, chấp nhận cả `#tag` và `tag`, combine với `mode=recommended` được (bypass Redis cache để không bẩn ranked list). |
+| GET | `/feed/viewed` | authenticated | Lịch sử đã xem |
+| GET | `/feed/saved` | authenticated | Đã save |
+| GET | `/feed/mine` | ADMIN, LECTURER | Highlight do user tạo |
+| GET | `/feed/trending` | public | |
+| GET | `/feed/hashtags/trending` | public | Query `days` (default 7, max 90), `limit` (default 20, max 100). Trả `{ items: [{ tag, count, growthPct }] }` — count là số feed ACTIVE chứa hashtag trong cửa sổ N ngày, `growthPct` so với N ngày trước (`null` nếu kỳ trước count=0 → tag mới). Aggregation chạy trên JS, không cần `JSON_TABLE`. |
+| GET | `/feed/stats/creator` | ADMIN, LECTURER | |
+| GET | `/feed/stats/trending` | ADMIN, LECTURER | |
+| GET | `/feed/:id/stats` | ADMIN, LECTURER | |
+| POST | `/feed/:id/interact` | authenticated | Body `{ type: 'like'\|'save'\|... }` (`FeedInteractionType`) |
+| POST | `/feed/:id/view` | authenticated | Ghi nhận lượt xem |
+| PUT | `/feed/:id` | (gateway: LECTURER/ADMIN) | Update meta |
+| POST | `/feed/:id/comments` | authenticated | Tạo comment (gửi notification cho author) |
+| GET | `/feed/:id/comments` | authenticated | List |
+| GET | `/feed/:id/comment/detail` | authenticated | |
+| PATCH | `/feed/:id/comments/:commentId` | authenticated | |
+| DELETE | `/feed/:id/comments/:commentId` | authenticated | |
+
+> Recommendation worker: `feed/feed-recommendation.worker.ts` chạy cron qua `ScheduleModule` để cập nhật cache trending.
+
+### Notifications (`@Controller('notifications')`)
+
+| Method | Path | Access | Mô tả |
+|---|---|---|---|
+| GET | `/notifications` | authenticated | Cursor pagination, filter `is_read` |
+| PUT | `/notifications/bulk` | authenticated | Body `{ ids?: number[], all?: boolean, is_read: true }` |
+| GET | `/notifications/:id` | authenticated | |
+| PATCH | `/notifications/:id` | authenticated | |
+
+### SSE (`@Controller('sse')`) — **public** (gateway không gắn auth)
 
 | Method | Path | Mô tả |
-|--------|------|------|
-| POST | `/feed` | Lecturer/admin highlight video lên feed |
-| GET | `/feed` | Cursor-paginated feed (`mode=recommended|search`, sessionId for personalization) |
-| GET | `/feed/viewed` | Feeds user đã xem |
-| GET | `/feed/saved` | Feeds user đã save |
-| GET | `/feed/mine` | Feeds user (lecturer/admin) đã đăng — phân trang offset (`page/pageSize`), filter `courseId/status`, sort `created_at|id|title` × `asc|desc`, trả `pagination` envelope (`total`, `totalPages`) |
-| GET | `/feed/trending` | Public trending |
-| GET | `/feed/stats/creator` | Creator analytics (lecturer/admin) |
-| GET | `/feed/stats/trending` | Trending analytics (admin) |
-| GET | `/feed/:id/stats` | Stats cho 1 feed (owner/admin) |
-| POST | `/feed/:id/interact` | Like/save/share — body `{ type: FeedInteractionType }` |
-| POST | `/feed/:id/view` | Log view: `{ watch_duration, completed }` |
-| PUT | `/feed/:id` | Update title/caption/hashtags/status |
-| POST | `/feed/:id/comments` | Tạo comment (có thể là reply, set `origin_cmt`) |
-| GET | `/feed/:id/comments` | List comments (cursor) |
-| GET | `/feed/:id/comment/detail` | List replies của 1 comment (`origin_cmt` query) |
-| PATCH | `/feed/:id/comments/:commentId` | Update comment content |
-| DELETE | `/feed/:id/comments/:commentId` | Delete comment |
+|---|---|---|
+| GET | `/sse/users/:userId/events` (`@Sse`) | Stream `EventSource` cho user (notification, feed events) |
 
-Helper:
-- `feed/feed-recommendation.worker.ts` — 2 cron job (qua `@nestjs/schedule`) giữ ấm cache trong Redis. Mỗi cron tick có 1 cờ "in-flight" local + Redis lock trong service nên không bị overlap giữa nhiều replica.
-  - `handlePrecompute()` — `EVERY_MINUTE` (1 phút/lần). Lấy danh sách user trong set `feed:rec:interacted-users`, gọi `feedService.precomputeRecommendedForActiveUsers({ concurrency: 8, maxBatch: 500 })`. Tái sử dụng `sessionId` hiện tại nếu còn hợp lệ thay vì tạo mới mỗi lần.
-  - `handleTrendingRefresh()` — `EVERY_5_MINUTES`. Gọi `feedService.refreshTrendingCache()` để cập nhật key `feed:trending:1h`.
+### WebSocket — Socket.IO namespace `/media`
 
-### Thuật toán Recommendation (`feed.service.ts → computeRankedCandidates`)
+Cấu hình ở `websocket/websocket.gateway.ts`:
 
-Pipeline 5 bước, chấm theo công thức linear:
-
-```
-score = W_GLOBAL * globalScore
-      + W_PERSONAL * personalScore
-      + W_FRESHNESS * freshness
-      + 0.3 * viewBoost
-      − repeatedViewPenalty
+```ts
+@WebSocketGateway({ namespace: '/media', cors: { origin: '*' } })
 ```
 
-Các tham số tuning đặt trong constants ở đầu `FeedService` (dễ A/B test):
+- Khi connect: client truyền `?userId=123` → join room `user:123`.
+- Server emit `notification`, `feed:update`, ... vào room.
+- Sự kiện FE gửi: `ping` → trả `pong`; `subscribe:user` → join room manually.
 
-| Hằng | Mặc định | Vai trò |
-|------|----------|---------|
-| `FRESHNESS_HALF_LIFE_HOURS` | 36 | Half-life cho time-decay |
-| `W_GLOBAL / W_PERSONAL / W_FRESHNESS` | 1.0 / 1.5 / 1.2 | Trọng số 3 nhóm tín hiệu |
-| `REPEAT_VIEW_PENALTY` | 0.8 | Trừ điểm mỗi lần đã xem |
-| `REPEAT_VIEW_PENALTY_CAP` | 3 | Giới hạn tối đa phạt lặp |
-| `EXPLORATION_RATIO` | 0.15 | Tỉ lệ "epsilon-greedy" — chèn item fresh ngoài top |
-| `MAX_SAME_COURSE_RUN` | 2 | Số item tối đa liên tiếp cùng course/lecturer |
-| `GLOBAL_ENGAGEMENT_WINDOW_HOURS` | 168 (7 ngày) | Cửa sổ tính popularity |
+Gateway forward upgrade qua `/socket.io` → media (xem `api-gateway.md`).
 
-Chi tiết từng signal:
+---
 
-1. **Global score** (popularity):
-   - Wilson-smoothed engagement rate: `(positives + 1) / (views + 50)` với `positives = likes + saves*1.5 + shares*2 + comments*1.2`.
-   - Completion rate `completedViews / views` (signal cực mạnh với short-video).
-   - Popularity log-scaled: `log10(1 + views + likes*2 + saves*3 + shares*4)` — tránh viral item áp đảo mãi.
-   - Tổng: `engagement*5 + completionRate*3 + popularity`.
-   - **Window**: chỉ tính các interaction trong `GLOBAL_ENGAGEMENT_WINDOW_HOURS` qua bảng `feed_interactions / feed_views / feed_comments`.
+## Sequence: upload long-form video (Bunny TUS)
 
-2. **Personal score** (matching profile):
-   - `courseAffinity[course_id]` và `hashtagAffinity[tag]` được build từ history (200 view gần nhất + update khi like/save).
-   - Behavior weight khi view: `(completed ? 2 : 1) + min(watch_duration/30, 2)`. Like = 1.2, Save = 2.
-   - Normalise về `[0..1]` theo max của user → user mới và user lâu năm có thang điểm so sánh được.
-   - Tổng: `courseScore*0.7 + tagScore*0.3`.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE
+    participant MS as media_service
+    participant BUN as Bunny Stream
+    participant DB as MySQL videos
 
-3. **Freshness**: half-life decay `0.5 ^ (ageHours / 36)`.
-
-4. **View boost** nhẹ: `log10(1+views) / log10(1+maxViews)` — boost item đã có chút traction.
-
-5. **Repeat view penalty**: `min(viewCount * 0.8, 3)`.
-
-Sau khi sort theo điểm:
-
-- **`injectExploration`**: lấy ~50% top, sau đó cứ mỗi `1/EXPLORATION_RATIO ≈ 7` slot lại chèn 1 item từ nửa dưới (sorted theo `explorationScore = fresh*2 − personalScore`). Mục đích: phá filter-bubble.
-- **`diversifyByCourse`**: greedy re-rank để không có hơn `MAX_SAME_COURSE_RUN` item liên tiếp cùng course.
-
-### Trending — `computeTrendingFeedIds` (vẫn giữ công thức cũ, dùng cho trang Trending public)
-
-```
-score = likes*3 + saves*4 + shares*5 + comments*2 + views*0.5
+    FE->>MS: POST /api/media/bunny/videos/init-upload (title, thumbnailTime)
+    MS->>BUN: POST /library/{id}/videos (create empty)
+    BUN-->>MS: { guid }
+    MS->>DB: INSERT INTO videos (user_id, bunny_video_guid, type='long')
+    MS-->>FE: { uploadUrl, authSignature, authExpire, videoId, guid }
+    FE->>BUN: TUS PATCH chunks (authSignature)
+    BUN-->>FE: 200
+    BUN->>MS: POST /api/media/webhooks/bunny-stream (HMAC-SHA256)
+    MS->>MS: verifyBunnyStreamWebhook (rawBody + key + timingSafeEqual)
+    MS->>DB: UPDATE videos SET status='ready', ...
+    MS-->>FE: (SSE/WS) feed:update or notification
 ```
 
-Window: `TRENDING_WINDOW_MS = 1h`. Cache key `feed:trending:1h`, TTL 300s, được refresh bởi cron `handleTrendingRefresh` thay vì lazy như trước.
+---
 
-### Redis schema
+## Sequence: feed interaction triggers notification
 
-| Key pattern | Type | TTL | Mô tả |
-|-------------|------|-----|------|
-| `feed:rec:session:<userId>` | string | 600s | sessionId hiện tại của user (pointer) |
-| `feed:rec:list:<userId>:<sessionId>:<courseId|0>` | string (JSON array) | 600s | Danh sách feed_id đã rank cho session đó |
-| `feed:rec:profile:<userId>` | string (JSON) | 24h | `{ courseAffinity, hashtagAffinity }` |
-| `feed:rec:seen:<userId>` | sorted set | n/a (auto-trim) | feed_id đã xem trong 6h (score = timestamp) |
-| `feed:rec:interacted-users` | set | n/a | User cần precompute lại (queue cron) |
-| `feed:trending:1h` | string (JSON array) | 300s | Cached trending list |
-| `feed:rec:precompute:lock` | string | 60s | Distributed lock cho cron precompute |
-| `feed:trending:refresh:lock` | string | 30s | Distributed lock cho cron trending |
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE
+    participant MS as feed.service
+    participant DB
+    participant NS as notification.service
+    participant WS as WebsocketGateway
+    participant Sub as Subscriber FE (author)
 
-Khi user like/save/view, `invalidateRecommendCache` xóa cả `feed:rec:session:*` lẫn các key `feed:rec:list:<userId>:*` (SCAN-based) để lần tiếp theo user gọi `GET /feed?mode=recommended` sẽ rebuild — fix bug "đã like rồi mà feed không đổi".
+    FE->>MS: POST /feed/:id/interact { type: 'like' }
+    MS->>DB: INSERT feed_interactions
+    MS->>DB: UPDATE highlight_feeds.likes++
+    MS->>NS: create notification (recipient = feed.author)
+    NS->>DB: INSERT notifications
+    NS->>WS: emit('notification') → room user:{authorId}
+    WS-->>Sub: notification payload (Socket.IO)
+    NS-->>FE: ok
+```
 
-Helper trong `RedisService` cho feed: `zReplace`, `zRevRange`, `scanKeys`, `delMany`, `acquireLock/releaseLock`, `incrementBy`.
+---
 
-#### `notifications/` — `@Controller('notifications')`
-- `GET /notifications?cursor&limit&is_read` — list của user
-- `GET /notifications/:id` — detail
-- `PATCH /notifications/:id` — mark read
-- `PUT /notifications/bulk` — `{ all?: boolean, ids?: number[], is_read: true }` mark multiple
+## Enums chính
 
-Tạo notification: internal — vd khi có comment trên feed của user, khi video upload xong, etc. Tạo bằng `notification.service.ts` rồi push qua SSE/WebSocket.
+```ts
+// videos/video.model.ts
+export enum VideoType { HIGHLIGHT='highlight', MASCOT='mascot', LONG='long' }
 
-#### `sse/` — `@Controller('sse')`
-- `Sse('users/:userId/events')` — stream events cho user qua SSE
-- Service: `sse/sse.service.ts` quản lý subject RxJS theo userId
+// models/highlight_feed.model.ts
+export enum HighlightFeedStatus { ACTIVE='active', HIDDEN='hidden', REMOVED='removed' }
 
-#### `websocket/`
-- `websocket.gateway.ts` — `@WebSocketGateway` (Socket.IO)
-- Namespace / events: TODO: xác minh chi tiết
-- Có file note `src/websocket/README.md` (debug log) và `WEBSOCKET_DEBUG.md` ở root
+// models/feed_interactions.model.ts
+export enum FeedInteractionType { LIKE='like', SAVE='save' /* ... */ }
+```
 
-### DTOs
+---
 
-Gom ở `src/dto/`:
-- `create-video.dto.ts`, `update-video.dto.ts`
-- `create-project.dto.ts`, `update-project.dto.ts`
-- `create-mascot-image.dto.ts`, `update-mascot-image.dto.ts`
-- `create-mascot-overlay.dto.ts`, `update-mascot-overlay.dto.ts`
+## Cross-service flows
 
-(Feed/notification/comments có DTO riêng trong feature folder.)
+| Bên gọi | Endpoint | Khi nào |
+|---|---|---|
+| Bunny Stream | `POST /webhooks/bunny-stream` | Transcode hoàn tất |
+| Cloudinary | `POST /webhooks/cloudinary/upload` | Upload SRT/ảnh xong (eager_async hoặc notification_url) |
+| `inference_service` (qua Upstash QStash) | `POST /webhooks/ai-model/result` | Colab job xong (highlight reel / mascot video) |
+| Frontend Socket.IO client | namespace `/media` | Realtime notifications |
 
-### Validators
-- `src/validators/is-ater.validator.ts` — custom `class-validator` (TODO: xác minh tên + logic — có thể là typo của "is-after" cho compare 2 timestamps)
+---
 
-## Pattern chung
-- Controller đọc header `x-user-id`, `x-user-role` (giống các service khác)
-- `feed.controller.ts` có 2 helper `parseRequiredUserId`, `parseAnalyticsRole` — repeat code
-- Mọi response trả raw object hoặc Sequelize model
-- Webhook endpoints để PUBLIC ở gateway (`access-policy.ts` đã set `public`)
+## Environment variables
 
-## Dependencies ngoài
+| Env | Mô tả |
+|---|---|
+| `PORT` (mặc định `8003`) | |
+| `DB_*` | MySQL shared (host/port/user/pass/db) |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB` / `REDIS_TTL` (default 600s) | Cache feed/recommendation |
+| `JWT_*` | (load nhưng gateway đã verify) |
+| `BUNNY_STREAM_LIBRARY_ID` | Library id Bunny |
+| `BUNNY_STREAM_API_KEY` | Read-write key (init upload, get status) |
+| `BUNNY_STREAM_READ_ONLY_API_KEY` | Cho play-data signed URL |
+| `BUNNY_STREAM_WEBHOOK_SECRET` | HMAC key verify webhook |
+| `CLOUD_NAME` / `API_KEY` / `API_SECRET` | Cloudinary credentials (đặt tên không có prefix) |
+| `NODE_ENV` | `development` → bật Sequelize log |
 
-| Service | Env | Use |
-|---------|-----|-----|
-| Bunny Stream | `BUNNY_API_KEY`, `BUNNY_LIBRARY_ID`, `BUNNY_STREAM_URL`, `BUNNY_WEBHOOK_SECRET` | Video upload, transcoding, HLS |
-| Cloudinary | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Image upload |
-| Mascot AI model | `MASCOT_VIDEO_SERVICE_URL` / `MASCOT_COLAB_SERVICE_URL` | Gen talking-head video |
-| Redis | `REDIS_*` | Feed recommendation cache, real-time pub/sub |
+---
 
-## Quirks
-
-- 2 file `video.model.ts` (root `models/` và `videos/`) — model thực sự dùng là `videos/video.model.ts`. Cái ở `models/` có thể là dead code — **TODO: xác minh** (`models/` không thấy `video.model.ts` thực tế trong scan đầu)
-- `ScheduleModule.forRoot()` được import ở `app.module.ts` line 30 — cho cron worker `feed-recommendation.worker.ts`
-- `JwtModule.register({ global: true })` được comment trong `app.module.ts` — không enable
-- Project status enum: `draft | saved | finalized`
-- Video type enum: `highlight | mascot | long` — `highlight` = short video lên feed, `long` = lesson video, `mascot` = video editor sản phẩm
-
-## Cách chạy local
+## Scripts
 
 ```bash
-cd backend_services/media_service
-cp .env.example .env  # DB_*, REDIS_*, BUNNY_*, CLOUDINARY_*
-yarn install
-yarn start:dev        # port 8003 (default)
+yarn start:dev
+yarn build
+yarn start:prod
 ```
+
+---
+
+## Hashtag filter `GET /feed?hashtag=<tag>`
+
+- Tag được normalize sang `lowercase + strip whitespace`. Filter query thử cả 2 biến thể (`tag` và `#tag`) để khớp dữ liệu cũ vì lịch sử FE từng store hashtag không đồng nhất.
+- SQL clause được build bằng `Sequelize.literal('JSON_CONTAINS(HighlightFeed.hashtags, JSON_QUOTE(:tag))')`, escape tag qua `sequelize.escape()` (chống injection).
+- Khi có hashtag, `subQuery: false` được set để literal cột `HighlightFeed.hashtags` không bị Sequelize wrap mất.
+- Kết hợp với `mode=recommended`: filter được apply ở `computeRankedCandidates` (sửa `baseWhere`). Redis cache ranked list bị **bypass** khi có hashtag để không trộn kết quả lệch tag — chấp nhận overhead vì tần suất click tag thấp hơn scroll feed thường.
+
+### Index hỗ trợ
+
+Migration `database/knex_migrations/023_highlight_feed_hashtags_index.js` thêm **multi-valued index** trên cột `hashtags`:
+
+```sql
+ALTER TABLE highlight_feed
+  ADD INDEX idx_highlight_feed_hashtags_mv ( (CAST(hashtags AS CHAR(64) ARRAY)) );
+```
+
+Yêu cầu MySQL >= 8.0.17. Với version cũ, doc trong migration mô tả fallback bằng generated column + index thường.
+
+## Trending hashtags
+
+`getTrendingHashtags(days, limit)` query 2 cửa sổ thời gian liền kề (current `[now-N, now]` + previous `[now-2N, now-N]`), aggregate tag-count trên Node.js (set-dedupe trong từng feed để không double-count). Trả `growthPct = (curr - prev) / prev * 100`, `null` khi `prev === 0`.
+
+Endpoint **public** — đặt rule access policy `GET /api/media/feed/hashtags/trending` access: `public` TRƯỚC catch-all `/api/media/feed/**` authenticated trong `api_gateway/src/middleware/access-policy.ts`.
+
+Test reference: `src/feed/feed.service.spec.ts` (12 case: 0/1/nhiều hashtag, normalize, dedupe, growth +/-/null, ordering, window math, combine `search`+`hashtag`).
+
+---
+
+## Tips
+
+- **Bunny webhook 401** → `BUNNY_STREAM_WEBHOOK_SECRET` sai, hoặc body bị parse trước khi verify (cần `rawBody: true` ở `NestFactory.create`, đã set).
+- **SSE chết sau N giây** → kiểm tra proxy timeout (nếu chạy sau ngrok/Cloudflare phải tăng). Gateway không buffer SSE — đi thẳng qua proxy.
+- **Socket.IO không kết nối** → frontend phải dùng namespace `/media` (không phải default `/`). Phải truyền `userId` qua handshake query.
+- **Webhook AI model không vào** → QStash retry rất nhiều lần; check log `webhook.service.handleAIResult`, header `upstash-signature`.
+- **Feed query chậm** → recommendation worker cập nhật cache; nếu Redis chết, query DB sẽ chậm. Check `feed-recommendation.worker.ts`.
+- **Cloudinary upload không có URL trong DB** → webhook chưa được Cloudinary gọi (yêu cầu HTTPS public URL, set `notification_url` khi upload).

@@ -6,18 +6,23 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client, TokenPayload as GoogleTokenPayload } from 'google-auth-library';
 import { User } from '../users/user.model';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
 import { JwtTokenService, TokenPayload } from './jwt/jwt.service';
 import { RedisService } from '../redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
+const DEFAULT_USER_ROLE = 2; // default là student
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient = new OAuth2Client();
+
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
@@ -25,63 +30,49 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const { email, password, firstName, lastName } = registerDto;
-
-    console.log('check: ', email, password, firstName, lastName);
+    const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await this.userModel.findOne({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
+      if (!existingUser.password) {
+        throw new BadRequestException(
+          'This email is linked to Google sign-in. Please continue with Google.',
+        );
+      }
       throw new BadRequestException('User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await this.userModel.create({
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       firstName: firstName || null,
       lastName: lastName || null,
-      role: 1,
+      role: DEFAULT_USER_ROLE,
     });
 
-    // const tokenPair = await this.jwtTokenService.generateTokenPair({
-    //     userId: user.id,
-    //     email: user.email,
-    //     role: user.role,
-    // });
-
-    // await this.storeRefreshToken(user.id, tokenPair.refreshToken);
-
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-      // ...tokenPair,
+      user: this.toAuthUserResponse(user),
     };
   }
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
-    // console.log('check: ', email, password);
+    const normalizedEmail = email.trim().toLowerCase();
 
     const user = await this.userModel.findOne({
-      where: { email },
-      raw: true,
+      where: { email: normalizedEmail },
     });
 
-    // console.log('check user: ', user);
-
-    if (!user) {
+    if (!user?.password) {
       throw new UnauthorizedException('Invalid account or password!');
     }
 
@@ -90,28 +81,48 @@ export class AuthService {
       throw new UnauthorizedException('Invalid account or password!');
     }
 
-    const tokenPair = await this.jwtTokenService.generateTokenPair({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
-    await this.storeRefreshToken(user.id, tokenPair.refreshToken);
+    return this.issueAuthTokens(user);
+  }
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-      ...tokenPair,
-    };
+  async googleLogin(googleLoginDto: GoogleLoginDto) {
+    const { credential } = googleLoginDto;
+    const googlePayload = await this.verifyGoogleIdToken(credential);
+
+    const googleId = googlePayload.sub;
+    const email = googlePayload.email?.trim().toLowerCase();
+
+    if (!googleId || !email) {
+      throw new UnauthorizedException('Invalid Google account');
+    }
+
+    if (!googlePayload.email_verified) {
+      throw new UnauthorizedException('Google email is not verified');
+    }
+
+    let user = await this.userModel.findOne({ where: { email } });
+
+    if (user) {
+      if (!user.googleId) {
+        await user.update({ googleId, emailVerified: true });
+      }
+      return this.issueAuthTokens(user);
+    }
+
+    user = await this.userModel.create({
+      email,
+      password: null,
+      firstName: googlePayload.given_name || null,
+      lastName: googlePayload.family_name || null,
+      role: DEFAULT_USER_ROLE,
+      googleId,
+      emailVerified: true,
+      avatarUrl: googlePayload.picture || null,
+    });
+
+    return this.issueAuthTokens(user);
   }
 
   async refreshToken(refreshToken: string) {
-    // const { refreshToken } = refreshTokenDto;
-
     const payload = await this.jwtTokenService.decodeToken(refreshToken);
 
     if (!payload) {
@@ -164,7 +175,6 @@ export class AuthService {
     try {
       const payload = await this.jwtTokenService.verifyToken(token);
 
-      // Optionally check if user still exists
       const user = await this.userModel.findByPk(payload.userId);
 
       if (!user) {
@@ -192,8 +202,9 @@ export class AuthService {
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
     const { email } = forgotPasswordDto;
+    const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await this.userModel.findOne({ where: { email } });
+    const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
     }
@@ -204,27 +215,22 @@ export class AuthService {
       'http://localhost:3000';
 
     try {
-      const response = await this.httpService.axiosRef.post(
-        `${mailServiceUrl}/mail/otp`,
-        { email },
-      );
-
-      const otp = response.data?.data?.otp;
+      await this.httpService.axiosRef.post(`${mailServiceUrl}/mail/otp`, {
+        email: normalizedEmail,
+      });
 
       return {
         message: 'OTP sent to email',
-        // otp,
       };
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to send OTP email');
     }
   }
 
   async checkOtpAndResetPassword(checkOtpDto: CheckOtpDto) {
     const { email, otp, newPassword } = checkOtpDto;
-
-    const emailKey = email.trim().toLowerCase();
-    const redisKey = `MAIL_OTP:${emailKey}`;
+    const normalizedEmail = email.trim().toLowerCase();
+    const redisKey = `MAIL_OTP:${normalizedEmail}`;
 
     const storedOtp = await this.redisService.get(redisKey);
 
@@ -232,25 +238,79 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    const user = await this.userModel.findOne({ where: { email } });
+    const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
     }
 
-    console.log('check user', user);
-
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    // user.password = hashedPassword;
-    await user.update({
-      password: hashedPassword,
-    });
 
-    // Xóa OTP sau khi dùng xong
+    await user.update({ password: hashedPassword });
+
     await this.redisService.del(redisKey);
 
     return {
       message: 'Password has been reset successfully',
     };
+  }
+
+  private async issueAuthTokens(user: User) {
+    const tokenPair = await this.jwtTokenService.generateTokenPair({
+      userId: user.id,
+      email: user.email,
+      role: user.role ?? DEFAULT_USER_ROLE,
+    });
+
+    await this.storeRefreshToken(user.id, tokenPair.refreshToken);
+
+    return {
+      user: this.toAuthUserResponse(user),
+      ...tokenPair,
+    };
+  }
+
+  private toAuthUserResponse(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+    };
+  }
+
+  private async verifyGoogleIdToken(
+    idToken: string,
+  ): Promise<GoogleTokenPayload> {
+    const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+
+    if (!googleClientId) {
+      throw new BadRequestException('GOOGLE_CLIENT_ID is not configured');
+    }
+
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: googleClientId,
+      });
+
+      const payload = ticket.getPayload();
+
+      if (!payload) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+
+      return payload;
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException
+      ) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid Google token');
+    }
   }
 
   private async storeRefreshToken(userId: number, refreshToken: string) {

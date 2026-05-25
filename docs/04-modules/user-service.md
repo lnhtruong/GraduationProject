@@ -1,75 +1,157 @@
 # User Service
 
-## Mục đích
-- Quản lý thông tin profile của user (sau khi đã auth)
-- Cho phép user tự sửa profile của mình, admin sửa của bất kỳ ai
-- Reset user (vd reset role/status) — chỉ admin
+> Entry: `backend_services/user_service/src/main.ts` · NestJS · Port mặc định `8002`
 
-## File / Folder
+Quản lý thông tin user **sau khi đã được gateway authenticate**. Service này không cấp token, không gọi JWT — gateway đã forward identity qua header `X-User-Id` / `X-User-Role`.
 
-| Path | Mô tả |
-|------|-------|
-| `backend_services/user_service/src/main.ts` | NestJS bootstrap |
-| `backend_services/user_service/src/app.module.ts` | Import `DatabaseModule`, `UsersModule` |
-| `backend_services/user_service/src/app.controller.ts` | `/` health |
-| `backend_services/user_service/src/users/users.module.ts` | Wire controller + service + Sequelize model |
-| `backend_services/user_service/src/users/users.controller.ts` | 5 endpoints (xem dưới) |
-| `backend_services/user_service/src/users/users.service.ts` | `getUserProfile`, `getUserById`, `getAllUsers`, `updateUserById`, `resetUserById` |
-| `backend_services/user_service/src/users/user.model.ts` | Sequelize model bảng `users` (cùng schema với auth_service) |
-| `backend_services/user_service/src/users/dto/update-user.dto.ts` | Fields cho phép update (firstName, lastName, ...) |
-| `backend_services/user_service/src/users/guards/jwt-auth.guard.ts` | Guard — **HIỆN COMMENT, không enable** (tin tưởng gateway đã verify) |
-| `backend_services/user_service/src/database/database.module.ts` | Sequelize bootstrap |
-| `backend_services/user_service/src/config/{database,jwt}.config.ts` | Env config |
+Chức năng:
 
-## Endpoints
+- Lấy profile của chính mình (`/users/profile`).
+- Lấy profile theo id (`/users/:id`).
+- List toàn bộ user (ADMIN).
+- Update profile (chính chủ hoặc ADMIN).
+- Reset password về default (chỉ ADMIN).
 
-`@Controller('users')` → local `/users/*`, qua gateway `/api/users/*`.
+---
 
-| Method | Path | Body / Header | Mô tả |
-|--------|------|---------------|-------|
-| GET | `/users/profile` | header `x-user-id` | Trả profile của user hiện tại |
-| GET | `/users/:id` | (any auth) | Profile user khác (chỉ thông tin public) |
-| GET | `/users` | (admin via gateway) | List tất cả user |
-| PATCH | `/users/:id` | `UpdateUserDto`, header `x-user-id`, `x-user-role` | Update user. Self-update OK; non-admin sửa user khác → 403 (logic check ở gateway `authorization.middleware.ts`) |
-| PATCH | `/users/reset/:id` | (admin via gateway) | Reset user (cụ thể là gì — TODO: xác minh xem có reset password / role hay không) |
+## Sequence: lấy profile và update
 
-## Authorization model
-- Gateway đã verify JWT và inject `x-user-id`, `x-user-role` headers
-- Controller chỉ đọc header, không tự verify JWT
-- Self-update protection: ở `api_gateway/authorization.middleware.ts` lines 36-52 (regex match `/api/users/:id` PATCH, đảm bảo `currentUser.userId === targetId` hoặc role ADMIN)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE
+    participant GW as API Gateway
+    participant US as user_service
+    participant DB as MySQL (users)
 
-## Sequelize model `users`
+    FE->>GW: GET /api/users/profile (Authorization)
+    GW->>GW: verify JWT, set X-User-Id
+    GW->>US: GET /users/profile (X-User-Id: 123)
+    US->>DB: findByPk(123) (exclude password)
+    DB-->>US: user
+    US-->>GW: { id, email, firstName, lastName, role, ... }
 
-(Xem `backend_services/user_service/src/users/user.model.ts` và `database/migrations/initial_schema.sql` lines 24-35 + migration `019_users_add_avatar_url.js`)
-
-```
-users:
-  id          INT AUTO_INCREMENT PK
-  email       VARCHAR(100) UNIQUE NOT NULL
-  password    VARCHAR(255) NOT NULL    (bcrypt hash, không trả về client)
-  firstName   VARCHAR(100)
-  lastName    VARCHAR(100)
-  role        INT FK → roles(id)
-  avatar_url  VARCHAR(...)  (thêm sau qua 019)
-  createdAt, updatedAt DATETIME
+    FE->>GW: PATCH /api/users/123 { firstName, password? }
+    GW->>GW: rule 'PATCH /api/users/:id' → authenticated + check (admin || self)
+    GW->>US: PATCH /users/123 + X-User-Id, X-User-Role
+    US->>DB: findByPk(123)
+    US->>US: role thay đổi? → chỉ ADMIN<br/>password thay đổi? → chỉ self
+    US->>US: bcrypt.hash(password) nếu có
+    US->>DB: user.update(...)
+    US-->>FE: profile mới
 ```
 
-## Quirks
+---
 
-- Guard `JwtAuthGuard` được import sẵn nhưng **comment trong controller** — không enforce ở service level. Mọi auth dựa vào gateway.
-- Endpoint `GET /users` (list all) thực ra cũng không tự check admin trong controller — chỉ rule ở gateway.
-- `UpdateUserDto` (`dto/update-user.dto.ts`) định nghĩa các field được phép update — khi muốn thêm field user tự sửa, sửa file này.
+## Module tree
 
-## Dependencies
+```
+src/
+├── main.ts                    # CORS origin:true, ValidationPipe
+├── app.module.ts              # ConfigModule + DatabaseModule + UsersModule
+├── users/
+│   ├── user.model.ts          # Sequelize model `users` (cùng table với auth_service)
+│   ├── users.controller.ts    # routes /users/*
+│   ├── users.service.ts       # business logic + bcrypt
+│   ├── users.module.ts
+│   ├── dto/update-user.dto.ts
+│   ├── decorators/
+│   └── guards/                # JwtAuthGuard (chưa dùng — gateway đã auth)
+├── database/                  # DatabaseModule
+└── config/                    # database.config, jwt.config
+```
 
-- Cùng DB `users` table với `auth_service` (cả 2 đều có `user.model.ts`)
-- Không gọi service khác qua HTTP
+---
 
-## Cách chạy local
+## Endpoints (`@Controller('users')`)
+
+| Method | Path | Access (gateway) | Headers | Logic |
+|---|---|---|---|---|
+| GET | `/users/profile` | authenticated | `x-user-id` | Trả profile của user gọi |
+| GET | `/users/:id` | authenticated | — | Lấy profile theo id (exclude password) |
+| GET | `/users` | ADMIN | — | List all users (order by id ASC) |
+| PATCH | `/users/:id` | authenticated (+ self-or-admin check ở gateway) | `x-user-id`, `x-user-role` | Update profile. **Chỉ ADMIN đổi `role`**. **Chỉ self đổi `password`** (bcrypt). |
+| PATCH | `/users/reset/:id` | ADMIN | `x-user-id`, `x-user-role` | Reset password về `'fivetoneu2026'` (constant `DEFAULT_RESET_PASSWORD`) |
+
+> Tất cả service tin tưởng header từ gateway (zero-trust nội bộ không bật ở dự án này). Nếu chạy service standalone, hãy nhớ là `X-User-Id` / `X-User-Role` là điều kiện tiên quyết.
+
+---
+
+## Authorization rules (recap)
+
+| Thao tác | Ai được phép |
+|---|---|
+| Xem `/users/profile`, `/users/:id` | Bất kỳ ai đã login |
+| List `/users` | ADMIN |
+| PATCH `/users/:id` | ADMIN hoặc chính user đó (gateway kiểm tra `userId === :id`) |
+| PATCH `/users/:id` đổi `role` | ADMIN only (`users.service.ts` enforce) |
+| PATCH `/users/:id` đổi `password` | Chính user đó (`users.service.ts` enforce) |
+| PATCH `/users/reset/:id` | ADMIN |
+
+---
+
+## Bảng `users` (model `User`)
+
+```
+id              INT PK auto
+email           VARCHAR(100) UNIQUE NOT NULL
+password        VARCHAR(255) NULLABLE       # null nếu chỉ login Google
+firstName       VARCHAR(100)
+lastName        VARCHAR(100)
+role            INT                         # 1 ADMIN | 2 STUDENT | 3 LECTURER
+googleId        VARCHAR(255) UNIQUE NULLABLE
+emailVerified   BOOLEAN DEFAULT false
+is_banned       BOOLEAN DEFAULT false       # field 'is_banned' (snake_case)
+avatarUrl       VARCHAR(500)
+createdAt, updatedAt
+```
+
+> `is_banned` được thêm trong migration `020_reports_and_ban_columns.js`. `user_service` không có endpoint ban — `course_service` (reports module) là nơi cập nhật cờ này.
+
+---
+
+## UserRole enum
+
+```ts
+// src/users/users.service.ts
+export enum UserRole {
+  ADMIN = 1,
+  STUDENT = 2,
+  LECTURER = 3,
+}
+```
+
+Khớp 1-1 với enum cùng tên ở `api_gateway/src/middleware/access-policy.ts`.
+
+---
+
+## Environment variables
+
+| Env | Mặc định | Mô tả |
+|---|---|---|
+| `PORT` | `8002` | Port service |
+| `DB_HOST` | `localhost` | |
+| `DB_PORT` | `3306` | |
+| `DB_USERNAME` | `graduation_user` | |
+| `DB_PASSWORD` | `graduation_password` | |
+| `DB_DATABASE` | `graduation_db` | |
+| `JWT_SECRET` | (load nhưng chưa dùng để verify trong code hiện tại) | |
+
+---
+
+## Scripts
 
 ```bash
-cd backend_services/user_service
-cp .env.example .env  # DB_*, JWT_SECRET
-yarn install
-yarn start:dev        # port 8002 (default)
+yarn start:dev
+yarn build
+yarn start:prod
+yarn test
 ```
+
+---
+
+## Tips
+
+- **Update không hiệu lực** → kiểm tra `forbidNonWhitelisted` của `ValidationPipe`: field không có trong `UpdateUserDto` sẽ bị reject.
+- **400 Requester context not found** → service không nhận được `x-user-id` / `x-user-role`. Gateway không forward (gọi tay vào port 8002 mà quên set header).
+- **Reset password trả về default** → password reset cứng là `'fivetoneu2026'`. Đổi trong `users.service.ts > DEFAULT_RESET_PASSWORD`.

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type KeyboardEvent,
   type SyntheticEvent,
 } from "react";
 import type { InstructorLesson } from "../../../instructor/course-management/types";
@@ -69,6 +70,11 @@ export function useCourseLearnPlayer({
   const [celebrationArmed, setCelebrationArmed] = useState(false);
   const [isTransitioningNext, setIsTransitioningNext] = useState(false);
   const [showAfterLessonOverlay, setShowAfterLessonOverlay] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const lastVolumeRef = useRef(1);
 
   const activeQuizPoint = useMemo(
     () =>
@@ -189,6 +195,127 @@ export function useCourseLearnPlayer({
 
     element.pause();
   }, [activeQuizPoint, showAfterLessonOverlay]);
+
+  const handleSetPlaybackRate = useCallback((nextRate: number) => {
+    setPlaybackRate(nextRate);
+
+    if (videoRef.current) {
+      videoRef.current.playbackRate = nextRate;
+    }
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const nextMuted = !prev;
+      const video = videoRef.current;
+
+      if (video) {
+        video.muted = nextMuted;
+        if (!nextMuted && video.volume === 0) {
+          const restoredVolume =
+            lastVolumeRef.current > 0 ? lastVolumeRef.current : 1;
+          video.volume = restoredVolume;
+          setVolume(restoredVolume);
+        }
+      }
+
+      return nextMuted;
+    });
+  }, []);
+
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+
+    if (clampedVolume > 0) {
+      lastVolumeRef.current = clampedVolume;
+    }
+
+    setVolume(clampedVolume);
+    setIsMuted(clampedVolume === 0);
+
+    const video = videoRef.current;
+    if (video) {
+      video.volume = clampedVolume;
+      video.muted = clampedVolume === 0;
+    }
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    const videoContainer = videoRef.current?.parentElement;
+
+    if (!document.fullscreenElement) {
+      void videoContainer?.requestFullscreen().catch(() => {});
+      return;
+    }
+
+    void document.exitFullscreen().catch(() => {});
+  }, []);
+
+  const handleSeekBackward = useCallback(() => {
+    seekVideoTo(currentTime - 10);
+  }, [currentTime, seekVideoTo]);
+
+  const handleSeekForward = useCallback(() => {
+    seekVideoTo(currentTime + 10);
+  }, [currentTime, seekVideoTo]);
+
+  const handleVideoKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLVideoElement>) => {
+      switch (event.code) {
+        case "Space":
+          event.preventDefault();
+          handleTogglePlayback();
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          handleSeekBackward();
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          handleSeekForward();
+          break;
+        case "KeyM":
+          event.preventDefault();
+          handleToggleMute();
+          break;
+        case "KeyF":
+          event.preventDefault();
+          handleToggleFullscreen();
+          break;
+        default:
+          break;
+      }
+    },
+    [
+      handleSeekBackward,
+      handleSeekForward,
+      handleToggleFullscreen,
+      handleToggleMute,
+      handleTogglePlayback,
+    ],
+  );
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    video.volume = volume;
+    video.muted = isMuted || volume === 0;
+  }, [isMuted, volume]);
 
   const handleVideoEnded = useCallback(() => {
     setIsPlaying(false);
@@ -334,6 +461,11 @@ export function useCourseLearnPlayer({
       setShowAfterLessonOverlay(false);
       setConfettiPieces([]);
       setNextLessonCountdown(null);
+      setPlaybackRate(1);
+
+      if (videoRef.current) {
+        videoRef.current.playbackRate = 1;
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -608,11 +740,20 @@ export function useCourseLearnPlayer({
     handleSeekChange,
     handleCompleteLesson,
     handleAdvanceToNextLesson,
+    playbackRate,
+    handleSetPlaybackRate,
+    volume,
+    isMuted,
+    isFullscreen,
+    handleToggleMute,
+    handleVolumeChange,
+    handleToggleFullscreen,
+    handleVideoKeyDown,
     onSelectInVideoAnswer,
     onSelectAfterLessonAnswer,
     onSubmitAfterLessonQuiz: () => setAfterLessonSubmitted(true),
-    onSeekBackward: () => seekVideoTo(currentTime - 10),
-    onSeekForward: () => seekVideoTo(currentTime + 10),
+    onSeekBackward: handleSeekBackward,
+    onSeekForward: handleSeekForward,
     setIsPlaying,
     setCurrentTime,
     setLastVideoTime,
