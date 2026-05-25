@@ -183,7 +183,11 @@ export class LessonProgressService {
       throw new BadRequestException('User ID is required');
     }
 
-    const cappedLimit = Math.min(Math.max(limit, 1), 10);
+    const parsedLimit = Number(limit);
+    if (!Number.isInteger(parsedLimit)) {
+      throw new BadRequestException('limit must be an integer');
+    }
+    const cappedLimit = Math.min(Math.max(parsedLimit, 1), 10);
 
     const rows = await this.lessonProgressModel.findAll({
       where: {
