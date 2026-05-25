@@ -1136,44 +1136,53 @@ INSERT INTO transaction_items (id, transaction_id, course_id, price) VALUES
 (37, 25, 12, 299000);
 
 -- ============================================================================
--- NOTIFICATIONS  (mix of read / unread, across teachers + students + admin)
+-- NOTIFICATIONS  (chỉ dùng event_type/source_type trong ENUM media_service)
+-- ENUM event_type:  feed.comment.created | feed.comment.reply
+--                   video.upload.completed | video.job.completed | video.job.failed
+--                   image.upload.completed
+-- ENUM source_type: feed_comment | video | video_job | image
+-- (video.job.progress KHÔNG insert DB - service skip)
 -- ============================================================================
 INSERT INTO notifications (id, user_id, event_type, title, message, payload, is_read, source_type, source_id, created_at, updated_at) VALUES
--- For teachers about course status / new enrollments / feedback
-( 1, 2,  'COURSE_APPROVED',      'Khoá học đã được duyệt', 'Khoá "TOEIC Grammar Mastery: Foundations" của bạn đã publish.',  '{"course_id":1}',                        1, 'course',   1, '2025-09-21 09:00:00','2025-09-21 09:05:00'),
-( 2, 4,  'COURSE_APPROVED',      'Khoá học đã được duyệt', 'Khoá "JavaScript Toàn Tập" của bạn đã publish.',                  '{"course_id":5}',                        1, 'course',   5, '2025-09-22 09:00:00','2025-09-22 09:05:00'),
-( 3, 5,  'COURSE_APPROVED',      'Khoá học đã được duyệt', 'Khoá "System Design Production Infrastructure" đã publish.',     '{"course_id":7}',                        1, 'course',   7, '2025-09-23 09:00:00','2025-09-23 09:05:00'),
-( 4, 8,  'COURSE_PENDING_REVIEW','Khoá học chờ duyệt',     'Khoá "Power BI - Beyond Drag & Drop" đang chờ admin xem xét.',     '{"course_id":19}',                       0, 'course',  19, '2025-09-26 09:00:00','2025-09-26 09:00:00'),
-( 5, 10, 'COURSE_PENDING_REVIEW','Khoá học chờ duyệt',     'Khoá "Music Theory 101 for Guitar Players" chờ admin duyệt.',      '{"course_id":24}',                       0, 'course',  24, '2025-09-27 09:00:00','2025-09-27 09:00:00'),
-( 6, 6,  'COURSE_BANNED',        'Khoá học bị khoá',       'Khoá "Khai Thác ChatGPT Hiệu Quả" đã bị admin khoá tạm thời.',     '{"course_id":11,"reason":"Vi phạm chính sách nội dung AI."}', 0, 'course', 11, '2025-11-05 10:00:00','2025-11-05 10:00:00'),
-( 7, 2,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Alex Tran vừa ghi danh khoá "TOEIC Grammar Mastery".',             '{"user_id":11,"course_id":1}',            1, 'enroll',   0, '2025-10-05 10:01:00','2025-10-05 10:01:00'),
-( 8, 4,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Đạt Vũ vừa mua khoá "JavaScript Toàn Tập".',                       '{"user_id":14,"course_id":5}',            1, 'enroll',   0, '2025-10-09 14:01:00','2025-10-09 14:01:00'),
-( 9, 6,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Kim Vũ vừa ghi danh khoá "Python Cơ Bản - Làm Chủ Danh Sách".',     '{"user_id":21,"course_id":9}',            0, 'enroll',   0, '2025-10-10 09:01:00','2025-10-10 09:01:00'),
-(10, 7,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Chi Phan vừa mua khoá "Lightroom 2023".',                          '{"user_id":13,"course_id":12}',           1, 'enroll',   0, '2025-10-06 09:01:00','2025-10-06 09:01:00'),
-(11, 8,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Giang Lê vừa ghi danh "Digital Marketing Cho Người Mới".',          '{"user_id":17,"course_id":16}',           1, 'enroll',   0, '2025-10-12 10:01:00','2025-10-12 10:01:00'),
-(12, 9,  'NEW_ENROLLMENT',       'Có học viên mới ghi danh','Hạnh Trương vừa ghi danh "Học CapCut Trong 1 Giờ".',               '{"user_id":18,"course_id":20}',           0, 'enroll',   0, '2025-10-12 16:01:00','2025-10-12 16:01:00'),
-(13, 2,  'NEW_FEEDBACK',         'Có đánh giá mới',        'Alex Tran đánh giá 5★ cho TOEIC Grammar Mastery.',                  '{"feedback_id":1}',                       1, 'feedback', 1, '2025-10-11 20:01:00','2025-10-11 20:01:00'),
-(14, 4,  'NEW_FEEDBACK',         'Có đánh giá mới',        'Alex Tran đánh giá 4★ cho JavaScript Toàn Tập.',                    '{"feedback_id":11}',                      1, 'feedback',11, '2025-10-14 20:01:00','2025-10-14 20:01:00'),
-(15, 5,  'NEW_FEEDBACK',         'Có đánh giá mới',        'Đạt Vũ đánh giá 5★ cho System Design.',                              '{"feedback_id":13}',                      0, 'feedback',13, '2025-10-20 20:01:00','2025-10-20 20:01:00'),
-(16, 6,  'NEW_FEEDBACK',         'Có đánh giá mới',        'Alex Tran đánh giá 5★ cho Python Cơ Bản.',                          '{"feedback_id":16}',                      1, 'feedback',16, '2025-10-09 20:01:00','2025-10-09 20:01:00'),
+-- VIDEO UPLOAD COMPLETED (teacher nhận khi long-form upload xong)
+( 1,  2, 'video.upload.completed', 'Video uploaded',   'Video "Participles in TOEIC Grammar" đã upload xong.',           '{"video_id":1}',                                   1, 'video',        1,  '2025-09-21 09:00:00','2025-09-21 09:05:00'),
+( 2,  2, 'video.upload.completed', 'Video uploaded',   'Video "English Conversation Lesson 1" đã upload xong.',         '{"video_id":2}',                                   1, 'video',        2,  '2025-09-22 09:00:00','2025-09-22 09:05:00'),
+( 3,  4, 'video.upload.completed', 'Video uploaded',   'Video "JavaScript Toàn Tập - Intro" đã upload xong.',           '{"video_id":5}',                                   1, 'video',        5,  '2025-09-23 09:00:00','2025-09-23 09:05:00'),
+( 4,  5, 'video.upload.completed', 'Video uploaded',   'Video "System Design Foundations" đã upload xong.',             '{"video_id":4}',                                   0, 'video',        4,  '2025-09-24 09:00:00','2025-09-24 09:00:00'),
+( 5,  6, 'video.upload.completed', 'Video uploaded',   'Video "Python Cơ Bản - Mở đầu" đã upload xong.',                '{"video_id":10}',                                  0, 'video',       10,  '2025-09-25 09:00:00','2025-09-25 09:00:00'),
+( 6,  7, 'video.upload.completed', 'Video uploaded',   'Video "Lightroom 2023 - Workflow" đã upload xong.',             '{"video_id":12}',                                  1, 'video',       12,  '2025-09-26 09:00:00','2025-09-26 09:05:00'),
+( 7,  8, 'video.upload.completed', 'Video uploaded',   'Video "Power BI - Beyond Drag & Drop" đã upload xong.',         '{"video_id":14}',                                  0, 'video',       14,  '2025-09-27 09:00:00','2025-09-27 09:00:00'),
+( 8,  9, 'video.upload.completed', 'Video uploaded',   'Video "Học CapCut Trong 1 Giờ" đã upload xong.',                '{"video_id":20}',                                  1, 'video',       20,  '2025-09-28 09:00:00','2025-09-28 09:05:00'),
+( 9, 10, 'video.upload.completed', 'Video uploaded',   'Video "Music Theory 101" đã upload xong.',                      '{"video_id":22}',                                  0, 'video',       22,  '2025-09-29 09:00:00','2025-09-29 09:00:00'),
+(10,  3, 'video.upload.completed', 'Video uploaded',   'Video "Chinese for Beginners" đã upload xong.',                 '{"video_id":23}',                                  1, 'video',       23,  '2025-09-30 09:00:00','2025-09-30 09:05:00'),
 
--- For students about payment / enroll / progress
-(17, 11, 'PAYMENT_SUCCESS',      'Thanh toán thành công',  'Bạn đã thanh toán 199.000đ cho khoá "Cài Đặt Môi Trường & CORS".',  '{"transaction_id":1,"amount":199000}',   1, 'transaction', 1, '2025-10-06 09:58:00','2025-10-06 09:58:00'),
-(18, 11, 'COURSE_COMPLETED',     'Hoàn thành khoá học',    'Chúc mừng bạn đã hoàn thành "TOEIC Grammar Mastery".',              '{"course_id":1}',                        1, 'course',   1, '2025-10-10 22:00:00','2025-10-10 22:00:00'),
-(19, 11, 'PAYMENT_PENDING',      'Thanh toán đang chờ',    'Đơn PAYOS-2025-1024 đang chờ thanh toán, link sẽ hết hạn sau 15 phút.','{"transaction_id":24}',                0, 'transaction',24, '2025-11-10 10:55:00','2025-11-10 10:55:00'),
-(20, 13, 'PAYMENT_SUCCESS',      'Thanh toán thành công',  'Bạn đã mua khoá "Lightroom 2023" thành công.',                       '{"transaction_id":6,"amount":299000}',  1, 'transaction', 6, '2025-10-06 08:58:00','2025-10-06 08:58:00'),
-(21, 14, 'PAYMENT_SUCCESS',      'Thanh toán thành công',  'Đơn 998.000đ cho 3 khoá đã thanh toán thành công.',                  '{"transaction_id":9,"amount":998000}',  1, 'transaction', 9, '2025-10-08 13:59:00','2025-10-08 13:59:00'),
-(22, 17, 'PAYMENT_SUCCESS',      'Thanh toán thành công',  'Bạn đã mua bundle Digital Marketing.',                               '{"transaction_id":15,"amount":697000}', 1, 'transaction',15, '2025-10-12 09:58:00','2025-10-12 09:58:00'),
-(23, 22, 'PAYMENT_FAILED',       'Thanh toán thất bại',    'Đơn PAYOS-2025-1025 thất bại - vui lòng thử lại.',                    '{"transaction_id":25}',                  0, 'transaction',25, '2025-11-09 11:00:00','2025-11-09 11:00:00'),
-(24, 12, 'NEW_LESSON',           'Bài học mới',            'Khoá "English Conversation" vừa thêm bài "500 Cụm Từ".',             '{"course_id":2,"lesson_id":7}',          0, 'lesson',   7, '2025-10-20 12:01:00','2025-10-20 12:01:00'),
-(25, 19, 'COURSE_COMPLETED',     'Hoàn thành khoá học',    'Bạn đã hoàn thành "Machine Learning Fundamentals".',                 '{"course_id":10}',                        1, 'course',  10, '2025-10-10 19:00:00','2025-10-10 19:00:00'),
+-- VIDEO JOB COMPLETED / FAILED (kết quả render mascot + transcript)
+(11,  2, 'video.job.completed',    'Render hoàn tất',  'Mascot render cho video TOEIC #1 đã xong.',                     '{"video_id":1,"job_id":"toeic-render-001"}',       1, 'video_job',    1,  '2025-09-21 10:00:00','2025-09-21 10:00:00'),
+(12,  4, 'video.job.completed',    'Render hoàn tất',  'Mascot render cho video JS #5 đã xong.',                        '{"video_id":5,"job_id":"js-render-005"}',          1, 'video_job',    5,  '2025-09-23 10:00:00','2025-09-23 10:00:00'),
+(13,  5, 'video.job.completed',    'Render hoàn tất',  'Mascot render cho System Design video #4 đã xong.',             '{"video_id":4,"job_id":"sysd-render-004"}',        0, 'video_job',    4,  '2025-09-24 10:00:00','2025-09-24 10:00:00'),
+(14,  6, 'video.job.failed',       'Render thất bại',  'Job mascot render cho Python video #9 lỗi, vui lòng thử lại.',  '{"video_id":9,"job_id":"py-render-009","reason":"Worker timeout"}',          0, 'video_job',    9,  '2025-09-25 12:00:00','2025-09-25 12:00:00'),
+(15,  7, 'video.job.completed',    'Render hoàn tất',  'Mascot render cho Lightroom video #12 đã xong.',                '{"video_id":12,"job_id":"lr-render-012"}',         1, 'video_job',   12,  '2025-09-26 10:00:00','2025-09-26 10:00:00'),
+(16,  8, 'video.job.failed',       'Render thất bại',  'Job mascot render cho Power BI video #14 lỗi do GPU OOM.',      '{"video_id":14,"job_id":"pbi-render-014","reason":"GPU OOM"}',               0, 'video_job',   14,  '2025-09-27 12:00:00','2025-09-27 12:00:00'),
+(17,  9, 'video.job.completed',    'Render hoàn tất',  'Mascot render cho CapCut video #20 đã xong.',                   '{"video_id":20,"job_id":"cap-render-020"}',        1, 'video_job',   20,  '2025-09-28 10:00:00','2025-09-28 10:00:00'),
 
--- For admin (reports + signups)
-(26, 1,  'REPORT_NEW',           'Có report mới',          '1 report mới cần xem xét: course #11.',                              '{"report_id":1}',                        0, 'report',   1, '2025-11-04 09:00:00','2025-11-04 09:00:00'),
-(27, 1,  'REPORT_NEW',           'Có report mới',          '1 report mới cần xem xét: lesson #11 - giá tiền quá cao.',           '{"report_id":3}',                        0, 'report',   3, '2025-11-05 09:00:00','2025-11-05 09:00:00'),
-(28, 1,  'COURSE_PENDING_REVIEW','Khoá học chờ duyệt',     'Có 2 khoá học mới chờ duyệt (Power BI, Music Theory).',              '{"course_ids":[19,24]}',                 0, 'course',   0, '2025-09-27 09:30:00','2025-09-27 09:30:00'),
-(29, 1,  'NEW_TEACHER_SIGNUP',   'Có lecturer mới',        'Teacher mới đăng ký nền tảng (Quân Lê - Video editing).',            '{"user_id":9}',                          1, 'user',     9, '2025-09-12 13:01:00','2025-09-12 13:01:00'),
-(30, 11, 'NEW_LESSON',           'Bài học mới',            'Khoá "JavaScript Toàn Tập" có quiz mới.',                            '{"course_id":5,"lesson_id":13}',         0, 'lesson',  13, '2025-10-21 09:00:00','2025-10-21 09:00:00');
+-- IMAGE UPLOAD COMPLETED (teacher upload mascot ảnh nhân vật)
+(18,  2, 'image.upload.completed', 'Mascot đã upload', 'Mascot "Owl Teacher" đã upload xong và sẵn sàng để dùng.',      '{"image_id":1}',                                   1, 'image',        1,  '2025-09-20 10:05:00','2025-09-20 10:05:00'),
+(19,  4, 'image.upload.completed', 'Mascot đã upload', 'Mascot "Web Robot" đã upload xong.',                            '{"image_id":2}',                                   1, 'image',        2,  '2025-09-21 10:05:00','2025-09-21 10:05:00'),
+(20,  5, 'image.upload.completed', 'Mascot đã upload', 'Mascot "Server Cat" đã upload xong.',                           '{"image_id":3}',                                   1, 'image',        3,  '2025-09-22 10:05:00','2025-09-22 10:05:00'),
+(21,  6, 'image.upload.completed', 'Mascot đã upload', 'Mascot "Python Snake" đã upload xong.',                         '{"image_id":4}',                                   0, 'image',        4,  '2025-09-23 10:05:00','2025-09-23 10:05:00'),
+(22,  7, 'image.upload.completed', 'Mascot đã upload', 'Mascot "Designer Fox" đã upload xong.',                         '{"image_id":5}',                                   1, 'image',        5,  '2025-09-24 10:05:00','2025-09-24 10:05:00'),
+
+-- FEED COMMENT CREATED (chủ highlight nhận khi có user comment top-level)
+(23,  2, 'feed.comment.created',   'Bình luận mới',    'Giang Lê vừa bình luận trên highlight TOEIC của bạn.',          '{"feed_id":5,"comment_id":1,"user_id":17}',        1, 'feed_comment', 1,  '2025-10-05 12:01:00','2025-10-05 12:01:00'),
+(24,  2, 'feed.comment.created',   'Bình luận mới',    'Bảo Nguyễn vừa bình luận trên highlight TOEIC của bạn.',        '{"feed_id":16,"comment_id":2,"user_id":12}',       1, 'feed_comment', 2,  '2025-10-05 14:01:00','2025-10-05 14:01:00'),
+(25,  2, 'feed.comment.created',   'Bình luận mới',    'Long Đoàn vừa bình luận trên highlight TOEIC của bạn.',         '{"feed_id":18,"comment_id":3,"user_id":22}',       0, 'feed_comment', 3,  '2025-10-05 16:01:00','2025-10-05 16:01:00'),
+(26,  4, 'feed.comment.created',   'Bình luận mới',    'Chi Phan vừa bình luận trên highlight HTML/JS của bạn.',        '{"feed_id":20,"comment_id":5,"user_id":13}',       0, 'feed_comment', 5,  '2025-10-05 20:01:00','2025-10-05 20:01:00'),
+(27,  2, 'feed.comment.created',   'Bình luận mới',    'Emily Hoàng vừa bình luận trên highlight English Conversation.', '{"feed_id":28,"comment_id":7,"user_id":15}',       1, 'feed_comment', 7,  '2025-10-06 00:01:00','2025-10-06 00:01:00'),
+
+-- FEED COMMENT REPLY (chủ comment cha nhận khi có người reply)
+(28, 22, 'feed.comment.reply',     'Có người trả lời', 'Alex Tran vừa trả lời bình luận của bạn trên highlight TOEIC.', '{"feed_id":18,"reply_id":4,"parent_id":3,"user_id":11}',  1, 'feed_comment', 4,  '2025-10-05 18:31:00','2025-10-05 18:31:00'),
+(29, 18, 'feed.comment.reply',     'Có người trả lời', 'Emily Hoàng vừa trả lời bình luận của bạn trên highlight TOEIC.','{"feed_id":30,"reply_id":10,"parent_id":9,"user_id":15}', 0, 'feed_comment',10,  '2025-10-06 06:31:00','2025-10-06 06:31:00'),
+(30, 16, 'feed.comment.reply',     'Có người trả lời', 'Ngân Phạm vừa trả lời bình luận của bạn trên highlight TOEIC.', '{"feed_id":35,"reply_id":12,"parent_id":11,"user_id":24}',1, 'feed_comment',12,  '2025-10-06 10:31:00','2025-10-06 10:31:00');
 
 -- ============================================================================
 -- REPORTS  (admin moderation - target_type in [teacher, course, lesson])
