@@ -84,7 +84,7 @@ src/
 | GET | `/courses` | ADMIN, STUDENT | List có filter `status`, paging |
 | GET | `/courses/stats/overview` | ADMIN, LECTURER | Thống kê tổng |
 | GET | `/courses/:id/stats/overview` | ADMIN, LECTURER | Thống kê 1 course (enrolls active/completed) |
-| GET | `/courses/:id` | public | Detail (kèm lessons) |
+| GET | `/courses/:id` | public | Detail eager-load tree (Course → Video preview, Lessons → Video → LessonActivities → Quizzes → QuizQuestions → QuizOptions) trong 1 SELECT JOIN (xem "Eager-loading detail" bên dưới) |
 | PATCH | `/courses/:id` | LECTURER, ADMIN | Update — nếu `status === PUBLISH` thì update kéo về `DRAFT` |
 | DELETE | `/courses/:id` | ADMIN | Soft/hard delete tuỳ logic |
 | POST | `/courses/:id/submit-for-review` | LECTURER | DRAFT → PENDING |
@@ -284,6 +284,37 @@ yarn start:dev
 yarn build
 yarn start:prod
 ```
+
+---
+
+## Eager-loading `GET /courses/:id`
+
+`course.service.findOne(id)` build 1 `findByPk` với include tree:
+
+```
+Course
+ ├─ video (BelongsTo Video, preview)
+ └─ lessons (HasMany Lesson, where status != REMOVED)
+      ├─ video (BelongsTo Video, lesson video)
+      └─ lessonActivities (HasMany LessonActivity, where status != REMOVED)
+           └─ quizzes (HasMany Quiz)
+                └─ questions (HasMany QuizQuestion)
+                     └─ options (HasMany QuizOption)
+```
+
+Trước đây cây này phải fetch riêng lessons → activities → quizzes → questions → options (1 + N query). Sau refactor, Sequelize tạo **1 SELECT JOIN duy nhất** (`subQuery: false`), `attributes` được pin từng level để không kéo cột text lớn không cần thiết. Public contract giữ nguyên — top-level fields của Course không đổi, FE chỉ thấy thêm các array lồng nhau.
+
+Associations bắt buộc cho cây này (đã thêm trong `src/models/*`):
+
+- `Course` `@HasMany(() => Lesson, { foreignKey: 'course_id', as: 'lessons' })`
+- `Lesson` `@HasMany(() => LessonActivity, { foreignKey: 'lesson_id', as: 'lessonActivities' })`
+- `LessonActivity` `@HasMany(() => Quiz, { foreignKey: 'lesson_activity_id', as: 'quizzes' })`
+- `Quiz` `@HasMany(() => QuizQuestion, { as: 'questions' })` *(đã có)*
+- `QuizQuestion` `@HasMany(() => QuizOption, { as: 'options' })` *(đã có)*
+
+> `Course` cũng phải register thêm các model `LessonActivity`, `Quiz`, `QuizQuestion`, `QuizOption` vào `SequelizeModule.forFeature([...])` của `CoursesModule` để khi inject Sequelize biết các tên association lồng nhau.
+
+Test reference: `src/course/course.service.spec.ts` (include tree + response shape), `src/models/associations.spec.ts` (associations + smoke-test circular import giữa LessonActivity ↔ Quiz).
 
 ---
 

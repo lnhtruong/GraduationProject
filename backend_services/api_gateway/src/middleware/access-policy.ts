@@ -180,6 +180,29 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
   {
+    method: 'POST',
+    pattern: '/api/course/quiz-submissions',
+    access: 'roles',
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/quiz-submissions/mine',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/quiz-submissions/stats/quiz/:quizId',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/quiz-submissions',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
     method: 'GET',
     pattern: '/api/course/lesson-activities/user',
     access: 'authenticated',
@@ -566,6 +589,7 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',

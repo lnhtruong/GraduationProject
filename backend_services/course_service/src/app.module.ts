@@ -18,6 +18,7 @@ import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions
 import { EnrollsModule } from './enrolls/enrolls.module';
 import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 import { ReportsModule } from './reports/reports.module';
+import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ReportsModule } from './reports/reports.module';
     EnrollsModule,
     LessonProgressModule,
     ReportsModule,
+    QuizSubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -147,11 +147,12 @@ src/
 | Method | Path | Access | Mô tả |
 |---|---|---|---|
 | POST | `/feed` | authenticated (gateway: LECTURER/ADMIN write) | Add highlight vào feed |
-| GET | `/feed` | authenticated | Query `cursor, limit, courseId, mode (recommended\|search), search, sessionId` |
+| GET | `/feed` | authenticated | Query `cursor, limit, courseId, mode (recommended\|search), search, sessionId, hashtag` — `hashtag` filter dùng `JSON_CONTAINS(hashtags, JSON_QUOTE(:tag))`, chấp nhận cả `#tag` và `tag`, combine với `mode=recommended` được (bypass Redis cache để không bẩn ranked list). |
 | GET | `/feed/viewed` | authenticated | Lịch sử đã xem |
 | GET | `/feed/saved` | authenticated | Đã save |
 | GET | `/feed/mine` | ADMIN, LECTURER | Highlight do user tạo |
 | GET | `/feed/trending` | public | |
+| GET | `/feed/hashtags/trending` | public | Query `days` (default 7, max 90), `limit` (default 20, max 100). Trả `{ items: [{ tag, count, growthPct }] }` — count là số feed ACTIVE chứa hashtag trong cửa sổ N ngày, `growthPct` so với N ngày trước (`null` nếu kỳ trước count=0 → tag mới). Aggregation chạy trên JS, không cần `JSON_TABLE`. |
 | GET | `/feed/stats/creator` | ADMIN, LECTURER | |
 | GET | `/feed/stats/trending` | ADMIN, LECTURER | |
 | GET | `/feed/:id/stats` | ADMIN, LECTURER | |
@@ -296,6 +297,34 @@ yarn start:dev
 yarn build
 yarn start:prod
 ```
+
+---
+
+## Hashtag filter `GET /feed?hashtag=<tag>`
+
+- Tag được normalize sang `lowercase + strip whitespace`. Filter query thử cả 2 biến thể (`tag` và `#tag`) để khớp dữ liệu cũ vì lịch sử FE từng store hashtag không đồng nhất.
+- SQL clause được build bằng `Sequelize.literal('JSON_CONTAINS(HighlightFeed.hashtags, JSON_QUOTE(:tag))')`, escape tag qua `sequelize.escape()` (chống injection).
+- Khi có hashtag, `subQuery: false` được set để literal cột `HighlightFeed.hashtags` không bị Sequelize wrap mất.
+- Kết hợp với `mode=recommended`: filter được apply ở `computeRankedCandidates` (sửa `baseWhere`). Redis cache ranked list bị **bypass** khi có hashtag để không trộn kết quả lệch tag — chấp nhận overhead vì tần suất click tag thấp hơn scroll feed thường.
+
+### Index hỗ trợ
+
+Migration `database/knex_migrations/023_highlight_feed_hashtags_index.js` thêm **multi-valued index** trên cột `hashtags`:
+
+```sql
+ALTER TABLE highlight_feed
+  ADD INDEX idx_highlight_feed_hashtags_mv ( (CAST(hashtags AS CHAR(64) ARRAY)) );
+```
+
+Yêu cầu MySQL >= 8.0.17. Với version cũ, doc trong migration mô tả fallback bằng generated column + index thường.
+
+## Trending hashtags
+
+`getTrendingHashtags(days, limit)` query 2 cửa sổ thời gian liền kề (current `[now-N, now]` + previous `[now-2N, now-N]`), aggregate tag-count trên Node.js (set-dedupe trong từng feed để không double-count). Trả `growthPct = (curr - prev) / prev * 100`, `null` khi `prev === 0`.
+
+Endpoint **public** — đặt rule access policy `GET /api/media/feed/hashtags/trending` access: `public` TRƯỚC catch-all `/api/media/feed/**` authenticated trong `api_gateway/src/middleware/access-policy.ts`.
+
+Test reference: `src/feed/feed.service.spec.ts` (12 case: 0/1/nhiều hashtag, normalize, dedupe, growth +/-/null, ordering, window math, combine `search`+`hashtag`).
 
 ---
 
