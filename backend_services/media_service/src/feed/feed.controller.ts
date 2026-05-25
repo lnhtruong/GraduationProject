@@ -68,6 +68,7 @@ export class FeedController {
     @Query('mode') mode: 'recommended' | 'search' = 'search',
     @Query('search') search?: string,
     @Query('sessionId') sessionId?: string,
+    @Query('hashtag') hashtag?: string,
     @Headers('x-user-id') userIdHeader?: string,
   ) {
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
@@ -83,6 +84,7 @@ export class FeedController {
       mode,
       search,
       sessionId,
+      hashtag,
     );
   }
 
@@ -177,6 +179,36 @@ export class FeedController {
   async getPublicTrending(@Query('limit') limit?: string) {
     const limitNum = limit ? Number(limit) : undefined;
     return this.feedService.getPublicTrending(limitNum);
+  }
+
+  /**
+   * GET /feed/hashtags/trending
+   *
+   * Top hashtag theo count trong N ngày gần (mặc định 7), kèm tỉ lệ tăng
+   * trưởng so với N ngày trước đó.
+   *
+   * Query (tất cả optional):
+   *  - `days`  cửa sổ thời gian (1..90), mặc định 7
+   *  - `limit` số lượng trả về (1..100), mặc định 20
+   *
+   * Response: `{ items: [{ tag, count, growthPct }] }` — sắp xếp theo count
+   * giảm dần, tag tăng dần khi cùng count. `growthPct === null` nghĩa là kỳ
+   * trước chưa có data (tag mới xuất hiện) → FE có thể hiển thị badge "new".
+   */
+  @Get('hashtags/trending')
+  async getTrendingHashtags(
+    @Query('days') daysRaw?: string,
+    @Query('limit') limitRaw?: string,
+  ) {
+    const days = daysRaw ? Number(daysRaw) : 7;
+    const limit = limitRaw ? Number(limitRaw) : 20;
+    if (daysRaw && (!Number.isFinite(days) || days <= 0)) {
+      throw new BadRequestException('days must be a positive integer');
+    }
+    if (limitRaw && (!Number.isFinite(limit) || limit <= 0)) {
+      throw new BadRequestException('limit must be a positive integer');
+    }
+    return this.feedService.getTrendingHashtags(days, limit);
   }
 
   @Get('stats/creator')
