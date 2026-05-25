@@ -17,6 +17,9 @@ module.exports = {
       directory: "./knex_migrations",
       tableName: "knex_migrations",
     },
+    seeds: {
+      directory: "./seeds",
+    },
   },
   railway: {
     client: "mysql2",
@@ -31,6 +34,9 @@ module.exports = {
     migrations: {
       directory: "./knex_migrations",
       tableName: "knex_migrations",
+    },
+    seeds: {
+      directory: "./seeds",
     },
   },
 };

@@ -1181,32 +1181,67 @@ export class FeedService {
   }
 
   /**
-   * Trả về cặp biến thể (có/không có `#`) của tag để query DB. Lý do: dữ liệu
-   * cũ có thể được lưu cả 2 dạng — FE cũ store "javascript", FE mới store
-   * "#javascript". Filter cần match cả 2 để không sót kết quả.
+   * Sinh các biến thể cần OR-match cho 1 tag. Lý do phải sinh nhiều biến thể:
+   *  - dữ liệu cũ lưu hỗn hợp: có feed có `#`, có feed không (`"javascript"`
+   *    vs `"#javascript"`).
+   *  - dữ liệu được FE post lên giữ nguyên case (`"UIUX"`, `"TechnicalSEO"`),
+   *    trong khi `JSON_CONTAINS` của MySQL so sánh case-sensitive trên JSON
+   *    string. Nếu chỉ search lowercase sẽ miss hết tag camelCase.
+   *
+   * Trả về set 4 phần tử: { tag, #tag, tag-lower, #tag-lower }. Caller
+   * (`buildHashtagWhereLiteral`) sẽ OR chúng trong SQL.
    */
   private hashtagQueryVariants(tag?: string | null): string[] {
     if (!tag) return [];
-    const lower = tag.trim().toLowerCase();
-    if (!lower) return [];
-    const withoutHash = lower.startsWith('#') ? lower.slice(1) : lower;
-    if (!withoutHash) return [];
-    const withHash = `#${withoutHash}`;
-    return [withoutHash, withHash];
+    const trimmed = tag.trim();
+    if (!trimmed) return [];
+    const withoutHashOrig = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+    if (!withoutHashOrig) return [];
+    const withoutHashLower = withoutHashOrig.toLowerCase();
+
+    const variants = new Set<string>();
+    variants.add(withoutHashOrig);
+    variants.add(`#${withoutHashOrig}`);
+    variants.add(withoutHashLower);
+    variants.add(`#${withoutHashLower}`);
+    return Array.from(variants);
   }
 
   /**
-   * Build literal `JSON_CONTAINS(...)` cho where clause. Trả `null` nếu
-   * hashtag rỗng — caller dùng để bỏ qua filter.
+   * Build literal where-clause cho hashtag filter.
+   *
+   * Combine 2 chiến lược để chịu được mọi case lưu trong DB:
+   *  1. `JSON_CONTAINS(hashtags, JSON_QUOTE(:variant))` cho 4 biến thể đã
+   *     normalize — exact match, dùng được multi-valued index nếu MySQL
+   *     8.0.17+ (tốc độ tốt nhất).
+   *  2. Fallback `JSON_SEARCH(LOWER(CAST(hashtags AS CHAR)), 'one', LOWER(:tag))
+   *     IS NOT NULL` — case-insensitive sau khi đã ép cả 2 vế về lowercase,
+   *     dùng để bắt các tag camelCase/UPPER lệch mà 4 variant không cover
+   *     (tránh false negative khi data lưu cẩu thả).
+   *
+   * Hai nhánh nối bằng OR. Trả `null` nếu hashtag rỗng → caller bỏ qua filter.
    */
   private buildHashtagWhereLiteral(tag?: string | null): ReturnType<typeof literal> | null {
     const variants = this.hashtagQueryVariants(tag);
     if (variants.length === 0) return null;
     const seq = this.highlightFeedModel.sequelize!;
-    const parts = variants.map(
+
+    const containsParts = variants.map(
       (v) => `JSON_CONTAINS(HighlightFeed.hashtags, JSON_QUOTE(${seq.escape(v)}))`,
     );
-    return literal(`(${parts.join(' OR ')})`);
+
+    // Lowercase tag gốc (bỏ `#`) để dùng cho nhánh case-insensitive fallback.
+    const trimmed = tag!.trim();
+    const withoutHashLower = (trimmed.startsWith('#') ? trimmed.slice(1) : trimmed).toLowerCase();
+    // Match exact-token sau khi cast JSON → CHAR, dùng JSON_SEARCH (LIKE-rules).
+    // Bao quanh bằng dấu ngoặc kép để khỏi match prefix (e.g. "grammar" KHÔNG
+    // match "grammarian"). JSON values trong CAST(... AS CHAR) đã có "" sẵn.
+    const insensitiveParts = [
+      `JSON_SEARCH(LOWER(CAST(HighlightFeed.hashtags AS CHAR)), 'one', ${seq.escape(withoutHashLower)}) IS NOT NULL`,
+      `JSON_SEARCH(LOWER(CAST(HighlightFeed.hashtags AS CHAR)), 'one', ${seq.escape('#' + withoutHashLower)}) IS NOT NULL`,
+    ];
+
+    return literal(`(${[...containsParts, ...insensitiveParts].join(' OR ')})`);
   }
 
   /**
