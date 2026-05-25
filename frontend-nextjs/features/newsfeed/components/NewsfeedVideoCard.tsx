@@ -27,6 +27,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -34,6 +39,10 @@ import type { NewsfeedItem } from "../types";
 import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
 import { getInitials } from "./newsfeed-ui";
+
+export const NEWSFEED_PLAYBACK_RATE_OPTIONS = ["0.5", "0.75", "1", "1.25", "1.5", "2"] as const;
+
+export type NewsfeedPlaybackRate = (typeof NEWSFEED_PLAYBACK_RATE_OPTIONS)[number];
 
 function sanitizeDescriptionHtml(input?: string) {
   if (!input) {
@@ -70,6 +79,8 @@ interface NewsfeedVideoCardProps {
   video: NewsfeedItem;
   isActive: boolean;
   shouldPreload: boolean;
+  playbackRate: NewsfeedPlaybackRate;
+  onPlaybackRateChange: (rate: NewsfeedPlaybackRate) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
   onOpenShare: (url: string) => void;
@@ -79,6 +90,8 @@ export function NewsfeedVideoCard({
   video,
   isActive,
   shouldPreload,
+  playbackRate,
+  onPlaybackRateChange,
   onOpenCourse,
   onOpenComments,
   onOpenShare,
@@ -122,6 +135,15 @@ export function NewsfeedVideoCard({
   useEffect(() => {
     setIsCaptionExpanded(false);
   }, [video.feedId]);
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) {
+      return;
+    }
+
+    element.playbackRate = Number(playbackRate);
+  }, [playbackRate, video.id]);
 
   const isPortraitVideo = videoAspectRatio < 1;
   const captionText = useMemo(
@@ -561,9 +583,36 @@ export function NewsfeedVideoCard({
                 <DropdownMenuItem>
                   <Settings2 className="h-4 w-4" />Chất lượng
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Gauge className="h-4 w-4" />Tốc độ phát
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Gauge className="h-4 w-4" />
+                    <span>Tốc độ phát</span>
+                    <span className="ml-auto text-xs font-medium text-muted-foreground">
+                      {playbackRate}x
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44">
+                    <DropdownMenuLabel>Tốc độ hiện tại</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup
+                      value={playbackRate}
+                      onValueChange={(value) => {
+                        const selectedRate = NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(
+                          value as NewsfeedPlaybackRate,
+                        )
+                          ? (value as NewsfeedPlaybackRate)
+                          : "1";
+                        onPlaybackRateChange(selectedRate);
+                      }}
+                    >
+                      {NEWSFEED_PLAYBACK_RATE_OPTIONS.map((value) => (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          {value}x
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuItem>
                   <Subtitles className="h-4 w-4" />Phụ đề
                 </DropdownMenuItem>

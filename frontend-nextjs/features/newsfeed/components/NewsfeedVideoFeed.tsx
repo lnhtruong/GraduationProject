@@ -1,9 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
-import { NewsfeedVideoCard } from "./NewsfeedVideoCard";
+import {
+  NEWSFEED_PLAYBACK_RATE_OPTIONS,
+  NewsfeedVideoCard,
+  type NewsfeedPlaybackRate,
+} from "./NewsfeedVideoCard";
+
+const NEWSFEED_PLAYBACK_RATE_STORAGE_KEY = "newsfeed.playbackRate";
+
+function isNewsfeedPlaybackRate(value: string): value is NewsfeedPlaybackRate {
+  return NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(value as NewsfeedPlaybackRate);
+}
 
 interface NewsfeedVideoFeedProps {
   videos: NewsfeedItem[];
@@ -27,6 +37,18 @@ export function NewsfeedVideoFeed({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const ignoreObserverRef = useRef(false);
+  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>("1");
+
+  useEffect(() => {
+    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
+    if (storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate)) {
+      setPlaybackRate(storedPlaybackRate);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY, playbackRate);
+  }, [playbackRate]);
 
   const setItemRef = useCallback((index: number, node: HTMLDivElement | null) => {
     if (!node) {
@@ -105,6 +127,8 @@ export function NewsfeedVideoFeed({
             video={video}
             isActive={index === activeIndex}
             shouldPreload={index === nextIndex}
+            playbackRate={playbackRate}
+            onPlaybackRateChange={setPlaybackRate}
             onOpenCourse={onOpenCourse}
             onOpenComments={onOpenComments}
             onOpenShare={onOpenShare}
