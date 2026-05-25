@@ -55,4 +55,10 @@ export class RedisService {
     const result = await this.redisClient.set(key, value, 'EX', ttlSeconds, 'NX');
     return result === 'OK';
   }
+
+  /** Refresh a key's TTL. Returns true if the key existed and was updated. */
+  async expire(key: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redisClient.expire(key, ttlSeconds);
+    return result === 1;
+  }
 }

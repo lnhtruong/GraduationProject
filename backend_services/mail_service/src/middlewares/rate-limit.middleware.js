@@ -14,15 +14,24 @@ async function otpRateLimit(req, res, next) {
     const email = String(rawEmail).trim().toLowerCase();
     const key = `RATE_LIMIT:MAIL_OTP:${email}`;
 
-    // Atomic INCR + EXPIRE-on-first-hit via Lua to avoid races.
+    // Atomic INCR + EXPIRE via Lua. TTL is set on the first hit and
+    // refreshed once at the moment the counter first exceeds MAX_REQUESTS,
+    // so the lockout is exactly WINDOW_SECONDS from when the limit tripped,
+    // not from the first request in the burst. Refreshing only on the
+    // boundary (not every blocked call) prevents an attacker from keeping
+    // the key alive forever via continued spam.
     const script = `
       local v = redis.call('INCR', KEYS[1])
       if v == 1 then
         redis.call('EXPIRE', KEYS[1], ARGV[1])
+      elseif v == tonumber(ARGV[2]) + 1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[1])
       end
       return v
     `;
-    const count = Number(await redis.eval(script, 1, key, WINDOW_SECONDS));
+    const count = Number(
+      await redis.eval(script, 1, key, WINDOW_SECONDS, MAX_REQUESTS),
+    );
 
     if (count > MAX_REQUESTS) {
       const ttl = await redis.ttl(key);

@@ -247,7 +247,24 @@ export class AuthService {
       return {
         message: 'OTP sent to email',
       };
-    } catch {
+    } catch (err: any) {
+      // Forward mail_service's per-email 429 so the client gets a real
+      // rate-limit response with retryAfter, not a generic 400 they can
+      // keep hammering until the IP guard finally trips.
+      if (err?.response?.status === HttpStatus.TOO_MANY_REQUESTS) {
+        const retryAfter = Number(err.response.data?.retryAfter) || 300;
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Too many requests',
+            retryAfter,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      this.logger.warn(
+        `Mail OTP send failed for ${normalizedEmail}: ${err?.message ?? err}`,
+      );
       throw new BadRequestException('Failed to send OTP email');
     }
   }

@@ -26,6 +26,14 @@ export class ForgotPasswordRateLimitGuard implements CanActivate {
     const count = await this.redisService.incrWithTtl(key, WINDOW_SECONDS);
 
     if (count > MAX_REQUESTS) {
+      // Refresh the TTL once at the moment of the first block so the
+      // lockout is exactly WINDOW_SECONDS from when the limit was hit,
+      // not from the first request in the burst. Subsequent blocked
+      // calls let the TTL decay naturally — otherwise an attacker could
+      // hold the key alive forever by spamming.
+      if (count === MAX_REQUESTS + 1) {
+        await this.redisService.expire(key, WINDOW_SECONDS);
+      }
       const ttl = await this.redisService.ttl(key);
       const retryAfter = ttl > 0 ? ttl : WINDOW_SECONDS;
       res.setHeader('Retry-After', retryAfter.toString());
