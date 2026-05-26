@@ -52,11 +52,6 @@ export function CartItemCard({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
 
-  const discountPct =
-    item.originalPrice && item.originalPrice > item.price
-      ? Math.round((1 - item.price / item.originalPrice) * 100)
-      : null;
-
   const handleMouseEnter = () => {
     if (!item.highlightVideoUrl || !videoRef.current) return;
     videoRef.current.play().catch(() => {});
@@ -168,20 +163,10 @@ export function CartItemCard({
         <div className="flex-1" />
 
         {/* Price */}
-        <div className="flex flex-wrap items-baseline gap-2">
+        <div className="flex items-baseline gap-2">
           <span className="text-[17px] font-extrabold">
             {formatPrice(item.price)}
           </span>
-          {item.originalPrice && item.originalPrice > item.price && (
-            <span className="text-sm text-muted-foreground line-through">
-              {formatPrice(item.originalPrice)}
-            </span>
-          )}
-          {discountPct && (
-            <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold text-white">
-              −{discountPct}%
-            </span>
-          )}
         </div>
 
         {/* Actions */}

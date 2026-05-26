@@ -83,7 +83,6 @@ async function buildCartItems(raw: CartItemRaw[]): Promise<CartItem[]> {
       level: c?.level ?? "Beginner",
       durationSeconds: parseHHMMSS(c?.duration),
       price: c?.price ?? 0,
-      originalPrice: undefined,
       avgRating: undefined,
       reviewCount: undefined,
       savedForLater: false,

@@ -24,11 +24,14 @@ export function BrowseCoursesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
-  const { data: courses, isLoading, isError } = useBrowseCourses({ page, limit: LIMIT });
+  const { data, isLoading, isError } = useBrowseCourses({ page, limit: LIMIT });
 
-  const filtered = courses?.filter((c) =>
-    search.trim() === "" ? true : c.title.toLowerCase().includes(search.toLowerCase()),
-  ) ?? [];
+  const courses = data?.courses ?? [];
+  const totalPages = data?.totalPages ?? 1;
+
+  const filtered = search.trim() === ""
+    ? courses
+    : courses.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -97,8 +100,8 @@ export function BrowseCoursesPage() {
             ))}
           </div>
 
-          {/* Pagination — chỉ hiện khi không đang filter theo search */}
-          {search.trim() === "" && (
+          {/* Pagination — ẩn khi đang search (search là client-side trên trang hiện tại) */}
+          {search.trim() === "" && totalPages > 1 && (
             <div className="mt-10 flex items-center justify-center gap-2">
               <button
                 disabled={page === 1}
@@ -107,9 +110,11 @@ export function BrowseCoursesPage() {
               >
                 Trước
               </button>
-              <span className="text-sm text-muted-foreground">Trang {page}</span>
+              <span className="text-sm text-muted-foreground">
+                Trang {page} / {totalPages}
+              </span>
               <button
-                disabled={!courses || courses.length < LIMIT}
+                disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
                 className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
               >

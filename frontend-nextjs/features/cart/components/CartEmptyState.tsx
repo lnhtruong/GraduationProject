@@ -3,14 +3,9 @@
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CourseCard } from "@/features/home/component/CourseCard";
-import { useFeaturedCourses } from "@/features/home/api/home.hooks";
+import { CartSuggestionSection } from "./CartSuggestionSection";
 
 export function CartEmptyState() {
-  // [MOCK] dùng useFeaturedCourses() — đã có sẵn, trả về mock data
-  // [SWAP] Khi có API courses: hook này tự động dùng real data
-  const { data: featuredCourses } = useFeaturedCourses();
-
   return (
     <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
       {/* Empty illustration */}
@@ -31,19 +26,7 @@ export function CartEmptyState() {
         </Button>
       </div>
 
-      {/* Gợi ý khoá học */}
-      {featuredCourses && featuredCourses.length > 0 && (
-        <section className="mt-4 border-t border-border/40 pt-12">
-          <h3 className="mb-6 text-center text-base font-semibold">
-            Có thể bạn quan tâm
-          </h3>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredCourses.slice(0, 3).map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        </section>
-      )}
+      <CartSuggestionSection withDivider limit={3} />
     </div>
   );
 }

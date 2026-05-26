@@ -1,51 +1,25 @@
 import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
-import type { FeaturedCourse } from "@/features/home/types";
-
-type CourseApiResponse = {
-  id: number;
-  name: string;
-  description?: string;
-  categories: { id: number; name: string }[] | string | unknown;
-  level: string;
-  duration: string;
-  language: string;
-  price: number;
-  userId: number;
-  status: string;
-  video?: { thumbnail?: string } | null;
-};
-
-type CoursesListRaw =
-  | { data: CourseApiResponse[]; pagination?: unknown }
-  | CourseApiResponse[];
+import {
+  mapCourseRaw,
+  extractCourses,
+  type CoursesRawResponse,
+} from "@/features/_shared/course-mapper";
+import type { CourseCardData } from "@/features/_shared/course-card.types";
 
 export interface BrowseCoursesParams {
   page?: number;
   limit?: number;
 }
 
-function mapToBrowseCourse(raw: CourseApiResponse): FeaturedCourse {
-  const cats = Array.isArray(raw.categories)
-    ? (raw.categories as { name: string }[])
-    : [];
-  const category = cats[0]?.name ?? "Khoá học";
-
-  return {
-    id: raw.id,
-    title: raw.name,
-    instructor: "",
-    instructorAvatar: null,
-    rating: 0,
-    reviewCount: 0,
-    price: raw.price === 0 ? null : raw.price,
-    category,
-    thumbnail: raw.video?.thumbnail ?? "",
-  };
+export interface BrowseCoursesResult {
+  courses: CourseCardData[];
+  totalPages: number;
+  totalItems: number;
 }
 
 export const courseBrowseApi = createApi({
-  getCourses: async (params: BrowseCoursesParams = {}): Promise<FeaturedCourse[]> => {
-    const { data } = await apiHttpClient.get<CoursesListRaw>("/course/courses", {
+  getCourses: async (params: BrowseCoursesParams = {}): Promise<BrowseCoursesResult> => {
+    const { data } = await apiHttpClient.get<CoursesRawResponse>("/course/courses", {
       params: {
         page: params.page ?? 1,
         limit: params.limit ?? 12,
@@ -53,7 +27,18 @@ export const courseBrowseApi = createApi({
       },
     });
 
-    const raw = Array.isArray(data) ? data : data.data;
-    return raw.map(mapToBrowseCourse);
+    // Khi BE trả về paginated object (có pagination field)
+    if (!Array.isArray(data) && "pagination" in data && data.pagination) {
+      const p = data.pagination as { totalPages?: number; totalItems?: number };
+      return {
+        courses: extractCourses(data).map(mapCourseRaw),
+        totalPages: p.totalPages ?? 1,
+        totalItems: p.totalItems ?? 0,
+      };
+    }
+
+    // Fallback: BE trả về array thuần (không có pagination)
+    const courses = extractCourses(data).map(mapCourseRaw);
+    return { courses, totalPages: 1, totalItems: courses.length };
   },
 });
