@@ -12,7 +12,6 @@ import { RoadMapCourse } from '../models/roadmap-course.model';
 import { Feedback } from '../models/feedback.model';
 import { FeedbackReaction } from '../models/feedback-reaction.model';
 import { Enroll } from '../models/enroll.model';
-import { Lesson } from '../models/lesson.model';
 import { LessonProgress } from '../models/lesson-progress.model';
 import { MascotImage } from 'src/models/images.model';
 import { Report } from '../models/report.model';
@@ -42,7 +41,6 @@ import { QuizOption } from 'src/models/quiz-option.model';
             Feedback,
             FeedbackReaction,
             Enroll,
-            Lesson,
             LessonProgress,
             Report,
             Lesson,
