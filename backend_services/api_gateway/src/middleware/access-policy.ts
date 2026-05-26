@@ -299,6 +299,16 @@ const ACCESS_RULES: AccessRule[] = [
   },
   {
     method: 'GET',
+    pattern: '/api/course/lesson-progress/continue-watching',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/lesson-progress/:id/heartbeat',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
     pattern: '/api/course/lesson-progress/:id',
     access: 'authenticated',
   },

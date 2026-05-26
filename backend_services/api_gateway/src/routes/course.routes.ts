@@ -30,7 +30,12 @@ router.use(
         proxyReq.setHeader('X-User-Role', req.user.role.toString());
       }
 
-      if (req.body && Object.keys(req.body).length > 0) {
+      const contentType = req.headers['content-type'] || '';
+      if (
+        contentType.includes('application/json') &&
+        req.body &&
+        typeof req.body === 'object'
+      ) {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
