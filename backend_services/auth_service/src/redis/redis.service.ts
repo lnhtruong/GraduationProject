@@ -27,4 +27,38 @@ export class RedisService {
     const result = await this.redisClient.exists(key);
     return result === 1;
   }
+
+  /**
+   * Atomic INCR with EXPIRE applied only on the first hit, via Lua so the
+   * counter cannot race against the TTL.
+   * Returns the post-increment count.
+   */
+  async incrWithTtl(key: string, ttlSeconds: number): Promise<number> {
+    const script = `
+      local v = redis.call('INCR', KEYS[1])
+      if v == 1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[1])
+      end
+      return v
+    `;
+    const result = await this.redisClient.eval(script, 1, key, ttlSeconds);
+    return Number(result);
+  }
+
+  /** Remaining TTL in seconds; -1 if no expiry, -2 if missing. */
+  async ttl(key: string): Promise<number> {
+    return this.redisClient.ttl(key);
+  }
+
+  /** SET NX EX — returns true if the lock was newly acquired. */
+  async setLock(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redisClient.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  /** Refresh a key's TTL. Returns true if the key existed and was updated. */
+  async expire(key: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redisClient.expire(key, ttlSeconds);
+    return result === 1;
+  }
 }

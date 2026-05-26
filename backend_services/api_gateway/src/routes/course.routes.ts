@@ -30,7 +30,7 @@ router.use(
         proxyReq.setHeader('X-User-Role', req.user.role.toString());
       }
 
-      if (req.body && Object.keys(req.body).length > 0) {
+      if (req.body && req.method !== 'GET' && req.method !== 'HEAD') {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
