@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { EnrollsService } from 'src/enrolls/enrolls.service';
 import { Course } from 'src/models/course.model';
 import { LessonProgress, LessonProgressStatus } from 'src/models/lesson-progress.model';
@@ -114,6 +116,116 @@ export class LessonProgressService {
       await this.enrollsService.syncEnrollProgress(row.userId, row.courseId);
     }
     return this.findOne(id);
+  }
+
+  async heartbeat(
+    id: number,
+    position: number,
+    userId: number | undefined,
+  ): Promise<{ ok: true; position: number; lastWatchedAt: Date }> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
+    const lastWatchedAt = new Date();
+
+    // Single atomic UPDATE scoped to (id, userId) so concurrent heartbeats
+    // can't interleave a stale read with a fresher write.
+    const [affected] = await this.lessonProgressModel.update(
+      {
+        lastVideoPositionSec: position,
+        lastWatchedAt,
+        progress: LessonProgressStatus.IN_PROGRESS,
+      },
+      {
+        where: {
+          id,
+          userId,
+          progress: { [Op.ne]: LessonProgressStatus.COMPLETED },
+        },
+      },
+    );
+
+    if (affected === 0) {
+      // Distinguish missing row vs. ownership/state mismatch.
+      const row = await this.lessonProgressModel.findByPk(id);
+      if (!row) {
+        throw new NotFoundException(`Lesson progress with ID ${id} not found`);
+      }
+      if (row.userId !== userId) {
+        throw new ForbiddenException('Lesson progress does not belong to user');
+      }
+      // Already completed — return its persisted position without bumping it.
+      return {
+        ok: true,
+        position: row.lastVideoPositionSec,
+        lastWatchedAt: row.lastWatchedAt ?? new Date(0),
+      };
+    }
+
+    return { ok: true, position, lastWatchedAt };
+  }
+
+  async continueWatching(
+    userId: number | undefined,
+    limit = 10,
+  ): Promise<{
+    items: Array<{
+      progressId: number;
+      course: Course | null;
+      lesson: Lesson | null;
+      lastVideoPositionSec: number;
+      lastWatchedAt: Date | null;
+      percentage: number;
+    }>;
+  }> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
+    const parsedLimit = Number(limit);
+    if (!Number.isInteger(parsedLimit)) {
+      throw new BadRequestException('limit must be an integer');
+    }
+    const cappedLimit = Math.min(Math.max(parsedLimit, 1), 10);
+
+    const rows = await this.lessonProgressModel.findAll({
+      where: {
+        userId,
+        progress: { [Op.ne]: LessonProgressStatus.COMPLETED },
+        lastWatchedAt: { [Op.ne]: null },
+      },
+      include: [
+        { model: Course, required: false },
+        { model: Lesson, required: false },
+      ],
+      order: [['lastWatchedAt', 'DESC']],
+      limit: cappedLimit,
+    });
+
+    // Compute completion percentage per course, once per distinct courseId.
+    const percentByCourse = new Map<number, number>();
+    for (const row of rows) {
+      if (percentByCourse.has(row.courseId)) continue;
+      percentByCourse.set(
+        row.courseId,
+        await this.enrollsService.computeLessonProgressPercent(
+          userId,
+          row.courseId,
+        ),
+      );
+    }
+
+    return {
+      items: rows.map((row) => ({
+        progressId: row.id,
+        course: row.course ?? null,
+        lesson: row.lesson ?? null,
+        lastVideoPositionSec: row.lastVideoPositionSec,
+        lastWatchedAt: row.lastWatchedAt,
+        percentage: percentByCourse.get(row.courseId) ?? 0,
+      })),
+    };
   }
 
   async remove(id: number): Promise<void> {

@@ -15,7 +15,6 @@ export function useCourseLearnPage(courseId: number) {
     onMarkLessonCompleted: data.markLessonCompleted,
     onHeartbeat: data.sendHeartbeat,
     initialResumePositionSec: data.initialResumePositionSec,
-    shouldForceResumeFromQuery: data.shouldForceResumeFromQuery,
     selectedLessonProgressId: data.selectedLessonProgress?.id,
   });
 

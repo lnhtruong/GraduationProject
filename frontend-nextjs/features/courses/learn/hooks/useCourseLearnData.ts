@@ -30,11 +30,10 @@ export function useCourseLearnData(courseId: number) {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
-  const {
-    data: enrollment,
-    isLoading: enrollmentLoading,
-    isError: enrollmentError,
-  } = useEnrollmentCheck(courseId, user?.id);
+  const { data: enrollment, isLoading: enrollmentLoading } = useEnrollmentCheck(
+    courseId,
+    user?.id,
+  );
 
   // enrollmentSettled: true khi store đã hydrate VÀ query đã chạy xong (không còn loading).
   // Khi userId chưa có (store chưa hydrate), query bị disabled → isLoading=false ngay
@@ -43,17 +42,10 @@ export function useCourseLearnData(courseId: number) {
 
   useEffect(() => {
     if (!enrollmentSettled) return;
-    if (!isAuthenticated || enrollmentError || enrollment == null) {
+    if (!isAuthenticated || enrollment == null) {
       router.replace(`/courses/${courseId}`);
     }
-  }, [
-    courseId,
-    enrollment,
-    enrollmentError,
-    enrollmentSettled,
-    isAuthenticated,
-    router,
-  ]);
+  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, router]);
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
@@ -182,7 +174,12 @@ export function useCourseLearnData(courseId: number) {
   }, [selectedLessonProgress]);
 
   useEffect(() => {
-    if (!selectedLesson || lessonProgressLoading || lessonProgressUpdating) {
+    if (
+      !selectedLesson ||
+      lessonProgressLoading ||
+      lessonProgressFetching ||
+      lessonProgressUpdating
+    ) {
       return;
     }
 
@@ -202,6 +199,7 @@ export function useCourseLearnData(courseId: number) {
   }, [
     courseId,
     lessonProgressLoading,
+    lessonProgressFetching,
     lessonProgressUpdating,
     selectedLesson,
     selectedLessonProgress?.id,
@@ -293,7 +291,7 @@ export function useCourseLearnData(courseId: number) {
     (lessonProgressId: number, positionSec: number) => {
       sendLessonHeartbeat({
         lessonProgressId,
-        positionSec,
+        position: Math.max(0, Math.trunc(positionSec)),
       });
     },
     [sendLessonHeartbeat],
