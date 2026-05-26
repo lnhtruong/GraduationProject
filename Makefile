@@ -9,6 +9,8 @@ MIGRATE_ROLLBACK_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database
 MIGRATE_STATUS_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database'; npx knex migrate:currentVersion --env development; Pop-Location
 MIGRATE_LIST_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database'; npx knex migrate:list --env development; Pop-Location
 MIGRATE_RAILWAY_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database'; npx knex migrate:latest --env railway; Pop-Location
+SEED_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database'; npx knex seed:run --env development; Pop-Location
+SEED_RAILWAY_CMD = $$ErrorActionPreference = 'Stop'; Push-Location 'database'; npx knex seed:run --env railway; Pop-Location
 else
 SHELL := /bin/bash
 .SHELLFLAGS := -e -o pipefail -c
@@ -20,9 +22,11 @@ MIGRATE_ROLLBACK_CMD = set -e; cd database; npx knex migrate:rollback --env deve
 MIGRATE_STATUS_CMD = set -e; cd database; npx knex migrate:currentVersion --env development
 MIGRATE_LIST_CMD = set -e; cd database; npx knex migrate:list --env development
 MIGRATE_RAILWAY_CMD = set -e; cd database; npx knex migrate:latest --env railway
+SEED_CMD = set -e; cd database; npx knex seed:run --env development
+SEED_RAILWAY_CMD = set -e; cd database; npx knex seed:run --env railway
 endif
 
-.PHONY: help build-backend install-build-backend build build-service install-build migrate migrate-rollback migrate-status migrate-list migrate-railway
+.PHONY: help build-backend install-build-backend build build-service install-build migrate migrate-rollback migrate-status migrate-list migrate-railway seed seed-railway
 
 help:
 	@echo "Targets:"
@@ -35,6 +39,8 @@ help:
 	@echo "  make migrate-status            Show current migration version"
 	@echo "  make migrate-list              List database migrations"
 	@echo "  make migrate-railway           Run database migration latest for railway env"
+	@echo "  make seed                      Run database/seeds/*.js (loads seed_data.sql) for dev env"
+	@echo "  make seed-railway              Same as 'make seed' but against railway env"
 
 build-backend:
 	@$(BUILD_BACKEND_CMD)
@@ -62,3 +68,9 @@ migrate-list:
 
 migrate-railway:
 	@$(MIGRATE_RAILWAY_CMD)
+
+seed:
+	@$(SEED_CMD)
+
+seed-railway:
+	@$(SEED_RAILWAY_CMD)

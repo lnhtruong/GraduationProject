@@ -93,6 +93,9 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/roadmaps', access: 'public' },
   { method: 'GET', pattern: '/api/course/roadmaps/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/users/:id', access: 'authenticated' },
+  // Specific rules MUST come before the catch-all /api/course/feedbacks/** below,
+  // because getAccessRule() returns the first matching entry.
+  { method: 'GET', pattern: '/api/course/feedbacks/check/:courseId', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/feedbacks/**', access: 'public' },
   {
     method: 'GET',
@@ -433,6 +436,19 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/media/webhooks/ai-model/result',
     access: 'public',
   },
+  // Specific /user, /mine routes MUST come before their corresponding /:id
+  // catch-all rules below, because getAccessRule() returns the first match
+  // and `:id` would otherwise swallow the literal "user" segment.
+  {
+    method: 'GET',
+    pattern: '/api/media/projects/user',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/media/mascot_images/user',
+    access: 'authenticated',
+  },
   { method: 'GET', pattern: '/api/media/videos/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/media/projects/:id', access: 'authenticated' },
   {
@@ -471,11 +487,6 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'authenticated',
   },
   {
-    method: 'GET',
-    pattern: '/api/media/projects/user',
-    access: 'authenticated',
-  },
-  {
     method: 'PATCH',
     pattern: '/api/media/projects/:id',
     access: 'authenticated',
@@ -488,11 +499,6 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'POST',
     pattern: '/api/media/mascot_images',
-    access: 'authenticated',
-  },
-  {
-    method: 'GET',
-    pattern: '/api/media/mascot_images/user',
     access: 'authenticated',
   },
   {
@@ -594,6 +600,12 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'POST',
     pattern: '/api/media/feed/:feedId/comments',
+    access: 'authenticated',
+    // roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'POST',
+    pattern: '/api/media/feed/:feedId/interact',
     access: 'authenticated',
     // roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
