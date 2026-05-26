@@ -17,6 +17,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useFeaturedCourses } from "./api/home.hooks";
 import { PageLoader } from "@/components/PageLoader";
 import { CourseCard } from "./component/CourseCard";
+import { useContinueWatchingList } from "@/features/courses/learn/api/lesson-progress.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Static config (UI copy / icons – không cần từ backend) ─────────────────
 
@@ -65,6 +67,8 @@ export default function Home() {
 
   const { data: featuredCourses, isLoading: coursesLoading } =
     useFeaturedCourses();
+  const { data: continueWatchingList, isLoading: continueWatchingLoading } =
+    useContinueWatchingList();
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -174,6 +178,81 @@ export default function Home() {
       </section>
 
       {/* ── 3. Featured Courses ──────────────────────────────────────────────── */}
+      <section className="py-14 border-t border-border/40">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Tiếp tục học
+            </h2>
+          </div>
+
+          {continueWatchingLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card key={`continue-skeleton-${index}`}>
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-2 w-full" />
+                    <Skeleton className="h-9 w-32" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : continueWatchingList?.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {continueWatchingList.map((item) => (
+                <Link
+                  key={`${item.lessonProgressId}-${item.lessonId}`}
+                  href={`/courses/${item.courseId}/learn?lessonId=${item.lessonId}&resume=1&resumeSec=${Math.max(0, item.lastVideoPositionSec)}`}
+                >
+                  <Card className="h-full border-border/60 hover:border-primary/40 hover:shadow-sm transition-all duration-300">
+                    <CardContent className="p-4 space-y-3">
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {item.courseTitle}
+                      </p>
+                      <h3 className="font-semibold text-sm line-clamp-2">
+                        {item.lessonTitle}
+                      </h3>
+                      <div className="space-y-1">
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{
+                              width: `${Math.min(100, Math.max(2, (item.lastVideoPositionSec / 600) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Vị trí trước đó:{" "}
+                          {Math.floor(item.lastVideoPositionSec / 60)}:
+                          {String(
+                            Math.floor(item.lastVideoPositionSec % 60),
+                          ).padStart(2, "0")}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="rounded-full px-4"
+                        variant="outline"
+                      >
+                        Tiếp tục học
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed border-border/60">
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                Bạn chưa có bài học đang xem dở.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
       <section className="py-16 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { getRoleName } from "@/lib/roles";
+import AvatarUploader from "@/features/auth/components/AvatarUploader";
 
 export default function ProfilePage() {
   return (
@@ -17,8 +18,6 @@ export default function ProfilePage() {
 
 function ProfileContent() {
   const { user } = useAuth();
-
-
 
   const getRoleVariant = (
     role: number,
@@ -44,6 +43,9 @@ function ProfileContent() {
               <CardTitle>Thông tin cá nhân</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center gap-6">
+                <AvatarUploader />
+              </div>
               <div className="grid gap-2">
                 <Label className="text-muted-foreground">Email</Label>
                 <p className="font-medium">{user?.email}</p>
