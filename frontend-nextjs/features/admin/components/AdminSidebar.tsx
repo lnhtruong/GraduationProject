@@ -39,7 +39,7 @@ export function AdminSidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-background">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border/60 bg-background">
       {/* Sidebar header */}
       <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
