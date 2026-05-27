@@ -7,6 +7,17 @@ import { LessonVideoCard } from "./components/LessonVideoCard";
 import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatTime } from "./utils";
 
 interface Props {
   courseId: number;
@@ -42,6 +53,27 @@ export default function CourseLearnPage({ courseId }: Props) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_28%),radial-gradient(circle_at_top_right,hsl(var(--accent)/0.14),transparent_22%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_24%,hsl(var(--muted)/0.35)_100%)]">
+      <AlertDialog open={state.showResumePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tiếp tục học?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn muốn tiếp tục từ phút{" "}
+              {formatTime(state.resumePromptPositionSec)}
+              hay xem lại từ đầu?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={state.handleRestartFromBeginning}>
+              Xem lại từ đầu
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={state.handleResumeFromLastPosition}>
+              Tiếp tục từ {formatTime(state.resumePromptPositionSec)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AnimatePresence>
         {state.confettiPieces.length ? (
           <motion.div

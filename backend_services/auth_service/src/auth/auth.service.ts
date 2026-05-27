@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -12,15 +15,27 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { ValidateTokenDto } from './dto/validate-token.dto';
-import { JwtTokenService, TokenPayload } from './jwt/jwt.service';
+import {
+  JwtTokenService,
+  RefreshTokenPayload,
+  TokenPayload,
+} from './jwt/jwt.service';
 import { RedisService } from '../redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
 const DEFAULT_USER_ROLE = 2; // default là student
 
+const OTP_FAIL_WINDOW_SECONDS = 15 * 60;
+const OTP_FAIL_THRESHOLD = 5;
+const OTP_LOCK_TTL_SECONDS = 30 * 60;
+
+const otpFailKey = (email: string) => `OTP_FAIL:${email}`;
+const otpLockKey = (email: string) => `OTP_LOCK:${email}`;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly googleClient = new OAuth2Client();
 
   constructor(
@@ -123,28 +138,42 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
-    const payload = await this.jwtTokenService.decodeToken(refreshToken);
-
-    if (!payload) {
+    let payload: RefreshTokenPayload;
+    try {
+      payload = await this.jwtTokenService.verifyRefreshToken(refreshToken);
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const storedToken = await this.redisService.get(
-      this.getRefreshTokenKey(payload.userId),
-    );
+    if (!payload?.jti) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
-    if (!storedToken || storedToken !== refreshToken) {
+    const redisKey = this.getRefreshTokenKey(payload.userId);
+    const storedJti = await this.redisService.get(redisKey);
+
+    if (!storedJti) {
       throw new UnauthorizedException('Refresh token not found or expired');
     }
 
-    const newAccessToken = await this.jwtTokenService.generateAccessToken({
+    if (storedJti !== payload.jti) {
+      // Reuse detected — wipe the session so the legitimate user is also forced
+      // to re-login (defensive: assume the token has leaked).
+      await this.redisService.del(redisKey);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    const tokenPair = await this.jwtTokenService.generateTokenPair({
       userId: payload.userId,
       email: payload.email,
       role: payload.role,
     });
 
+    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
+
     return {
-      accessToken: newAccessToken,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -157,15 +186,12 @@ export class AuthService {
   }
 
   async issueToken(payload: TokenPayload) {
-    const tokenPair = this.jwtTokenService.generateTokenPair(payload);
-    await this.storeRefreshToken(
-      payload.userId,
-      (await tokenPair).refreshToken,
-    );
+    const tokenPair = await this.jwtTokenService.generateTokenPair(payload);
+    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
 
     return {
-      accessToken: (await tokenPair).accessToken,
-      refreshToken: (await tokenPair).refreshToken,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -204,6 +230,20 @@ export class AuthService {
     const { email } = forgotPasswordDto;
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Per-email lockout overrides any IP-level allowance.
+    if (await this.redisService.exists(otpLockKey(normalizedEmail))) {
+      const ttl = await this.redisService.ttl(otpLockKey(normalizedEmail));
+      const retryAfter = ttl > 0 ? ttl : OTP_LOCK_TTL_SECONDS;
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Account temporarily locked',
+          retryAfter,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
@@ -222,7 +262,24 @@ export class AuthService {
       return {
         message: 'OTP sent to email',
       };
-    } catch {
+    } catch (err: any) {
+      // Forward mail_service's per-email 429 so the client gets a real
+      // rate-limit response with retryAfter, not a generic 400 they can
+      // keep hammering until the IP guard finally trips.
+      if (err?.response?.status === HttpStatus.TOO_MANY_REQUESTS) {
+        const retryAfter = Number(err.response.data?.retryAfter) || 300;
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Too many requests',
+            retryAfter,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      this.logger.warn(
+        `Mail OTP send failed for ${normalizedEmail}: ${err?.message ?? err}`,
+      );
       throw new BadRequestException('Failed to send OTP email');
     }
   }
@@ -232,9 +289,50 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const redisKey = `MAIL_OTP:${normalizedEmail}`;
 
+    // Block locked accounts up-front. 423 LOCKED per API contract.
+    if (await this.redisService.exists(otpLockKey(normalizedEmail))) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Account locked. Try again after 30 minutes.',
+        },
+        HttpStatus.LOCKED,
+      );
+    }
+
     const storedOtp = await this.redisService.get(redisKey);
 
     if (!storedOtp || storedOtp !== otp) {
+      const failures = await this.redisService.incrWithTtl(
+        otpFailKey(normalizedEmail),
+        OTP_FAIL_WINDOW_SECONDS,
+      );
+
+      if (failures >= OTP_FAIL_THRESHOLD) {
+        const locked = await this.redisService.setLock(
+          otpLockKey(normalizedEmail),
+          new Date().toISOString(),
+          OTP_LOCK_TTL_SECONDS,
+        );
+        await this.redisService.del(otpFailKey(normalizedEmail));
+
+        if (locked) {
+          // Audit log — captured by ops via stdout collection. When the
+          // audit_logs table from feat/242 lands, swap this for a row insert.
+          this.logger.warn(
+            `AUDIT_LOCKOUT email=${normalizedEmail} failures=${failures} ttl=${OTP_LOCK_TTL_SECONDS}s`,
+          );
+        }
+
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Account locked. Try again after 30 minutes.',
+          },
+          HttpStatus.LOCKED,
+        );
+      }
+
       throw new BadRequestException('Invalid or expired OTP');
     }
 
@@ -248,6 +346,7 @@ export class AuthService {
     await user.update({ password: hashedPassword });
 
     await this.redisService.del(redisKey);
+    await this.redisService.del(otpFailKey(normalizedEmail));
 
     return {
       message: 'Password has been reset successfully',
@@ -261,11 +360,12 @@ export class AuthService {
       role: user.role ?? DEFAULT_USER_ROLE,
     });
 
-    await this.storeRefreshToken(user.id, tokenPair.refreshToken);
+    await this.storeRefreshToken(user.id, tokenPair.refreshJti);
 
     return {
       user: this.toAuthUserResponse(user),
-      ...tokenPair,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
     };
   }
 
@@ -313,11 +413,11 @@ export class AuthService {
     }
   }
 
-  private async storeRefreshToken(userId: number, refreshToken: string) {
+  private async storeRefreshToken(userId: number, refreshJti: string) {
     const ttl = this.configService.get('redis.ttl');
     await this.redisService.set(
       this.getRefreshTokenKey(userId),
-      refreshToken,
+      refreshJti,
       ttl,
     );
   }

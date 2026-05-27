@@ -120,15 +120,24 @@ export default function CoursesPage() {
   }, [mergedCourses]);
 
   const filteredCourses = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
     return mergedCourses.filter((course) => {
-      const keyword = search.trim().toLowerCase();
+      const name = String(course.name ?? "").toLowerCase();
+      const description = String(course.description ?? "").toLowerCase();
+      const categories = Array.isArray(course.categories)
+        ? course.categories
+        : [];
+
       const bySearch =
         !keyword ||
-        course.name.toLowerCase().includes(keyword) ||
-        course.description.toLowerCase().includes(keyword) ||
-        course.categories.some((category) =>
-          category.toLowerCase().includes(keyword),
+        name.includes(keyword) ||
+        description.includes(keyword) ||
+        categories.some((category) =>
+          String(category ?? "")
+            .toLowerCase()
+            .includes(keyword),
         );
+
       const byStatus = statusFilter === "all" || course.status === statusFilter;
       return bySearch && byStatus;
     });

@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const { mailController } = require('../controllers');
-const { validateEmail } = require('../middlewares');
+const { validateEmail, otpRateLimit } = require('../middlewares');
 
-router.post('/otp', validateEmail, mailController.sendOTP);
+router.post('/otp', validateEmail, otpRateLimit, mailController.sendOTP);
 router.post('/forgot-password', validateEmail, mailController.sendForgotPassword);
 router.post('/custom', validateEmail, mailController.sendCustom);
 

@@ -17,6 +17,7 @@ import { ValidateTokenDto } from './dto/validate-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
 import { JwtAuthGuard } from './jwt/jwt.guard';
+import { ForgotPasswordRateLimitGuard } from './guards/forgot-password-rate-limit.guard';
 import { COOKIE_CONFIG } from './constants/cookie.constant';
 import type { Response, Request } from 'express';
 
@@ -61,14 +62,25 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Req() req: Request) {
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    return this.authService.refreshToken(refreshToken);
+    const result = await this.authService.refreshToken(refreshToken);
+
+    res.cookie(
+      COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+      result.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+    );
+
+    return { accessToken: result.accessToken };
   }
 
   @Post('logout')
@@ -111,6 +123,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @UseGuards(ForgotPasswordRateLimitGuard)
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);

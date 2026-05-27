@@ -33,6 +33,18 @@ export interface LessonProgressRecord {
   courseId: number;
   lessonId: number;
   progress: LessonProgressStatus;
+  lastVideoPositionSec?: number;
+}
+
+export interface ContinueWatchingLesson {
+  lessonProgressId: number;
+  courseId: number;
+  lessonId: number;
+  lessonTitle: string;
+  courseTitle: string;
+  thumbnailUrl?: string | null;
+  lastVideoPositionSec: number;
+  updatedAt?: string;
 }
 
 export interface UpsertLessonProgressPayload {

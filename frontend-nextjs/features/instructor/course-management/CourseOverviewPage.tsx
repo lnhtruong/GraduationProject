@@ -332,7 +332,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {course.categories.length ? (
+                {Array.isArray(course.categories) &&
+                course.categories.length ? (
                   course.categories.map((category) => (
                     <Badge
                       key={category}

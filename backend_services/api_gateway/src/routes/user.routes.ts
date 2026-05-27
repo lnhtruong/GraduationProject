@@ -39,8 +39,7 @@ router.use(
       if (
         req.method !== 'GET' &&
         req.method !== 'HEAD' &&
-        req.body &&
-        Object.keys(req.body).length > 0
+        req.body
       ) {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));

@@ -1,8 +1,10 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
@@ -25,12 +27,12 @@ export enum UserRole {
 @Injectable()
 export class UsersService {
   private static readonly PASSWORD_SALT_ROUNDS = 10;
-  private static readonly DEFAULT_RESET_PASSWORD = 'fivetoneu2026';
 
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
     private readonly auditLogsService: AuditLogsService,
+    private readonly configService: ConfigService,
   ) { }
 
   private auditableUserSnapshot(user: User) {
@@ -169,8 +171,17 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    const defaultResetPassword = this.configService.get<string>(
+      'DEFAULT_RESET_PASSWORD',
+    );
+    if (!defaultResetPassword) {
+      throw new InternalServerErrorException(
+        'DEFAULT_RESET_PASSWORD is not configured',
+      );
+    }
+
     const hashedDefaultPassword = await bcrypt.hash(
-      UsersService.DEFAULT_RESET_PASSWORD,
+      defaultResetPassword,
       UsersService.PASSWORD_SALT_ROUNDS,
     );
 
