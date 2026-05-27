@@ -17,6 +17,7 @@ db.sequelize = sequelize;
 db.Course = require('./course.model')(sequelize);
 db.Transaction = require('./transaction.model')(sequelize);
 db.TransactionItem = require('./transaction_item.model')(sequelize);
+db.WebhookEvent = require('./webhook_event.model')(sequelize);
 
 // Associations
 // 1 Transaction → nhiều Transaction_Items
