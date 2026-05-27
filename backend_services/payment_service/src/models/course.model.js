@@ -15,6 +15,11 @@ module.exports = (sequelize) => {
             type: DataTypes.DOUBLE,
             allowNull: false,
         },
+        thumbnailUrl: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            field: 'thumbnail_url',
+        },
         status: {
             type: DataTypes.ENUM('draft', 'pending', 'approved', 'rejected', 'publish'),
             allowNull: false,

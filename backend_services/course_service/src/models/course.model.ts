@@ -45,6 +45,13 @@ export class Course extends Model {
   declare description?: string;
 
   @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    field: 'thumbnail_url',
+  })
+  declare thumbnailUrl?: string | null;
+
+  @Column({
     type: DataType.JSON,
     allowNull: false,
   })
