@@ -17,10 +17,6 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING(255),
                 allowNull: false,
             },
-            signature_hash: {
-                type: DataTypes.STRING(255),
-                allowNull: true,
-            },
             processed_at: {
                 type: DataTypes.DATE,
                 defaultValue: DataTypes.NOW,
