@@ -32,7 +32,11 @@ router.use(
 
       // proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
 
-      if (req.body && Object.keys(req.body).length > 0) {
+      // Write the parsed body for any method that can carry one — including
+      // empty `{}` objects. Skipping empty bodies leaves the original
+      // Content-Length header in place but no body bytes, which makes the
+      // upstream wait forever for the missing bytes.
+      if (req.body && req.method !== 'GET' && req.method !== 'HEAD') {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
