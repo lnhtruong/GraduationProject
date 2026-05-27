@@ -46,6 +46,8 @@ export class UsersController {
     @Body() payload: UpdateUserDto,
     @Headers('x-user-id') requesterIdHeader: string,
     @Headers('x-user-role') requesterRoleHeader: string,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('user-agent') userAgent: string,
   ) {
     const requesterId = parseInt(requesterIdHeader, 10);
     const requesterRole = parseInt(requesterRoleHeader, 10);
@@ -57,6 +59,8 @@ export class UsersController {
     return this.usersService.updateUserById(id, payload, {
       userId: requesterId,
       role: requesterRole,
+      ip: forwardedFor?.split(',')[0]?.trim() ?? null,
+      userAgent: userAgent ?? null,
     });
   }
 
@@ -65,6 +69,8 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Headers('x-user-id') requesterIdHeader: string,
     @Headers('x-user-role') requesterRoleHeader: string,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('user-agent') userAgent: string,
   ) {
     const requesterId = parseInt(requesterIdHeader, 10);
     const requesterRole = parseInt(requesterRoleHeader, 10);
@@ -76,6 +82,8 @@ export class UsersController {
     return this.usersService.resetUserById(id, {
       userId: requesterId,
       role: requesterRole,
+      ip: forwardedFor?.split(',')[0]?.trim() ?? null,
+      userAgent: userAgent ?? null,
     });
   }
 }

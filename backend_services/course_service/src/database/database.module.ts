@@ -15,6 +15,7 @@ import { Enroll } from '../models/enroll.model';
 import { LessonProgress } from '../models/lesson-progress.model';
 import { MascotImage } from 'src/models/images.model';
 import { Report } from '../models/report.model';
+import { AuditLog } from '../audit_logs/audit-log.model';
 import { Lesson } from 'src/models/lesson.model';
 import { LessonActivity } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
@@ -43,6 +44,7 @@ import { QuizOption } from 'src/models/quiz-option.model';
             Enroll,
             LessonProgress,
             Report,
+            AuditLog,
             Lesson,
             LessonActivity,
             Quiz,

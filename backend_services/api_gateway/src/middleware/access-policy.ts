@@ -48,6 +48,13 @@ const ACCESS_RULES: AccessRule[] = [
 
   // User service
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
+  // Audit logs — admin only. Must precede /api/users/:id matcher.
+  {
+    method: 'GET',
+    pattern: '/api/users/audit-logs',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
   // Lecturer upgrade requests — must precede /api/users/:id matchers
   {
     method: 'POST',
@@ -91,6 +98,14 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
   { method: 'PATCH', pattern: '/api/users/:id', access: 'authenticated' },
+
+  // Course service - audit logs (admin only)
+  {
+    method: 'GET',
+    pattern: '/api/course/audit-logs',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
 
   // Course service - public reads
   {
