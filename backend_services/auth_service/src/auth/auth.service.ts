@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -23,8 +26,16 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { CheckOtpDto } from './dto/check-otp.dto';
 const DEFAULT_USER_ROLE = 2; // default là student
 
+const OTP_FAIL_WINDOW_SECONDS = 15 * 60;
+const OTP_FAIL_THRESHOLD = 5;
+const OTP_LOCK_TTL_SECONDS = 30 * 60;
+
+const otpFailKey = (email: string) => `OTP_FAIL:${email}`;
+const otpLockKey = (email: string) => `OTP_LOCK:${email}`;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly googleClient = new OAuth2Client();
 
   constructor(
@@ -219,6 +230,20 @@ export class AuthService {
     const { email } = forgotPasswordDto;
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Per-email lockout overrides any IP-level allowance.
+    if (await this.redisService.exists(otpLockKey(normalizedEmail))) {
+      const ttl = await this.redisService.ttl(otpLockKey(normalizedEmail));
+      const retryAfter = ttl > 0 ? ttl : OTP_LOCK_TTL_SECONDS;
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Account temporarily locked',
+          retryAfter,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
@@ -237,7 +262,24 @@ export class AuthService {
       return {
         message: 'OTP sent to email',
       };
-    } catch {
+    } catch (err: any) {
+      // Forward mail_service's per-email 429 so the client gets a real
+      // rate-limit response with retryAfter, not a generic 400 they can
+      // keep hammering until the IP guard finally trips.
+      if (err?.response?.status === HttpStatus.TOO_MANY_REQUESTS) {
+        const retryAfter = Number(err.response.data?.retryAfter) || 300;
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Too many requests',
+            retryAfter,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      this.logger.warn(
+        `Mail OTP send failed for ${normalizedEmail}: ${err?.message ?? err}`,
+      );
       throw new BadRequestException('Failed to send OTP email');
     }
   }
@@ -247,9 +289,50 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const redisKey = `MAIL_OTP:${normalizedEmail}`;
 
+    // Block locked accounts up-front. 423 LOCKED per API contract.
+    if (await this.redisService.exists(otpLockKey(normalizedEmail))) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Account locked. Try again after 30 minutes.',
+        },
+        HttpStatus.LOCKED,
+      );
+    }
+
     const storedOtp = await this.redisService.get(redisKey);
 
     if (!storedOtp || storedOtp !== otp) {
+      const failures = await this.redisService.incrWithTtl(
+        otpFailKey(normalizedEmail),
+        OTP_FAIL_WINDOW_SECONDS,
+      );
+
+      if (failures >= OTP_FAIL_THRESHOLD) {
+        const locked = await this.redisService.setLock(
+          otpLockKey(normalizedEmail),
+          new Date().toISOString(),
+          OTP_LOCK_TTL_SECONDS,
+        );
+        await this.redisService.del(otpFailKey(normalizedEmail));
+
+        if (locked) {
+          // Audit log — captured by ops via stdout collection. When the
+          // audit_logs table from feat/242 lands, swap this for a row insert.
+          this.logger.warn(
+            `AUDIT_LOCKOUT email=${normalizedEmail} failures=${failures} ttl=${OTP_LOCK_TTL_SECONDS}s`,
+          );
+        }
+
+        throw new HttpException(
+          {
+            success: false,
+            message: 'Account locked. Try again after 30 minutes.',
+          },
+          HttpStatus.LOCKED,
+        );
+      }
+
       throw new BadRequestException('Invalid or expired OTP');
     }
 
@@ -263,6 +346,7 @@ export class AuthService {
     await user.update({ password: hashedPassword });
 
     await this.redisService.del(redisKey);
+    await this.redisService.del(otpFailKey(normalizedEmail));
 
     return {
       message: 'Password has been reset successfully',

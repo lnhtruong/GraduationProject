@@ -17,6 +17,7 @@ import { CoursesService } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CourseStatus } from 'src/models/course.model';
+import { buildRequesterFromHeaders } from 'src/audit_logs/requester.types';
 
 @Controller('courses')
 export class CoursesController {
@@ -123,8 +124,15 @@ export class CoursesController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.coursesService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
+  ) {
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua) ?? undefined;
+    return this.coursesService.remove(id, requester);
   }
 
   @Post(':id/submit-for-review')
@@ -136,12 +144,24 @@ export class CoursesController {
   review(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: 'accepted' | 'rejected' },
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
   ) {
-    return this.coursesService.review(id, body.status);
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua) ?? undefined;
+    return this.coursesService.review(id, body.status, requester);
   }
 
   @Post(':id/publish')
-  publish(@Param('id', ParseIntPipe) id: number) {
-    return this.coursesService.publish(id);
+  publish(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
+  ) {
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua) ?? undefined;
+    return this.coursesService.publish(id, requester);
   }
 }
