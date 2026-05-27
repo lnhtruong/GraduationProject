@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitReport } from "../api/report.hooks";
-import type { ReportTargetType } from "@/features/admin/types/report.types";
+import type { ReportTargetType } from "../types";
 
 interface Props {
   open: boolean;
