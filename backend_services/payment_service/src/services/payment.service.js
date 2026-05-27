@@ -1,5 +1,6 @@
 const { PayOS } = require("@payos/node");
 const axios = require("axios");
+const crypto = require("crypto");
 const {
   publishPaymentWebhook,
   publishPaymentSuccess,
@@ -12,6 +13,7 @@ const db = require("../models");
 const Transaction = db.Transaction;
 const TransactionItem = db.TransactionItem;
 const Course = db.Course;
+const WebhookEvent = db.WebhookEvent;
 require("dotenv").config();
 
 const payos = new PayOS(
@@ -522,56 +524,81 @@ const payosCallback = async (req) => {
   try {
     const webhookData = await payos.webhooks.verify(req.body);
 
-    if (webhookData) {
-      console.log(`💵 Đơn hàng ${webhookData.orderCode} đã được xử lý`);
-
-      const oldData = (await getPaymentData(webhookData.orderCode)) || {};
-
-      const isSuccess = webhookData.code === "00";
-      const updatedData = {
-        ...oldData,
-        ...webhookData,
-        status: isSuccess ? "paid" : "failed",
-      };
-
-      await savePaymentData(webhookData.orderCode, updatedData);
-      await updateTransactionStatus(webhookData.orderCode, updatedData.status);
-
-      publishPaymentWebhook(updatedData);
-
-      if (isSuccess) {
-        publishPaymentSuccess(webhookData.orderCode, {
-          user_id: oldData.user_id,
-          transaction_id: oldData.transaction_id,
-          courseItems: oldData.courseItems || [],
-        });
-
-        // Tự động enroll user vào khóa học
-        enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
-          (err) => {
-            console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
-          },
-        );
-
-        // Xoá khỏi giỏ hàng chỉ khi thanh toán thành công
-        removePurchasedCoursesFromCart(oldData.user_id, oldData.courseItems || []).catch(
-          (err) => {
-            console.error("❌ Lỗi xoá cart sau thanh toán:", err.message);
-          },
-        );
-      } else {
-        publishPaymentFailed(
-          webhookData.orderCode,
-          webhookData.desc || "Payment failed",
-        );
-      }
-
-      return { message: "Callback nhận thành công", data: webhookData };
-    } else {
+    if (!webhookData) {
       const error = new Error("Chữ ký không hợp lệ");
       error.status = 403;
       throw error;
     }
+
+    const eventId = String(webhookData.orderCode);
+    const signatureHash = req.body?.signature
+      ? crypto
+          .createHash("sha256")
+          .update(String(req.body.signature))
+          .digest("hex")
+      : null;
+
+    // Idempotency gate — INSERT IGNORE-style via findOrCreate on unique (provider, event_id).
+    // PayOS hay retry webhook khi nó không nhận được 200 trong thời gian timeout của nó.
+    const [, created] = await WebhookEvent.findOrCreate({
+      where: { provider: "payos", event_id: eventId },
+      defaults: {
+        provider: "payos",
+        event_id: eventId,
+        signature_hash: signatureHash,
+        payload: req.body || null,
+      },
+    });
+
+    if (!created) {
+      console.log(`[payos-callback] duplicate webhook ignored: ${eventId}`);
+      return { message: "Callback nhận thành công", data: webhookData, duplicate: true };
+    }
+
+    console.log(`💵 Đơn hàng ${webhookData.orderCode} đã được xử lý`);
+
+    const oldData = (await getPaymentData(webhookData.orderCode)) || {};
+
+    const isSuccess = webhookData.code === "00";
+    const updatedData = {
+      ...oldData,
+      ...webhookData,
+      status: isSuccess ? "paid" : "failed",
+    };
+
+    await savePaymentData(webhookData.orderCode, updatedData);
+    await updateTransactionStatus(webhookData.orderCode, updatedData.status);
+
+    publishPaymentWebhook(updatedData);
+
+    if (isSuccess) {
+      publishPaymentSuccess(webhookData.orderCode, {
+        user_id: oldData.user_id,
+        transaction_id: oldData.transaction_id,
+        courseItems: oldData.courseItems || [],
+      });
+
+      // Tự động enroll user vào khóa học
+      enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
+        (err) => {
+          console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
+        },
+      );
+
+      // Xoá khỏi giỏ hàng chỉ khi thanh toán thành công
+      removePurchasedCoursesFromCart(oldData.user_id, oldData.courseItems || []).catch(
+        (err) => {
+          console.error("❌ Lỗi xoá cart sau thanh toán:", err.message);
+        },
+      );
+    } else {
+      publishPaymentFailed(
+        webhookData.orderCode,
+        webhookData.desc || "Payment failed",
+      );
+    }
+
+    return { message: "Callback nhận thành công", data: webhookData };
   } catch (error) {
     console.error("Lỗi xác thực webhook:", error.message);
     const err = new Error(error.message || "Lỗi xử lý webhook");

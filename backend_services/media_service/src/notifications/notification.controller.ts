@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Patch,
+  Post,
   Put,
   Param,
   Query,
@@ -14,6 +16,7 @@ import {
 import { NotificationService } from './notification.service';
 import { PatchNotificationDto } from './dto/patch-notification.dto';
 import { BulkUpdateNotificationsDto } from './dto/bulk-update-notifications.dto';
+import { CreateInternalNotificationDto } from './dto/create-internal-notification.dto';
 
 @Controller('notifications')
 export class NotificationController {
@@ -25,6 +28,33 @@ export class NotificationController {
       throw new UnauthorizedException('Authentication required');
     }
     return userId;
+  }
+
+  // Server-to-server endpoint. Not exposed via api_gateway — other services
+  // call media_service directly (e.g. http://localhost:8003/notifications/internal).
+  // Optional shared-secret check via INTERNAL_SERVICE_SECRET env var.
+  @Post('internal')
+  @HttpCode(201)
+  async createInternal(
+    @Headers('x-internal-secret') secret: string | undefined,
+    @Body() body: CreateInternalNotificationDto,
+  ) {
+    const expected = process.env.INTERNAL_SERVICE_SECRET;
+    if (expected && expected !== secret) {
+      throw new UnauthorizedException('Invalid internal secret');
+    }
+
+    const row = await this.notificationService.createAndEmit({
+      userId: body.userId,
+      eventType: body.eventType,
+      sseEventType: body.sseEventType,
+      title: body.title,
+      message: body.message ?? null,
+      payload: body.payload,
+      sourceType: body.sourceType,
+      sourceId: body.sourceId,
+    });
+    return this.notificationService.toResponse(row);
   }
 
   @Get()
