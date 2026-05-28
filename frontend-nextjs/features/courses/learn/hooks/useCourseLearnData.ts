@@ -8,6 +8,7 @@ import {
 import { useVideoById } from "../../../video/api/video.hooks";
 import {
   useLessonProgressByCourseId,
+  useLessonProgressHeartbeat,
   useUpsertLessonProgress,
 } from "../api/lesson-progress.hooks";
 import { useEnrollmentCheck } from "../../api/enrollment.api";
@@ -29,8 +30,10 @@ export function useCourseLearnData(courseId: number) {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
-  const { data: enrollment, isLoading: enrollmentLoading, isError: enrollmentError } =
-    useEnrollmentCheck(courseId, user?.id);
+  const { data: enrollment, isLoading: enrollmentLoading } = useEnrollmentCheck(
+    courseId,
+    user?.id,
+  );
 
   // enrollmentSettled: true khi store đã hydrate VÀ query đã chạy xong (không còn loading).
   // Khi userId chưa có (store chưa hydrate), query bị disabled → isLoading=false ngay
@@ -39,10 +42,10 @@ export function useCourseLearnData(courseId: number) {
 
   useEffect(() => {
     if (!enrollmentSettled) return;
-    if (!isAuthenticated || enrollmentError || enrollment == null) {
+    if (!isAuthenticated || enrollment == null) {
       router.replace(`/courses/${courseId}`);
     }
-  }, [courseId, enrollment, enrollmentError, enrollmentSettled, isAuthenticated, router]);
+  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, router]);
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
@@ -64,6 +67,7 @@ export function useCourseLearnData(courseId: number) {
   } = useLessonProgressByCourseId(courseId, Boolean(course && lessons.length));
   const { mutate: upsertLessonProgress, isPending: lessonProgressUpdating } =
     useUpsertLessonProgress(courseId);
+  const { mutate: sendLessonHeartbeat } = useLessonProgressHeartbeat();
 
   const lessonProgressMap = useMemo(
     () =>
@@ -143,8 +147,39 @@ export function useCourseLearnData(courseId: number) {
     [lessonProgressMap, selectedLesson],
   );
 
+  const queryResumeSecRaw = Number(searchParams.get("resumeSec") ?? 0);
+  const queryResumeSec = Number.isFinite(queryResumeSecRaw)
+    ? Math.max(0, queryResumeSecRaw)
+    : 0;
+  const forceResumeFromQuery = searchParams.get("resume") === "1";
+
+  const selectedLessonLastPositionSec = useMemo(() => {
+    if (!selectedLessonProgress) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      Number(
+        selectedLessonProgress.lastVideoPositionSec ??
+          // fallback for raw snake_case payloads
+          (
+            selectedLessonProgress as LessonProgressRecord & {
+              last_video_position_sec?: number;
+            }
+          ).last_video_position_sec ??
+          0,
+      ),
+    );
+  }, [selectedLessonProgress]);
+
   useEffect(() => {
-    if (!selectedLesson || lessonProgressLoading || lessonProgressUpdating) {
+    if (
+      !selectedLesson ||
+      lessonProgressLoading ||
+      lessonProgressFetching ||
+      lessonProgressUpdating
+    ) {
       return;
     }
 
@@ -164,6 +199,7 @@ export function useCourseLearnData(courseId: number) {
   }, [
     courseId,
     lessonProgressLoading,
+    lessonProgressFetching,
     lessonProgressUpdating,
     selectedLesson,
     selectedLessonProgress?.id,
@@ -251,6 +287,16 @@ export function useCourseLearnData(courseId: number) {
     [courseId, upsertLessonProgress],
   );
 
+  const sendHeartbeat = useCallback(
+    (lessonProgressId: number, positionSec: number) => {
+      sendLessonHeartbeat({
+        lessonProgressId,
+        position: Math.max(0, Math.trunc(positionSec)),
+      });
+    },
+    [sendLessonHeartbeat],
+  );
+
   return {
     course,
     courseLoading,
@@ -263,6 +309,10 @@ export function useCourseLearnData(courseId: number) {
     selectedLessonIndex,
     selectedLessonDuration,
     selectedLessonVideo,
+    selectedLessonLastPositionSec,
+    initialResumePositionSec:
+      queryResumeSec > 0 ? queryResumeSec : selectedLessonLastPositionSec,
+    shouldForceResumeFromQuery: forceResumeFromQuery,
     hasNextLesson,
     nextLesson,
     inVideoQuizPoints,
@@ -275,5 +325,6 @@ export function useCourseLearnData(courseId: number) {
     progressSyncing,
     handleSelectLesson,
     markLessonCompleted,
+    sendHeartbeat,
   };
 }

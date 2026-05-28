@@ -17,6 +17,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useFeaturedCourses } from "./api/home.hooks";
 import { PageLoader } from "@/components/PageLoader";
 import { CourseCard } from "./component/CourseCard";
+import { useContinueWatchingList } from "@/features/courses/learn/api/lesson-progress.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 
 // ─── Static config (UI copy / icons – không cần từ backend) ─────────────────
 
@@ -62,9 +65,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"learner" | "teacher">("learner");
   const features =
     activeTab === "learner" ? LEARNER_FEATURES : TEACHER_FEATURES;
+  const { isAuthenticated } = useAuthState();
 
   const { data: featuredCourses, isLoading: coursesLoading } =
     useFeaturedCourses();
+  const { data: continueWatchingList, isLoading: continueWatchingLoading } =
+    useContinueWatchingList(10, isAuthenticated);
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -174,6 +180,116 @@ export default function Home() {
       </section>
 
       {/* ── 3. Featured Courses ──────────────────────────────────────────────── */}
+      <section className="py-14 border-t border-border/40">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Tiếp tục học
+            </h2>
+          </div>
+
+          {continueWatchingLoading ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card
+                  key={`continue-skeleton-${index}`}
+                  className="overflow-hidden border-border/60"
+                >
+                  <CardContent className="p-0">
+                    <Skeleton className="aspect-video w-full rounded-none" />
+                    <div className="space-y-3 p-4">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-9 w-36 rounded-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : continueWatchingList?.length ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {continueWatchingList.map((item) => (
+                <Link
+                  key={`${item.lessonProgressId}-${item.lessonId}`}
+                  href={`/courses/${item.courseId}/learn?lessonId=${item.lessonId}&resume=1&resumeSec=${Math.max(0, item.lastVideoPositionSec)}`}
+                >
+                  <Card className="group h-full overflow-hidden border-border/60 bg-card/90 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg">
+                    <CardContent className="p-0">
+                      <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-slate-950">
+                        {item.thumbnailUrl ? (
+                          <Image
+                            src={item.thumbnailUrl}
+                            alt={item.lessonTitle}
+                            fill
+                            unoptimized
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md">
+                          Tiếp tục học
+                        </div>
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{
+                                width: `${Math.min(100, Math.max(2, item.percentage || 0))}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-4">
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground line-clamp-1">
+                          {item.courseTitle}
+                        </p>
+                        <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">
+                          {item.lessonTitle}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Đã xem đến{" "}
+                          {Math.floor(item.lastVideoPositionSec / 60)}:
+                          {String(
+                            Math.floor(item.lastVideoPositionSec % 60),
+                          ).padStart(2, "0")}
+                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            {Math.max(0, item.percentage || 0)}% hoàn thành
+                          </span>
+                          <Button
+                            size="sm"
+                            className="rounded-full px-4 shadow-sm"
+                            variant="outline"
+                          >
+                            Tiếp tục <ArrowRight className="ml-1 h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Card className="overflow-hidden border-dashed border-border/60 bg-card/70">
+              <CardContent className="flex flex-col items-start gap-2 p-6 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  Chưa có bài học đang xem dở
+                </p>
+                <p>
+                  Khi bạn xem video và dừng lại, mục này sẽ tự lưu vị trí để
+                  quay lại ngay.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
       <section className="py-16 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">

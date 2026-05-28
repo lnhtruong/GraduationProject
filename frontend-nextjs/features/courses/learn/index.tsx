@@ -84,15 +84,19 @@ export default function CourseLearnPage({ courseId }: Props) {
         <div className="absolute right-0 top-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
       </div>
 
-      <main className="relative mx-auto max-w-360 px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
-        <div className="mb-4 text-sm text-muted-foreground">
+      <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
+        <div className="mb-5 flex items-center justify-between gap-3 text-sm text-muted-foreground">
           Khóa học <span className="px-1">&gt;</span> {state.course.name}{" "}
           <span className="px-1">&gt;</span> {state.selectedLesson.title}
+          <span className="hidden rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs text-muted-foreground xl:inline-flex">
+            Phát video, tua nhanh, resume và tiếp tục học theo kiểu watch page
+          </span>
         </div>
 
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
           <div className="min-w-0 flex-1 space-y-6">
             <LessonVideoCard
+              lessonTitle={state.selectedLesson.title}
               selectedLessonVideoUrl={state.selectedLessonVideo?.url}
               currentLessonDurationLabel={state.currentLessonDurationLabel}
               selectedLessonDuration={state.playbackDuration}

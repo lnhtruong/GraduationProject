@@ -1,10 +1,13 @@
 import { createCrudHooks } from "@/features/_shared/crud-factories";
 import { createMutationHooks } from "@/features/_shared/react-query-factories";
+import { useQuery } from "@tanstack/react-query";
 import {
+  lessonProgressExtraApi,
   lessonProgressApi,
   type LessonProgressListParams,
 } from "./lesson-progress.api";
 import type {
+  ContinueWatchingLesson,
   LessonProgressRecord,
   LessonProgressStatus,
   UpsertLessonProgressPayload,
@@ -37,6 +40,11 @@ const { useListByParent: useLessonProgressListByCourseId } =
   lessonProgressHooks;
 
 export type { LessonProgressRecord, LessonProgressStatus } from "../types";
+
+type LessonProgressHeartbeatPayload = {
+  lessonProgressId: number;
+  position: number;
+};
 
 function mergeLessonProgress(
   existing: LessonProgressRecord[],
@@ -93,4 +101,57 @@ export function useUpsertLessonProgress(courseId: number | null) {
   }
 
   return useUpsertLessonProgressBase();
+}
+
+const useLessonProgressHeartbeatBase = createMutationHooks<
+  { ok?: boolean; position: number; lastWatchedAt?: string },
+  LessonProgressHeartbeatPayload
+>(
+  "lesson-progress",
+  "heartbeat",
+  async (payload) => {
+    return lessonProgressExtraApi.heartbeat(payload.lessonProgressId, {
+      position: payload.position,
+    });
+  },
+  {
+    retry: false,
+    onSuccess: (savedResponse, payload, queryClient) => {
+      queryClient.setQueriesData<LessonProgressRecord[]>(
+        { queryKey: lessonProgressKeys.root },
+        (current) => {
+          if (!current?.length) {
+            return current;
+          }
+
+          return current.map((record) =>
+            record.id === payload.lessonProgressId
+              ? {
+                  ...record,
+                  lastVideoPositionSec: savedResponse.position,
+                  lastWatchedAt: savedResponse.lastWatchedAt,
+                }
+              : record,
+          );
+        },
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: ["lesson-progress", "continue-watching"],
+      });
+    },
+  },
+);
+
+export function useLessonProgressHeartbeat() {
+  return useLessonProgressHeartbeatBase();
+}
+
+export function useContinueWatchingList(limit = 10, enabled = true) {
+  return useQuery({
+    queryKey: ["lesson-progress", "continue-watching", { limit }],
+    queryFn: () => lessonProgressExtraApi.getContinueWatching(limit),
+    enabled,
+    staleTime: 60 * 1000,
+  });
 }

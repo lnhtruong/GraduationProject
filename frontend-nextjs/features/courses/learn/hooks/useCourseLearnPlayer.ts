@@ -28,6 +28,8 @@ interface Props {
     lessonId: number,
     lessonProgressId?: number | null,
   ) => void;
+  onHeartbeat: (lessonProgressId: number, positionSec: number) => void;
+  initialResumePositionSec: number;
   selectedLessonProgressId?: number | null;
 }
 
@@ -40,6 +42,8 @@ export function useCourseLearnPlayer({
   lessons,
   onSelectLesson,
   onMarkLessonCompleted,
+  onHeartbeat,
+  initialResumePositionSec,
   selectedLessonProgressId,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -75,6 +79,8 @@ export function useCourseLearnPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const lastVolumeRef = useRef(1);
+  const pendingResumePositionRef = useRef<number | null>(null);
+  const lastHeartbeatAtRef = useRef<number>(0);
 
   const activeQuizPoint = useMemo(
     () =>
@@ -336,13 +342,22 @@ export function useCourseLearnPlayer({
     selectedLessonProgressId,
   ]);
 
-  const handleVideoMetadataLoaded = useCallback((duration: number) => {
-    if (!Number.isFinite(duration) || duration <= 0) {
-      return;
-    }
+  const handleVideoMetadataLoaded = useCallback(
+    (duration: number) => {
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return;
+      }
 
-    setVideoDuration(duration);
-  }, []);
+      setVideoDuration(duration);
+
+      const pendingResumePosition = pendingResumePositionRef.current;
+      if (pendingResumePosition !== null && pendingResumePosition > 0) {
+        seekVideoTo(pendingResumePosition, true);
+        pendingResumePositionRef.current = null;
+      }
+    },
+    [seekVideoTo],
+  );
 
   const handleCompleteLesson = useCallback(() => {
     if (!selectedLesson) {
@@ -443,6 +458,10 @@ export function useCourseLearnPlayer({
   }, [activeQuizPoint]);
 
   useEffect(() => {
+    lastHeartbeatAtRef.current = 0;
+  }, [selectedLesson?.id]);
+
+  useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       if (inVideoQuizResolveTimeoutRef.current !== null) {
         window.clearTimeout(inVideoQuizResolveTimeoutRef.current);
@@ -466,10 +485,42 @@ export function useCourseLearnPlayer({
       if (videoRef.current) {
         videoRef.current.playbackRate = 1;
       }
+
+      const resumePosition = Math.max(0, initialResumePositionSec || 0);
+      if (resumePosition > 0) {
+        pendingResumePositionRef.current = resumePosition;
+      } else {
+        pendingResumePositionRef.current = null;
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [selectedLesson?.id, selectedLessonDuration]);
+  }, [initialResumePositionSec, selectedLesson?.id, selectedLessonDuration]);
+
+  useEffect(() => {
+    if (!selectedLessonProgressId || !selectedLesson || !isPlaying) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.paused || video.ended) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastHeartbeatAtRef.current < 10_000) {
+        return;
+      }
+
+      lastHeartbeatAtRef.current = now;
+      onHeartbeat(selectedLessonProgressId, Math.max(0, video.currentTime));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isPlaying, onHeartbeat, selectedLesson, selectedLessonProgressId]);
 
   useEffect(() => {
     if (activeQuizPointId) {

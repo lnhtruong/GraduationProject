@@ -70,6 +70,17 @@ export const courseApi = {
 	findById: courseCrudApi.getOne,
 	getAll: (params?: CourseListParams) =>
 		courseCrudApi.list?.(params) ?? Promise.resolve([]),
+	listMine: async (params?: CourseListParams) => {
+		// Backend exposes a dedicated "mine" endpoint for instructor-owned courses
+		try {
+			const { data } = await apiHttpClient.get<CourseListResponse>(
+				"/course/courses/mine",
+			);
+			return (Array.isArray(data) ? data : data.data ?? []).map(mapCourse);
+		} catch (err) {
+			return [];
+		}
+	},
 };
 
 export const courseWorkflowApi = {

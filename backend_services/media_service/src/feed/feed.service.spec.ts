@@ -133,7 +133,7 @@ describe('FeedService — hashtag filter & trending hashtags', () => {
       expect(sql).toContain("JSON_QUOTE('#javascript')");
     });
 
-    it('hashtag="#JavaScript" được normalize (lowercase, strip #)', async () => {
+    it('hashtag="#UIUX" → giữ cả case gốc lẫn lowercase (JSON_CONTAINS case-sensitive) + fallback JSON_SEARCH', async () => {
       highlightFeedModel.findAll.mockResolvedValueOnce([]);
       await service.getFeed(
         undefined,
@@ -143,14 +143,20 @@ describe('FeedService — hashtag filter & trending hashtags', () => {
         'search',
         undefined,
         undefined,
-        '#JavaScript',
+        '#UIUX',
       );
 
       const call = highlightFeedModel.findAll.mock.calls[0][0];
       const sql = captureSql()(call.where[Op.and][0]);
-      expect(sql).toContain("JSON_QUOTE('javascript')");
-      expect(sql).toContain("JSON_QUOTE('#javascript')");
-      expect(sql).not.toContain('JavaScript');
+      // Nhánh nhanh: 4 biến thể exact JSON_CONTAINS
+      expect(sql).toContain("JSON_QUOTE('UIUX')");
+      expect(sql).toContain("JSON_QUOTE('#UIUX')");
+      expect(sql).toContain("JSON_QUOTE('uiux')");
+      expect(sql).toContain("JSON_QUOTE('#uiux')");
+      // Nhánh fallback: JSON_SEARCH case-insensitive
+      expect(sql).toContain('JSON_SEARCH(LOWER(CAST(HighlightFeed.hashtags AS CHAR))');
+      expect(sql).toContain("'uiux'");
+      expect(sql).toContain("'#uiux'");
     });
 
     it('hashtag rỗng / chỉ có dấu # → bỏ qua filter', async () => {
