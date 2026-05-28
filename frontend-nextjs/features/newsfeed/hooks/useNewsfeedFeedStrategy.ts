@@ -39,6 +39,12 @@ export function useNewsfeedViewTracker(params: {
 	}, [params.feedId]);
 
 	useEffect(() => {
+		if (params.isActive) {
+			didRecordRef.current = false;
+		}
+	}, [params.isActive]);
+
+	useEffect(() => {
 		latestSnapshotRef.current = {
 			currentTime: params.currentTime,
 			duration: params.duration,
