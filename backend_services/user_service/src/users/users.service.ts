@@ -6,9 +6,36 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op, WhereOptions } from 'sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuditLogsService } from '../audit_logs/audit-logs.service';
+
+export interface RequesterContext {
+  userId: number;
+  role: number;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+export interface ListUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: number;
+  isBanned?: boolean;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+const USER_SORTABLE_COLUMNS = new Set([
+  'createdAt',
+  'email',
+  'firstName',
+  'lastName',
+  'id',
+]);
 
 export enum UserRole {
   ADMIN = 1,
@@ -23,8 +50,21 @@ export class UsersService {
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
+    private readonly auditLogsService: AuditLogsService,
     private readonly configService: ConfigService,
   ) { }
+
+  private auditableUserSnapshot(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isBanned: user.isBanned,
+      emailVerified: (user as User & { emailVerified?: boolean }).emailVerified ?? null,
+    };
+  }
 
   private toPublicUser(user: User | Record<string, any>) {
     return {
@@ -34,6 +74,7 @@ export class UsersService {
       lastName: user.lastName,
       role: user.role,
       emailVerified: user.emailVerified,
+      isBanned: user.isBanned,
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -67,19 +108,80 @@ export class UsersService {
     return this.toPublicUser(user);
   }
 
-  async getAllUsers() {
-    const users = await this.userModel.findAll({
+  async getAllUsers(params: ListUsersParams = {}) {
+    const where: WhereOptions = {};
+
+    if (params.search && params.search.trim().length > 0) {
+      const keyword = `%${params.search.trim()}%`;
+      (where as any)[Op.or] = [
+        { email: { [Op.like]: keyword } },
+        { firstName: { [Op.like]: keyword } },
+        { lastName: { [Op.like]: keyword } },
+      ];
+    }
+
+    if (Number.isInteger(params.role)) {
+      (where as any).role = params.role;
+    }
+
+    if (typeof params.isBanned === 'boolean') {
+      (where as any).isBanned = params.isBanned;
+    }
+
+    const sortBy = USER_SORTABLE_COLUMNS.has(params.sortBy ?? '')
+      ? (params.sortBy as string)
+      : 'id';
+    const sortOrder =
+      typeof params.sortOrder === 'string' &&
+      params.sortOrder.toLowerCase() === 'desc'
+        ? 'DESC'
+        : 'ASC';
+
+    const shouldPaginate =
+      params.page !== undefined || params.limit !== undefined;
+
+    if (!shouldPaginate) {
+      const users = await this.userModel.findAll({
+        where,
+        attributes: { exclude: ['password'] },
+        order: [[sortBy, sortOrder]],
+      });
+      return users.map((user) => this.toPublicUser(user));
+    }
+
+    const safePage =
+      Number.isInteger(params.page) && (params.page as number) > 0
+        ? (params.page as number)
+        : 1;
+    const safeLimit =
+      Number.isInteger(params.limit) && (params.limit as number) > 0
+        ? Math.min(params.limit as number, 100)
+        : 15;
+    const offset = (safePage - 1) * safeLimit;
+
+    const { rows, count } = await this.userModel.findAndCountAll({
+      where,
       attributes: { exclude: ['password'] },
-      order: [['id', 'ASC']],
+      order: [[sortBy, sortOrder]],
+      offset,
+      limit: safeLimit,
     });
 
-    return users.map((user) => this.toPublicUser(user));
+    return {
+      data: rows.map((user) => this.toPublicUser(user)),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        totalItems: count,
+        totalPages: Math.ceil(count / safeLimit),
+      },
+    };
   }
 
   async updateUserById(
     userId: number,
     payload: UpdateUserDto,
-    requester: { userId: number; role: number },
+    requester: RequesterContext,
   ) {
     const user = await this.userModel.findByPk(userId);
     if (!user) {
@@ -90,6 +192,12 @@ export class UsersService {
     if (payload.role !== undefined && requester.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can update role');
     }
+
+    // Chỉ admin mới có quyền ban / unban.
+    if (payload.isBanned !== undefined && requester.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admin can ban or unban a user');
+    }
+    const before = this.auditableUserSnapshot(user);
 
     const updatePayload: Partial<User> & { password?: string } = { ...payload };
 
@@ -106,12 +214,38 @@ export class UsersService {
     }
 
     await user.update(updatePayload);
+
+    // Audit only when an admin acts on someone else, or any role change occurred.
+    // Self-updates by non-admin (e.g. avatar) are not interesting audit material.
+    const roleChanged = payload.role !== undefined && before.role !== user.role;
+    const adminActingOnOther =
+      requester.role === UserRole.ADMIN && requester.userId !== userId;
+    if (adminActingOnOther || roleChanged) {
+      const after = this.auditableUserSnapshot(user);
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: roleChanged ? 'user.role.update' : 'user.update',
+        targetType: 'user',
+        targetId: user.id,
+        before,
+        after,
+        metadata: {
+          fieldsChanged: Object.keys(payload).filter(
+            (k) => k !== 'password',
+          ),
+        },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
     return this.getUserById(userId);
   }
 
   async resetUserById(
     userId: number,
-    requester: { userId: number; role: number },
+    requester: RequesterContext,
   ) {
     if (requester.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can reset user');
@@ -137,6 +271,17 @@ export class UsersService {
     );
 
     await user.update({ password: hashedDefaultPassword });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'user.password_reset',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { resetTo: 'default' },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
 
     return {
       message: 'User password has been reset to default value',

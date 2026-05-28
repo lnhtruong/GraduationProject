@@ -1,12 +1,30 @@
-import CourseFeedManagementPage from "@/features/instructor/course-management/CourseFeedManagementPage";
+"use client";
 
-export const metadata = { title: "Quản lý feed khóa học — Teacher Mode" };
+import { use } from "react";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const CourseFeedManagementPage = dynamic(
+  () =>
+    import(
+      "@/features/instructor/course-management/CourseFeedManagementPage"
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    ),
+  },
+);
 
 interface Props {
   params: Promise<{ courseId: string }>;
 }
 
-export default async function Page({ params }: Props) {
-  const { courseId } = await params;
+export default function Page({ params }: Props) {
+  const { courseId } = use(params);
   return <CourseFeedManagementPage courseId={Number(courseId)} />;
 }

@@ -117,8 +117,6 @@ export interface CourseDetail {
   previewVideoUrl?: string;
   /** AI-generated highlight clip shown on card hover */
   highlightClipUrl?: string;
-  whatYouLearn: string[];
-  requirements: string[];
   categories: CourseCategory[];
   level: CourseLevel;
   /** total duration in seconds */

@@ -14,6 +14,14 @@ import type {
 // Raw backend shapes
 // ---------------------------------------------------------------------------
 
+interface RawVideo {
+  id?: number;
+  url?: string | null;
+  thumbnail?: string | null;
+  bunny_video_guid?: string | null;
+  duration?: number | null;
+}
+
 interface RawCourse {
   id?: number;
   name?: string;
@@ -27,6 +35,7 @@ interface RawCourse {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  video?: RawVideo | null;
 }
 
 interface RawLesson {
@@ -41,6 +50,7 @@ interface RawUser {
   id?: number;
   firstName?: string;
   lastName?: string;
+  avatarUrl?: string | null;
 }
 
 interface RawLessonListResponse {
@@ -71,6 +81,7 @@ function mapInstructor(raw: RawUser): CourseInstructor {
     id: raw.id ?? 0,
     firstName: raw.firstName ?? "",
     lastName: raw.lastName ?? "",
+    avatarUrl: raw.avatarUrl ?? undefined,
   };
 }
 
@@ -135,23 +146,26 @@ async function fetchCourseDetail(courseId: number): Promise<CourseDetail> {
   ]);
 
   const description = raw.description ?? "";
-  const shortDescription = description.slice(0, 300);
+  const shortDescription =
+    description.length <= 300
+      ? description
+      : description.slice(0, 300).replace(/\s+\S*$/, "") + "…";
   const categories = (raw.categories ?? []).map((name, i) => ({ id: i, name }));
 
   // Prefer summing lesson durations; fall back to course-level duration field
   const lessonsDuration = lessons.reduce((acc, l) => acc + l.duration, 0);
   const duration = lessonsDuration > 0 ? lessonsDuration : parseHHMMSS(raw.duration);
 
+  const video = raw.video ?? null;
+
   return {
     id: raw.id ?? courseId,
     name: raw.name ?? "",
     shortDescription,
     description,
-    thumbnailUrl: undefined,
-    previewVideoUrl: undefined,
+    thumbnailUrl: video?.thumbnail ?? undefined,
+    previewVideoUrl: video?.url ?? undefined,
     highlightClipUrl: undefined,
-    whatYouLearn: [],
-    requirements: [],
     categories,
     level: (raw.level as CourseDetail["level"]) ?? "Beginner",
     duration,

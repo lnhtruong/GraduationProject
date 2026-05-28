@@ -5,10 +5,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
 } from 'class-validator';
-import { CourseLevel, CourseStatus } from 'src/models/course.model';
+import { CourseLevel } from 'src/models/course.model';
 
 export class CreateCourseDto {
   @IsString()
@@ -18,6 +17,16 @@ export class CreateCourseDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @MaxLength(2048)
+  @IsOptional()
+  thumbnailUrl?: string | null;
+
+  @IsString()
+  @MaxLength(2048)
+  @IsOptional()
+  thumbnail_url?: string | null;
 
   @IsArray()
   categories: string[];

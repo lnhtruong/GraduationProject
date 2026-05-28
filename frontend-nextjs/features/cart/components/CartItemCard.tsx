@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Play, Star, Trash2, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Play, Star, Trash2, Bookmark, BookmarkCheck } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
 
@@ -52,11 +52,6 @@ export function CartItemCard({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
 
-  const discountPct =
-    item.originalPrice && item.originalPrice > item.price
-      ? Math.round((1 - item.price / item.originalPrice) * 100)
-      : null;
-
   const handleMouseEnter = () => {
     if (!item.highlightVideoUrl || !videoRef.current) return;
     videoRef.current.play().catch(() => {});
@@ -77,7 +72,8 @@ export function CartItemCard({
         ${isRemoving ? "pointer-events-none opacity-40" : ""}`}
     >
       {/* ── Thumbnail ─────────────────────────────────────────────── */}
-      <div
+      <Link
+        href={`/courses/${item.courseId}`}
         className="group relative aspect-video w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-[140px]"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -128,14 +124,16 @@ export function CartItemCard({
             Xem thử
           </span>
         )}
-      </div>
+      </Link>
 
       {/* ── Content ───────────────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         {/* Title */}
-        <h3 className="line-clamp-2 text-[15px] font-bold leading-snug">
-          {item.title}
-        </h3>
+        <Link href={`/courses/${item.courseId}`}>
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug hover:text-primary transition-colors">
+            {item.title}
+          </h3>
+        </Link>
 
         {/* Meta */}
         <p className="text-xs text-muted-foreground">
@@ -165,20 +163,10 @@ export function CartItemCard({
         <div className="flex-1" />
 
         {/* Price */}
-        <div className="flex flex-wrap items-baseline gap-2">
+        <div className="flex items-baseline gap-2">
           <span className="text-[17px] font-extrabold">
             {formatPrice(item.price)}
           </span>
-          {item.originalPrice && item.originalPrice > item.price && (
-            <span className="text-sm text-muted-foreground line-through">
-              {formatPrice(item.originalPrice)}
-            </span>
-          )}
-          {discountPct && (
-            <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold text-white">
-              −{discountPct}%
-            </span>
-          )}
         </div>
 
         {/* Actions */}

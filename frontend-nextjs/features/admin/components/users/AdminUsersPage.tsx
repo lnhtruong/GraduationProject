@@ -47,6 +47,7 @@ import { useAdminUsers, useAdminUpdateUser, useAdminResetPassword } from "../../
 import type { AdminUser } from "../../api/admin-users.api";
 import { ROLES, getRoleName } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type RoleFilter = "all" | "1" | "2" | "3";
 type BanFilter = "all" | "active" | "banned";
@@ -101,6 +102,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
+  const { user: currentUser } = useAuth();
   const { data: users = [], isLoading, isError, refetch } = useAdminUsers();
   const updateUser = useAdminUpdateUser();
   const resetPassword = useAdminResetPassword();
@@ -141,9 +143,12 @@ export default function AdminUsersPage() {
     try {
       switch (confirmAction.type) {
         case "ban":
+          await updateUser.mutateAsync({ id: confirmAction.user.id, dto: { isBanned: true } });
+          toast.success(`Đã khoá tài khoản ${confirmAction.user.email}`);
+          break;
         case "unban":
-          // TODO: chờ backend thêm isBanned vào UpdateUserDto
-          toast.error("Chức năng khoá tài khoản chưa được backend hỗ trợ.");
+          await updateUser.mutateAsync({ id: confirmAction.user.id, dto: { isBanned: false } });
+          toast.success(`Đã mở khoá tài khoản ${confirmAction.user.email}`);
           break;
         case "reset-password":
           await resetPassword.mutateAsync(confirmAction.user.id);
@@ -335,8 +340,31 @@ export default function AdminUsersPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          {/* Phân quyền — ẩn tạm, chờ backend hỗ trợ đổi role */}
+                        <DropdownMenuContent align="end" className="w-52">
+                          {/* Đổi vai trò */}
+                          <DropdownMenuLabel className="text-xs text-muted-foreground">Vai trò</DropdownMenuLabel>
+                          {([
+                            { role: ROLES.STUDENT, label: "Học viên" },
+                            { role: ROLES.LECTURER, label: "Giảng viên" },
+                            { role: ROLES.ADMIN, label: "Quản trị viên" },
+                          ] as const)
+                            .filter((r) => r.role !== user.role)
+                            .map((r) => {
+                              const isSelf = currentUser?.id === user.id;
+                              return (
+                                <DropdownMenuItem
+                                  key={r.role}
+                                  disabled={isSelf}
+                                  title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+                                  onClick={() =>
+                                    !isSelf &&
+                                    setConfirmAction({ type: "change-role", user, newRole: r.role })
+                                  }
+                                >
+                                  Đổi thành {r.label}
+                                </DropdownMenuItem>
+                              );
+                            })}
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel className="text-xs text-muted-foreground">Tài khoản</DropdownMenuLabel>
                           <DropdownMenuItem
@@ -345,25 +373,34 @@ export default function AdminUsersPage() {
                             <KeyRound className="mr-2 h-3.5 w-3.5" />
                             Đặt lại mật khẩu
                           </DropdownMenuItem>
-                          {user.isBanned ? (
-                            <DropdownMenuItem
-                              disabled
-                              className="text-emerald-600 opacity-50 focus:text-emerald-600"
-                              title="Chờ backend hỗ trợ"
-                            >
-                              <Ban className="mr-2 h-3.5 w-3.5" />
-                              Mở khoá (chưa hỗ trợ)
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              disabled
-                              className="text-destructive opacity-50 focus:text-destructive"
-                              title="Chờ backend hỗ trợ"
-                            >
-                              <Ban className="mr-2 h-3.5 w-3.5" />
-                              Khoá tài khoản (chưa hỗ trợ)
-                            </DropdownMenuItem>
-                          )}
+                          {(() => {
+                            const isSelf = currentUser?.id === user.id;
+                            return user.isBanned ? (
+                              <DropdownMenuItem
+                                disabled={isSelf}
+                                className="text-emerald-600 focus:text-emerald-600"
+                                title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+                                onClick={() =>
+                                  !isSelf && setConfirmAction({ type: "unban", user })
+                                }
+                              >
+                                <Ban className="mr-2 h-3.5 w-3.5" />
+                                Mở khoá tài khoản
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                disabled={isSelf}
+                                className="text-destructive focus:text-destructive"
+                                title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+                                onClick={() =>
+                                  !isSelf && setConfirmAction({ type: "ban", user })
+                                }
+                              >
+                                <Ban className="mr-2 h-3.5 w-3.5" />
+                                Khoá tài khoản
+                              </DropdownMenuItem>
+                            );
+                          })()}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

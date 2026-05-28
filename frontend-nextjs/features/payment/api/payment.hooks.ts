@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { paymentApi } from "./payment.api";
 import type { BuyNowResponse, PaymentLinkResponse } from "./payment.api";
 
@@ -36,8 +37,8 @@ export function useCreatePayment() {
     onSuccess: (data) => {
       redirectToPayOS(data.checkoutUrl);
     },
-    onError: (error) => {
-      console.error("Tạo thanh toán thất bại:", error);
+    onError: () => {
+      toast.error("Không thể tạo đơn thanh toán. Vui lòng thử lại.");
     },
   });
 }

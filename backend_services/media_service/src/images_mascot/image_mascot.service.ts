@@ -3,11 +3,12 @@ import { InjectModel } from '@nestjs/sequelize';
 // import { MascotImage } from './mascot-image.model';
 import { CreateMascotImageDto } from 'src/dto/create-mascot-image.dto';
 import { UpdateMascotImageDto } from 'src/dto/update-mascot-image.dto';
-import { MascotImage } from './images.model';
+import { MascotImage, MascotImageType } from './images.model';
 
 interface MascotImagePayload {
     user_id: number;
     url: string;
+    type: MascotImageType;
 }
 
 
@@ -26,6 +27,7 @@ export class MascotImageService {
         const payload: MascotImagePayload = {
             ...dto,
             user_id,
+            type: dto.type ?? MascotImageType.THUMBNAIL_VIDEO,
         };
 
         return this.mascotImageModel.create(payload as any);

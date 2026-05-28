@@ -18,6 +18,8 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
+import { RequesterContext } from 'src/audit_logs/requester.types';
 
 @Injectable()
 export class CoursesService {
@@ -32,7 +34,17 @@ export class CoursesService {
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
+    private readonly auditLogsService: AuditLogsService,
   ) { }
+
+  private auditableCourseSnapshot(course: Course) {
+    return {
+      id: course.id,
+      name: (course as Course & { name?: string }).name ?? null,
+      status: course.status,
+      userId: (course as Course & { userId?: number }).userId ?? null,
+    };
+  }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
@@ -58,15 +70,45 @@ export class CoursesService {
     }
   }
 
+  private normalizeThumbnailUrl(value: string | null | undefined): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private buildCourseWritePayload(dto: CreateCourseDto | UpdateCourseDto) {
+    const { thumbnail_url, thumbnailUrl, ...payload } = dto;
+    const hasCamelCaseThumbnail = Object.prototype.hasOwnProperty.call(dto, 'thumbnailUrl');
+    const rawThumbnailUrl = hasCamelCaseThumbnail ? thumbnailUrl : thumbnail_url;
+    const normalizedThumbnailUrl = this.normalizeThumbnailUrl(rawThumbnailUrl);
+
+    if (normalizedThumbnailUrl === undefined) {
+      return payload;
+    }
+
+    return {
+      ...payload,
+      thumbnailUrl: normalizedThumbnailUrl,
+    };
+  }
+
   async create(createCourseDto: CreateCourseDto, userId: number | undefined): Promise<Course> {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
 
     await this.validateVideoId(createCourseDto.videoId);
+    const coursePayload = this.buildCourseWritePayload(createCourseDto);
 
     const createdCourse = await this.courseModel.create({
-      ...createCourseDto,
+      ...coursePayload,
       videoId: createCourseDto.videoId ?? null,
       userId: userId,
       level: createCourseDto.level ?? undefined,
@@ -141,9 +183,16 @@ export class CoursesService {
   }
 
   async findAllPublic(
-    status?: CourseStatus,
-    page?: number,
-    limit?: number,
+    params: {
+      status?: CourseStatus;
+      page?: number;
+      limit?: number;
+      search?: string;
+      level?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      userId?: number;
+    } = {},
   ): Promise<
     | Course[]
     | {
@@ -156,10 +205,35 @@ export class CoursesService {
       };
     }
   > {
+    const { status, page, limit, search, level, minPrice, maxPrice, userId } =
+      params;
     const whereCondition: any = {};
 
     if (status) {
       whereCondition.status = status;
+    }
+
+    if (level) {
+      whereCondition.level = level;
+    }
+
+    if (typeof userId === 'number' && Number.isInteger(userId) && userId > 0) {
+      whereCondition.userId = userId;
+    }
+
+    if (search && search.trim().length > 0) {
+      whereCondition.name = { [Op.like]: `%${search.trim()}%` };
+    }
+
+    const priceCondition: Record<symbol, number> = {};
+    if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
+      priceCondition[Op.gte] = minPrice;
+    }
+    if (typeof maxPrice === 'number' && Number.isFinite(maxPrice)) {
+      priceCondition[Op.lte] = maxPrice;
+    }
+    if (Object.getOwnPropertySymbols(priceCondition).length > 0) {
+      whereCondition.price = priceCondition;
     }
 
     const shouldPaginate = page !== undefined || limit !== undefined;
@@ -673,12 +747,27 @@ export class CoursesService {
       );
     }
     await this.validateVideoId(updateCourseDto.videoId);
-    return await course.update({ ...updateCourseDto, status: CourseStatus.DRAFT });
+    const coursePayload = this.buildCourseWritePayload(updateCourseDto);
+    return await course.update({ ...coursePayload, status: CourseStatus.DRAFT });
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, requester?: RequesterContext): Promise<void> {
     const course = await this.findOne(id);
+    const before = this.auditableCourseSnapshot(course);
     await course.destroy();
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.delete',
+        targetType: 'course',
+        targetId: id,
+        before,
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
   }
 
   private parseTimeToMilliseconds(value: string | null | undefined): number {
@@ -761,6 +850,7 @@ export class CoursesService {
   async review(
     id: number,
     status: 'accepted' | 'rejected',
+    requester?: RequesterContext,
   ): Promise<Course> {
     const course = await this.findOne(id);
     await this.ensureCourseHasLessons(id);
@@ -770,18 +860,54 @@ export class CoursesService {
       );
     }
 
+    const before = this.auditableCourseSnapshot(course);
     const newStatus =
       status === 'accepted' ? CourseStatus.APPROVED : CourseStatus.REJECTED;
-    return await course.update({ status: newStatus });
+    const updated = await course.update({ status: newStatus });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.review',
+        targetType: 'course',
+        targetId: id,
+        before,
+        after: this.auditableCourseSnapshot(updated),
+        metadata: { decision: status },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
+    return updated;
   }
 
-  async publish(id: number): Promise<Course> {
+  async publish(id: number, requester?: RequesterContext): Promise<Course> {
     const course = await this.findOne(id);
     if (course.status !== CourseStatus.APPROVED) {
       throw new BadRequestException(
         `Course must be in APPROVED status to publish. Current status: ${course.status}`,
       );
     }
-    return await course.update({ status: CourseStatus.PUBLISH });
+
+    const before = this.auditableCourseSnapshot(course);
+    const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.publish',
+        targetType: 'course',
+        targetId: id,
+        before,
+        after: this.auditableCourseSnapshot(updated),
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
+    return updated;
   }
 }

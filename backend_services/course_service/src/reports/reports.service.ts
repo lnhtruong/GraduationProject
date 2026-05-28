@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
@@ -16,6 +17,8 @@ import {
 import { User } from 'src/users/user.model';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ReviewReportDto } from './dto/review-report.dto';
+import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
+import { RequesterContext } from 'src/audit_logs/requester.types';
 
 const LECTURER_ROLE = 3;
 
@@ -26,6 +29,7 @@ export class ReportsService {
     @InjectModel(Course) private readonly courseModel: typeof Course,
     @InjectModel(Lesson) private readonly lessonModel: typeof Lesson,
     @InjectModel(User) private readonly userModel: typeof User,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async create(reporterId: number, payload: CreateReportDto): Promise<Report> {
@@ -57,6 +61,8 @@ export class ReportsService {
     limit?: number;
     status?: ReportStatus;
     targetType?: ReportTargetType;
+    sortOrder?: string;
+    search?: string;
   }) {
     const safePage =
       Number.isInteger(params.page) && (params.page as number) > 0
@@ -68,9 +74,18 @@ export class ReportsService {
         : 20;
     const offset = (safePage - 1) * safeLimit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string | symbol, unknown> = {};
     if (params.status) where.status = params.status;
     if (params.targetType) where.targetType = params.targetType;
+    if (params.search && params.search.trim().length > 0) {
+      where.reason = { [Op.like]: `%${params.search.trim()}%` };
+    }
+
+    const sortDirection =
+      typeof params.sortOrder === 'string' &&
+      params.sortOrder.toLowerCase() === 'asc'
+        ? 'ASC'
+        : 'DESC';
 
     const { rows, count } = await this.reportModel.findAndCountAll({
       where,
@@ -88,7 +103,7 @@ export class ReportsService {
           required: false,
         },
       ],
-      order: [['id', 'DESC']],
+      order: [['id', sortDirection]],
       offset,
       limit: safeLimit,
     });
@@ -175,6 +190,7 @@ export class ReportsService {
     id: number,
     approverId: number,
     payload: ReviewReportDto,
+    requester?: RequesterContext,
   ): Promise<Report> {
     if (
       payload.decision !== ReportStatus.APPROVED &&
@@ -191,6 +207,13 @@ export class ReportsService {
       throw new ConflictException('Report đã được duyệt trước đó');
     }
 
+    const before = {
+      id: report.id,
+      status: report.status,
+      targetType: report.targetType,
+      targetId: report.targetId,
+    };
+
     if (payload.decision === ReportStatus.APPROVED && payload.banTarget) {
       await this.banTarget(report.targetType, report.targetId);
     }
@@ -201,6 +224,31 @@ export class ReportsService {
       reviewNote: payload.reviewNote ?? null,
       reviewedAt: new Date(),
     });
+
+    if (requester) {
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'report.review',
+        targetType: 'report',
+        targetId: report.id,
+        before,
+        after: {
+          status: report.status,
+          reviewNote: report.reviewNote,
+          reviewedAt: report.reviewedAt,
+        },
+        metadata: {
+          decision: payload.decision,
+          banTarget: payload.banTarget === true,
+          reportTargetType: report.targetType,
+          reportTargetId: report.targetId,
+          reviewNote: payload.reviewNote ?? null,
+        },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
 
     return report;
   }

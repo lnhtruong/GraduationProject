@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/features/courses/utils";
-import { CartCouponInput } from "./CartCouponInput";
-import { useCartStore } from "../hooks/useCartStore";
 import type { CartItem } from "../types";
 
 interface CartOrderSummaryProps {
@@ -16,11 +13,7 @@ interface CartOrderSummaryProps {
 }
 
 export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrderSummaryProps) {
-  const { discountAmount, couponCode } = useCartStore();
-
-  // [MOCK] tính từ local items — [SWAP] lấy từ useCartSummary() khi có backend
   const subtotal = items.reduce((sum, i) => sum + i.price, 0);
-  const total = Math.max(0, subtotal - discountAmount);
   const itemCount = items.length;
 
   return (
@@ -35,13 +28,6 @@ export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrder
           </span>
           <span className="font-medium">{formatPrice(subtotal)}</span>
         </div>
-
-        {discountAmount > 0 && couponCode && (
-          <div className="flex items-center justify-between text-green-600 dark:text-green-400">
-            <span>Giảm giá ({couponCode})</span>
-            <span className="font-medium">−{formatPrice(discountAmount)}</span>
-          </div>
-        )}
       </div>
 
       <Separator />
@@ -49,11 +35,8 @@ export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrder
       {/* Total */}
       <div className="flex items-center justify-between">
         <span className="text-base font-bold">Tổng cộng</span>
-        <span className="text-[17px] font-extrabold">{formatPrice(total)}</span>
+        <span className="text-[17px] font-extrabold">{formatPrice(subtotal)}</span>
       </div>
-
-      {/* Coupon input — tự ẩn nếu COUPON_ENABLED=false */}
-      <CartCouponInput />
 
       {/* CTA */}
       <Button

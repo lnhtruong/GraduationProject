@@ -69,23 +69,6 @@ Khóa học cập nhật liên tục — mua một lần, học mãi mãi. Tham 
   previewVideoUrl: undefined,
   highlightClipUrl: undefined,
 
-  whatYouLearn: [
-    "Nắm vững cú pháp và tư duy lập trình Python từ đầu",
-    "Xây dựng ứng dụng web nhỏ với Flask",
-    "Làm việc với dữ liệu bằng Pandas và NumPy",
-    "Tự động hoá công việc lặp lại bằng script Python",
-    "Hiểu và áp dụng lập trình hướng đối tượng (OOP)",
-    "Xây dựng và deploy dự án thực tế lên server",
-    "Viết code sạch theo chuẩn PEP 8",
-    "Debug và test code với unittest & pytest",
-  ],
-
-  requirements: [
-    "Máy tính có kết nối internet (Windows, Mac hoặc Linux đều được)",
-    "Không cần kinh nghiệm lập trình trước — khoá học dành cho người mới hoàn toàn",
-    "Tinh thần học hỏi và kiên nhẫn thực hành",
-  ],
-
   categories: [
     { id: 1, name: "Lập trình" },
     { id: 2, name: "Python" },

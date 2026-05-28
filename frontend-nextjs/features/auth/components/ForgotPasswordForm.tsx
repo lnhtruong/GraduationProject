@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -11,7 +10,10 @@ import {
   Mail,
   ArrowLeft,
   Loader2,
+  Clock,
 } from "lucide-react";
+import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,40 +34,82 @@ import {
 } from "@/components/ui/form";
 import { useForgotPassword } from "../api/auth.hooks";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "../schemas";
+import {
+  useForgotPasswordCooldown,
+  formatCountdown,
+} from "../hooks/useForgotPasswordCooldown";
+
+/** Extract wait seconds from a 429 AxiosError.
+ * express-rate-limit with standardHeaders sends `ratelimit-reset` (epoch s)
+ * and optionally `retry-after` (seconds). We try both.
+ */
+function extractRetryAfterSeconds(error: unknown): number {
+  if (!isAxiosError(error) || !error.response) return 60;
+
+  const headers = error.response.headers as Record<string, string | undefined>;
+
+  // `retry-after` may be seconds or an HTTP-date; express-rate-limit sends seconds
+  const retryAfterRaw = headers["retry-after"] ?? headers["Retry-After"];
+  if (retryAfterRaw) {
+    const secs = parseInt(retryAfterRaw, 10);
+    if (!isNaN(secs) && secs > 0) return secs;
+  }
+
+  // `ratelimit-reset` is epoch seconds (standardHeaders: true)
+  const resetRaw = headers["ratelimit-reset"] ?? headers["RateLimit-Reset"];
+  if (resetRaw) {
+    const epochSecs = parseInt(resetRaw, 10);
+    if (!isNaN(epochSecs)) {
+      const remaining = Math.ceil(epochSecs - Date.now() / 1000);
+      if (remaining > 0) return remaining;
+    }
+  }
+
+  return 60; // safe fallback
+}
 
 export function ForgotPasswordForm() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { isLocked, secondsLeft, startCooldown } = useForgotPasswordCooldown();
 
   const form = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      email: "",
-    },
+    defaultValues: { email: "" },
   });
 
-  const { mutate: forgotPassword } = useForgotPassword({
+  const { mutate: forgotPassword, isSuccess } = useForgotPassword({
     onSuccess: () => {
-      setSuccess(true);
-      setError(null);
-      // Redirect to reset password page with email
       setTimeout(() => {
         const email = form.getValues("email");
         router.push(`/reset-password?email=${encodeURIComponent(email)}`);
       }, 2000);
     },
     onError: (err) => {
-      setError(err.message || "Không thể gửi mã OTP. Vui lòng thử lại.");
-      setSuccess(false);
+      const axiosErr = isAxiosError(err) ? err : null;
+      const status = axiosErr?.response?.status;
+
+      if (status === 429 || status === 423) {
+        const waitSecs = extractRetryAfterSeconds(err);
+        startCooldown(waitSecs);
+        const mins = Math.ceil(waitSecs / 60);
+        toast.error(
+          `Bạn đã thử quá nhiều lần. Vui lòng thử lại sau ${mins} phút.`,
+        );
+      } else {
+        toast.error(
+          axiosErr?.response?.data?.message ||
+            "Không thể gửi mã OTP. Vui lòng thử lại.",
+        );
+      }
     },
   });
 
   const onSubmit = (data: ForgotPasswordFormData) => {
-    setError(null);
-    setSuccess(false);
+    if (isLocked) return;
     forgotPassword(data);
   };
+
+  const isDisabled = form.formState.isSubmitting || isSuccess || isLocked;
 
   return (
     <Card className="w-full max-w-md bg-card/95 backdrop-blur-xl border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 dark:ring-white/10">
@@ -79,15 +123,22 @@ export function ForgotPasswordForm() {
       </CardHeader>
 
       <CardContent className="pb-6">
-        {error && (
+        {isLocked && (
           <Alert variant="destructive" className="mb-4 py-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle className="text-sm font-semibold">Lỗi</AlertTitle>
-            <AlertDescription className="text-sm">{error}</AlertDescription>
+            <Clock className="h-4 w-4" />
+            <AlertTitle className="text-sm font-semibold">
+              Tạm thời bị khóa
+            </AlertTitle>
+            <AlertDescription className="text-sm">
+              Vui lòng thử lại sau{" "}
+              <span className="font-mono font-semibold">
+                {formatCountdown(secondsLeft)}
+              </span>
+            </AlertDescription>
           </Alert>
         )}
 
-        {success && (
+        {isSuccess && !isLocked && (
           <Alert variant="success" className="mb-4 py-2">
             <CheckCircle2 className="h-4 w-4 stroke-current" />
             <AlertTitle className="text-sm font-semibold">
@@ -115,7 +166,7 @@ export function ForgotPasswordForm() {
                         type="email"
                         placeholder="your@email.com"
                         className="pl-9 h-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
-                        disabled={form.formState.isSubmitting || success}
+                        disabled={isDisabled}
                       />
                     </div>
                   </FormControl>
@@ -127,12 +178,21 @@ export function ForgotPasswordForm() {
             <Button
               type="submit"
               className="w-full h-10 font-medium mt-2"
-              disabled={form.formState.isSubmitting || success}
+              disabled={isDisabled}
             >
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {form.formState.isSubmitting ? "Đang gửi..." : "Gửi mã OTP"}
+              {isLocked ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Gửi lại sau {formatCountdown(secondsLeft)}
+                </>
+              ) : form.formState.isSubmitting ? (
+                "Đang gửi..."
+              ) : (
+                "Gửi mã OTP"
+              )}
             </Button>
           </form>
         </Form>

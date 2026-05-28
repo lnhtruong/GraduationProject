@@ -30,7 +30,6 @@ interface Props {
   ) => void;
   onHeartbeat: (lessonProgressId: number, positionSec: number) => void;
   initialResumePositionSec: number;
-  shouldForceResumeFromQuery: boolean;
   selectedLessonProgressId?: number | null;
 }
 
@@ -45,7 +44,6 @@ export function useCourseLearnPlayer({
   onMarkLessonCompleted,
   onHeartbeat,
   initialResumePositionSec,
-  shouldForceResumeFromQuery,
   selectedLessonProgressId,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -80,8 +78,6 @@ export function useCourseLearnPlayer({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showResumePrompt, setShowResumePrompt] = useState(false);
-  const [resumePromptPositionSec, setResumePromptPositionSec] = useState(0);
   const lastVolumeRef = useRef(1);
   const pendingResumePositionRef = useRef<number | null>(null);
   const lastHeartbeatAtRef = useRef<number>(0);
@@ -269,21 +265,6 @@ export function useCourseLearnPlayer({
     seekVideoTo(currentTime + 10);
   }, [currentTime, seekVideoTo]);
 
-  const handleResumeFromLastPosition = useCallback(() => {
-    const pending = pendingResumePositionRef.current;
-    setShowResumePrompt(false);
-    if (pending !== null && pending > 0) {
-      seekVideoTo(pending, true);
-    }
-    pendingResumePositionRef.current = null;
-  }, [seekVideoTo]);
-
-  const handleRestartFromBeginning = useCallback(() => {
-    setShowResumePrompt(false);
-    pendingResumePositionRef.current = null;
-    seekVideoTo(0, true);
-  }, [seekVideoTo]);
-
   const handleVideoKeyDown = useCallback(
     (event: KeyboardEvent<HTMLVideoElement>) => {
       switch (event.code) {
@@ -370,12 +351,12 @@ export function useCourseLearnPlayer({
       setVideoDuration(duration);
 
       const pendingResumePosition = pendingResumePositionRef.current;
-      if (pendingResumePosition !== null && !showResumePrompt) {
+      if (pendingResumePosition !== null && pendingResumePosition > 0) {
         seekVideoTo(pendingResumePosition, true);
         pendingResumePositionRef.current = null;
       }
     },
-    [seekVideoTo, showResumePrompt],
+    [seekVideoTo],
   );
 
   const handleCompleteLesson = useCallback(() => {
@@ -500,7 +481,6 @@ export function useCourseLearnPlayer({
       setConfettiPieces([]);
       setNextLessonCountdown(null);
       setPlaybackRate(1);
-      setShowResumePrompt(false);
 
       if (videoRef.current) {
         videoRef.current.playbackRate = 1;
@@ -508,27 +488,14 @@ export function useCourseLearnPlayer({
 
       const resumePosition = Math.max(0, initialResumePositionSec || 0);
       if (resumePosition > 0) {
-        setResumePromptPositionSec(resumePosition);
         pendingResumePositionRef.current = resumePosition;
-
-        if (shouldForceResumeFromQuery) {
-          setShowResumePrompt(false);
-        } else {
-          setShowResumePrompt(true);
-          videoRef.current?.pause();
-        }
       } else {
         pendingResumePositionRef.current = null;
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [
-    initialResumePositionSec,
-    selectedLesson?.id,
-    selectedLessonDuration,
-    shouldForceResumeFromQuery,
-  ]);
+  }, [initialResumePositionSec, selectedLesson?.id, selectedLessonDuration]);
 
   useEffect(() => {
     if (!selectedLessonProgressId || !selectedLesson || !isPlaying) {
@@ -833,10 +800,6 @@ export function useCourseLearnPlayer({
     handleVolumeChange,
     handleToggleFullscreen,
     handleVideoKeyDown,
-    showResumePrompt,
-    resumePromptPositionSec,
-    handleResumeFromLastPosition,
-    handleRestartFromBeginning,
     onSelectInVideoAnswer,
     onSelectAfterLessonAnswer,
     onSubmitAfterLessonQuiz: () => setAfterLessonSubmitted(true),
