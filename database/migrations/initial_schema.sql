@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS `mascot_images` (
     `public_id` VARCHAR(512) NULL,
     `format` VARCHAR(32) NULL,
     `name` VARCHAR(255) NULL,
+    `type` ENUM('thumbnail_video', 'thumbnail_course', 'avt') NOT NULL DEFAULT 'thumbnail_video',
     `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`image_id`),

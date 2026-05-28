@@ -7,4 +7,5 @@ ALTER TABLE `mascot_images`
     ADD COLUMN `public_id` VARCHAR(512) NULL AFTER `thumbnail`,
     ADD COLUMN `format` VARCHAR(32) NULL AFTER `public_id`,
     ADD COLUMN `name` VARCHAR(255) NULL AFTER `format`,
+    ADD COLUMN `type` ENUM('thumbnail_video', 'thumbnail_course', 'avt') NOT NULL DEFAULT 'thumbnail_video' AFTER `name`,
     ADD UNIQUE KEY `uq_mascot_images_job_id` (`job_id`);
