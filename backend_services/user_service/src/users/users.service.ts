@@ -9,6 +9,14 @@ import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuditLogsService } from '../audit_logs/audit-logs.service';
+
+export interface RequesterContext {
+  userId: number;
+  role: number;
+  ip?: string | null;
+  userAgent?: string | null;
+}
 
 export enum UserRole {
   ADMIN = 1,
@@ -23,8 +31,21 @@ export class UsersService {
   constructor(
     @InjectModel(User)
     private readonly userModel: typeof User,
+    private readonly auditLogsService: AuditLogsService,
     private readonly configService: ConfigService,
   ) { }
+
+  private auditableUserSnapshot(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isBanned: user.isBanned,
+      emailVerified: (user as User & { emailVerified?: boolean }).emailVerified ?? null,
+    };
+  }
 
   private toPublicUser(user: User | Record<string, any>) {
     return {
@@ -79,7 +100,7 @@ export class UsersService {
   async updateUserById(
     userId: number,
     payload: UpdateUserDto,
-    requester: { userId: number; role: number },
+    requester: RequesterContext,
   ) {
     const user = await this.userModel.findByPk(userId);
     if (!user) {
@@ -90,6 +111,8 @@ export class UsersService {
     if (payload.role !== undefined && requester.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can update role');
     }
+
+    const before = this.auditableUserSnapshot(user);
 
     const updatePayload: Partial<User> & { password?: string } = { ...payload };
 
@@ -106,12 +129,38 @@ export class UsersService {
     }
 
     await user.update(updatePayload);
+
+    // Audit only when an admin acts on someone else, or any role change occurred.
+    // Self-updates by non-admin (e.g. avatar) are not interesting audit material.
+    const roleChanged = payload.role !== undefined && before.role !== user.role;
+    const adminActingOnOther =
+      requester.role === UserRole.ADMIN && requester.userId !== userId;
+    if (adminActingOnOther || roleChanged) {
+      const after = this.auditableUserSnapshot(user);
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: roleChanged ? 'user.role.update' : 'user.update',
+        targetType: 'user',
+        targetId: user.id,
+        before,
+        after,
+        metadata: {
+          fieldsChanged: Object.keys(payload).filter(
+            (k) => k !== 'password',
+          ),
+        },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+    }
+
     return this.getUserById(userId);
   }
 
   async resetUserById(
     userId: number,
-    requester: { userId: number; role: number },
+    requester: RequesterContext,
   ) {
     if (requester.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admin can reset user');
@@ -137,6 +186,17 @@ export class UsersService {
     );
 
     await user.update({ password: hashedDefaultPassword });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'user.password_reset',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { resetTo: 'default' },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
 
     return {
       message: 'User password has been reset to default value',

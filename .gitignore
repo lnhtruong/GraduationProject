@@ -2,6 +2,10 @@
 .DS_Store
 Thumbs.db
 
+# Claude Code local config
+.mcp.json
+.claude/settings.local.json
+
 # Editor
 .vscode/*
 !.vscode/settings.json

@@ -7,7 +7,6 @@ exports.up = async function (knex) {
       id INT(11) NOT NULL AUTO_INCREMENT,
       provider VARCHAR(50) NOT NULL,
       event_id VARCHAR(255) NOT NULL,
-      signature_hash VARCHAR(255) NULL,
       processed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       payload JSON NULL,
       PRIMARY KEY (id),
