@@ -94,7 +94,6 @@ else
   fail "lockout body unexpected: $(cat /tmp/body_lock.json)"
 fi
 # While locked, forgot-password for this email must 429.
-reset_ip_only=1
 if command -v "$REDIS_CLI" >/dev/null 2>&1; then
   # Clear only IP rate limit; keep the lock.
   "$REDIS_CLI" DEL "RATE_LIMIT:FORGOT_PASSWORD:IP:::ffff:127.0.0.1" >/dev/null

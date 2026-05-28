@@ -62,14 +62,25 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Req() req: Request) {
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    return this.authService.refreshToken(refreshToken);
+    const result = await this.authService.refreshToken(refreshToken);
+
+    res.cookie(
+      COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+      result.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+    );
+
+    return { accessToken: result.accessToken };
   }
 
   @Post('logout')

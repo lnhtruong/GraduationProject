@@ -13,6 +13,9 @@ export function useCourseLearnPage(courseId: number) {
     lessons: data.lessons,
     onSelectLesson: data.handleSelectLesson,
     onMarkLessonCompleted: data.markLessonCompleted,
+    onHeartbeat: data.sendHeartbeat,
+    initialResumePositionSec: data.initialResumePositionSec,
+    shouldForceResumeFromQuery: data.shouldForceResumeFromQuery,
     selectedLessonProgressId: data.selectedLessonProgress?.id,
   });
 

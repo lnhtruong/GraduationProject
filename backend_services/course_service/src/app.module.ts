@@ -18,6 +18,7 @@ import { FeedbackReactionsModule } from './feedback-reactions/feedback-reactions
 import { EnrollsModule } from './enrolls/enrolls.module';
 import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 import { ReportsModule } from './reports/reports.module';
+import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.modul
     //   global: true,
     // }),
     DatabaseModule,
+    AuditLogsModule,
     UsersModule,
     CoursesModule,
     LessonsModule,

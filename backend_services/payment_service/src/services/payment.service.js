@@ -12,6 +12,8 @@ const db = require("../models");
 const Transaction = db.Transaction;
 const TransactionItem = db.TransactionItem;
 const Course = db.Course;
+const WebhookEvent = db.WebhookEvent;
+const sequelize = db.sequelize;
 require("dotenv").config();
 
 const payos = new PayOS(
@@ -470,15 +472,15 @@ const getTransactionById = async (transactionId, userId) => {
 // ============================================================
 // UPDATE: Cập nhật trạng thái transaction theo provider_order_id
 // ============================================================
-const updateTransactionStatus = async (providerOrderId, status) => {
+const updateTransactionStatus = async (providerOrderId, status, t = null) => {
   try {
     const updateData = { status };
     if (status === "paid") {
       updateData.paid_at = new Date();
     }
-    const updated = await Transaction.update(updateData, {
-      where: { provider_order_id: String(providerOrderId) },
-    });
+    const options = { where: { provider_order_id: String(providerOrderId) } };
+    if (t) options.transaction = t;
+    const updated = await Transaction.update(updateData, options);
     console.log(
       `✅ Cập nhật trạng thái transaction thành ${status} cho order: ${providerOrderId}`,
     );
@@ -522,56 +524,101 @@ const payosCallback = async (req) => {
   try {
     const webhookData = await payos.webhooks.verify(req.body);
 
-    if (webhookData) {
-      console.log(`💵 Đơn hàng ${webhookData.orderCode} đã được xử lý`);
-
-      const oldData = (await getPaymentData(webhookData.orderCode)) || {};
-
-      const isSuccess = webhookData.code === "00";
-      const updatedData = {
-        ...oldData,
-        ...webhookData,
-        status: isSuccess ? "paid" : "failed",
-      };
-
-      await savePaymentData(webhookData.orderCode, updatedData);
-      await updateTransactionStatus(webhookData.orderCode, updatedData.status);
-
-      publishPaymentWebhook(updatedData);
-
-      if (isSuccess) {
-        publishPaymentSuccess(webhookData.orderCode, {
-          user_id: oldData.user_id,
-          transaction_id: oldData.transaction_id,
-          courseItems: oldData.courseItems || [],
-        });
-
-        // Tự động enroll user vào khóa học
-        enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
-          (err) => {
-            console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
-          },
-        );
-
-        // Xoá khỏi giỏ hàng chỉ khi thanh toán thành công
-        removePurchasedCoursesFromCart(oldData.user_id, oldData.courseItems || []).catch(
-          (err) => {
-            console.error("❌ Lỗi xoá cart sau thanh toán:", err.message);
-          },
-        );
-      } else {
-        publishPaymentFailed(
-          webhookData.orderCode,
-          webhookData.desc || "Payment failed",
-        );
-      }
-
-      return { message: "Callback nhận thành công", data: webhookData };
-    } else {
+    if (!webhookData) {
       const error = new Error("Chữ ký không hợp lệ");
       error.status = 403;
       throw error;
     }
+
+    // Include event code so different events for the same order aren't deduplicated
+    const eventId = `${webhookData.code}_${String(webhookData.orderCode)}`;
+    // Exclude raw signature from stored payload
+    const { signature: _sig, ...payloadToStore } = req.body || {};
+
+    const isSuccess = webhookData.code === "00";
+
+    // Wrap idempotency gate + DB update atomically:
+    // if updateTransactionStatus fails, the WebhookEvent row is rolled back
+    // so PayOS can retry and the payment won't be silently lost.
+    let created = false;
+    try {
+      await sequelize.transaction(async (t) => {
+        let wasCreated;
+        [, wasCreated] = await WebhookEvent.findOrCreate({
+          where: { provider: "payos", event_id: eventId },
+          defaults: {
+            provider: "payos",
+            event_id: eventId,
+            payload: Object.keys(payloadToStore).length ? payloadToStore : null,
+          },
+          transaction: t,
+        });
+
+        if (!wasCreated) return;
+
+        await updateTransactionStatus(
+          webhookData.orderCode,
+          isSuccess ? "paid" : "failed",
+          t,
+        );
+
+        created = true;
+      });
+    } catch (e) {
+      // Concurrent request hit the unique constraint — treat as duplicate
+      if (e.name === "SequelizeUniqueConstraintError") {
+        console.log(`[payos-callback] duplicate webhook ignored (race): ${eventId}`);
+        return { message: "Callback nhận thành công", data: webhookData, duplicate: true };
+      }
+      throw e;
+    }
+
+    if (!created) {
+      console.log(`[payos-callback] duplicate webhook ignored: ${eventId}`);
+      return { message: "Callback nhận thành công", data: webhookData, duplicate: true };
+    }
+
+    console.log(`💵 Đơn hàng ${webhookData.orderCode} đã được xử lý`);
+
+    const oldData = (await getPaymentData(webhookData.orderCode)) || {};
+    const updatedData = {
+      ...oldData,
+      ...webhookData,
+      status: isSuccess ? "paid" : "failed",
+    };
+
+    await savePaymentData(webhookData.orderCode, updatedData);
+
+    publishPaymentWebhook(updatedData);
+
+    if (isSuccess) {
+      publishPaymentSuccess(webhookData.orderCode, {
+        user_id: oldData.user_id,
+        transaction_id: oldData.transaction_id,
+        courseItems: oldData.courseItems || [],
+      });
+
+      // Tự động enroll user vào khóa học
+      enrollUserInCourses(oldData.user_id, oldData.courseItems || []).catch(
+        (err) => {
+          console.error("❌ Lỗi tự động enroll sau thanh toán:", err.message);
+        },
+      );
+
+      // Xoá khỏi giỏ hàng chỉ khi thanh toán thành công
+      removePurchasedCoursesFromCart(oldData.user_id, oldData.courseItems || []).catch(
+        (err) => {
+          console.error("❌ Lỗi xoá cart sau thanh toán:", err.message);
+        },
+      );
+    } else {
+      publishPaymentFailed(
+        webhookData.orderCode,
+        webhookData.desc || "Payment failed",
+      );
+    }
+
+    return { message: "Callback nhận thành công", data: webhookData };
   } catch (error) {
     console.error("Lỗi xác thực webhook:", error.message);
     const err = new Error(error.message || "Lỗi xử lý webhook");

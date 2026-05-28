@@ -1,10 +1,15 @@
 import { createCrudHooks } from "@/features/_shared/crud-factories";
-import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import {
+  createMutationHooks,
+  createQueryHooks,
+} from "@/features/_shared/react-query-factories";
+import {
+  lessonProgressExtraApi,
   lessonProgressApi,
   type LessonProgressListParams,
 } from "./lesson-progress.api";
 import type {
+  ContinueWatchingLesson,
   LessonProgressRecord,
   LessonProgressStatus,
   UpsertLessonProgressPayload,
@@ -37,6 +42,11 @@ const { useListByParent: useLessonProgressListByCourseId } =
   lessonProgressHooks;
 
 export type { LessonProgressRecord, LessonProgressStatus } from "../types";
+
+type LessonProgressHeartbeatPayload = {
+  lessonProgressId: number;
+  positionSec: number;
+};
 
 function mergeLessonProgress(
   existing: LessonProgressRecord[],
@@ -94,3 +104,45 @@ export function useUpsertLessonProgress(courseId: number | null) {
 
   return useUpsertLessonProgressBase();
 }
+
+const useLessonProgressHeartbeatBase = createMutationHooks<
+  LessonProgressRecord,
+  LessonProgressHeartbeatPayload
+>(
+  "lesson-progress",
+  "heartbeat",
+  async (payload) => {
+    return lessonProgressExtraApi.heartbeat(payload.lessonProgressId, {
+      positionSec: payload.positionSec,
+    });
+  },
+  {
+    onSuccess: (savedRecord, _payload, queryClient) => {
+      queryClient.setQueriesData<LessonProgressRecord[]>(
+        { queryKey: lessonProgressKeys.root },
+        (current) => {
+          if (!current?.length) {
+            return current;
+          }
+
+          return mergeLessonProgress(current, savedRecord);
+        },
+      );
+    },
+  },
+);
+
+export function useLessonProgressHeartbeat() {
+  return useLessonProgressHeartbeatBase();
+}
+
+const continueWatchingHooks = createQueryHooks<ContinueWatchingLesson[]>(
+  "lesson-progress",
+  ["continue-watching"],
+  lessonProgressExtraApi.getContinueWatching,
+  {
+    staleTime: 60 * 1000,
+  },
+);
+
+export const useContinueWatchingList = continueWatchingHooks.useQuery;
