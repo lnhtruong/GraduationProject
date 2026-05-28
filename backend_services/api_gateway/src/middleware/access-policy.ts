@@ -137,6 +137,47 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/roadmaps', access: 'public' },
   { method: 'GET', pattern: '/api/course/roadmaps/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/users/:id', access: 'authenticated' },
+
+  // Discussion Forum (BE-02..BE-04). All authenticated; the service enforces
+  // enrollment/author/instructor rules per endpoint.
+  {
+    method: 'GET',
+    pattern: '/api/course/lessons/:lessonId/discussions',
+    access: 'authenticated',
+  },
+  {
+    method: 'POST',
+    pattern: '/api/course/lessons/:lessonId/discussions',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/:courseId/discussions',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'POST',
+    pattern: '/api/course/discussions/:postId/upvote',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/discussions/:postId/best-answer',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/discussions/:postId',
+    access: 'authenticated',
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/course/discussions/:postId',
+    access: 'authenticated',
+  },
+
   // Specific rules MUST come before the catch-all /api/course/feedbacks/** below,
   // because getAccessRule() returns the first matching entry.
   { method: 'GET', pattern: '/api/course/feedbacks/check/:courseId', access: 'authenticated' },

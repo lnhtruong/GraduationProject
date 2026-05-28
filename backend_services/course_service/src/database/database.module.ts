@@ -21,6 +21,8 @@ import { LessonActivity } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
+import { DiscussionPost } from 'src/models/discussion-post.model';
+import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
 
 @Module({
   imports: [
@@ -49,7 +51,9 @@ import { QuizOption } from 'src/models/quiz-option.model';
             LessonActivity,
             Quiz,
             QuizQuestion,
-            QuizOption
+            QuizOption,
+            DiscussionPost,
+            DiscussionUpvote,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
