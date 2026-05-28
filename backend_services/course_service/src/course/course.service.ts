@@ -20,6 +20,13 @@ import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
 import { RequesterContext } from 'src/audit_logs/requester.types';
+import { InstructorFollow } from 'src/models/instructor-follow.model';
+import {
+  Notification,
+  COURSE_PUBLISH_EVENT,
+  COURSE_SOURCE,
+} from 'src/models/notification.model';
+import { User } from 'src/users/user.model';
 
 @Injectable()
 export class CoursesService {
@@ -34,8 +41,72 @@ export class CoursesService {
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
+    @InjectModel(InstructorFollow)
+    private readonly followModel: typeof InstructorFollow,
+    @InjectModel(Notification)
+    private readonly notificationModel: typeof Notification,
     private readonly auditLogsService: AuditLogsService,
   ) { }
+
+  /**
+   * BE-07: notify every follower of the publishing instructor that a new
+   * course is live. Chunked at 200 rows per insert. Best-effort: any failure
+   * is logged but does not break the publish flow.
+   */
+  private async notifyFollowersOfNewCourse(course: Course): Promise<void> {
+    try {
+      const instructorId = (course as any).userId;
+      if (!instructorId) return;
+
+      const [instructor, follows] = await Promise.all([
+        User.findByPk(instructorId, {
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+        }),
+        this.followModel.findAll({
+          where: { instructorId },
+          attributes: ['followerId'],
+        }),
+      ]);
+
+      if (follows.length === 0) return;
+
+      const instructorName =
+        [(instructor as any)?.firstName, (instructor as any)?.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        (instructor as any)?.email ||
+        'Giảng viên';
+      const courseName = (course as any).name ?? 'a new course';
+      const redirectUrl = `/courses/${course.id}`;
+      const payloadBase = {
+        courseId: course.id,
+        courseName,
+        instructorId,
+        instructorName,
+        redirectUrl,
+      };
+
+      const records = follows.map((f) => ({
+        userId: f.followerId,
+        eventType: COURSE_PUBLISH_EVENT,
+        title: 'Khóa học mới từ giảng viên bạn theo dõi',
+        message: `${instructorName} vừa ra mắt khóa học mới: ${courseName}`,
+        payload: payloadBase,
+        sourceType: COURSE_SOURCE,
+        sourceId: course.id,
+      }));
+
+      const CHUNK = 200;
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const chunk = records.slice(i, i + CHUNK);
+        await this.notificationModel.bulkCreate(chunk);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[courses] failed to notify followers of publish', err);
+    }
+  }
 
   private auditableCourseSnapshot(course: Course) {
     return {
@@ -907,6 +978,9 @@ export class CoursesService {
         userAgent: requester.userAgent ?? null,
       });
     }
+
+    // BE-07: notify followers (best-effort).
+    await this.notifyFollowersOfNewCourse(updated);
 
     return updated;
   }

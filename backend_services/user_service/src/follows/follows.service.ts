@@ -8,6 +8,11 @@ import { Sequelize } from 'sequelize-typescript';
 import { QueryTypes, UniqueConstraintError } from 'sequelize';
 import { InstructorFollow } from '../models/instructor-follow.model';
 import { User } from '../users/user.model';
+import {
+  Notification,
+  INSTRUCTOR_FOLLOW_EVENT,
+  INSTRUCTOR_FOLLOW_SOURCE,
+} from '../models/notification.model';
 
 const LECTURER_ROLE = 3;
 
@@ -32,8 +37,46 @@ export class FollowsService {
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
     @InjectModel(User) private readonly userModel: typeof User,
+    @InjectModel(Notification)
+    private readonly notificationModel: typeof Notification,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
+
+  /**
+   * BE-07: best-effort notification to the instructor when a new follower
+   * appears. Wrapped in try/catch so failure never breaks the follow flow.
+   */
+  private async notifyInstructorOfFollow(
+    followerId: number,
+    instructorId: number,
+    created: boolean,
+  ): Promise<void> {
+    if (!created) return; // idempotent re-follow shouldn't re-notify
+    try {
+      const follower = await this.userModel.findByPk(followerId, {
+        attributes: ['id', 'firstName', 'lastName', 'email'],
+      });
+      const followerName =
+        [(follower as any)?.firstName, (follower as any)?.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        (follower as any)?.email ||
+        'Một học viên';
+      await this.notificationModel.create({
+        userId: instructorId,
+        eventType: INSTRUCTOR_FOLLOW_EVENT,
+        title: 'Bạn có người theo dõi mới',
+        message: `${followerName} đã theo dõi bạn`,
+        payload: { followerId, followerName },
+        sourceType: INSTRUCTOR_FOLLOW_SOURCE,
+        sourceId: followerId,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[follows] failed to create follow notification', err);
+    }
+  }
 
   private buildName(user: User | null): string {
     if (!user) return 'Instructor';
@@ -62,14 +105,17 @@ export class FollowsService {
       throw new BadRequestException('You cannot follow yourself');
     }
     await this.assertIsLecturer(instructorId);
+    let created = false;
     try {
-      await this.followModel.findOrCreate({
+      const [, didCreate] = await this.followModel.findOrCreate({
         where: { followerId, instructorId },
         defaults: { followerId, instructorId, followedAt: new Date() },
       });
+      created = didCreate;
     } catch (err) {
       if (!(err instanceof UniqueConstraintError)) throw err;
     }
+    await this.notifyInstructorOfFollow(followerId, instructorId, created);
     return { following: true };
   }
 
