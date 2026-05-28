@@ -84,7 +84,29 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/users/lecturer-requests/:id',
     access: 'authenticated',
   },
+  // BE-06: instructor following list. MUST come before /api/users/:id catch.
+  {
+    method: 'GET',
+    pattern: '/api/users/following',
+    access: 'authenticated',
+  },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
+  // BE-06: instructor follow / stats endpoints proxied via /api/instructors.
+  {
+    method: 'POST',
+    pattern: '/api/instructors/:id/follow',
+    access: 'authenticated',
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/instructors/:id/follow',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/instructors/:id/stats',
+    access: 'public',
+  },
   {
     method: 'GET',
     pattern: '/api/users',

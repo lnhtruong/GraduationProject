@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jira BE Tasks — GraduationProject</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --border: #dfe1e6;
+      --text: #172b4d;
+      --muted: #5e6c84;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(9,30,66,.13), 0 0 1px rgba(9,30,66,.08);
+
+      --dev1: #0052cc;
+      --dev1-bg: #deebff;
+      --dev1-border: #4c9aff;
+
+      --dev2: #00875a;
+      --dev2-bg: #e3fcef;
+      --dev2-border: #57d9a3;
+
+      --tag-m1: #403294; --tag-m1-bg: #eae6ff;
+      --tag-m2: #0747a6; --tag-m2-bg: #deebff;
+      --tag-s1: #bf2600; --tag-s1-bg: #ffebe6;
+      --tag-s3: #ff8b00; --tag-s3-bg: #fffae6;
+      --tag-n3: #006644; --tag-n3-bg: #e3fcef;
+
+      --ac-green: #006644;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      background: #0052cc;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 1.75rem 2rem;
+      margin-bottom: 2rem;
+    }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .3rem; }
+    .page-header p  { font-size: .875rem; opacity: .85; }
+    .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+    .chip {
+      padding: .2rem .7rem; border-radius: 999px;
+      font-size: .72rem; font-weight: 600;
+      background: rgba(255,255,255,.18); color: #fff;
+    }
+
+    /* ── ASSIGNEE SECTION HEADER ── */
+    .assignee-header {
+      display: flex; align-items: center; gap: .75rem;
+      margin: 2rem 0 1rem;
+      padding: .9rem 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid;
+    }
+    .assignee-header.dev1 {
+      background: var(--dev1-bg);
+      border-color: var(--dev1-border);
+    }
+    .assignee-header.dev2 {
+      background: var(--dev2-bg);
+      border-color: var(--dev2-border);
+    }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .9rem; color: #fff; flex-shrink: 0;
+    }
+    .avatar.dev1 { background: var(--dev1); }
+    .avatar.dev2 { background: var(--dev2); }
+    .assignee-info strong { font-size: 1rem; font-weight: 700; }
+    .assignee-info span { font-size: .8rem; color: var(--muted); display: block; }
+    .task-count {
+      margin-left: auto; font-size: .78rem; font-weight: 600;
+      padding: .2rem .65rem; border-radius: 999px;
+    }
+    .task-count.dev1 { background: var(--dev1); color: #fff; }
+    .task-count.dev2 { background: var(--dev2); color: #fff; }
+
+    /* ── TASK CARD ── */
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+    }
+
+    .task-header {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: 1rem 1.25rem .85rem;
+      border-bottom: 1px solid var(--border);
+      background: #fafbfc;
+    }
+    .task-id {
+      font-family: monospace; font-size: .78rem; font-weight: 700;
+      padding: .2rem .55rem; border-radius: 4px;
+      background: #ebecf0; color: #42526e;
+      flex-shrink: 0; margin-top: .1rem;
+    }
+    .task-title { font-size: .975rem; font-weight: 700; color: var(--text); flex: 1; }
+    .feature-tag {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; padding: .18rem .55rem; border-radius: 4px;
+      flex-shrink: 0; white-space: nowrap; margin-top: .1rem;
+    }
+    .tag-m1 { background: var(--tag-m1-bg); color: var(--tag-m1); }
+    .tag-m2 { background: var(--tag-m2-bg); color: var(--tag-m2); }
+    .tag-s1 { background: var(--tag-s1-bg); color: var(--tag-s1); }
+    .tag-s3 { background: var(--tag-s3-bg); color: var(--tag-s3); }
+    .tag-n3 { background: var(--tag-n3-bg); color: var(--tag-n3); }
+
+    .task-body { padding: 1rem 1.25rem 1.25rem; }
+
+    /* meta row */
+    .meta-row {
+      display: flex; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: .9rem;
+    }
+    .meta-item {
+      font-size: .75rem; color: var(--muted);
+      display: flex; align-items: center; gap: .3rem;
+    }
+    .meta-item strong { color: var(--text); }
+
+    /* section label */
+    .sec {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: var(--muted);
+      margin: .85rem 0 .4rem;
+    }
+
+    /* description */
+    .desc { font-size: .875rem; color: var(--text); line-height: 1.7; }
+    .desc p { margin-bottom: .5rem; }
+    .desc ul { padding-left: 1.3rem; }
+    .desc li { margin-bottom: .3rem; }
+
+    /* AC */
+    .ac { list-style: none; padding: 0; }
+    .ac li {
+      font-size: .85rem; padding: .28rem 0;
+      display: flex; gap: .5rem; align-items: flex-start;
+      border-bottom: 1px solid #f4f5f7;
+    }
+    .ac li:last-child { border-bottom: none; }
+    .ac li::before {
+      content: '✓'; color: var(--ac-green);
+      font-weight: 700; flex-shrink: 0; margin-top: .05rem;
+    }
+
+    /* tech notes */
+    .tech {
+      background: #f4f5f7; border-left: 3px solid #4c9aff;
+      padding: .65rem .9rem; border-radius: 0 4px 4px 0;
+      font-size: .82rem; color: #344563; margin-top: .5rem;
+    }
+    .tech ul { padding-left: 1.2rem; margin-top: .3rem; }
+    .tech li { margin-bottom: .2rem; }
+
+    code {
+      font-family: 'SFMono-Regular', 'Consolas', monospace;
+      font-size: .82em; background: #ebecf0;
+      padding: .1em .4em; border-radius: 3px; color: #0052cc;
+    }
+
+    /* copy hint */
+    .copy-hint {
+      font-size: .72rem; color: #97a0af; text-align: right;
+      margin-top: .6rem;
+    }
+
+    /* divider */
+    hr { border: none; border-top: 1px dashed var(--border); margin: 1.5rem 0; }
+
+    footer {
+      text-align: center; font-size: .78rem; color: var(--muted);
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ PAGE HEADER ════════════════ -->
+<div class="page-header">
+  <h1>🗂 Jira Backend Tasks — GraduationProject</h1>
+  <p>Phân chia task BE cho 2 developer · Copy từng card vào Jira Issue</p>
+  <div class="chips">
+    <span class="chip">📅 2026-05-28</span>
+    <span class="chip">🔵 Dev 1 · 7 tasks · M1, S1, N3</span>
+    <span class="chip">🟢 Dev 2 · 5 tasks · M2, S3</span>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DEV 1
+════════════════════════════════════════════════════════ -->
+<div class="assignee-header dev1">
+  <div class="avatar dev1">D1</div>
+  <div class="assignee-info">
+    <strong>Backend Developer 1</strong>
+    <span>Phụ trách: M1 · Discussion Forum &nbsp;|&nbsp; S1 · Wishlist &nbsp;|&nbsp; N3 · Follow Instructor</span>
+  </div>
+  <span class="task-count dev1">7 tasks</span>
+</div>
+
+<!-- ─── BE-01 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-01</span>
+    <span class="task-title">[M1] Migration: Tạo bảng DiscussionPosts & DiscussionUpvotes</span>
+    <span class="feature-tag tag-m1">M1 · Forum</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;database/knex_migrations</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Tính năng Discussion Forum chưa được implement. Task này tạo 2 file migration mới để dựng schema từ đầu cho hệ thống Q&A theo lesson.</p>
+      <p style="margin-top:.5rem"><strong>File 1 — <code>036_discussion_posts.js</code>:</strong> Tạo bảng <code>DiscussionPosts</code> với các cột:</p>
+      <ul>
+        <li><code>id</code> INT PK AUTO_INCREMENT</li>
+        <li><code>lesson_id</code> INT NOT NULL — FK → <code>Lessons.id</code></li>
+        <li><code>user_id</code> INT NOT NULL — FK → <code>Users.id</code></li>
+        <li><code>parent_id</code> INT NULL — self-ref FK → <code>DiscussionPosts.id</code> (dùng cho reply)</li>
+        <li><code>content</code> TEXT NOT NULL</li>
+        <li><code>is_best_answer</code> BOOLEAN DEFAULT FALSE</li>
+        <li><code>upvotes</code> INT DEFAULT 0</li>
+        <li><code>created_at</code>, <code>updated_at</code> DATETIME</li>
+        <li>Index: <code>(lesson_id, created_at)</code> để query nhanh theo lesson.</li>
+      </ul>
+      <p style="margin-top:.5rem"><strong>File 2 — <code>037_discussion_upvotes.js</code>:</strong> Tạo bảng <code>DiscussionUpvotes</code> với các cột:</p>
+      <ul>
+        <li><code>id</code> INT PK AUTO_INCREMENT</li>
+        <li><code>post_id</code> INT NOT NULL — FK → <code>DiscussionPosts.id</code></li>
+        <li><code>user_id</code> INT NOT NULL — FK → <code>Users.id</code></li>
+        <li>Unique constraint: <code>(post_id, user_id)</code> — tránh upvote trùng.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li><code>knex migrate:latest</code> chạy thành công cả 2 file, không lỗi.</li>
+      <li><code>knex migrate:rollback</code> drop đúng 2 bảng, không ảnh hưởng bảng khác.</li>
+      <li>Schema sau migration khớp đặc tả: đúng kiểu dữ liệu, FK hợp lệ, index tồn tại.</li>
+      <li>Insert thử 1 row vào <code>DiscussionPosts</code> và 1 row vào <code>DiscussionUpvotes</code> thành công.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Migration cao nhất hiện tại là <code>035_</code> → đặt tên <code>036_</code> và <code>037_</code>.</li>
+        <li>Đặt file tại <code>database/knex_migrations/</code>.</li>
+        <li>Không dùng lại bảng <code>DiscussionForum</code> cũ trong schema design — tạo bảng mới tên <code>DiscussionPosts</code> để rõ ràng hơn.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-02 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-02</span>
+    <span class="task-title">[M1] CRUD API: Tạo, đọc, sửa, xóa Discussion Post & Reply</span>
+    <span class="feature-tag tag-m1">M1 · Forum</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-01</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Xây dựng module <code>discussions</code> trong <code>course_service</code> gồm Controller, Service, Model/Entity. Implement đầy đủ CRUD và guard authorization dựa trên enrollment.</p>
+      <ul>
+        <li><strong>GET</strong> <code>/api/lessons/:lessonId/discussions</code> — list câu hỏi + replies lồng nhau (2 cấp), phân trang, sort <code>newest</code> | <code>upvotes</code>.</li>
+        <li><strong>POST</strong> <code>/api/lessons/:lessonId/discussions</code> — tạo câu hỏi mới hoặc reply (nếu có <code>parentId</code>).</li>
+        <li><strong>PATCH</strong> <code>/api/discussions/:postId</code> — chỉnh sửa nội dung (chỉ tác giả).</li>
+        <li><strong>DELETE</strong> <code>/api/discussions/:postId</code> — xóa post (tác giả hoặc instructor của khóa).</li>
+        <li><strong>GET</strong> <code>/api/courses/:courseId/discussions</code> — dành cho instructor: list tổng hợp toàn khóa, kèm <code>lessonTitle</code>, filter <code>?lessonId=&status=answered|unanswered</code>.</li>
+        <li>Guard: verify <code>userId</code> có trong <code>Enrolls</code> với <code>course_id</code> của lesson. Instructor role bypass guard.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>GET list trả về đúng câu hỏi của lesson, không lẫn lesson khác.</li>
+      <li>Reply có <code>parentId</code> được lồng đúng vào post cha trong response.</li>
+      <li>Học viên chưa enroll → <code>403 Forbidden</code>.</li>
+      <li>Edit/Delete bởi người không phải tác giả → <code>403 Forbidden</code>.</li>
+      <li>Phân trang <code>?page=1&limit=20</code> trả về đúng <code>total</code>, <code>page</code>, <code>data</code>.</li>
+      <li>Instructor GET course-level discussions kèm đúng <code>lessonTitle</code> của từng post.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Module tạo tại <code>course_service/src/discussions/</code>.</li>
+        <li>Join <code>Lessons → Courses → Enrolls</code> để verify enrollment khi guard.</li>
+        <li>Reply lồng nhau: query <code>WHERE parent_id IS NULL</code> lấy root, sau đó attach replies vào.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-03 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-03</span>
+    <span class="task-title">[M1] Business Logic: Upvote toggle & Instructor đánh dấu Best Answer</span>
+    <span class="feature-tag tag-m1">M1 · Forum</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-02</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <ul>
+        <li><strong>Upvote toggle:</strong> <code>POST /api/discussions/:postId/upvote</code>. Tạo bảng <code>DiscussionUpvotes (user_id, post_id)</code> với unique constraint. Bấm lần đầu = insert + tăng <code>upvotes</code> counter. Bấm lần hai = delete + giảm counter. Trả về <code>{ upvotes, voted: boolean }</code>.</li>
+        <li><strong>Best Answer:</strong> <code>PATCH /api/discussions/:postId/best-answer</code>. Chỉ instructor của khóa chứa lesson mới được gọi. Mỗi câu hỏi gốc chỉ có 1 best answer: khi đánh dấu post mới, unset best answer cũ của cùng root question. Toggle: gọi lại endpoint = bỏ đánh dấu.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Upvote 2 lần liên tiếp → <code>voted</code> trả về <code>false</code>, counter không âm.</li>
+      <li>Upvote đồng thời (concurrent) không tạo duplicate row trong <code>DiscussionUpvotes</code>.</li>
+      <li>Instructor mark best answer → response kèm <code>isBestAnswer: true</code>; post cũ được unset.</li>
+      <li>Non-instructor gọi best-answer endpoint → <code>403 Forbidden</code>.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Dùng <code>INSERT IGNORE</code> hoặc transaction + select-for-update để tránh race condition upvote.</li>
+        <li>Migration tạo bảng <code>DiscussionUpvotes</code>: đặt tên <code>037_discussion_upvotes.js</code>.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-04 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-04</span>
+    <span class="task-title">[M1] Notification: Tự động push thông báo khi có reply mới</span>
+    <span class="feature-tag tag-m1">M1 · Forum</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-02</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Khi một reply được tạo thành công (POST với <code>parentId</code>), hệ thống tự động tạo record trong bảng <code>Notifications</code> cho người đặt câu hỏi gốc (root post author). Không notify cho chính người reply.</p>
+      <ul>
+        <li>Lookup <code>post_id = parentId</code> → lấy <code>user_id</code> của post gốc.</li>
+        <li>Insert <code>Notifications</code>: <code>user_id</code> = người hỏi, <code>message</code> = "[Tên người reply] đã trả lời câu hỏi của bạn trong bài [Tên Lesson]", <code>redirect_url</code> = link tới lesson đó.</li>
+        <li>Nếu WebSocket đang available: emit event <code>notification:new</code> tới room của user.</li>
+        <li>Không gửi notification khi người reply = người hỏi.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Reply mới → record notification xuất hiện trong DB của người hỏi gốc.</li>
+      <li>Tự reply câu hỏi của chính mình → không tạo notification.</li>
+      <li><code>redirect_url</code> trong notification trỏ đúng lesson URL.</li>
+    </ul>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── BE-05 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-05</span>
+    <span class="task-title">[S1] Migration + CRUD API: Wishlist</span>
+    <span class="feature-tag tag-s1">S1 · Wishlist</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1 ngày</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Tạo bảng <code>Wishlists</code> và xây dựng module CRUD đầy đủ để học viên lưu khóa học muốn học sau.</p>
+      <ul>
+        <li><strong>Migration</strong> <code>038_wishlists.js</code>: bảng <code>Wishlists (id, user_id, course_id, added_at DATETIME)</code> với unique constraint <code>(user_id, course_id)</code> và FK tới <code>Users</code>, <code>Courses</code>.</li>
+        <li><strong>GET</strong> <code>/api/wishlist</code> — list wishlist của user đang đăng nhập, trả về CourseCard đầy đủ (join Courses, avg rating, enroll count). Phân trang <code>?page&limit</code>.</li>
+        <li><strong>POST</strong> <code>/api/wishlist</code> — thêm course vào wishlist. Body: <code>{ courseId }</code>. Nếu đã tồn tại trả về <code>200</code> (idempotent).</li>
+        <li><strong>DELETE</strong> <code>/api/wishlist/:courseId</code> — xóa course khỏi wishlist. Trả về <code>204 No Content</code>.</li>
+        <li><strong>GET</strong> <code>/api/wishlist/check/:courseId</code> — kiểm tra nhanh course có trong wishlist không. Trả về <code>{ inWishlist: boolean }</code>. Dùng cho icon tim trên Course Card.</li>
+        <li>Chỉ cho phép wishlist khóa có <code>status = 'publish'</code>.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>POST cùng courseId 2 lần → không tạo duplicate, trả về 200.</li>
+      <li>GET list trả về đầy đủ thông tin CourseCard (tên, thumbnail, giá, rating, instructor).</li>
+      <li>DELETE đúng → 204; DELETE courseId không tồn tại trong wishlist → 404.</li>
+      <li>GET check trả về <code>{ inWishlist: false }</code> đúng sau khi DELETE.</li>
+      <li>Wishlist khóa draft/pending → 400 Bad Request.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Module tạo tại <code>course_service/src/wishlist/</code>.</li>
+        <li>GET list cần JOIN <code>Courses</code> + subquery tính <code>avgRating</code> từ <code>Reviews</code> và <code>enrollCount</code> từ <code>Enrolls</code>.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── BE-06 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-06</span>
+    <span class="task-title">[N3] Migration + Follow/Unfollow API</span>
+    <span class="feature-tag tag-n3">N3 · Follow</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;user_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1 ngày</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Tạo bảng <code>InstructorFollows</code> và CRUD API để học viên theo dõi/bỏ theo dõi instructor.</p>
+      <ul>
+        <li><strong>Migration</strong> <code>039_instructor_follows.js</code>: bảng <code>InstructorFollows (id, follower_id, instructor_id, followed_at)</code> với unique constraint <code>(follower_id, instructor_id)</code>, FK tới <code>Users</code>.</li>
+        <li><strong>POST</strong> <code>/api/instructors/:id/follow</code> — follow instructor. Validate: không tự follow chính mình. Idempotent nếu đã follow.</li>
+        <li><strong>DELETE</strong> <code>/api/instructors/:id/follow</code> — unfollow. Trả về <code>204</code>.</li>
+        <li><strong>GET</strong> <code>/api/instructors/:id/stats</code> — public stats: <code>{ followerCount, courseCount, isFollowing? }</code>. <code>isFollowing</code> chỉ có nếu request kèm Bearer token.</li>
+        <li><strong>GET</strong> <code>/api/users/following</code> — list các instructor đang follow (của user đang đăng nhập). Phân trang.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Follow chính mình → <code>400 Bad Request</code> với message rõ ràng.</li>
+      <li>Follow 2 lần → idempotent, không tạo duplicate record.</li>
+      <li>GET stats public: không cần token, <code>isFollowing</code> = undefined (không trả field này).</li>
+      <li>GET stats có token: <code>isFollowing</code> trả về đúng <code>true/false</code>.</li>
+      <li>GET following list phân trang đúng, trả về avatar và course count của từng instructor.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Module tạo tại <code>user_service/src/follows/</code>.</li>
+        <li>Validate instructor role: chỉ cho follow user có <code>role = 3</code> (lecturer).</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-07 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-07</span>
+    <span class="task-title">[N3] Notification: Notify instructor khi có follower mới & notify followers khi có khóa mới</span>
+    <span class="feature-tag tag-n3">N3 · Follow</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;user_service + course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-06</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <ul>
+        <li><strong>Notify instructor khi có follower mới:</strong> Sau khi follow thành công → insert <code>Notifications</code> cho instructor với message "[Tên học viên] đã theo dõi bạn".</li>
+        <li><strong>Notify followers khi instructor publish khóa mới:</strong> Hook vào luồng course publish (khi admin approve, course chuyển sang <code>publish</code>) trong <code>course_service</code>. Batch insert <code>Notifications</code> cho tất cả follower của instructor đó. Message: "[Tên Instructor] vừa ra mắt khóa học mới: [Tên khóa]", <code>redirect_url</code> = link course detail.</li>
+        <li>Batch insert giới hạn 200 follower/lần để tránh blocking (dùng chunked insert).</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Follow → instructor nhận notification trong DB.</li>
+      <li>Course được publish → followers nhận notification với link đúng.</li>
+      <li>Instructor chưa có follower → không có notification nào được tạo (không lỗi).</li>
+      <li>Batch insert 500 followers không timeout (chạy dưới 3s).</li>
+    </ul>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DEV 2
+════════════════════════════════════════════════════════ -->
+<div class="assignee-header dev2">
+  <div class="avatar dev2">D2</div>
+  <div class="assignee-info">
+    <strong>Backend Developer 2</strong>
+    <span>Phụ trách: M2 · Search &amp; Filter &nbsp;|&nbsp; S3 · Revenue Dashboard</span>
+  </div>
+  <span class="task-count dev2">5 tasks</span>
+</div>
+
+<!-- ─── BE-08 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-08</span>
+    <span class="task-title">[M2] Search API: Full-text search khóa học theo từ khóa</span>
+    <span class="feature-tag tag-m2">M2 · Search</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1 ngày</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Xây dựng endpoint search khóa học theo từ khóa, chỉ trả về các khóa có <code>status = 'publish'</code>. Kết quả kèm đầy đủ thông tin để hiển thị CourseCard.</p>
+      <ul>
+        <li><strong>GET</strong> <code>/api/courses/search</code> với query param <code>?q=</code>: tìm kiếm trên <code>Courses.name</code> và <code>Courses.description</code> bằng <code>LIKE '%keyword%'</code> (hoặc <code>FULLTEXT INDEX</code> nếu cần performance tốt hơn).</li>
+        <li>Khi <code>q</code> rỗng hoặc không truyền → trả về tất cả khóa publish (no filter).</li>
+        <li>Response mỗi item CourseCard gồm: <code>id, name, thumbnailUrl, price, level, language, duration, avgRating, reviewCount, enrollCount, instructorName, instructorAvatar, status, createdAt</code>.</li>
+        <li>Phân trang: <code>?page=1&limit=12</code>. Trả về <code>{ data, total, page, totalPages }</code>.</li>
+        <li>Sort mặc định: <code>newest</code> (createdAt DESC).</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Search "python" trả về đúng các khóa có "python" trong name hoặc description (case-insensitive).</li>
+      <li>Không trả về khóa có <code>status != 'publish'</code> trong kết quả.</li>
+      <li>Phân trang đúng: <code>total</code> là tổng số kết quả match, <code>data</code> là slice theo page.</li>
+      <li>Response time &lt; 300ms cho dataset &lt; 1000 courses.</li>
+      <li><code>q</code> rỗng → trả về tất cả khóa publish, phân trang đúng.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Endpoint đặt trong module <code>course</code> hiện có, thêm action <code>search</code> vào <code>course.controller.ts</code>.</li>
+        <li>JOIN <code>Users</code> để lấy <code>instructorName</code> (<code>fname + lname</code>) và <code>instructorAvatar</code>.</li>
+        <li>Subquery hoặc LEFT JOIN để tính <code>avgRating</code> từ <code>Reviews</code> và <code>enrollCount</code> từ <code>Enrolls</code>.</li>
+        <li>Đặt route <code>/search</code> TRƯỚC route <code>/:id</code> trong controller để tránh conflict.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-09 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-09</span>
+    <span class="task-title">[M2] Filter & Sort: Lọc theo category, level, giá, rating + sắp xếp</span>
+    <span class="feature-tag tag-m2">M2 · Search</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-08</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Mở rộng endpoint <code>/api/courses/search</code> từ BE-08 để hỗ trợ filter đa chiều và các tùy chọn sort. Tất cả filter là optional, có thể kết hợp tự do.</p>
+      <ul>
+        <li><strong>Filter params:</strong>
+          <ul>
+            <li><code>categoryId[]</code> — multi-value, VD: <code>?categoryId=1&categoryId=3</code> → OR condition.</li>
+            <li><code>level</code> — <code>Beginner</code> | <code>Intermediate</code> | <code>Advanced</code>.</li>
+            <li><code>minPrice</code> / <code>maxPrice</code> — range giá (số dương). <code>minPrice=0&maxPrice=0</code> = free courses.</li>
+            <li><code>minRating</code> — float từ 0–5, lọc theo <code>avgRating >= minRating</code>.</li>
+          </ul>
+        </li>
+        <li><strong>Sort param</strong> <code>sort</code>:
+          <ul>
+            <li><code>newest</code> — <code>createdAt DESC</code> (default).</li>
+            <li><code>popular</code> — <code>enrollCount DESC</code>.</li>
+            <li><code>rating</code> — <code>avgRating DESC</code>.</li>
+            <li><code>price_asc</code> / <code>price_desc</code> — theo giá.</li>
+          </ul>
+        </li>
+        <li>Có thể kết hợp <code>q</code> + bất kỳ filter nào.</li>
+        <li>Thêm endpoint <code>/api/categories</code> (GET, public) trả về <code>[{ id, name, courseCount }]</code> để FE populate filter panel.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Filter <code>level=Beginner&minPrice=0&maxPrice=500000</code> trả về đúng tập kết quả, không có khóa ngoài điều kiện.</li>
+      <li>Filter <code>categoryId=1&categoryId=3</code> trả về khóa thuộc category 1 HOẶC 3.</li>
+      <li>Sort <code>popular</code> → item đầu tiên có enrollCount cao nhất.</li>
+      <li>Kết hợp <code>q=react&level=Intermediate&sort=rating</code> hoạt động đúng.</li>
+      <li><code>/api/categories</code> trả về <code>courseCount</code> là số khóa publish của category đó (không tính draft).</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Build WHERE clause động trong Sequelize với <code>Op.and</code>, <code>Op.or</code>, <code>Op.between</code>.</li>
+        <li><code>minRating</code> filter cần HAVING clause (aggregate), không phải WHERE.</li>
+        <li>Validate <code>minPrice</code>, <code>maxPrice</code> là số không âm. <code>minPrice &gt; maxPrice</code> → 400.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── BE-10 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-10</span>
+    <span class="task-title">[S3] Revenue Summary & Time-series API cho Instructor</span>
+    <span class="feature-tag tag-s3">S3 · Revenue</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service (hoặc payment_service)</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;1.5 ngày</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Xây dựng API doanh thu dành riêng cho instructor, join bảng <code>Transaction_Items</code> + <code>Transactions</code> + <code>Courses</code>. Chỉ tính transaction <code>status = 'paid'</code>. Instructor chỉ thấy dữ liệu của khóa học do mình tạo.</p>
+      <ul>
+        <li><strong>GET</strong> <code>/api/instructor/revenue/summary</code> — trả về: <code>{ allTime, thisMonth, lastMonth, growthPercent }</code>. Growth = <code>(thisMonth - lastMonth) / lastMonth * 100</code> (handle chia cho 0).</li>
+        <li><strong>GET</strong> <code>/api/instructor/revenue/timeseries</code> — params: <code>from</code>, <code>to</code> (ISO date string), <code>granularity=daily|weekly|monthly</code>. Trả về array <code>[{ date, revenue, enrollCount }]</code>. Date format: <code>YYYY-MM-DD</code> (daily), <code>YYYY-[W]WW</code> (weekly), <code>YYYY-MM</code> (monthly). Các ngày/tuần/tháng không có giao dịch → trả về <code>revenue: 0, enrollCount: 0</code> (không skip).</li>
+        <li>Default range nếu không truyền <code>from/to</code>: 30 ngày gần nhất.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Instructor A không thấy doanh thu của Instructor B (strict isolation).</li>
+      <li>Summary <code>allTime</code> = sum của toàn bộ <code>Transaction_Items.price</code> đã paid.</li>
+      <li>Time-series <code>granularity=monthly&from=2026-01-01&to=2026-12-31</code> → trả về đủ 12 phần tử kể cả tháng 0 đồng.</li>
+      <li><code>growthPercent</code> = <code>null</code> khi <code>lastMonth = 0</code> (tránh Infinity).</li>
+      <li>Params <code>from &gt; to</code> → 400 Bad Request.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>Query join: <code>Transaction_Items → Transactions (status=paid) → Courses (user_id = instructorId)</code>.</li>
+        <li>Dùng MySQL <code>DATE_FORMAT</code> để group theo granularity. VD: <code>DATE_FORMAT(paid_at, '%Y-%m')</code> cho monthly.</li>
+        <li>Generate date series đầy đủ ở application layer (JS) sau khi query, fill 0 cho ngày trống.</li>
+        <li>Module tạo tại <code>course_service/src/instructor-revenue/</code> hoặc expose qua <code>course.service.ts</code>.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-11 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-11</span>
+    <span class="task-title">[S3] Revenue By-Course Breakdown API cho Instructor</span>
+    <span class="feature-tag tag-s3">S3 · Revenue</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-10</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Bổ sung endpoint thống kê doanh thu chi tiết theo từng khóa học, hỗ trợ filter theo khoảng thời gian và sort.</p>
+      <ul>
+        <li><strong>GET</strong> <code>/api/instructor/revenue/by-course</code> — params: <code>from?</code>, <code>to?</code>, <code>sort=revenue|enrolls</code> (default: <code>revenue</code> DESC).</li>
+        <li>Response mỗi item: <code>{ courseId, courseName, thumbnailUrl, revenue, enrollCount, avgRating }</code>.</li>
+        <li>Không phân trang (instructor thường có &lt; 50 khóa) — trả về toàn bộ danh sách.</li>
+        <li>Khóa của instructor chưa có giao dịch nào vẫn xuất hiện với <code>revenue: 0, enrollCount: 0</code>.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Sum <code>revenue</code> của tất cả item = <code>summary.allTime</code> khi không filter date (hoặc khớp range).</li>
+      <li>Khóa 0 doanh thu vẫn có trong list, không bị loại.</li>
+      <li>Sort <code>enrolls</code> → item đầu có <code>enrollCount</code> lớn nhất.</li>
+      <li>Filter <code>from=2026-01-01&to=2026-03-31</code> → chỉ tính giao dịch trong Q1/2026.</li>
+    </ul>
+
+    <div class="tech">
+      <strong>Ghi chú kỹ thuật:</strong>
+      <ul>
+        <li>LEFT JOIN từ <code>Courses</code> (instructorId) ra <code>Transaction_Items</code> để giữ lại khóa 0 doanh thu.</li>
+        <li>Dùng <code>COALESCE(SUM(price), 0)</code> để tránh NULL revenue.</li>
+      </ul>
+    </div>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+<!-- ─── BE-12 ─────────────────────────────────── -->
+<div class="task-card">
+  <div class="task-header">
+    <span class="task-id">BE-12</span>
+    <span class="task-title">[S3] Revenue Summary: Thêm endpoint unread-count & đảm bảo isolation Instructor</span>
+    <span class="feature-tag tag-s3">S3 · Revenue</span>
+  </div>
+  <div class="task-body">
+    <div class="meta-row">
+      <span class="meta-item">🗃 <strong>Service:</strong>&nbsp;course_service</span>
+      <span class="meta-item">⏱ <strong>Estimate:</strong>&nbsp;0.5 ngày</span>
+      <span class="meta-item">🔗 <strong>Depends:</strong>&nbsp;BE-10, BE-11</span>
+    </div>
+
+    <div class="sec">Mô tả</div>
+    <div class="desc">
+      <p>Task hardening cho toàn bộ revenue API — đảm bảo security và viết unit test coverage cho các edge cases.</p>
+      <ul>
+        <li>Thêm Guard <code>InstructorGuard</code>: chỉ user có <code>role = 3</code> (lecturer) mới được truy cập các endpoint <code>/api/instructor/revenue/*</code>. Non-instructor → <code>403</code>.</li>
+        <li>Viết unit test cho <code>RevenueService</code>: test isolation (instructor A không thấy data B), test growth khi lastMonth = 0, test time-series fill đủ ngày trống.</li>
+        <li>Thêm cache Redis (TTL = 5 phút) cho endpoint <code>summary</code> và <code>timeseries</code> — key: <code>revenue:{instructorId}:{endpoint}:{params_hash}</code>. Invalidate khi có transaction mới của instructor.</li>
+      </ul>
+    </div>
+
+    <div class="sec">Tiêu chí nghiệm thu</div>
+    <ul class="ac">
+      <li>Admin role (role=1) gọi <code>/instructor/revenue/*</code> → <code>403 Forbidden</code>.</li>
+      <li>Unit tests pass 100% cho 3 cases đã liệt kê.</li>
+      <li>Gọi summary lần 2 trong 5 phút → response từ Redis cache (log "cache hit").</li>
+      <li>Sau khi thanh toán mới → cache invalidate, gọi lại trả về data mới.</li>
+    </ul>
+    <p class="copy-hint">📋 Copy toàn bộ nội dung card này vào Jira Issue Description</p>
+  </div>
+</div>
+
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<footer>
+  <p>📋 Jira Backend Task Breakdown — GraduationProject &nbsp;|&nbsp; 2026-05-28</p>
+  <p style="margin-top:.3rem">Dev 1: BE-01 → BE-07 (M1, S1, N3) &nbsp;·&nbsp; Dev 2: BE-08 → BE-12 (M2, S3)</p>
+</footer>
+
+</body>
+</html>
