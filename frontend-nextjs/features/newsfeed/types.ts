@@ -13,7 +13,7 @@ export interface NewsfeedCourseInfo {
 	language: string;
 	price: number;
 	userId: number;
-	status: "draft" | "published" | "archived" | string;
+	status: "draft" | "publish" | "published" | "archived" | string;
 	categories: string[];
 	thumbnail: string | null;
 	description: string;
@@ -84,16 +84,20 @@ export interface NewsfeedRawItem {
 		views?: number;
 		likes?: number;
 		saves?: number;
+		shares?: number;
 		comments?: number;
 	};
 	is_liked?: boolean;
 	is_saved?: boolean;
 }
 
-export interface NewsfeedPageResponse {
+export interface NewsfeedFeedPageResponse {
 	data: NewsfeedRawItem[];
 	next_cursor: number | null;
+	session_id?: string | null;
 }
+
+export type NewsfeedFeedResponse = NewsfeedRawItem[] | NewsfeedFeedPageResponse;
 
 export interface NewsfeedItem {
 	id: number;

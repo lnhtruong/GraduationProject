@@ -81,21 +81,6 @@ export function useNewsfeedComments(
   });
 }
 
-export function useNewsfeedFeedDetailStats(feedId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: newsfeedKeys.custom("feed-detail-stats", feedId),
-    queryFn: () => {
-      if (!feedId) {
-        return Promise.resolve(null);
-      }
-
-      return newsfeedApi.getFeedDetailStats({ feedId });
-    },
-    enabled: enabled && feedId !== null,
-    staleTime: 30 * 1000,
-  });
-}
-
 export function useNewsfeedCreatorStats(
   enabled = true,
   period?: string,

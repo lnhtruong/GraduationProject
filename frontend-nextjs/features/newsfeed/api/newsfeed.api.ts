@@ -7,15 +7,66 @@ import type {
   NewsfeedActionType,
   NewsfeedCreatorStatsResponse,
   NewsfeedFeedMutationResponse,
-  NewsfeedFeedDetailStatsResponse,
   NewsfeedItem,
   NewsfeedTrendingStatsResponse,
-  NewsfeedPageResponse,
+  NewsfeedFeedPageResponse,
+  NewsfeedFeedResponse,
   NewsfeedRawItem,
   NewsfeedViewRecordResponse,
 } from "../types";
 
 const FEED_ENDPOINT = "/media/feed";
+
+const MEDIA_EXTENSIONS = ["mp4", "webm", "mov", "m4v"] as const;
+
+function parseFeedResponse(response: NewsfeedFeedResponse) {
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      nextCursor: null as number | null,
+      sessionId: null as string | null,
+    };
+  }
+
+  return {
+    items: Array.isArray(response.data) ? response.data : [],
+    nextCursor: typeof response.next_cursor === "number" ? response.next_cursor : null,
+    sessionId: typeof response.session_id === "string" ? response.session_id : null,
+  };
+}
+
+function normalizeMediaUrl(url?: string | null) {
+  if (!url) {
+    return "";
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const pathname = parsedUrl.pathname;
+    const duplicatedSegmentPattern = new RegExp(
+      `^(.*\/)([^/]+\\.(?:${MEDIA_EXTENSIONS.join("|")}))\/\\2$`,
+      "i",
+    );
+    const collapsedPathname = pathname.replace(
+      duplicatedSegmentPattern,
+      "$1$2",
+    );
+
+    if (collapsedPathname !== pathname) {
+      parsedUrl.pathname = collapsedPathname;
+      return parsedUrl.toString();
+    }
+  } catch {
+    // Keep the original string when it is not a valid absolute URL.
+  }
+
+  return trimmed;
+}
 
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
   const courseName = raw.course?.name?.trim() || "Khóa học";
@@ -23,6 +74,8 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
   const caption = raw.caption?.trim() || null;
   const description = caption || raw.course?.description?.trim() || title;
   const video = raw.video;
+  const videoUrl = normalizeMediaUrl(video.url);
+  const thumbnailUrl = normalizeMediaUrl(video.thumbnail);
   const categories = Array.isArray(raw.course?.categories)
     ? raw.course.categories.filter((tag) => typeof tag === "string")
     : [];
@@ -33,8 +86,8 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     title,
     caption,
     description,
-    videoUrl: video.url,
-    thumbnail: video.thumbnail ?? null,
+    videoUrl,
+    thumbnail: thumbnailUrl || null,
     type: raw.video_type ?? video.type ?? "không xác định",
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
     lecturer: raw.lecturer,
@@ -42,7 +95,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
       likes: raw.stats?.likes ?? 0,
       comments: raw.stats?.comments ?? 0,
       saves: raw.stats?.saves ?? 0,
-      shares: 0,
+      shares: raw.stats?.shares ?? 0,
       views: raw.stats?.views ?? 0,
     },
     isLiked: Boolean(raw.is_liked),
@@ -58,7 +111,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
       userId: Number(raw.course?.userId ?? 0),
       status: raw.course?.status ?? "published",
       categories,
-      thumbnail: raw.course?.thumbnail ?? video.thumbnail ?? null,
+      thumbnail: raw.course?.thumbnail ?? (thumbnailUrl || null),
       description,
       created_at:
         raw.course?.created_at ?? video.created_at ?? new Date().toISOString(),
@@ -82,7 +135,7 @@ export const newsfeedApi = createApi({
     search?: string;
     courseId?: number;
   }): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-    const { data } = await apiHttpClient.get<NewsfeedPageResponse>(
+    const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(
       withQueryPath(FEED_ENDPOINT, {
         cursor,
         limit,
@@ -92,30 +145,35 @@ export const newsfeedApi = createApi({
       }),
     );
 
+    const { items, nextCursor } = parseFeedResponse(data);
+
     return {
-      items: (Array.isArray(data.data) ? data.data : [])
+      items: items
         .map(mapFeedItem)
         .filter((item) => Boolean(item.videoUrl)),
-      nextCursor:
-        typeof data.next_cursor === "number" ? data.next_cursor : null,
+      nextCursor,
     };
   },
 
     getViewedFeeds: async (): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-      const { data } = await apiHttpClient.get<NewsfeedRawItem[]>(`${FEED_ENDPOINT}/viewed`);
+      const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(`${FEED_ENDPOINT}/viewed`);
+
+      const { items, nextCursor } = parseFeedResponse(data);
 
       return {
-        items: (Array.isArray(data) ? data : []).map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
-        nextCursor: null,
+        items: items.map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
+        nextCursor,
       };
     },
 
     getSavedFeeds: async (): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
-      const { data } = await apiHttpClient.get<NewsfeedRawItem[]>(`${FEED_ENDPOINT}/saved`);
+      const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(`${FEED_ENDPOINT}/saved`);
+
+      const { items, nextCursor } = parseFeedResponse(data);
 
       return {
-        items: (Array.isArray(data) ? data : []).map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
-        nextCursor: null,
+        items: items.map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
+        nextCursor,
       };
     },
 
@@ -253,13 +311,6 @@ export const newsfeedApi = createApi({
         content,
         origin_cmt: originCmt ?? null,
       },
-    );
-    return data;
-  },
-
-  getFeedDetailStats: async ({ feedId }: { feedId: number }): Promise<NewsfeedFeedDetailStatsResponse> => {
-    const { data } = await apiHttpClient.get<NewsfeedFeedDetailStatsResponse>(
-      `${FEED_ENDPOINT}/${feedId}/stats`,
     );
     return data;
   },
