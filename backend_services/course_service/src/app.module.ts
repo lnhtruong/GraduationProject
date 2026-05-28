@@ -20,6 +20,7 @@ import { LessonProgressModule } from './lessonProgress/lesson-progress.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.modul
     LessonProgressModule,
     ReportsModule,
     QuizSubmissionsModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],
