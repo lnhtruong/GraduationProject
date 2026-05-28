@@ -71,6 +71,8 @@ export class ReportsController {
     @Query('limit') limit?: string,
     @Query('status') status?: ReportStatus,
     @Query('targetType') targetType?: ReportTargetType,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('search') search?: string,
   ) {
     this.assertAdmin(roleHeader);
     return await this.reportsService.listAll({
@@ -78,6 +80,8 @@ export class ReportsController {
       limit: limit ? Number(limit) : undefined,
       status,
       targetType,
+      sortOrder,
+      search,
     });
   }
 

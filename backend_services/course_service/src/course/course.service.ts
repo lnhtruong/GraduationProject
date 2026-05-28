@@ -153,9 +153,16 @@ export class CoursesService {
   }
 
   async findAllPublic(
-    status?: CourseStatus,
-    page?: number,
-    limit?: number,
+    params: {
+      status?: CourseStatus;
+      page?: number;
+      limit?: number;
+      search?: string;
+      level?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      userId?: number;
+    } = {},
   ): Promise<
     | Course[]
     | {
@@ -168,10 +175,35 @@ export class CoursesService {
       };
     }
   > {
+    const { status, page, limit, search, level, minPrice, maxPrice, userId } =
+      params;
     const whereCondition: any = {};
 
     if (status) {
       whereCondition.status = status;
+    }
+
+    if (level) {
+      whereCondition.level = level;
+    }
+
+    if (typeof userId === 'number' && Number.isInteger(userId) && userId > 0) {
+      whereCondition.userId = userId;
+    }
+
+    if (search && search.trim().length > 0) {
+      whereCondition.name = { [Op.like]: `%${search.trim()}%` };
+    }
+
+    const priceCondition: Record<symbol, number> = {};
+    if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
+      priceCondition[Op.gte] = minPrice;
+    }
+    if (typeof maxPrice === 'number' && Number.isFinite(maxPrice)) {
+      priceCondition[Op.lte] = maxPrice;
+    }
+    if (Object.getOwnPropertySymbols(priceCondition).length > 0) {
+      whereCondition.price = priceCondition;
     }
 
     const shouldPaginate = page !== undefined || limit !== undefined;
