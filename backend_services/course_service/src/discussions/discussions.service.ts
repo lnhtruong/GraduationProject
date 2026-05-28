@@ -14,6 +14,11 @@ import { Lesson } from '../models/lesson.model';
 import { Course } from '../models/course.model';
 import { Enroll } from '../models/enroll.model';
 import { User } from '../users/user.model';
+import {
+  Notification,
+  DISCUSSION_REPLY_EVENT,
+  DISCUSSION_POST_SOURCE,
+} from '../models/notification.model';
 import { CreateDiscussionDto } from './dto/create-discussion.dto';
 import { UpdateDiscussionDto } from './dto/update-discussion.dto';
 
@@ -56,6 +61,8 @@ export class DiscussionsService {
     @InjectModel(User) private readonly userModel: typeof User,
     @InjectModel(DiscussionUpvote)
     private readonly upvoteModel: typeof DiscussionUpvote,
+    @InjectModel(Notification)
+    private readonly notificationModel: typeof Notification,
     @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
 
@@ -94,7 +101,6 @@ export class DiscussionsService {
         );
       } catch (err) {
         if (err instanceof UniqueConstraintError) {
-          // Lost the race against a concurrent insert — treat as already-voted.
           return { upvotes: post.upvotes, voted: true };
         }
         throw err;
@@ -122,7 +128,6 @@ export class DiscussionsService {
       );
     }
 
-    // Verify caller is the course instructor of the lesson, or admin.
     if (role !== ADMIN_ROLE) {
       const lesson = await this.lessonModel.findByPk(post.lessonId);
       const course = lesson
@@ -143,7 +148,6 @@ export class DiscussionsService {
         await post.save({ transaction: t });
         return;
       }
-      // Unset any other best-answer replies of the same root question.
       await this.postModel.update(
         { isBestAnswer: false },
         {
@@ -169,6 +173,72 @@ export class DiscussionsService {
       ],
     });
     return this.serialise(refreshed!);
+  }
+
+  /**
+   * BE-04: notify the root-post author when someone replies to their question.
+   * Best-effort: any failure is logged but does not break the create flow.
+   */
+  private async notifyRootAuthorOfReply(reply: DiscussionPost): Promise<void> {
+    try {
+      if (reply.parentId === null) return;
+
+      const parent = await this.postModel.findByPk(reply.parentId, {
+        attributes: ['id', 'userId', 'parentId'],
+      });
+      if (!parent) return;
+      const rootId = parent.parentId ?? parent.id;
+      const root = parent.parentId
+        ? await this.postModel.findByPk(rootId, {
+            attributes: ['id', 'userId'],
+          })
+        : parent;
+      if (!root || root.userId === reply.userId) return;
+
+      const [replyAuthor, lesson] = await Promise.all([
+        this.userModel.findByPk(reply.userId, {
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+        }),
+        this.lessonModel.findByPk(reply.lessonId, {
+          attributes: ['id', 'title', 'courseId'],
+        }),
+      ]);
+      const replyName =
+        [
+          (replyAuthor as any)?.firstName,
+          (replyAuthor as any)?.lastName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        (replyAuthor as any)?.email ||
+        'Someone';
+      const lessonTitle = (lesson as any)?.title ?? 'this lesson';
+      const courseId = (lesson as any)?.courseId;
+      const redirectUrl = courseId
+        ? `/courses/${courseId}/lessons/${reply.lessonId}#discussion-${root.id}`
+        : `/lessons/${reply.lessonId}#discussion-${root.id}`;
+
+      await this.notificationModel.create({
+        userId: root.userId,
+        eventType: DISCUSSION_REPLY_EVENT,
+        title: 'Bạn có một câu trả lời mới',
+        message: `${replyName} đã trả lời câu hỏi của bạn trong bài ${lessonTitle}`,
+        payload: {
+          replyId: reply.id,
+          rootPostId: root.id,
+          lessonId: reply.lessonId,
+          courseId: courseId ?? null,
+          redirectUrl,
+          replyAuthorId: reply.userId,
+        },
+        sourceType: DISCUSSION_POST_SOURCE,
+        sourceId: reply.id,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[discussions] failed to create reply notification', err);
+    }
   }
 
   private serialiseAuthor(user?: User | null): AuthorSnapshot {
@@ -352,6 +422,13 @@ export class DiscussionsService {
       parentId,
       content: dto.content,
     });
+
+    // BE-04 hook: notify the root-post author if this is a reply by a
+    // different user. Failure must not break the post creation.
+    if (parentId !== null) {
+      await this.notifyRootAuthorOfReply(created);
+    }
+
     const withAuthor = await this.postModel.findByPk(created.id, {
       include: [
         {

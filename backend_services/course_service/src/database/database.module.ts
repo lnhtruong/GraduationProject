@@ -23,6 +23,7 @@ import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { DiscussionPost } from 'src/models/discussion-post.model';
 import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
+import { Notification } from 'src/models/notification.model';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
             QuizOption,
             DiscussionPost,
             DiscussionUpvote,
+            Notification,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
