@@ -8,12 +8,21 @@ import {
   Pause,
   Play,
   PlayCircle,
+  Rewind,
+  FastForward,
   Volume2,
   VolumeX,
   Sparkles,
   XCircle,
 } from "lucide-react";
-import { type MouseEvent, type RefObject, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type RefObject,
+  type SyntheticEvent,
+} from "react";
 import {
   formatTime,
   InVideoQuizPoint,
@@ -37,6 +46,7 @@ import {
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 interface Props {
+  lessonTitle?: string;
   selectedLessonVideoUrl?: string;
   currentLessonDurationLabel: string;
   selectedLessonDuration: number;
@@ -91,6 +101,7 @@ interface Props {
 }
 
 export function LessonVideoCard({
+  lessonTitle,
   selectedLessonVideoUrl,
   currentLessonDurationLabel,
   selectedLessonDuration,
@@ -140,12 +151,88 @@ export function LessonVideoCard({
   setLastVideoTime,
 }: Props) {
   const playerBlocked = Boolean(activeQuizPoint) || showAfterLessonOverlay;
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const autoHideTimeoutRef = useRef<number | null>(null);
+
+  const [hoverPreviewTime, setHoverPreviewTime] = useState<number | null>(null);
+  const [hoverPreviewPercent, setHoverPreviewPercent] = useState<number>(0);
+
+  // derive Up Next overlay visibility from current playback state to avoid effect-driven state updates
+
+  const clearAutoHide = () => {
+    if (autoHideTimeoutRef.current) {
+      window.clearTimeout(autoHideTimeoutRef.current as number);
+      autoHideTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleAutoHide = () => {
+    clearAutoHide();
+    autoHideTimeoutRef.current = window.setTimeout(() => {
+      // only hide when video is playing
+      if (videoRef?.current && !videoRef.current.paused) {
+        setControlsVisible(false);
+      }
+    }, 2500);
+  };
+
+  useEffect(() => {
+    return () => clearAutoHide();
+  }, []);
+
+  const remainingForUpNext = selectedLessonDuration - currentTime;
+  const showUpNextOverlay =
+    hasNextLesson &&
+    remainingForUpNext <= 10 &&
+    remainingForUpNext > 0 &&
+    !isTransitioningNext &&
+    !showAfterLessonOverlay;
 
   return (
-    <Card className="overflow-hidden border-border/70 bg-card/90 shadow-sm">
-      <CardContent className="space-y-4 p-3 sm:p-4">
-        <div className="overflow-hidden rounded-3xl border border-border bg-muted/30 p-2 shadow-inner">
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-black">
+    <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
+      <CardContent className="space-y-4 p-3 sm:p-4 lg:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-[1.75rem] border border-border/60 bg-background/80 px-4 py-3 shadow-sm backdrop-blur-sm">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Player
+            </p>
+            <h2 className="line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg">
+              {lessonTitle ?? "Bài học video"}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1">
+              {currentLessonDurationLabel}
+            </span>
+            <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1">
+              {playbackRate}x
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black p-2 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+          <div
+            className="relative aspect-video overflow-hidden rounded-[1.35rem] border border-white/5 bg-black"
+            onMouseMove={(e) => {
+              setControlsVisible(true);
+              scheduleAutoHide();
+              // hover preview on progress bar calculation relative to container
+              const target = e.currentTarget as HTMLDivElement;
+              const rect = target.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const pct = Math.max(0, Math.min(1, x / rect.width));
+              setHoverPreviewPercent(pct);
+              setHoverPreviewTime(pct * selectedLessonDuration);
+            }}
+            onMouseEnter={() => {
+              setControlsVisible(true);
+              scheduleAutoHide();
+            }}
+            onMouseLeave={() => {
+              setHoverPreviewTime(null);
+              scheduleAutoHide();
+            }}
+          >
             {selectedLessonVideoUrl ? (
               <video
                 ref={videoRef}
@@ -175,8 +262,8 @@ export function LessonVideoCard({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.15),transparent_65%)] text-center text-white">
-                <div className="mb-3 rounded-full border border-white/25 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="flex h-full w-full flex-col items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_65%)] text-center text-white">
+                <div className="mb-3 rounded-full border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
                   <PlayCircle className="h-12 w-12 text-white" />
                 </div>
                 <p className="text-base font-medium">
@@ -187,6 +274,30 @@ export function LessonVideoCard({
                 </p>
               </div>
             )}
+
+            {!playerBlocked ? (
+              <button
+                type="button"
+                onClick={onTogglePlayback}
+                className={`absolute inset-0 z-15 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? "opacity-0" : "opacity-100"}`}
+                aria-label={isPlaying ? "Tạm dừng video" : "Phát video"}
+              >
+                <span className="flex h-20 w-20 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-md transition-transform hover:scale-105">
+                  {isPlaying ? (
+                    <Pause className="h-9 w-9" />
+                  ) : (
+                    <Play className="ml-1 h-9 w-9" />
+                  )}
+                </span>
+              </button>
+            ) : null}
+
+            <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-[11px] text-white/85 backdrop-blur-md">
+              <span
+                className={`h-2 w-2 rounded-full ${isPlaying ? "bg-emerald-400" : "bg-amber-300"}`}
+              />
+              {isPlaying ? "Đang phát" : "Đang tạm dừng"}
+            </div>
 
             <AnimatePresence>
               {activeQuizPoint ? (
@@ -522,12 +633,75 @@ export function LessonVideoCard({
               ) : null}
             </AnimatePresence>
 
+            <AnimatePresence>
+              {showUpNextOverlay && nextLessonTitle ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                  className="absolute bottom-16 right-6 z-50 w-65 rounded-xl border border-white/10 bg-black/70 p-3 text-white backdrop-blur-md"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-20 shrink-0 rounded-md bg-white/6" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        Tiếp theo: {nextLessonTitle}
+                      </p>
+                      <p className="mt-1 text-xs text-white/70">
+                        Bắt đầu sau{" "}
+                        {Math.max(
+                          0,
+                          Math.ceil(selectedLessonDuration - currentTime),
+                        )}
+                        s
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-end">
+                    <Button
+                      size="sm"
+                      onClick={onAdvanceToNextLesson}
+                      className="bg-white/10 text-white"
+                    >
+                      Chuyển ngay
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            <div className="pointer-events-none absolute left-4 top-4 z-10 hidden max-w-[70%] rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[11px] text-white/80 shadow-lg backdrop-blur-md sm:block">
+              Phím tắt: Space để phát/tạm dừng, ←/→ để tua, M để tắt âm, F để
+              toàn màn hình
+            </div>
+
             <div
-              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/90 via-black/55 to-transparent px-4 pb-3 pt-10 transition-opacity duration-300 sm:px-5 sm:pb-4 ${playerBlocked ? "pointer-events-none opacity-40" : "opacity-100"}`}
+              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${playerBlocked ? "pointer-events-none opacity-40" : controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
+              <div className="mb-3 flex items-center justify-between text-[11px] text-white/75">
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/8 px-2.5 py-1 backdrop-blur-md">
+                  <Rewind className="h-3 w-3" />
+                  -10s
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/8 px-2.5 py-1 backdrop-blur-md">
+                  <FastForward className="h-3 w-3" />
+                  +10s
+                </span>
+              </div>
+
               <div
                 className="group relative mb-3 flex h-4 w-full cursor-pointer items-center"
                 onClick={onOverlayScrubClick}
+                onMouseMove={(e) => {
+                  // position preview relative to progress bar specifically
+                  const target = e.currentTarget as HTMLDivElement;
+                  const rect = target.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const pct = Math.max(0, Math.min(1, x / rect.width));
+                  setHoverPreviewPercent(pct);
+                  setHoverPreviewTime(pct * selectedLessonDuration);
+                }}
+                onMouseLeave={() => setHoverPreviewTime(null)}
               >
                 <div className="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-white/25">
                   <div
@@ -576,6 +750,21 @@ export function LessonVideoCard({
                     </Tooltip>
                   );
                 })}
+
+                {/* Hover preview tooltip (time only / placeholder) */}
+                {hoverPreviewTime !== null ? (
+                  <div
+                    className="absolute z-30 -top-7 w-max -translate-x-1/2 rounded-xs bg-black/85 px-2 py-1 text-xs text-white shadow-lg"
+                    style={{ left: `${hoverPreviewPercent * 100}%` }}
+                  >
+                    {formatTime(
+                      Math.max(
+                        0,
+                        Math.min(selectedLessonDuration, hoverPreviewTime),
+                      ),
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-center justify-between gap-3">
@@ -583,7 +772,7 @@ export function LessonVideoCard({
                   <button
                     type="button"
                     onClick={onTogglePlayback}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
                     aria-label={isPlaying ? "Pause video" : "Play video"}
                   >
                     {isPlaying ? (
@@ -597,7 +786,7 @@ export function LessonVideoCard({
                     <button
                       type="button"
                       onClick={onToggleMute}
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
                       aria-label={
                         isMuted || volume === 0
                           ? "Bật âm lượng"
@@ -612,7 +801,7 @@ export function LessonVideoCard({
                       )}
                     </button>
 
-                    <div className="w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:w-16 group-hover:opacity-100 sm:group-hover:w-20">
+                    <div className="w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:w-18 group-hover:opacity-100 sm:group-hover:w-24">
                       <input
                         type="range"
                         min={0}
@@ -628,7 +817,7 @@ export function LessonVideoCard({
                     </div>
                   </div>
 
-                  <div className="min-w-0 text-[13px] font-medium text-white/90">
+                  <div className="min-w-0 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-md">
                     {formatTime(currentTime)}
                     <span className="mx-1.5 text-white/40">/</span>
                     {formatTime(selectedLessonDuration)}
@@ -667,7 +856,7 @@ export function LessonVideoCard({
                   <button
                     type="button"
                     onClick={onToggleFullscreen}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
                     aria-label="Toàn màn hình"
                     title="Toàn màn hình"
                   >

@@ -1,6 +1,20 @@
-import ShortsPage from "@/features/instructor/components/shorts/ShortsPage";
+"use client";
 
-export const metadata = { title: "Shorts Feed — Teacher Mode" };
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ShortsPage = dynamic(
+  () => import("@/features/instructor/components/shorts/ShortsPage"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    ),
+  },
+);
 
 export default function Page() {
   return <ShortsPage />;

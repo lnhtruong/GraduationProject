@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Video, VideoType } from 'src/videos/video.model';
-import { Image } from 'src/images_mascot/images.model';
+import { Image, MascotImageType } from 'src/images_mascot/images.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
 import { NotificationService } from 'src/notifications/notification.service';
@@ -279,6 +279,17 @@ export class WebhookService {
         return custom?.type?.toLowerCase() === VideoType.MASCOT
             ? VideoType.MASCOT
             : VideoType.HIGHLIGHT;
+    }
+
+    private resolveImageType(custom: CloudinaryContextCustom | undefined): MascotImageType {
+        const rawType = custom?.type?.toLowerCase();
+        if (rawType === MascotImageType.THUMBNAIL_COURSE) {
+            return MascotImageType.THUMBNAIL_COURSE;
+        }
+        if (rawType === MascotImageType.AVT) {
+            return MascotImageType.AVT;
+        }
+        return MascotImageType.THUMBNAIL_VIDEO;
     }
 
     private resolveVideoName(params: {
@@ -594,10 +605,12 @@ export class WebhookService {
             format,
             display_name,
             original_filename,
+            custom,
             userId,
             jobId,
         } = params;
 
+        const imageType = this.resolveImageType(custom);
         const resolvedName =
             original_filename?.trim() ||
             display_name?.trim() ||
@@ -616,6 +629,7 @@ export class WebhookService {
                     public_id: public_id ?? null,
                     format: format ?? null,
                     name: resolvedName,
+                    type: imageType,
                 },
             });
 
@@ -629,11 +643,12 @@ export class WebhookService {
                     public_id: public_id ?? row.public_id,
                     format: format ?? row.format,
                     ...(resolvedName ? { name: resolvedName } : {}),
+                    type: imageType,
                 });
-                this.logger.log(`Updated image row image_id=${row.image_id} job_id=${jobId}`);
+                this.logger.log(`Updated image row image_id=${row.image_id} job_id=${jobId} type=${imageType}`);
             } else {
                 this.logger.log(
-                    `Created image row image_id=${row.image_id} job_id=${jobId} user_id=${userId}`,
+                    `Created image row image_id=${row.image_id} job_id=${jobId} user_id=${userId} type=${imageType}`,
                 );
             }
         } else {
@@ -645,9 +660,10 @@ export class WebhookService {
                 public_id: public_id ?? null,
                 format: format ?? null,
                 name: resolvedName,
+                type: imageType,
             });
             this.logger.log(
-                `Created direct-upload image row image_id=${row.image_id} user_id=${userId} (no job_id)`,
+                `Created direct-upload image row image_id=${row.image_id} user_id=${userId} type=${imageType} (no job_id)`,
             );
         }
 
@@ -663,6 +679,7 @@ export class WebhookService {
                 imageId: row.image_id,
                 url: row.url,
                 name: row.name,
+                type: row.type,
                 job_id: jobId,
             },
         });

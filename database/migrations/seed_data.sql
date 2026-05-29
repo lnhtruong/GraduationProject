@@ -81,14 +81,14 @@ INSERT INTO users (id, email, password, firstName, lastName, role, avatarUrl, is
 -- ============================================================================
 -- MASCOT IMAGES (one stock mascot per teacher who uses the video editor)
 -- ============================================================================
-INSERT INTO mascot_images (image_id, user_id, url, job_id, thumbnail, public_id, format, name, createdAt, updatedAt) VALUES
-(1, 2, 'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',  'job-mascot-eng-001', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000001/mascot/english_owl.png',  'mascot/english_owl',  'png', 'Owl Teacher',        '2025-09-20 10:00:00', '2025-09-20 10:00:00'),
-(2, 4, 'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',     'job-mascot-web-002', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000002/mascot/web_robot.png',     'mascot/web_robot',    'png', 'Web Robot',          '2025-09-21 10:00:00', '2025-09-21 10:00:00'),
-(3, 5, 'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png',    'job-mascot-sys-003', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000003/mascot/server_cat.png',    'mascot/server_cat',   'png', 'Server Cat',         '2025-09-22 10:00:00', '2025-09-22 10:00:00'),
-(4, 6, 'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',  'job-mascot-py-004',  'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000004/mascot/python_snake.png',  'mascot/python_snake', 'png', 'Python Snake',       '2025-09-23 10:00:00', '2025-09-23 10:00:00'),
-(5, 7, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',    'job-mascot-des-005', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000005/mascot/design_fox.png',    'mascot/design_fox',   'png', 'Designer Fox',       '2025-09-24 10:00:00', '2025-09-24 10:00:00'),
-(6, 8, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', 'job-mascot-mkt-006', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000006/mascot/marketing_dog.png', 'mascot/marketing_dog','png', 'Marketing Dog',      '2025-09-25 10:00:00', '2025-09-25 10:00:00'),
-(7, 9, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',  'job-mascot-vid-007', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000007/mascot/editor_panda.png',  'mascot/editor_panda', 'png', 'Editor Panda',       '2025-09-26 10:00:00', '2025-09-26 10:00:00');
+INSERT INTO mascot_images (image_id, user_id, url, job_id, thumbnail, public_id, format, name, type, createdAt, updatedAt) VALUES
+(1, 2, 'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',  'job-mascot-eng-001', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000001/mascot/english_owl.png',  'mascot/english_owl',  'png', 'Owl Teacher',        'thumbnail_video', '2025-09-20 10:00:00', '2025-09-20 10:00:00'),
+(2, 4, 'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',     'job-mascot-web-002', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000002/mascot/web_robot.png',     'mascot/web_robot',    'png', 'Web Robot',          'thumbnail_video', '2025-09-21 10:00:00', '2025-09-21 10:00:00'),
+(3, 5, 'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png',    'job-mascot-sys-003', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000003/mascot/server_cat.png',    'mascot/server_cat',   'png', 'Server Cat',         'thumbnail_video', '2025-09-22 10:00:00', '2025-09-22 10:00:00'),
+(4, 6, 'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',  'job-mascot-py-004',  'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000004/mascot/python_snake.png',  'mascot/python_snake', 'png', 'Python Snake',       'thumbnail_video', '2025-09-23 10:00:00', '2025-09-23 10:00:00'),
+(5, 7, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',    'job-mascot-des-005', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000005/mascot/design_fox.png',    'mascot/design_fox',   'png', 'Designer Fox',       'thumbnail_video', '2025-09-24 10:00:00', '2025-09-24 10:00:00'),
+(6, 8, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', 'job-mascot-mkt-006', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000006/mascot/marketing_dog.png', 'mascot/marketing_dog','png', 'Marketing Dog',      'thumbnail_video', '2025-09-25 10:00:00', '2025-09-25 10:00:00'),
+(7, 9, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',  'job-mascot-vid-007', 'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000007/mascot/editor_panda.png',  'mascot/editor_panda', 'png', 'Editor Panda',       'thumbnail_video', '2025-09-26 10:00:00', '2025-09-26 10:00:00');
 
 -- ============================================================================
 -- VIDEOS - LONG FORM (31 long-form course videos, all stored on Bunny Stream)
@@ -97,77 +97,77 @@ INSERT INTO mascot_images (image_id, user_id, url, job_id, thumbnail, public_id,
 -- ============================================================================
 INSERT INTO videos (id, user_id, mascot_image_id, type, name, url, duration, thumbnail, srt_raw_url, bunny_video_guid, job_id, created_at, updated_at) VALUES
 -- TOEIC English (teacher 2)
-( 1, 2, 1, 'long', 'Phân Từ | TOEIC Grammar - Lesson 5: Participles',                  'https://vz-e17ee266-cac.b-cdn.net/01b1f404-4548-4004-b637-d788b9b3b6b3/playlist.m3u8', 2280, 'https://vz-e17ee266-cac.b-cdn.net/01b1f404-4548-4004-b637-d788b9b3b6b3/thumbnail.jpg', NULL, '01b1f404-4548-4004-b637-d788b9b3b6b3', 'job-vid-toeic-l5', '2025-09-20 10:00:00', '2025-09-20 10:00:00'),
-( 2, 2, 1, 'long', 'To V1, V-ing, V1 | TOEIC Grammar - Lesson 4',                      'https://vz-e17ee266-cac.b-cdn.net/12e62e2f-c4e4-48c1-8eae-0ddeb8bdc138/playlist.m3u8', 2400, 'https://vz-e17ee266-cac.b-cdn.net/12e62e2f-c4e4-48c1-8eae-0ddeb8bdc138/thumbnail.jpg', NULL, '12e62e2f-c4e4-48c1-8eae-0ddeb8bdc138', 'job-vid-toeic-l4', '2025-09-20 10:05:00', '2025-09-20 10:05:00'),
-( 3, 2, 1, 'long', 'Các Thì Trong Tiếng Anh | TOEIC Grammar - Lesson 3: Tenses',       'https://vz-e17ee266-cac.b-cdn.net/edbdcf57-c807-41a6-81d1-302c6ecdcaff/playlist.m3u8', 2640, 'https://vz-e17ee266-cac.b-cdn.net/edbdcf57-c807-41a6-81d1-302c6ecdcaff/thumbnail.jpg', NULL, 'edbdcf57-c807-41a6-81d1-302c6ecdcaff', 'job-vid-toeic-l3', '2025-09-20 10:10:00', '2025-09-20 10:10:00'),
+( 1, 2, 1, 'long', 'Phân Từ | TOEIC Grammar - Lesson 5: Participles',                  'https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/play_360p.mp4', 2280, 'https://vz-e0f2a12f-935.b-cdn.net/10506623-c382-4062-bb6c-27c8185fed19/thumbnail.jpg', NULL, '01b1f404-4548-4004-b637-d788b9b3b6b3', 'job-vid-toeic-l5', '2025-09-20 10:00:00', '2025-09-20 10:00:00'),
+( 2, 2, 1, 'long', 'To V1, V-ing, V1 | TOEIC Grammar - Lesson 4',                      'https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/play_360p.mp4', 2400, 'https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/thumbnail.jpg', NULL, '12e62e2f-c4e4-48c1-8eae-0ddeb8bdc138', 'job-vid-toeic-l4', '2025-09-20 10:05:00', '2025-09-20 10:05:00'),
+( 3, 2, 1, 'long', 'Các Thì Trong Tiếng Anh | TOEIC Grammar - Lesson 3: Tenses',       'https://vz-e0f2a12f-935.b-cdn.net/f53ee3cc-c963-43dd-883b-99fcd55c07cf/play_360p.mp4', 2640, 'https://vz-e0f2a12f-935.b-cdn.net/f53ee3cc-c963-43dd-883b-99fcd55c07cf/thumbnail.jpg', NULL, 'edbdcf57-c807-41a6-81d1-302c6ecdcaff', 'job-vid-toeic-l3', '2025-09-20 10:10:00', '2025-09-20 10:10:00'),
 
 -- System Design / DSA (teacher 5)
-( 4, 5, 3, 'long', 'System Design Course - APIs, Databases, Caching, CDNs, Load Balancing & Production Infra', 'https://vz-e17ee266-cac.b-cdn.net/5cd2ec36-9b69-4c4d-962a-0c3719a08775/playlist.m3u8', 14400, 'https://vz-e17ee266-cac.b-cdn.net/5cd2ec36-9b69-4c4d-962a-0c3719a08775/thumbnail.jpg', NULL, '5cd2ec36-9b69-4c4d-962a-0c3719a08775', 'job-vid-sysdesign-01', '2025-09-22 09:00:00', '2025-09-22 09:00:00'),
+( 4, 5, 3, 'long', 'System Design Course - APIs, Databases, Caching, CDNs, Load Balancing & Production Infra', 'https://vz-e0f2a12f-935.b-cdn.net/9b9fce3e-8870-40ca-8292-91d2081e11fd/play_360p.mp4', 14400, 'https://vz-e0f2a12f-935.b-cdn.net/9b9fce3e-8870-40ca-8292-91d2081e11fd/thumbnail.jpg', NULL, '5cd2ec36-9b69-4c4d-962a-0c3719a08775', 'job-vid-sysdesign-01', '2025-09-22 09:00:00', '2025-09-22 09:00:00'),
 
 -- Web Development (teacher 4)
-( 5, 4, 2, 'long', 'Cài Đặt Môi Trường Lập Trình Cho Máy Windows Mới',                 'https://vz-e17ee266-cac.b-cdn.net/7e45f2ff-0d61-4394-87c2-b3410c3773e5/playlist.m3u8', 1800, 'https://vz-e17ee266-cac.b-cdn.net/7e45f2ff-0d61-4394-87c2-b3410c3773e5/thumbnail.jpg', NULL, '7e45f2ff-0d61-4394-87c2-b3410c3773e5', 'job-vid-setup-win',   '2025-09-21 09:00:00', '2025-09-21 09:00:00'),
-( 6, 4, 2, 'long', 'CORS Policy Là Gì? | Cách Xử Lý Khi Bị Chặn Bởi CORS',              'https://vz-e17ee266-cac.b-cdn.net/631e8c58-4f26-47b5-91de-c9e65633aebe/playlist.m3u8', 1500, 'https://vz-e17ee266-cac.b-cdn.net/631e8c58-4f26-47b5-91de-c9e65633aebe/thumbnail.jpg', NULL, '631e8c58-4f26-47b5-91de-c9e65633aebe', 'job-vid-cors',        '2025-09-21 09:10:00', '2025-09-21 09:10:00'),
-( 7, 4, 2, 'long', 'freeCodeCamp JavaScript Full Course',                              'https://vz-e17ee266-cac.b-cdn.net/aa94406d-6d06-4603-9803-3449db7e428f/playlist.m3u8', 12600, 'https://vz-e17ee266-cac.b-cdn.net/aa94406d-6d06-4603-9803-3449db7e428f/thumbnail.jpg', NULL, 'aa94406d-6d06-4603-9803-3449db7e428f', 'job-vid-fcc-js',      '2025-09-21 09:20:00', '2025-09-21 09:20:00'),
+( 5, 4, 2, 'long', 'Cài Đặt Môi Trường Lập Trình Cho Máy Windows Mới',                 'https://vz-e0f2a12f-935.b-cdn.net/3d7e6002-fd31-44ea-bdaf-b4a702720757/play_360p.mp4', 1800, 'https://vz-e0f2a12f-935.b-cdn.net/3d7e6002-fd31-44ea-bdaf-b4a702720757/thumbnail.jpg', NULL, '7e45f2ff-0d61-4394-87c2-b3410c3773e5', 'job-vid-setup-win',   '2025-09-21 09:00:00', '2025-09-21 09:00:00'),
+( 6, 4, 2, 'long', 'CORS Policy Là Gì? | Cách Xử Lý Khi Bị Chặn Bởi CORS',              'https://vz-e0f2a12f-935.b-cdn.net/c21ee067-4787-4cad-b1da-98f95a7bc8bd/play_360p.mp4', 1500, 'https://vz-e0f2a12f-935.b-cdn.net/c21ee067-4787-4cad-b1da-98f95a7bc8bd/thumbnail.jpg', NULL, '631e8c58-4f26-47b5-91de-c9e65633aebe', 'job-vid-cors',        '2025-09-21 09:10:00', '2025-09-21 09:10:00'),
+( 7, 4, 2, 'long', 'freeCodeCamp JavaScript Full Course',                              'https://vz-e0f2a12f-935.b-cdn.net/7ca69b77-e55f-4b96-b5be-1d67cc614200/play_360p.mp4', 12600, 'https://vz-e0f2a12f-935.b-cdn.net/7ca69b77-e55f-4b96-b5be-1d67cc614200/thumbnail.jpg', NULL, 'aa94406d-6d06-4603-9803-3449db7e428f', 'job-vid-fcc-js',      '2025-09-21 09:20:00', '2025-09-21 09:20:00'),
 
 -- Python (teacher 6)
-( 8, 6, 4, 'long', 'List trong Python',                                                'https://vz-e17ee266-cac.b-cdn.net/6e22d8aa-d67b-4ea8-b606-43cb9ae7d674/playlist.m3u8', 1980, 'https://vz-e17ee266-cac.b-cdn.net/6e22d8aa-d67b-4ea8-b606-43cb9ae7d674/thumbnail.jpg', NULL, '6e22d8aa-d67b-4ea8-b606-43cb9ae7d674', 'job-vid-py-list',     '2025-09-23 09:00:00', '2025-09-23 09:00:00'),
+( 8, 6, 4, 'long', 'List trong Python',                                                'https://vz-e0f2a12f-935.b-cdn.net/b7ce2e24-3022-40f5-bf3e-34017683c8eb/play_360p.mp4', 1980, 'https://vz-e0f2a12f-935.b-cdn.net/b7ce2e24-3022-40f5-bf3e-34017683c8eb/thumbnail.jpg', NULL, '6e22d8aa-d67b-4ea8-b606-43cb9ae7d674', 'job-vid-py-list',     '2025-09-23 09:00:00', '2025-09-23 09:00:00'),
 
 -- Web (teacher 4 continued)
-( 9, 4, 2, 'long', 'HTML & CSS Full Course',                                           'https://vz-e17ee266-cac.b-cdn.net/22c1810f-2bab-43cc-9d27-b32b963add1a/playlist.m3u8', 9000, 'https://vz-e17ee266-cac.b-cdn.net/22c1810f-2bab-43cc-9d27-b32b963add1a/thumbnail.jpg', NULL, '22c1810f-2bab-43cc-9d27-b32b963add1a', 'job-vid-html-css',    '2025-09-21 09:30:00', '2025-09-21 09:30:00'),
-(10, 4, 2, 'long', 'Node.js Full Course',                                              'https://vz-e17ee266-cac.b-cdn.net/c8fa145e-eb56-43d2-a8cc-2d6f95d52e8f/playlist.m3u8', 11400, 'https://vz-e17ee266-cac.b-cdn.net/c8fa145e-eb56-43d2-a8cc-2d6f95d52e8f/thumbnail.jpg', NULL, 'c8fa145e-eb56-43d2-a8cc-2d6f95d52e8f', 'job-vid-node',        '2025-09-21 09:40:00', '2025-09-21 09:40:00'),
-(11, 4, 2, 'long', 'Programming with Mosh - JavaScript Tutorial',                      'https://vz-e17ee266-cac.b-cdn.net/5c692db7-c93c-4180-9bcf-264ffb30c0c5/playlist.m3u8', 4200, 'https://vz-e17ee266-cac.b-cdn.net/5c692db7-c93c-4180-9bcf-264ffb30c0c5/thumbnail.jpg', NULL, '5c692db7-c93c-4180-9bcf-264ffb30c0c5', 'job-vid-mosh-js',     '2025-09-21 09:50:00', '2025-09-21 09:50:00'),
+( 9, 4, 2, 'long', 'HTML & CSS Full Course',                                           'https://vz-e0f2a12f-935.b-cdn.net/0da816d7-8532-453b-b7cb-9364a44d7bbf/play_360p.mp4', 9000, 'https://vz-e0f2a12f-935.b-cdn.net/0da816d7-8532-453b-b7cb-9364a44d7bbf/thumbnail.jpg', NULL, '22c1810f-2bab-43cc-9d27-b32b963add1a', 'job-vid-html-css',    '2025-09-21 09:30:00', '2025-09-21 09:30:00'),
+(10, 4, 2, 'long', 'Node.js Full Course',                                              'https://vz-e0f2a12f-935.b-cdn.net/a419b9d9-b235-40f4-8583-cca01d44051c/play_360p.mp4', 11400, 'https://vz-e0f2a12f-935.b-cdn.net/a419b9d9-b235-40f4-8583-cca01d44051c/thumbnail.jpg', NULL, 'c8fa145e-eb56-43d2-a8cc-2d6f95d52e8f', 'job-vid-node',        '2025-09-21 09:40:00', '2025-09-21 09:40:00'),
+(11, 4, 2, 'long', 'Programming with Mosh - JavaScript Tutorial',                      'https://vz-e0f2a12f-935.b-cdn.net/3a818287-c33a-4b1e-b4a5-bc2bbd4ab0e8/play_360p.mp4', 4200, 'https://vz-e0f2a12f-935.b-cdn.net/3a818287-c33a-4b1e-b4a5-bc2bbd4ab0e8/thumbnail.jpg', NULL, '5c692db7-c93c-4180-9bcf-264ffb30c0c5', 'job-vid-mosh-js',     '2025-09-21 09:50:00', '2025-09-21 09:50:00'),
 
 -- Soft skills / music (teacher 10)
-(12, 10, NULL, 'long', 'Seminar Tư Duy Phản Biện',                                     'https://vz-e17ee266-cac.b-cdn.net/9bb82bd4-65a5-420e-bff2-e6597dff0db1/playlist.m3u8', 5400, 'https://vz-e17ee266-cac.b-cdn.net/9bb82bd4-65a5-420e-bff2-e6597dff0db1/thumbnail.jpg', NULL, '9bb82bd4-65a5-420e-bff2-e6597dff0db1', 'job-vid-critical',    '2025-09-26 09:00:00', '2025-09-26 09:00:00'),
+(12, 10, NULL, 'long', 'Seminar Tư Duy Phản Biện',                                     'https://vz-e0f2a12f-935.b-cdn.net/877026ee-d126-4dbc-aa47-8792accdd421/play_360p.mp4', 5400, 'https://vz-e0f2a12f-935.b-cdn.net/877026ee-d126-4dbc-aa47-8792accdd421/thumbnail.jpg', NULL, '9bb82bd4-65a5-420e-bff2-e6597dff0db1', 'job-vid-critical',    '2025-09-26 09:00:00', '2025-09-26 09:00:00'),
 
 -- Design / Photography (teacher 7)
-(13, 7, 5, 'long', 'Học Lightroom 2023 Chi Tiết - Nắm Vững Nguyên Lý',                  'https://vz-e17ee266-cac.b-cdn.net/8bdd2422-7ad8-4bdf-be70-54530a403cd3/playlist.m3u8', 7200, 'https://vz-e17ee266-cac.b-cdn.net/8bdd2422-7ad8-4bdf-be70-54530a403cd3/thumbnail.jpg', NULL, '8bdd2422-7ad8-4bdf-be70-54530a403cd3', 'job-vid-lightroom',   '2025-09-24 09:00:00', '2025-09-24 09:00:00'),
-(14, 7, 5, 'long', 'Học Thiết Kế Đồ Họa Online - Từ Cơ Bản Đến Nâng Cao',               'https://vz-e17ee266-cac.b-cdn.net/2db79322-0de7-4447-9813-baf0a3897d98/playlist.m3u8', 9600, 'https://vz-e17ee266-cac.b-cdn.net/2db79322-0de7-4447-9813-baf0a3897d98/thumbnail.jpg', NULL, '2db79322-0de7-4447-9813-baf0a3897d98', 'job-vid-graphic',     '2025-09-24 09:10:00', '2025-09-24 09:10:00'),
+(13, 7, 5, 'long', 'Học Lightroom 2023 Chi Tiết - Nắm Vững Nguyên Lý',                  'https://vz-e0f2a12f-935.b-cdn.net/dd6fffa0-1906-44f7-8580-d7adcd841855/play_480p.mp4', 7200, 'https://vz-e0f2a12f-935.b-cdn.net/dd6fffa0-1906-44f7-8580-d7adcd841855/thumbnail.jpg', NULL, '8bdd2422-7ad8-4bdf-be70-54530a403cd3', 'job-vid-lightroom',   '2025-09-24 09:00:00', '2025-09-24 09:00:00'),
+(14, 7, 5, 'long', 'Học Thiết Kế Đồ Họa Online - Từ Cơ Bản Đến Nâng Cao',               'https://vz-e0f2a12f-935.b-cdn.net/1cc8bbcd-35f3-4d1d-bbf9-5c2066f6e035/play_360p.mp4', 9600, 'https://vz-e0f2a12f-935.b-cdn.net/1cc8bbcd-35f3-4d1d-bbf9-5c2066f6e035/thumbnail.jpg', NULL, '2db79322-0de7-4447-9813-baf0a3897d98', 'job-vid-graphic',     '2025-09-24 09:10:00', '2025-09-24 09:10:00'),
 
 -- Marketing / Data (teacher 8)
-(15, 8, 6, 'long', 'Đừng Học Power BI Kiểu Kéo Chart Nữa',                              'https://vz-e17ee266-cac.b-cdn.net/04dab0b5-df87-4b55-b8de-8a89ce4e31db/playlist.m3u8', 4500, 'https://vz-e17ee266-cac.b-cdn.net/04dab0b5-df87-4b55-b8de-8a89ce4e31db/thumbnail.jpg', NULL, '04dab0b5-df87-4b55-b8de-8a89ce4e31db', 'job-vid-powerbi',     '2025-09-25 09:00:00', '2025-09-25 09:00:00'),
-(16, 8, 6, 'long', 'Marketing - 35 Tuyệt Chiêu Khuyến Mãi Giúp Tăng Doanh Số',          'https://vz-e17ee266-cac.b-cdn.net/8046d13d-f323-4ec6-afec-5ce9cc5cee74/playlist.m3u8', 4800, 'https://vz-e17ee266-cac.b-cdn.net/8046d13d-f323-4ec6-afec-5ce9cc5cee74/thumbnail.jpg', NULL, '8046d13d-f323-4ec6-afec-5ce9cc5cee74', 'job-vid-promotion',   '2025-09-25 09:10:00', '2025-09-25 09:10:00'),
-(17, 8, 6, 'long', 'Tổng Hợp Khóa Học Digital Marketing Cho Người Mới',                 'https://vz-e17ee266-cac.b-cdn.net/e50ae2c2-7d31-40c2-b02e-b8950c5249ce/play_1080p.mp4', 7800, 'https://vz-e17ee266-cac.b-cdn.net/e50ae2c2-7d31-40c2-b02e-b8950c5249ce/thumbnail.jpg', NULL, 'e50ae2c2-7d31-40c2-b02e-b8950c5249ce', 'job-vid-digi-mkt',    '2025-09-25 09:20:00', '2025-09-25 09:20:00'),
+(15, 8, 6, 'long', 'Đừng Học Power BI Kiểu Kéo Chart Nữa',                              'https://vz-e0f2a12f-935.b-cdn.net/953dfac9-d026-419f-8783-64f398e59ea1/play_480p.mp4', 4500, 'https://vz-e0f2a12f-935.b-cdn.net/953dfac9-d026-419f-8783-64f398e59ea1/thumbnail.jpg', NULL, '04dab0b5-df87-4b55-b8de-8a89ce4e31db', 'job-vid-powerbi',     '2025-09-25 09:00:00', '2025-09-25 09:00:00'),
+(16, 8, 6, 'long', 'Marketing - 35 Tuyệt Chiêu Khuyến Mãi Giúp Tăng Doanh Số',          'https://vz-e0f2a12f-935.b-cdn.net/b3dbffc1-4666-4674-b3a1-38cee815290d/play_360p.mp4', 4800, 'https://vz-e0f2a12f-935.b-cdn.net/b3dbffc1-4666-4674-b3a1-38cee815290d/thumbnail.jpg', NULL, '8046d13d-f323-4ec6-afec-5ce9cc5cee74', 'job-vid-promotion',   '2025-09-25 09:10:00', '2025-09-25 09:10:00'),
+(17, 8, 6, 'long', 'Tổng Hợp Khóa Học Digital Marketing Cho Người Mới',                 'https://vz-e0f2a12f-935.b-cdn.net/861e515e-38a0-42d0-be13-1ce405b9f2f2/play_1080p.mp4', 7800, 'https://vz-e0f2a12f-935.b-cdn.net/861e515e-38a0-42d0-be13-1ce405b9f2f2/thumbnail.jpg', NULL, 'e50ae2c2-7d31-40c2-b02e-b8950c5249ce', 'job-vid-digi-mkt',    '2025-09-25 09:20:00', '2025-09-25 09:20:00'),
 
 -- Video editing (teacher 9)
-(18, 9, 7, 'long', '1 Tiếng Nâng Cấp Kỹ Năng CAPCUT',                                   'https://vz-e17ee266-cac.b-cdn.net/fd4bb15e-8d74-44b0-918d-0164628b0987/play_480p.mp4', 3600, 'https://vz-e17ee266-cac.b-cdn.net/fd4bb15e-8d74-44b0-918d-0164628b0987/thumbnail.jpg', NULL, 'fd4bb15e-8d74-44b0-918d-0164628b0987', 'job-vid-capcut',      '2025-09-27 09:00:00', '2025-09-27 09:00:00'),
+(18, 9, 7, 'long', '1 Tiếng Nâng Cấp Kỹ Năng CAPCUT',                                   'https://vz-e0f2a12f-935.b-cdn.net/3c2d27ff-0018-4086-be6e-6a514b92997b/play_480p.mp4', 3600, 'https://vz-e0f2a12f-935.b-cdn.net/3c2d27ff-0018-4086-be6e-6a514b92997b/thumbnail.jpg', NULL, 'fd4bb15e-8d74-44b0-918d-0164628b0987', 'job-vid-capcut',      '2025-09-27 09:00:00', '2025-09-27 09:00:00'),
 
 -- AI tools (teacher 6 continued)
-(19, 6, 4, 'long', 'Hướng Dẫn ChatGPT Cơ Bản Dành Cho Người Mới',                       'https://vz-e17ee266-cac.b-cdn.net/7716252a-f1c7-4587-be71-0388fdf0673c/play_1080p.mp4', 4200, 'https://vz-e17ee266-cac.b-cdn.net/7716252a-f1c7-4587-be71-0388fdf0673c/thumbnail.jpg', NULL, '7716252a-f1c7-4587-be71-0388fdf0673c', 'job-vid-chatgpt',     '2025-09-23 09:10:00', '2025-09-23 09:10:00'),
+(19, 6, 4, 'long', 'Hướng Dẫn ChatGPT Cơ Bản Dành Cho Người Mới',                       'https://vz-e0f2a12f-935.b-cdn.net/cf8a16d4-5068-4589-acbe-bdf1f9223fb4/play_1080p.mp4', 4200, 'https://vz-e0f2a12f-935.b-cdn.net/cf8a16d4-5068-4589-acbe-bdf1f9223fb4/thumbnail.jpg', NULL, '7716252a-f1c7-4587-be71-0388fdf0673c', 'job-vid-chatgpt',     '2025-09-23 09:10:00', '2025-09-23 09:10:00'),
 
 -- Video editing (teacher 9 continued)
-(20, 9, 7, 'long', 'Premiere Pro Tutorial for Beginners - FULL',                        'https://vz-e17ee266-cac.b-cdn.net/1d2ef570-1d85-4ede-a967-9d2e9096519f/play_480p.mp4', 5400, 'https://vz-e17ee266-cac.b-cdn.net/1d2ef570-1d85-4ede-a967-9d2e9096519f/thumbnail.jpg', NULL, '1d2ef570-1d85-4ede-a967-9d2e9096519f', 'job-vid-premiere',    '2025-09-27 09:10:00', '2025-09-27 09:10:00'),
+(20, 9, 7, 'long', 'Premiere Pro Tutorial for Beginners - FULL',                        'https://vz-e0f2a12f-935.b-cdn.net/de09e532-9e4b-4825-9d2c-cc4c2dd237ac/play_480p.mp4', 5400, 'https://vz-e0f2a12f-935.b-cdn.net/de09e532-9e4b-4825-9d2c-cc4c2dd237ac/thumbnail.jpg', NULL, '1d2ef570-1d85-4ede-a967-9d2e9096519f', 'job-vid-premiere',    '2025-09-27 09:10:00', '2025-09-27 09:10:00'),
 
 -- English conversation (teacher 2 continued)
-(21, 2, 1, 'long', 'Learn English Conversation - Basic English',                       'https://vz-e17ee266-cac.b-cdn.net/09b924cf-1345-4b2a-9449-418590b46bc3/play_480p.mp4', 5400, 'https://vz-e17ee266-cac.b-cdn.net/09b924cf-1345-4b2a-9449-418590b46bc3/thumbnail.jpg', NULL, '09b924cf-1345-4b2a-9449-418590b46bc3', 'job-vid-eng-conv',    '2025-09-20 10:20:00', '2025-09-20 10:20:00'),
+(21, 2, 1, 'long', 'Learn English Conversation - Basic English',                       'https://vz-e0f2a12f-935.b-cdn.net/051f4a88-1090-43fe-8bd9-e2fc2ba56b4c/play_480p.mp4', 5400, 'https://vz-e0f2a12f-935.b-cdn.net/051f4a88-1090-43fe-8bd9-e2fc2ba56b4c/thumbnail.jpg', NULL, '09b924cf-1345-4b2a-9449-418590b46bc3', 'job-vid-eng-conv',    '2025-09-20 10:20:00', '2025-09-20 10:20:00'),
 
 -- Project management (teacher 10)
-(22, 10, NULL, 'long', 'Project Management 101 - Project Management Fundamentals',     'https://vz-e17ee266-cac.b-cdn.net/258b3024-b3ec-4f0f-890c-952575afad99/play_480p.mp4', 4500, 'https://vz-e17ee266-cac.b-cdn.net/258b3024-b3ec-4f0f-890c-952575afad99/thumbnail.jpg', NULL, '258b3024-b3ec-4f0f-890c-952575afad99', 'job-vid-pm-101',      '2025-09-26 09:10:00', '2025-09-26 09:10:00'),
+(22, 10, NULL, 'long', 'Project Management 101 - Project Management Fundamentals',     'https://vz-e0f2a12f-935.b-cdn.net/d7822231-af15-4b63-8a48-cb3d1887401b/play_480p.mp4', 4500, 'https://vz-e0f2a12f-935.b-cdn.net/d7822231-af15-4b63-8a48-cb3d1887401b/thumbnail.jpg', NULL, '258b3024-b3ec-4f0f-890c-952575afad99', 'job-vid-pm-101',      '2025-09-26 09:10:00', '2025-09-26 09:10:00'),
 
 -- Music (teacher 10)
-(23, 10, NULL, 'long', 'Music Theory 101 for Guitar Players',                          'https://vz-e17ee266-cac.b-cdn.net/8b226049-e548-47e6-ac7c-d95fa92414fb/play_480p.mp4', 5100, 'https://vz-e17ee266-cac.b-cdn.net/8b226049-e548-47e6-ac7c-d95fa92414fb/thumbnail.jpg', NULL, '8b226049-e548-47e6-ac7c-d95fa92414fb', 'job-vid-music',       '2025-09-26 09:20:00', '2025-09-26 09:20:00'),
+(23, 10, NULL, 'long', 'Music Theory 101 for Guitar Players',                          'https://vz-e0f2a12f-935.b-cdn.net/6b9660b4-d42a-478b-bc0b-d7f78356ad8e/play_480p.mp4', 5100, 'https://vz-e0f2a12f-935.b-cdn.net/6b9660b4-d42a-478b-bc0b-d7f78356ad8e/thumbnail.jpg', NULL, '8b226049-e548-47e6-ac7c-d95fa92414fb', 'job-vid-music',       '2025-09-26 09:20:00', '2025-09-26 09:20:00'),
 
 -- Design (teacher 7 continued)
-(24, 7, 5, 'long', 'Learn Photography in 90 Minutes',                                  'https://vz-e17ee266-cac.b-cdn.net/c1ea4ee5-24b1-47e9-bdeb-07030409c895/playlist.m3u8', 5400, 'https://vz-e17ee266-cac.b-cdn.net/c1ea4ee5-24b1-47e9-bdeb-07030409c895/thumbnail.jpg', NULL, 'c1ea4ee5-24b1-47e9-bdeb-07030409c895', 'job-vid-photo-90',    '2025-09-24 09:20:00', '2025-09-24 09:20:00'),
+(24, 7, 5, 'long', 'Learn Photography in 90 Minutes',                                  'https://vz-e0f2a12f-935.b-cdn.net/7369a811-6b91-4e67-ab30-24c1df19bed0/play_360p.mp4', 5400, 'https://vz-e0f2a12f-935.b-cdn.net/7369a811-6b91-4e67-ab30-24c1df19bed0/thumbnail.jpg', NULL, 'c1ea4ee5-24b1-47e9-bdeb-07030409c895', 'job-vid-photo-90',    '2025-09-24 09:20:00', '2025-09-24 09:20:00'),
 
 -- Marketing (teacher 8 continued)
-(25, 8, 6, 'long', 'Learn Copywriting in 76 Minutes',                                  'https://vz-e17ee266-cac.b-cdn.net/88537b3d-9e18-463e-8773-94be73ebf2e4/playlist.m3u8', 4560, 'https://vz-e17ee266-cac.b-cdn.net/88537b3d-9e18-463e-8773-94be73ebf2e4/thumbnail.jpg', NULL, '88537b3d-9e18-463e-8773-94be73ebf2e4', 'job-vid-copywriting', '2025-09-25 09:30:00', '2025-09-25 09:30:00'),
-(26, 8, 6, 'long', 'The Ultimate SEO Checklist for 2026',                              'https://vz-e17ee266-cac.b-cdn.net/f0d9d5b6-12ad-4db9-be57-5c4374de6de9/playlist.m3u8', 4200, 'https://vz-e17ee266-cac.b-cdn.net/f0d9d5b6-12ad-4db9-be57-5c4374de6de9/thumbnail.jpg', NULL, 'f0d9d5b6-12ad-4db9-be57-5c4374de6de9', 'job-vid-seo-2026',    '2025-09-25 09:40:00', '2025-09-25 09:40:00'),
+(25, 8, 6, 'long', 'Learn Copywriting in 76 Minutes',                                  'https://vz-e0f2a12f-935.b-cdn.net/89d7ad9b-f9e4-473a-90b0-3206f1688733/play_360p.mp4', 4560, 'https://vz-e0f2a12f-935.b-cdn.net/89d7ad9b-f9e4-473a-90b0-3206f1688733/thumbnail.jpg', NULL, '88537b3d-9e18-463e-8773-94be73ebf2e4', 'job-vid-copywriting', '2025-09-25 09:30:00', '2025-09-25 09:30:00'),
+(26, 8, 6, 'long', 'The Ultimate SEO Checklist for 2026',                              'https://vz-e0f2a12f-935.b-cdn.net/4e6560f6-f4e8-4753-85ed-82050ad928cc/play_360p.mp4', 4200, 'https://vz-e0f2a12f-935.b-cdn.net/4e6560f6-f4e8-4753-85ed-82050ad928cc/thumbnail.jpg', NULL, 'f0d9d5b6-12ad-4db9-be57-5c4374de6de9', 'job-vid-seo-2026',    '2025-09-25 09:40:00', '2025-09-25 09:40:00'),
 
 -- Design (teacher 7 continued)
-(27, 7, 5, 'long', 'Figma Crash Course 2024 - FULL',                                   'https://vz-e17ee266-cac.b-cdn.net/0278ed11-608f-4daf-b1ec-c10fad64c023/play_720p.mp4', 6000, 'https://vz-e17ee266-cac.b-cdn.net/0278ed11-608f-4daf-b1ec-c10fad64c023/thumbnail.jpg', NULL, '0278ed11-608f-4daf-b1ec-c10fad64c023', 'job-vid-figma',       '2025-09-24 09:30:00', '2025-09-24 09:30:00'),
+(27, 7, 5, 'long', 'Figma Crash Course 2024 - FULL',                                   'https://vz-e0f2a12f-935.b-cdn.net/b7cb9243-d0da-4703-9a9a-fc6b0a8f8704/play_720p.mp4', 6000, 'https://vz-e0f2a12f-935.b-cdn.net/b7cb9243-d0da-4703-9a9a-fc6b0a8f8704/thumbnail.jpg', NULL, '0278ed11-608f-4daf-b1ec-c10fad64c023', 'job-vid-figma',       '2025-09-24 09:30:00', '2025-09-24 09:30:00'),
 
 -- ML (teacher 6 continued)
-(28, 6, 4, 'long', 'Machine Learning Fundamentals (1 Hour)',                           'https://vz-e17ee266-cac.b-cdn.net/71c77670-ef53-4a04-af91-3616a4541ad0/play_720p.mp4', 3600, 'https://vz-e17ee266-cac.b-cdn.net/71c77670-ef53-4a04-af91-3616a4541ad0/thumbnail.jpg', NULL, '71c77670-ef53-4a04-af91-3616a4541ad0', 'job-vid-ml-fund',     '2025-09-23 09:20:00', '2025-09-23 09:20:00'),
+(28, 6, 4, 'long', 'Machine Learning Fundamentals (1 Hour)',                           'https://vz-e0f2a12f-935.b-cdn.net/8553822c-dde6-4d56-b221-bff436fa03e2/play_720p.mp4', 3600, 'https://vz-e0f2a12f-935.b-cdn.net/8553822c-dde6-4d56-b221-bff436fa03e2/thumbnail.jpg', NULL, '71c77670-ef53-4a04-af91-3616a4541ad0', 'job-vid-ml-fund',     '2025-09-23 09:20:00', '2025-09-23 09:20:00'),
 
 -- DSA (teacher 5 continued)
-(29, 5, 3, 'long', 'Cấu Trúc Dữ Liệu & Giải Thuật - Bài 15: Cây Nhị Phân (Binary Tree)','https://vz-e17ee266-cac.b-cdn.net/5e9ff338-649f-4bd1-86b1-060c8921d027/play_720p.mp4', 2700, 'https://vz-e17ee266-cac.b-cdn.net/5e9ff338-649f-4bd1-86b1-060c8921d027/thumbnail.jpg', NULL, '5e9ff338-649f-4bd1-86b1-060c8921d027', 'job-vid-tree-bin',    '2025-09-22 09:10:00', '2025-09-22 09:10:00'),
+(29, 5, 3, 'long', 'Cấu Trúc Dữ Liệu & Giải Thuật - Bài 15: Cây Nhị Phân (Binary Tree)','https://vz-e0f2a12f-935.b-cdn.net/2e1de040-92e4-4202-a077-52650cd8051f/play_720p.mp4', 2700, 'https://vz-e0f2a12f-935.b-cdn.net/2e1de040-92e4-4202-a077-52650cd8051f/thumbnail.jpg', NULL, '5e9ff338-649f-4bd1-86b1-060c8921d027', 'job-vid-tree-bin',    '2025-09-22 09:10:00', '2025-09-22 09:10:00'),
 
 -- Chinese (teacher 3)
-(30, 3, NULL, 'long', 'Học Tiếng Trung - Giáo Trình HSK 1 Online',                     'https://vz-e17ee266-cac.b-cdn.net/4e6ebb9c-62c8-45a3-b56a-847216533df5/play_1080p.mp4', 6300, 'https://vz-e17ee266-cac.b-cdn.net/4e6ebb9c-62c8-45a3-b56a-847216533df5/thumbnail.jpg', NULL, '4e6ebb9c-62c8-45a3-b56a-847216533df5', 'job-vid-hsk1',        '2025-09-20 11:00:00', '2025-09-20 11:00:00'),
+(30, 3, NULL, 'long', 'Học Tiếng Trung - Giáo Trình HSK 1 Online',                     'https://vz-e0f2a12f-935.b-cdn.net/18b78c57-1143-427a-8303-22066e72549c/play_1080p.mp4', 6300, 'https://vz-e0f2a12f-935.b-cdn.net/18b78c57-1143-427a-8303-22066e72549c/thumbnail.jpg', NULL, '4e6ebb9c-62c8-45a3-b56a-847216533df5', 'job-vid-hsk1',        '2025-09-20 11:00:00', '2025-09-20 11:00:00'),
 
 -- English vocabulary (teacher 2 continued)
-(31, 2, 1, 'long', 'Tiếng Anh Khi Ngủ - Phần 1: Học 500 Cụm Từ Tiếng Anh Thông Dụng',  'https://vz-e17ee266-cac.b-cdn.net/7b2c7d42-8fcd-4221-b5e6-38dfea50f3da/play_720p.mp4', 7200, 'https://vz-e17ee266-cac.b-cdn.net/7b2c7d42-8fcd-4221-b5e6-38dfea50f3da/thumbnail.jpg', NULL, '7b2c7d42-8fcd-4221-b5e6-38dfea50f3da', 'job-vid-eng-sleep',   '2025-09-20 10:30:00', '2025-09-20 10:30:00');
+(31, 2, 1, 'long', 'Tiếng Anh Khi Ngủ - Phần 1: Học 500 Cụm Từ Tiếng Anh Thông Dụng',  'https://vz-e0f2a12f-935.b-cdn.net/c38a9de2-55a6-409f-b109-6fca3f7ac266/play_720p.mp4', 7200, 'https://vz-e0f2a12f-935.b-cdn.net/c38a9de2-55a6-409f-b109-6fca3f7ac266/thumbnail.jpg', NULL, '7b2c7d42-8fcd-4221-b5e6-38dfea50f3da', 'job-vid-eng-sleep',   '2025-09-20 10:30:00', '2025-09-20 10:30:00');
 
 -- ============================================================================
 -- HIGHLIGHT VIDEOS (type='highlight') - short clips on Cloudinary
@@ -485,79 +485,79 @@ INSERT INTO mascot_overlays (mascot_overlay_id, edit_id, image_id, position_x, p
 -- ============================================================================
 -- COURSES (24 courses; categories is JSON array)
 -- ============================================================================
-INSERT INTO courses (id, name, description, categories, level, duration, language, price, user_id, status, video_id, created_at, updated_at) VALUES
+INSERT INTO courses (id, name, description, categories, level, duration, language, price, user_id, status, video_id, thumbnail_url, created_at, updated_at) VALUES
 ( 1, 'TOEIC Grammar Mastery: Foundations',
      'Khóa học ngữ pháp TOEIC cô đọng cho band 450+, gồm 3 buổi: Thì (Tenses), Động từ nguyên mẫu/V-ing, và Phân từ (Participles).',
-     '["Languages","English","TOEIC","Grammar"]', 'Beginner', '02:15:00.000', 'Vietnamese',      0, 2, 'publish',  3, '2025-09-20 12:00:00', '2025-09-20 12:00:00'),
+     '["Languages","English","TOEIC","Grammar"]', 'Beginner', '02:15:00.000', 'Vietnamese',      0, 2, 'publish',  3, 'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png', '2025-09-20 12:00:00', '2025-09-20 12:00:00'),
 ( 2, 'English Conversation for Beginners',
      'Hội thoại tiếng Anh giao tiếp cơ bản: 500 cụm từ thông dụng và các tình huống hàng ngày.',
-     '["Languages","English","Conversation"]',   'Beginner', '03:30:00.000', 'English',     199000, 2, 'publish', 21, '2025-09-20 12:30:00', '2025-09-20 12:30:00'),
+     '["Languages","English","Conversation"]',   'Beginner', '03:30:00.000', 'English',     199000, 2, 'publish', 21, 'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png', '2025-09-20 12:30:00', '2025-09-20 12:30:00'),
 ( 3, 'Hán Ngữ HSK 1 - Tiếng Trung Sơ Cấp',
      'Khoá học tiếng Trung theo giáo trình HSK 1 - phát âm, bộ thủ, hội thoại cơ bản.',
-     '["Languages","Chinese","HSK"]',            'Beginner', '01:45:00.000', 'Vietnamese',      0, 3, 'publish', 30, '2025-09-20 13:00:00', '2025-09-20 13:00:00'),
+     '["Languages","Chinese","HSK"]',            'Beginner', '01:45:00.000', 'Vietnamese',      0, 3, 'publish', 30, 'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png', '2025-09-20 13:00:00', '2025-09-20 13:00:00'),
 ( 4, 'Cài Đặt Môi Trường & Khắc Phục CORS',
      'Setup môi trường dev Windows từ A-Z và xử lý các tình huống CORS hay gặp khi build full-stack app.',
-     '["Programming","Web","DevTools"]',         'Beginner', '00:55:00.000', 'Vietnamese', 199000, 4, 'publish',  5, '2025-09-21 12:00:00', '2025-09-21 12:00:00'),
+     '["Programming","Web","DevTools"]',         'Beginner', '00:55:00.000', 'Vietnamese', 199000, 4, 'publish',  5, 'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png', '2025-09-21 12:00:00', '2025-09-21 12:00:00'),
 ( 5, 'JavaScript Toàn Tập',
      'Bootcamp JavaScript từ căn bản đến hiện đại - 2 kho tài nguyên: freeCodeCamp và Mosh.',
-     '["Programming","JavaScript","Web"]',       'Intermediate', '04:40:00.000', 'English', 399000, 4, 'publish', 7, '2025-09-21 12:30:00', '2025-09-21 12:30:00'),
+     '["Programming","JavaScript","Web"]',       'Intermediate', '04:40:00.000', 'English', 399000, 4, 'publish', 7, 'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png', '2025-09-21 12:30:00', '2025-09-21 12:30:00'),
 ( 6, 'HTML, CSS & Node.js Full Stack Starter',
      'Một path duy nhất để bạn chuyển từ frontend HTML/CSS sang backend Node.js.',
-     '["Programming","Web","HTML","CSS","Node.js"]', 'Intermediate', '05:40:00.000', 'English', 499000, 4, 'publish', 9, '2025-09-21 13:00:00', '2025-09-21 13:00:00'),
+     '["Programming","Web","HTML","CSS","Node.js"]', 'Intermediate', '05:40:00.000', 'English', 499000, 4, 'publish', 9, 'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png', '2025-09-21 13:00:00', '2025-09-21 13:00:00'),
 ( 7, 'System Design Production Infrastructure',
      'Khoá học hệ thống lớn - APIs, Database, Caching, CDN, Load Balancing & Production Infra.',
-     '["Programming","System Design","Backend"]','Advanced',   '04:00:00.000', 'English', 599000, 5, 'publish',  4, '2025-09-22 12:00:00', '2025-09-22 12:00:00'),
+     '["Programming","System Design","Backend"]','Advanced',   '04:00:00.000', 'English', 599000, 5, 'publish',  4, 'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png', '2025-09-22 12:00:00', '2025-09-22 12:00:00'),
 ( 8, 'Cấu Trúc Dữ Liệu: Cây Nhị Phân',
      'Bài chuyên đề về Binary Tree - duyệt cây, BST, ứng dụng thực tế.',
-     '["Programming","Data Structures","Algorithms"]','Intermediate','00:45:00.000','Vietnamese', 299000, 5, 'publish', 29, '2025-09-22 12:30:00', '2025-09-22 12:30:00'),
+     '["Programming","Data Structures","Algorithms"]','Intermediate','00:45:00.000','Vietnamese', 299000, 5, 'publish', 29, 'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png', '2025-09-22 12:30:00', '2025-09-22 12:30:00'),
 ( 9, 'Python Cơ Bản - Làm Chủ Danh Sách (List)',
      'Tất cả về list trong Python: slicing, list comprehension, các phương thức và mẹo tối ưu.',
-     '["Programming","Python"]',                  'Beginner', '00:33:00.000', 'Vietnamese',      0, 6, 'publish',  8, '2025-09-23 12:00:00', '2025-09-23 12:00:00'),
+     '["Programming","Python"]',                  'Beginner', '00:33:00.000', 'Vietnamese',      0, 6, 'publish',  8, 'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png', '2025-09-23 12:00:00', '2025-09-23 12:00:00'),
 (10, 'Machine Learning Fundamentals',
      'Tổng quan ML cho người mới - các khái niệm cốt lõi, vòng đời ML và demo nhỏ.',
-     '["AI","Machine Learning","Python","Data Science"]','Intermediate','01:00:00.000','English', 399000, 6, 'publish', 28, '2025-09-23 12:30:00', '2025-09-23 12:30:00'),
+     '["AI","Machine Learning","Python","Data Science"]','Intermediate','01:00:00.000','English', 399000, 6, 'publish', 28, 'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png', '2025-09-23 12:30:00', '2025-09-23 12:30:00'),
 (11, 'Khai Thác ChatGPT Hiệu Quả',
      'Hướng dẫn dùng ChatGPT từ cơ bản - prompt engineering, workflow công việc, an toàn dữ liệu.',
-     '["AI","Productivity","Prompt Engineering"]','Beginner','01:10:00.000','Vietnamese', 149000, 6, 'banned', 19, '2025-09-23 13:00:00', '2025-09-23 13:00:00'),
+     '["AI","Productivity","Prompt Engineering"]','Beginner','01:10:00.000','Vietnamese', 149000, 6, 'banned', 19, 'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png', '2025-09-23 13:00:00', '2025-09-23 13:00:00'),
 (12, 'Lightroom 2023 - Nắm Vững Nguyên Lý',
      'Hậu kỳ ảnh trong Lightroom Classic 2023 - hiểu nguyên lý sâu hơn so với preset.',
-     '["Design","Photography","Lightroom"]',     'Intermediate', '02:00:00.000', 'Vietnamese', 299000, 7, 'publish', 13, '2025-09-24 12:00:00', '2025-09-24 12:00:00'),
+     '["Design","Photography","Lightroom"]',     'Intermediate', '02:00:00.000', 'Vietnamese', 299000, 7, 'publish', 13, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png', '2025-09-24 12:00:00', '2025-09-24 12:00:00'),
 (13, 'Thiết Kế Đồ Họa Online từ Cơ Bản Đến Nâng Cao',
      'Khoá graphic design tổng quát - bố cục, màu sắc, typography, brand identity.',
-     '["Design","Graphic Design"]',              'Beginner', '02:40:00.000', 'Vietnamese', 349000, 7, 'publish', 14, '2025-09-24 12:30:00', '2025-09-24 12:30:00'),
+     '["Design","Graphic Design"]',              'Beginner', '02:40:00.000', 'Vietnamese', 349000, 7, 'publish', 14, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png', '2025-09-24 12:30:00', '2025-09-24 12:30:00'),
 (14, 'Học Nhiếp Ảnh Cơ Bản Trong 90 Phút',
      'Khoá nhiếp ảnh nhập môn: tam giác phơi sáng, bố cục, ánh sáng và workflow chụp căn bản.',
-     '["Design","Photography"]',                 'Beginner', '01:30:00.000', 'English',     199000, 7, 'publish', 24, '2025-09-24 13:00:00', '2025-09-24 13:00:00'),
+     '["Design","Photography"]',                 'Beginner', '01:30:00.000', 'English',     199000, 7, 'publish', 24, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png', '2025-09-24 13:00:00', '2025-09-24 13:00:00'),
 (15, 'Figma 2024 Crash Course',
      'Học Figma từ con số 0 - frame, auto-layout, components, variant và prototype.',
-     '["Design","UI/UX","Figma"]',               'Beginner', '01:40:00.000', 'English',     249000, 7, 'publish', 27, '2025-09-24 13:30:00', '2025-09-24 13:30:00'),
+     '["Design","UI/UX","Figma"]',               'Beginner', '01:40:00.000', 'English',     249000, 7, 'publish', 27, 'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png', '2025-09-24 13:30:00', '2025-09-24 13:30:00'),
 (16, 'Digital Marketing Cho Người Mới',
      'Tổng quan digital marketing - kênh, phễu, và 35 tuyệt chiêu khuyến mãi tăng doanh số.',
-     '["Marketing","Digital Marketing"]',        'Beginner', '03:30:00.000', 'Vietnamese', 299000, 8, 'publish', 17, '2025-09-25 12:00:00', '2025-09-25 12:00:00'),
+     '["Marketing","Digital Marketing"]',        'Beginner', '03:30:00.000', 'Vietnamese', 299000, 8, 'publish', 17, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', '2025-09-25 12:00:00', '2025-09-25 12:00:00'),
 (17, 'Copywriting Trong 76 Phút',
      'Crash course copywriting bán hàng - headline, USP, CTA và checklist viết content.',
-     '["Marketing","Copywriting"]',              'Intermediate','01:16:00.000','English',     199000, 8, 'publish', 25, '2025-09-25 12:30:00', '2025-09-25 12:30:00'),
+     '["Marketing","Copywriting"]',              'Intermediate','01:16:00.000','English',     199000, 8, 'publish', 25, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', '2025-09-25 12:30:00', '2025-09-25 12:30:00'),
 (18, 'SEO Mastery 2026',
      'Checklist SEO mới nhất 2026 - on-page, technical, EEAT, AI search optimization.',
-     '["Marketing","SEO"]',                      'Advanced','01:10:00.000','English',     499000, 8, 'publish', 26, '2025-09-25 13:00:00', '2025-09-25 13:00:00'),
+     '["Marketing","SEO"]',                      'Advanced','01:10:00.000','English',     499000, 8, 'publish', 26, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', '2025-09-25 13:00:00', '2025-09-25 13:00:00'),
 (19, 'Power BI - Beyond Drag & Drop',
      'Khoá phân tích dữ liệu với Power BI - data model, DAX cơ bản, thiết kế dashboard story-driven.',
-     '["Data","Business Intelligence","Power BI"]','Intermediate','01:15:00.000','Vietnamese', 349000, 8, 'pending', 15, '2025-09-25 13:30:00', '2025-09-25 13:30:00'),
+     '["Data","Business Intelligence","Power BI"]','Intermediate','01:15:00.000','Vietnamese', 349000, 8, 'pending', 15, 'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png', '2025-09-25 13:30:00', '2025-09-25 13:30:00'),
 (20, 'Học CapCut Trong 1 Giờ',
      'Nâng cấp kỹ năng CapCut: edit, audio, trending effects và preset export đa nền tảng.',
-     '["Video","Editing","CapCut"]',             'Beginner', '01:00:00.000', 'Vietnamese', 199000, 9, 'publish', 18, '2025-09-27 12:00:00', '2025-09-27 12:00:00'),
+     '["Video","Editing","CapCut"]',             'Beginner', '01:00:00.000', 'Vietnamese', 199000, 9, 'publish', 18, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png', '2025-09-27 12:00:00', '2025-09-27 12:00:00'),
 (21, 'Premiere Pro Cho Người Mới',
      'Premiere Pro full beginner tutorial - timeline, transition, color grading, audio polish.',
-     '["Video","Editing","Premiere Pro"]',       'Beginner', '01:30:00.000', 'English',     249000, 9, 'publish', 20, '2025-09-27 12:30:00', '2025-09-27 12:30:00'),
+     '["Video","Editing","Premiere Pro"]',       'Beginner', '01:30:00.000', 'English',     249000, 9, 'publish', 20, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png', '2025-09-27 12:30:00', '2025-09-27 12:30:00'),
 (22, 'Tư Duy Phản Biện',
      'Seminar tư duy phản biện - mô hình lập luận, fallacy thường gặp và thực hành.',
-     '["Soft Skills","Critical Thinking"]',      'Beginner', '01:30:00.000', 'Vietnamese', 149000, 10, 'publish', 12, '2025-09-26 12:00:00', '2025-09-26 12:00:00'),
+     '["Soft Skills","Critical Thinking"]',      'Beginner', '01:30:00.000', 'Vietnamese', 149000, 10, 'publish', 12, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png', '2025-09-26 12:00:00', '2025-09-26 12:00:00'),
 (23, 'Project Management 101',
      'Project management nền tảng cho người mới - vòng đời dự án, scope, risk, tools.',
-     '["Soft Skills","Project Management"]',     'Beginner', '01:15:00.000', 'English',     199000, 10, 'publish', 22, '2025-09-26 12:30:00', '2025-09-26 12:30:00'),
+     '["Soft Skills","Project Management"]',     'Beginner', '01:15:00.000', 'English',     199000, 10, 'publish', 22, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png', '2025-09-26 12:30:00', '2025-09-26 12:30:00'),
 (24, 'Music Theory 101 for Guitar Players',
      'Nhạc lý cơ bản dành riêng cho guitar - quãng, hợp âm, scale và ứng dụng improvise.',
-     '["Music","Guitar"]',                       'Beginner', '01:25:00.000', 'English',     179000, 10, 'pending', 23, '2025-09-26 13:00:00', '2025-09-26 13:00:00');
+     '["Music","Guitar"]',                       'Beginner', '01:25:00.000', 'English',     179000, 10, 'pending', 23, 'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png', '2025-09-26 13:00:00', '2025-09-26 13:00:00');
 
 -- ============================================================================
 -- LESSONS  (36 lessons - mostly 1 video per lesson + a few text & quiz lessons)

@@ -31,20 +31,44 @@ type UpdateLessonProgressPayload = {
 
 type RawLessonProgressRecord = LessonProgressRecord & {
   last_video_position_sec?: number;
+  last_watched_at?: string;
 };
 
 type HeartbeatPayload = {
-  positionSec: number;
+  position: number;
+};
+
+type HeartbeatResponse = {
+  ok?: boolean;
+  position?: number;
+  lastWatchedAt?: string;
+  last_watched_at?: string;
 };
 
 type RawContinueWatchingLesson = Partial<ContinueWatchingLesson> & {
-  lesson_progress_id?: number;
+  progressId?: number;
+  lessonProgressId?: number;
   course_id?: number;
   lesson_id?: number;
   lesson_title?: string;
   course_title?: string;
   thumbnail_url?: string | null;
   last_video_position_sec?: number;
+  lastWatchedAt?: string;
+  last_watched_at?: string;
+  percentage?: number;
+  course?: {
+    id?: number;
+    name?: string;
+    title?: string;
+    thumbnailUrl?: string | null;
+    thumbnail_url?: string | null;
+  };
+  lesson?: {
+    id?: number;
+    title?: string;
+    name?: string;
+  };
   updated_at?: string;
 };
 
@@ -55,25 +79,48 @@ function mapLessonProgressRecord(
     ...raw,
     lastVideoPositionSec:
       raw.lastVideoPositionSec ?? raw.last_video_position_sec ?? 0,
+    lastWatchedAt: raw.lastWatchedAt ?? raw.last_watched_at,
   };
 }
 
 function mapContinueWatchingItem(
   raw: RawContinueWatchingLesson,
 ): ContinueWatchingLesson {
+  const courseId = Number(raw.courseId ?? raw.course?.id ?? raw.course_id ?? 0);
+  const lessonId = Number(raw.lessonId ?? raw.lesson?.id ?? raw.lesson_id ?? 0);
+  const lessonTitle =
+    raw.lessonTitle ??
+    raw.lesson?.title ??
+    raw.lesson?.name ??
+    raw.lesson_title;
+  const courseTitle =
+    raw.courseTitle ??
+    raw.course?.name ??
+    raw.course?.title ??
+    raw.course_title;
+  const thumbnailUrl =
+    raw.thumbnailUrl ??
+    raw.course?.thumbnailUrl ??
+    raw.course?.thumbnail_url ??
+    raw.thumbnail_url ??
+    null;
+
   return {
-    lessonProgressId: Number(
-      raw.lessonProgressId ?? raw.lesson_progress_id ?? 0,
-    ),
-    courseId: Number(raw.courseId ?? raw.course_id ?? 0),
-    lessonId: Number(raw.lessonId ?? raw.lesson_id ?? 0),
-    lessonTitle: String(raw.lessonTitle ?? raw.lesson_title ?? "Bài học"),
-    courseTitle: String(raw.courseTitle ?? raw.course_title ?? "Khóa học"),
-    thumbnailUrl: raw.thumbnailUrl ?? raw.thumbnail_url ?? null,
+    lessonProgressId: Number(raw.lessonProgressId ?? raw.progressId ?? 0),
+    courseId,
+    lessonId,
+    lessonTitle: String(lessonTitle ?? "Bài học"),
+    courseTitle: String(courseTitle ?? "Khóa học"),
+    thumbnailUrl,
     lastVideoPositionSec: Number(
       raw.lastVideoPositionSec ?? raw.last_video_position_sec ?? 0,
     ),
-    updatedAt: raw.updatedAt ?? raw.updated_at,
+    percentage: Number(raw.percentage ?? 0),
+    updatedAt:
+      raw.updatedAt ??
+      raw.lastWatchedAt ??
+      raw.last_watched_at ??
+      raw.updated_at,
   };
 }
 
@@ -107,21 +154,33 @@ export const lessonProgressApi = createResourceApi<
 
 export const lessonProgressExtraApi = {
   heartbeat: async (lessonProgressId: number, payload: HeartbeatPayload) => {
-    const { data } = await apiHttpClient.patch<LessonProgressRecord>(
+    const { data } = await apiHttpClient.patch<HeartbeatResponse>(
       `/course/lesson-progress/${lessonProgressId}/heartbeat`,
       {
-        positionSec: payload.positionSec,
+        position: payload.position,
       },
     );
 
-    return mapLessonProgressRecord(data as RawLessonProgressRecord);
+    return {
+      ok: data.ok ?? true,
+      position: Number(data.position ?? payload.position),
+      lastWatchedAt: data.lastWatchedAt ?? data.last_watched_at,
+    };
   },
-  getContinueWatching: async (): Promise<ContinueWatchingLesson[]> => {
+  getContinueWatching: async (
+    limit = 10,
+  ): Promise<ContinueWatchingLesson[]> => {
     const { data } = await apiHttpClient.get<
-      RawContinueWatchingLesson[] | { data?: RawContinueWatchingLesson[] }
-    >("/course/lesson-progress/continue-watching");
+      | { items?: RawContinueWatchingLesson[] }
+      | { data?: RawContinueWatchingLesson[] }
+      | RawContinueWatchingLesson[]
+    >(withQueryPath("/course/lesson-progress/continue-watching", { limit }));
 
-    const items = Array.isArray(data) ? data : (data.data ?? []);
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray((data as { items?: RawContinueWatchingLesson[] }).items)
+        ? ((data as { items?: RawContinueWatchingLesson[] }).items ?? [])
+        : ((data as { data?: RawContinueWatchingLesson[] }).data ?? []);
     return items
       .map(mapContinueWatchingItem)
       .filter((item) => item.lessonId > 0);

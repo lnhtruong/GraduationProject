@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsInt,
   IsOptional,
@@ -38,4 +39,8 @@ export class UpdateUserDto {
   @MinLength(8)
   @MaxLength(255)
   password?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isBanned?: boolean;
 }

@@ -1,13 +1,9 @@
-import { apiHttpClient } from "@/features/_shared/api-factories";
-import type { ReportTargetType } from "@/features/admin/types/report.types";
+import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
+import type { CreateReportDto, Report } from "../types";
 
-export interface CreateReportDto {
-  targetType: ReportTargetType;
-  targetId: number;
-  reason: string;
-}
-
-export const reportApi = {
-  submit: (dto: CreateReportDto) =>
-    apiHttpClient.post("/course/reports", dto),
-};
+export const reportApi = createApi({
+  submit: async (dto: CreateReportDto): Promise<Report> => {
+    const { data } = await apiHttpClient.post<Report>("/course/reports", dto);
+    return data;
+  },
+});

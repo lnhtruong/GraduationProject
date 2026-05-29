@@ -1,13 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
-import { NewsfeedVideoCard } from "./NewsfeedVideoCard";
+import {
+  NEWSFEED_PLAYBACK_RATE_OPTIONS,
+  NewsfeedVideoCard,
+  type NewsfeedPlaybackRate,
+} from "./NewsfeedVideoCard";
+
+const NEWSFEED_PLAYBACK_RATE_STORAGE_KEY = "newsfeed.playbackRate";
+
+function isNewsfeedPlaybackRate(value: string): value is NewsfeedPlaybackRate {
+  return NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(value as NewsfeedPlaybackRate);
+}
 
 interface NewsfeedVideoFeedProps {
   videos: NewsfeedItem[];
   activeIndex: number;
+  scrollToIndex?: number | null;
   onActiveIndexChange: (index: number) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
@@ -18,6 +29,7 @@ interface NewsfeedVideoFeedProps {
 export function NewsfeedVideoFeed({
   videos,
   activeIndex,
+  scrollToIndex,
   onActiveIndexChange,
   onOpenCourse,
   onOpenComments,
@@ -27,6 +39,18 @@ export function NewsfeedVideoFeed({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const ignoreObserverRef = useRef(false);
+  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>("1");
+
+  useEffect(() => {
+    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
+    if (storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate)) {
+      setPlaybackRate(storedPlaybackRate);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY, playbackRate);
+  }, [playbackRate]);
 
   const setItemRef = useCallback((index: number, node: HTMLDivElement | null) => {
     if (!node) {
@@ -71,17 +95,21 @@ export function NewsfeedVideoFeed({
   }, [onActiveIndexChange, videos.length]);
 
   useEffect(() => {
-    const target = itemRefs.current.get(activeIndex);
+    if (scrollToIndex == null) {
+      return;
+    }
+
+    const target = itemRefs.current.get(scrollToIndex);
     if (!target) {
       return;
     }
     ignoreObserverRef.current = true;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    target.scrollIntoView({ behavior: "auto", block: "start" });
     const timeout = window.setTimeout(() => {
       ignoreObserverRef.current = false;
-    }, 360);
+    }, 120);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex]);
+  }, [scrollToIndex]);
 
   const nextIndex = useMemo(() => activeIndex + 1, [activeIndex]);
 
@@ -96,7 +124,7 @@ export function NewsfeedVideoFeed({
     >
       {videos.map((video, index) => (
         <div
-          key={video.id}
+          key={video.feedId}
           ref={(node) => setItemRef(index, node)}
           data-index={index}
           className="snap-start"
@@ -105,6 +133,8 @@ export function NewsfeedVideoFeed({
             video={video}
             isActive={index === activeIndex}
             shouldPreload={index === nextIndex}
+            playbackRate={playbackRate}
+            onPlaybackRateChange={setPlaybackRate}
             onOpenCourse={onOpenCourse}
             onOpenComments={onOpenComments}
             onOpenShare={onOpenShare}

@@ -18,6 +18,8 @@ import {
   ChevronRight,
   RefreshCw,
   HelpCircle,
+  ExternalLink,
+  Play,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -28,6 +30,11 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -107,6 +114,87 @@ function getVideoUrl(lesson: Lesson): string | null {
   const url = lesson.video?.url;
   if (typeof url !== "string" || !url.trim()) return null;
   return url.trim();
+}
+
+function getVideoThumbnail(lesson: Lesson): string | null {
+  const thumb = lesson.video?.thumbnail;
+  if (typeof thumb !== "string" || !thumb.trim()) return null;
+  return thumb.trim();
+}
+
+function VideoPreviewInline({
+  videoUrl,
+  thumbnailUrl,
+  title,
+}: {
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  title: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      {/* Thumbnail nhỏ inline — click để mở Dialog */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative h-[27px] w-12 shrink-0 overflow-hidden rounded border border-border/60 bg-muted transition-opacity hover:opacity-90"
+        aria-label={`Xem video: ${title}`}
+      >
+        {thumbnailUrl ? (
+          <Image
+            src={thumbnailUrl}
+            alt={title}
+            fill
+            className="object-cover"
+            sizes="48px"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Video className="h-3.5 w-3.5 text-muted-foreground/50" />
+          </div>
+        )}
+        <span className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
+          <Play className="h-3 w-3 translate-x-px text-white drop-shadow" />
+        </span>
+      </button>
+
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+        <Check className="h-3 w-3" />
+        Có video
+      </span>
+
+      {/* Dialog player — chỉ mount khi mở */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <DialogTitle className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 text-sm font-medium">
+            <span className="line-clamp-1">{title}</span>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở video gốc"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 text-muted-foreground/60 hover:text-primary transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </DialogTitle>
+          <div className="aspect-video w-full bg-black">
+            {open && (
+              <video
+                src={videoUrl}
+                controls
+                autoPlay
+                className="h-full w-full object-contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 function LessonTypeIcon({
@@ -211,6 +299,7 @@ function LessonList({ courseId }: { courseId: number }) {
           const dur = formatDuration(lesson.duration);
           const videoLinked = hasVideo(lesson);
           const videoUrl = getVideoUrl(lesson);
+          const videoThumbnail = getVideoThumbnail(lesson);
           const isMissingVideo = lesson.contentType === "video" && !videoLinked;
 
           return (
@@ -240,15 +329,11 @@ function LessonList({ courseId }: { courseId: number }) {
               {lesson.contentType === "video" && (
                 <div className="ml-8 flex items-center gap-1.5">
                   {videoUrl ? (
-                    <a
-                      href={videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="truncate text-[11px] text-blue-500 underline-offset-2 hover:underline"
-                      title={videoUrl}
-                    >
-                      {videoUrl}
-                    </a>
+                    <VideoPreviewInline
+                      videoUrl={videoUrl}
+                      thumbnailUrl={videoThumbnail}
+                      title={lesson.title}
+                    />
                   ) : videoLinked ? (
                     // videoId có nhưng video.url chưa sẵn sàng (đang processing)
                     <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">

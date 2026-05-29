@@ -123,8 +123,8 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
-  { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
-  { method: 'GET', pattern: '/api/course/lessons/:id', access: 'public' },
+  { method: 'GET', pattern: '/api/course/lessons/course', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/lessons/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes', access: 'public' },
   { method: 'GET', pattern: '/api/course/quizzes/lesson/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes/:id', access: 'authenticated' },
@@ -310,6 +310,16 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'GET',
     pattern: '/api/course/lesson-progress',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/lesson-progress/continue-watching',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/lesson-progress/:id/heartbeat',
     access: 'authenticated',
   },
   {

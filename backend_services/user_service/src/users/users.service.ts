@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op, WhereOptions } from 'sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -17,6 +18,24 @@ export interface RequesterContext {
   ip?: string | null;
   userAgent?: string | null;
 }
+
+export interface ListUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: number;
+  isBanned?: boolean;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+const USER_SORTABLE_COLUMNS = new Set([
+  'createdAt',
+  'email',
+  'firstName',
+  'lastName',
+  'id',
+]);
 
 export enum UserRole {
   ADMIN = 1,
@@ -55,6 +74,7 @@ export class UsersService {
       lastName: user.lastName,
       role: user.role,
       emailVerified: user.emailVerified,
+      isBanned: user.isBanned,
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -88,13 +108,74 @@ export class UsersService {
     return this.toPublicUser(user);
   }
 
-  async getAllUsers() {
-    const users = await this.userModel.findAll({
+  async getAllUsers(params: ListUsersParams = {}) {
+    const where: WhereOptions = {};
+
+    if (params.search && params.search.trim().length > 0) {
+      const keyword = `%${params.search.trim()}%`;
+      (where as any)[Op.or] = [
+        { email: { [Op.like]: keyword } },
+        { firstName: { [Op.like]: keyword } },
+        { lastName: { [Op.like]: keyword } },
+      ];
+    }
+
+    if (Number.isInteger(params.role)) {
+      (where as any).role = params.role;
+    }
+
+    if (typeof params.isBanned === 'boolean') {
+      (where as any).isBanned = params.isBanned;
+    }
+
+    const sortBy = USER_SORTABLE_COLUMNS.has(params.sortBy ?? '')
+      ? (params.sortBy as string)
+      : 'id';
+    const sortOrder =
+      typeof params.sortOrder === 'string' &&
+      params.sortOrder.toLowerCase() === 'desc'
+        ? 'DESC'
+        : 'ASC';
+
+    const shouldPaginate =
+      params.page !== undefined || params.limit !== undefined;
+
+    if (!shouldPaginate) {
+      const users = await this.userModel.findAll({
+        where,
+        attributes: { exclude: ['password'] },
+        order: [[sortBy, sortOrder]],
+      });
+      return users.map((user) => this.toPublicUser(user));
+    }
+
+    const safePage =
+      Number.isInteger(params.page) && (params.page as number) > 0
+        ? (params.page as number)
+        : 1;
+    const safeLimit =
+      Number.isInteger(params.limit) && (params.limit as number) > 0
+        ? Math.min(params.limit as number, 100)
+        : 15;
+    const offset = (safePage - 1) * safeLimit;
+
+    const { rows, count } = await this.userModel.findAndCountAll({
+      where,
       attributes: { exclude: ['password'] },
-      order: [['id', 'ASC']],
+      order: [[sortBy, sortOrder]],
+      offset,
+      limit: safeLimit,
     });
 
-    return users.map((user) => this.toPublicUser(user));
+    return {
+      data: rows.map((user) => this.toPublicUser(user)),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        totalItems: count,
+        totalPages: Math.ceil(count / safeLimit),
+      },
+    };
   }
 
   async updateUserById(
@@ -112,6 +193,10 @@ export class UsersService {
       throw new ForbiddenException('Only admin can update role');
     }
 
+    // Chỉ admin mới có quyền ban / unban.
+    if (payload.isBanned !== undefined && requester.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admin can ban or unban a user');
+    }
     const before = this.auditableUserSnapshot(user);
 
     const updatePayload: Partial<User> & { password?: string } = { ...payload };

@@ -39,35 +39,38 @@ export function LessonInfoPanel({
   const [reportOpen, setReportOpen] = useState(false);
 
   return (
-    <Card className="overflow-hidden border-border/70 bg-card/90 shadow-sm">
+    <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
       <CardContent className="space-y-5 p-4 sm:p-6">
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="rounded-full border-border/70">
               Bài {selectedLessonIndex + 1}/{lessonsLength}
             </Badge>
-            <span>{currentLessonDurationLabel}</span>
-            <span>•</span>
-            <span>{courseProgressPercent}% tiến độ khóa học</span>
+            <Badge variant="secondary" className="rounded-full">
+              {currentLessonDurationLabel}
+            </Badge>
+            <Badge variant="secondary" className="rounded-full">
+              {courseProgressPercent}% tiến độ
+            </Badge>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {lessonTitle}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Khóa học: {courseName}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 border-b border-border/50 pb-4">
-            <Avatar className="h-10 w-10 border border-border/60">
+          <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/25 p-3">
+            <Avatar className="h-10 w-10 border border-border/60 bg-background">
               <AvatarFallback className="bg-muted text-foreground">
                 {instructorLabel.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
                 {instructorLabel}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -78,7 +81,7 @@ export function LessonInfoPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground/50 hover:text-destructive"
+                className="h-9 w-9 shrink-0 text-muted-foreground/60 hover:bg-destructive/5 hover:text-destructive"
                 title="Báo cáo bài học"
                 onClick={() => setReportOpen(true)}
               >
@@ -89,7 +92,7 @@ export function LessonInfoPanel({
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-muted/70">
+          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/70 p-1">
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="resources">Tài liệu</TabsTrigger>
             <TabsTrigger value="qa">Hỏi đáp</TabsTrigger>

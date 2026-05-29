@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CourseHeroSection } from "./components/CourseHeroSection";
 import { CourseStickySidebar } from "./components/CourseStickySidebar";
-import { WhatYouLearnSection } from "./components/WhatYouLearnSection";
 import { CourseContentAccordion } from "./components/CourseContentAccordion";
 import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
@@ -20,23 +19,6 @@ import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 // ---------------------------------------------------------------------------
 // Inline minor sections
 // ---------------------------------------------------------------------------
-
-function RequirementsSection({ items }: { items: string[] }) {
-  if (items.length === 0) return null;
-  return (
-    <section>
-      <h2 className="mb-4 text-xl font-bold">Yêu cầu</h2>
-      <ul className="space-y-2.5">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-sm text-foreground">
-            <span className="mt-0.5 shrink-0 text-base font-bold text-primary">•</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 function DescriptionSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -170,16 +152,10 @@ export default function CourseDetail({ courseId }: Props) {
               />
             </div>
 
-            {course.whatYouLearn.length > 0 && (
-              <WhatYouLearnSection items={course.whatYouLearn} />
-            )}
-
             <CourseContentAccordion
               lessons={course.lessons}
               isEnrolled={isEnrolled}
             />
-
-            <RequirementsSection items={course.requirements} />
 
             <DescriptionSection text={course.description} />
 

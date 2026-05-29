@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { reportApi, type CreateReportDto } from "./report.api";
+import { reportApi } from "./report.api";
+import type { CreateReportDto } from "../types";
 
 export function useSubmitReport() {
   return useMutation({
