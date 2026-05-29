@@ -99,6 +99,12 @@ export interface NewsfeedFeedPageResponse {
 
 export type NewsfeedFeedResponse = NewsfeedRawItem[] | NewsfeedFeedPageResponse;
 
+export interface NewsfeedFeedApiResponse {
+	items: NewsfeedItem[];
+	nextCursor: number | null;
+	sessionId: string | null;
+}
+
 export interface NewsfeedItem {
 	id: number;
 	feedId: number;
@@ -206,6 +212,16 @@ export interface NewsfeedTrendingStatsItem {
 export interface NewsfeedTrendingStatsResponse {
 	period: string;
 	data: NewsfeedTrendingStatsItem[];
+}
+
+export interface NewsfeedTrendingHashtagItem {
+	tag: string;
+	count: number;
+	growthPct: number | null;
+}
+
+export interface NewsfeedTrendingHashtagsResponse {
+	items: NewsfeedTrendingHashtagItem[];
 }
 
 export interface NewsfeedFeedMutationResponse {
