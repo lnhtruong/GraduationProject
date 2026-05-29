@@ -27,13 +27,22 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
-import { useNewsfeedFeedDetailStats, useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
+import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
 import { getInitials } from "./newsfeed-ui";
+
+export const NEWSFEED_PLAYBACK_RATE_OPTIONS = ["0.5", "0.75", "1", "1.25", "1.5", "2"] as const;
+
+export type NewsfeedPlaybackRate = (typeof NEWSFEED_PLAYBACK_RATE_OPTIONS)[number];
 
 function sanitizeDescriptionHtml(input?: string) {
   if (!input) {
@@ -56,6 +65,10 @@ function normalizeHashtag(tag: string) {
   return tag.replace(/^#+/, "").trim();
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
 interface CaptionSegment {
   kind: "text" | "hashtag";
   text: string;
@@ -66,6 +79,8 @@ interface NewsfeedVideoCardProps {
   video: NewsfeedItem;
   isActive: boolean;
   shouldPreload: boolean;
+  playbackRate: NewsfeedPlaybackRate;
+  onPlaybackRateChange: (rate: NewsfeedPlaybackRate) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
   onOpenShare: (url: string) => void;
@@ -75,6 +90,8 @@ export function NewsfeedVideoCard({
   video,
   isActive,
   shouldPreload,
+  playbackRate,
+  onPlaybackRateChange,
   onOpenCourse,
   onOpenComments,
   onOpenShare,
@@ -99,7 +116,6 @@ export function NewsfeedVideoCard({
   const [isSaved, setIsSaved] = useState(video.isSaved);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const timelineRef = useRef<HTMLDivElement | null>(null);
-  const feedStatsQuery = useNewsfeedFeedDetailStats(video.feedId, isActive);
   const interactMutation = useNewsfeedInteractMutation();
   useNewsfeedViewTracker({
     feedId: video.feedId,
@@ -119,6 +135,15 @@ export function NewsfeedVideoCard({
   useEffect(() => {
     setIsCaptionExpanded(false);
   }, [video.feedId]);
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) {
+      return;
+    }
+
+    element.playbackRate = Number(playbackRate);
+  }, [playbackRate, video.id]);
 
   const isPortraitVideo = videoAspectRatio < 1;
   const captionText = useMemo(
@@ -190,7 +215,7 @@ export function NewsfeedVideoCard({
   );
   const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
 
-  const displayStats = feedStatsQuery.data?.stats ?? video.stats;
+  const displayStats = video.stats;
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const volumePercent = isMuted ? 0 : volume * 100;
@@ -233,13 +258,33 @@ export function NewsfeedVideoCard({
       return;
     }
 
+    const tryPlay = async () => {
+      await element.play();
+      setIsPaused(false);
+    };
+
     if (element.paused) {
       try {
-        await element.play();
-        setIsPaused(false);
-      } catch {
+        await tryPlay();
+      } catch (error) {
+        if (isAbortError(error)) {
+          return;
+        }
+        const shouldRestoreAudio = !element.muted;
         element.muted = true;
-        setIsMuted(true);
+        try {
+          await tryPlay();
+          if (shouldRestoreAudio) {
+            window.setTimeout(() => {
+              const currentElement = videoRef.current;
+              if (currentElement) {
+                currentElement.muted = false;
+              }
+            }, 0);
+          }
+        } catch {
+          setIsPaused(true);
+        }
       }
       return;
     }
@@ -284,12 +329,33 @@ export function NewsfeedVideoCard({
 
     if (isActive) {
       element.currentTime = 0;
-      void element.play().catch(() => {
-        element.muted = true;
-        setIsMuted(true);
-        void element.play();
-      });
-      setIsPaused(false);
+      void element.play()
+        .then(() => {
+          setIsPaused(false);
+        })
+        .catch((error) => {
+          if (isAbortError(error)) {
+            return;
+          }
+
+          const shouldRestoreAudio = !element.muted;
+          element.muted = true;
+          void element.play()
+            .then(() => {
+              setIsPaused(false);
+              if (shouldRestoreAudio) {
+                window.setTimeout(() => {
+                  const currentElement = videoRef.current;
+                  if (currentElement) {
+                    currentElement.muted = false;
+                  }
+                }, 0);
+              }
+            })
+            .catch(() => {
+              setIsPaused(true);
+            });
+        });
       return;
     }
 
@@ -408,7 +474,6 @@ export function NewsfeedVideoCard({
           <video
             ref={videoRef}
             key={video.id}
-            src={video.videoUrl}
             poster={video.thumbnail ?? undefined}
             data-active={isActive}
             className="h-full w-full object-contain"
@@ -417,6 +482,7 @@ export function NewsfeedVideoCard({
             loop
             muted={isMuted}
             preload={shouldPreload ? "auto" : "metadata"}
+            crossOrigin="anonymous"
             onLoadedMetadata={(event) => {
               const { videoWidth, videoHeight } = event.currentTarget;
               if (videoWidth > 0 && videoHeight > 0) {
@@ -427,7 +493,9 @@ export function NewsfeedVideoCard({
             onTimeUpdate={(event) => {
               setCurrentTime(event.currentTarget.currentTime || 0);
             }}
-          />
+          >
+            <source src={video.videoUrl} type="video/mp4" />
+          </video>
 
           <div
             className={cn(
@@ -534,9 +602,36 @@ export function NewsfeedVideoCard({
                 <DropdownMenuItem>
                   <Settings2 className="h-4 w-4" />Chất lượng
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Gauge className="h-4 w-4" />Tốc độ phát
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Gauge className="h-4 w-4" />
+                    <span>Tốc độ phát</span>
+                    <span className="ml-auto text-xs font-medium text-muted-foreground">
+                      {playbackRate}x
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44">
+                    <DropdownMenuLabel>Tốc độ hiện tại</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup
+                      value={playbackRate}
+                      onValueChange={(value) => {
+                        const selectedRate = NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(
+                          value as NewsfeedPlaybackRate,
+                        )
+                          ? (value as NewsfeedPlaybackRate)
+                          : "1";
+                        onPlaybackRateChange(selectedRate);
+                      }}
+                    >
+                      {NEWSFEED_PLAYBACK_RATE_OPTIONS.map((value) => (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          {value}x
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuItem>
                   <Subtitles className="h-4 w-4" />Phụ đề
                 </DropdownMenuItem>

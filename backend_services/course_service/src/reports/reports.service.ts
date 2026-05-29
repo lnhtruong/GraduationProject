@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
@@ -60,6 +61,8 @@ export class ReportsService {
     limit?: number;
     status?: ReportStatus;
     targetType?: ReportTargetType;
+    sortOrder?: string;
+    search?: string;
   }) {
     const safePage =
       Number.isInteger(params.page) && (params.page as number) > 0
@@ -71,9 +74,18 @@ export class ReportsService {
         : 20;
     const offset = (safePage - 1) * safeLimit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string | symbol, unknown> = {};
     if (params.status) where.status = params.status;
     if (params.targetType) where.targetType = params.targetType;
+    if (params.search && params.search.trim().length > 0) {
+      where.reason = { [Op.like]: `%${params.search.trim()}%` };
+    }
+
+    const sortDirection =
+      typeof params.sortOrder === 'string' &&
+      params.sortOrder.toLowerCase() === 'asc'
+        ? 'ASC'
+        : 'DESC';
 
     const { rows, count } = await this.reportModel.findAndCountAll({
       where,
@@ -91,7 +103,7 @@ export class ReportsService {
           required: false,
         },
       ],
-      order: [['id', 'DESC']],
+      order: [['id', sortDirection]],
       offset,
       limit: safeLimit,
     });

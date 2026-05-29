@@ -23,15 +23,18 @@ export function LessonSidebar({
   onSelectLesson,
 }: Props) {
   return (
-    <Card className="h-fit overflow-hidden border-border/70 bg-card/90 shadow-sm xl:sticky xl:top-4">
-      <CardHeader className="border-b border-border bg-muted/30 pb-4">
-        <div>
-          <CardTitle className="text-base">
-            Danh sách bài học trong khóa
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Chọn lesson để học, xem mốc quiz và theo dõi trạng thái hoàn thành.
-          </p>
+    <Card className="h-fit overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.08)] xl:sticky xl:top-4">
+      <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Up next</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Playlist bài học, chọn bài để tiếp tục xem như một watch queue.
+            </p>
+          </div>
+          <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-xs text-muted-foreground">
+            {completedLessonCount}/{lessons.length}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -55,7 +58,7 @@ export function LessonSidebar({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-center gap-2">
+                      <div className="mb-2 flex items-center gap-2">
                         <span className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-[11px] font-medium text-muted-foreground">
                           Bài {index + 1}
                         </span>
@@ -93,7 +96,7 @@ export function LessonSidebar({
                                 className="block w-0.5 rounded-full bg-primary"
                               />
                             </motion.span>
-                            Đang học
+                            Đang xem
                           </span>
                         ) : isCompleted ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
@@ -113,6 +116,11 @@ export function LessonSidebar({
                         <Clock3 className="h-3.5 w-3.5" />
                         <span>{formatTime(lessonDuration)}</span>
                       </div>
+                      {isSelected ? (
+                        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
+                          <div className="h-full w-2/3 rounded-full bg-primary" />
+                        </div>
+                      ) : null}
                     </div>
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isCompleted ? "border-primary/70 bg-primary/15 text-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.2)]" : "border-border/60 bg-background text-muted-foreground group-hover:border-primary/40 group-hover:text-primary"}`}
@@ -136,7 +144,7 @@ export function LessonSidebar({
           </span>
           <span className="inline-flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Lesson map
+            Playlist
           </span>
         </div>
       </CardContent>

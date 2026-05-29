@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { isAxiosError } from "axios";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,6 +27,17 @@ import {
 import { OTPInput } from "@/components/ui/otp-input";
 import { useResetPassword, useForgotPassword } from "../api/auth.hooks";
 import { resetPasswordSchema, type ResetPasswordFormData } from "../schemas";
+import {
+  useForgotPasswordCooldown,
+  formatCountdown,
+} from "../hooks/useForgotPasswordCooldown";
+
+function parseApiMessage(err: unknown, fallback: string): string {
+  if (isAxiosError(err)) {
+    return err.response?.data?.message || fallback;
+  }
+  return fallback;
+}
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -35,8 +47,12 @@ export function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAccountLocked, setIsAccountLocked] = useState(false);
   const [success, setSuccess] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+
+  const { isLocked: isResendRateLimited, secondsLeft: resendSecondsLeft, startCooldown: startResendCooldown } =
+    useForgotPasswordCooldown();
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
@@ -70,7 +86,14 @@ export function ResetPasswordForm() {
       setError(null);
     },
     onError: (err) => {
-      setError(err.message || "Không thể gửi lại mã OTP. Vui lòng thử lại.");
+      if (isAxiosError(err) && err.response?.status === 429) {
+        const retryAfter = Number(err.response.data?.retryAfter) || 300;
+        startResendCooldown(retryAfter);
+        const mins = Math.ceil(retryAfter / 60);
+        setError(`Bạn đã gửi OTP quá nhiều lần. Vui lòng thử lại sau ${mins} phút.`);
+      } else {
+        setError(parseApiMessage(err, "Không thể gửi lại mã OTP. Vui lòng thử lại."));
+      }
     },
   });
 
@@ -83,7 +106,13 @@ export function ResetPasswordForm() {
       }, 2000);
     },
     onError: (err) => {
-      setError(err.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.");
+      if (isAxiosError(err) && err.response?.status === 423) {
+        setIsAccountLocked(true);
+        setError(null);
+      } else {
+        setIsAccountLocked(false);
+        setError(parseApiMessage(err, "Không thể đặt lại mật khẩu. Vui lòng thử lại."));
+      }
       setSuccess(false);
     },
   });
@@ -100,7 +129,7 @@ export function ResetPasswordForm() {
   };
 
   const handleResendOTP = () => {
-    if (resendCountdown > 0 || !emailFromUrl) return;
+    if (resendCountdown > 0 || isResendRateLimited || isAccountLocked || !emailFromUrl) return;
     forgotPassword({ email: emailFromUrl });
   };
 
@@ -116,7 +145,21 @@ export function ResetPasswordForm() {
       </CardHeader>
 
       <CardContent className="pb-6">
-        {error && (
+        {isAccountLocked && (
+          <Alert variant="destructive" className="mb-4 py-2">
+            <Clock className="h-4 w-4" />
+            <AlertTitle className="text-sm font-semibold">Tài khoản tạm thời bị khóa</AlertTitle>
+            <AlertDescription className="text-sm">
+              Bạn đã nhập sai OTP quá nhiều lần. Vui lòng thử lại sau 30 phút hoặc{" "}
+              <a href="/forgot-password" className="underline font-medium">
+                gửi lại OTP
+              </a>
+              .
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {error && !isAccountLocked && (
           <Alert variant="destructive" className="mb-4 py-2">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle className="text-sm font-semibold">Lỗi</AlertTitle>
@@ -256,7 +299,7 @@ export function ResetPasswordForm() {
             <Button
               type="submit"
               className="w-full h-10 font-medium mt-2"
-              disabled={form.formState.isSubmitting || success}
+              disabled={form.formState.isSubmitting || success || isAccountLocked}
             >
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -273,13 +316,18 @@ export function ResetPasswordForm() {
           <button
             type="button"
             onClick={handleResendOTP}
-            disabled={resendCountdown > 0 || isResending}
+            disabled={resendCountdown > 0 || isResendRateLimited || isResending || isAccountLocked}
             className="text-primary hover:text-primary/80 hover:underline font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
           >
             {isResending ? (
               <>
                 <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
                 Đang gửi...
+              </>
+            ) : isResendRateLimited ? (
+              <>
+                <Clock className="inline h-3 w-3 mr-1" />
+                {`Gửi lại sau ${formatCountdown(resendSecondsLeft)}`}
               </>
             ) : resendCountdown > 0 ? (
               `Gửi lại (${resendCountdown}s)`

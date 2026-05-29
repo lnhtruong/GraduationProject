@@ -17,7 +17,7 @@ import { CoursesService } from './course.service';
 import type { CoursePublicSort } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { CourseStatus } from 'src/models/course.model';
+import { CourseLevel, CourseStatus } from 'src/models/course.model';
 import { buildRequesterFromHeaders } from 'src/audit_logs/requester.types';
 
 @Controller('courses')
@@ -79,19 +79,45 @@ export class CoursesController {
     @Query('status') status?: CourseStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('level') level?: CourseLevel,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('userId') userId?: string,
+    @Headers('x-user-role') roleHeader?: string,
     @Query('sort') sort?: CoursePublicSort,
     @Query('search') search?: string,
   ) {
     const parsedPage = page !== undefined ? Number(page) : undefined;
     const parsedLimit = limit !== undefined ? Number(limit) : undefined;
+    const parsedMinPrice = minPrice !== undefined ? Number(minPrice) : undefined;
+    const parsedMaxPrice = maxPrice !== undefined ? Number(maxPrice) : undefined;
 
-    return this.coursesService.findAllPublic(
+    let filterUserId: number | undefined;
+    if (userId !== undefined) {
+      const role = Number(roleHeader);
+      if (role !== 1) {
+        throw new ForbiddenException(
+          'Only admin can filter courses by lecturer userId',
+        );
+      }
+      const parsedUserId = Number(userId);
+      if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+        throw new BadRequestException('Invalid userId filter');
+      }
+      filterUserId = parsedUserId;
+    }
+
+    return this.coursesService.findAllPublic({
       status,
-      parsedPage,
-      parsedLimit,
+      page: parsedPage,
+      limit: parsedLimit,
       sort,
       search,
-    );
+      level,
+      minPrice: parsedMinPrice,
+      maxPrice: parsedMaxPrice,
+      userId: filterUserId,
+    });
   }
 
   @Get('stats/overview')

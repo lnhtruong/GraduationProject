@@ -3,7 +3,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Op } from 'sequelize';
 
-import { Course } from '../models/course.model';
+import { Course, CourseStatus } from '../models/course.model';
 import { Lesson, LessonStatus } from '../models/lesson.model';
 import { LessonActivity, ActivityStatus } from '../models/lesson-activity.model';
 import { Quiz } from '../models/quiz.model';
@@ -246,5 +246,46 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     expect(
       result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options[1].isCorrect,
     ).toBe(true);
+  });
+
+  it('create maps thumbnail_url to thumbnailUrl model field', async () => {
+    const dto = {
+      name: 'Course with thumbnail',
+      description: 'desc',
+      thumbnail_url: ' https://cdn.example.com/thumb.png ',
+      categories: ['programming'],
+      language: 'vi',
+      price: 100,
+    };
+    courseModel.create.mockResolvedValueOnce({ id: 22 });
+    courseModel.findByPk.mockResolvedValueOnce({ id: 22, ...dto });
+
+    await service.create(dto as any, 5);
+
+    const payload = courseModel.create.mock.calls[0][0];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        thumbnailUrl: 'https://cdn.example.com/thumb.png',
+        userId: 5,
+        status: CourseStatus.DRAFT,
+      }),
+    );
+    expect(payload).not.toHaveProperty('thumbnail_url');
+  });
+
+  it('update maps thumbnailUrl and allows clearing with an empty string', async () => {
+    const update = jest.fn().mockResolvedValueOnce({ id: 1, thumbnailUrl: null });
+    courseModel.findByPk.mockResolvedValueOnce({
+      id: 1,
+      status: CourseStatus.DRAFT,
+      update,
+    });
+
+    await service.update(1, { thumbnailUrl: '' });
+
+    expect(update).toHaveBeenCalledWith({
+      thumbnailUrl: null,
+      status: CourseStatus.DRAFT,
+    });
   });
 });

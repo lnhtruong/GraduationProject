@@ -51,11 +51,6 @@ export const useRemoveFromCart = createMutationHooks<void, number>(
   },
 );
 
-export const useApplyCoupon = createMutationHooks<
-  Awaited<ReturnType<typeof cartApi.applyCoupon>>,
-  string
->("cart", "apply-coupon", cartApi.applyCoupon);
-
 export function useIsInCart(courseId: number): boolean {
   const { data: items } = useCartQuery();
   return (items ?? []).some((item) => item.courseId === courseId);

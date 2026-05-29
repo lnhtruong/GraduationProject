@@ -7,17 +7,6 @@ import { LessonVideoCard } from "./components/LessonVideoCard";
 import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { formatTime } from "./utils";
 
 interface Props {
   courseId: number;
@@ -53,27 +42,6 @@ export default function CourseLearnPage({ courseId }: Props) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_28%),radial-gradient(circle_at_top_right,hsl(var(--accent)/0.14),transparent_22%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_24%,hsl(var(--muted)/0.35)_100%)]">
-      <AlertDialog open={state.showResumePrompt}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tiếp tục học?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bạn muốn tiếp tục từ phút{" "}
-              {formatTime(state.resumePromptPositionSec)}
-              hay xem lại từ đầu?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={state.handleRestartFromBeginning}>
-              Xem lại từ đầu
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={state.handleResumeFromLastPosition}>
-              Tiếp tục từ {formatTime(state.resumePromptPositionSec)}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AnimatePresence>
         {state.confettiPieces.length ? (
           <motion.div
@@ -116,15 +84,19 @@ export default function CourseLearnPage({ courseId }: Props) {
         <div className="absolute right-0 top-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
       </div>
 
-      <main className="relative mx-auto max-w-360 px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
-        <div className="mb-4 text-sm text-muted-foreground">
+      <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
+        <div className="mb-5 flex items-center justify-between gap-3 text-sm text-muted-foreground">
           Khóa học <span className="px-1">&gt;</span> {state.course.name}{" "}
           <span className="px-1">&gt;</span> {state.selectedLesson.title}
+          <span className="hidden rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs text-muted-foreground xl:inline-flex">
+            Phát video, tua nhanh, resume và tiếp tục học theo kiểu watch page
+          </span>
         </div>
 
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
           <div className="min-w-0 flex-1 space-y-6">
             <LessonVideoCard
+              lessonTitle={state.selectedLesson.title}
               selectedLessonVideoUrl={state.selectedLessonVideo?.url}
               currentLessonDurationLabel={state.currentLessonDurationLabel}
               selectedLessonDuration={state.playbackDuration}

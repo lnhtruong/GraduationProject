@@ -47,6 +47,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	}, [activeVideo, recordHistoryItem]);
 
 	const { goNext, goPrev, jumpTo } = feed;
+	const { setObservedActiveIndex } = feed;
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -117,9 +118,9 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 
 	const onActiveIndexChange = useCallback(
 		(index: number) => {
-			jumpTo(index);
+			setObservedActiveIndex(index);
 		},
-		[jumpTo],
+		[setObservedActiveIndex],
 	);
 
 	if (feed.isLoading) {
@@ -178,13 +179,14 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				className={cn(
 					"h-[calc(100vh-64px)] pt-0 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
-					isOptionBoxOpen ? "md:pr-[592px] pr-[72px]" : "pr-[72px]",
+					isOptionBoxOpen ? "md:pr-[592px] lg:pr-[632px] pr-[72px]" : "pr-[72px]",
 				)}
 			>
 				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">
 					<NewsfeedVideoFeed
 						videos={feed.videos}
 						activeIndex={feed.activeIndex}
+						scrollToIndex={feed.scrollToIndex}
 						onActiveIndexChange={onActiveIndexChange}
 						onOpenCourse={onOpenCourse}
 						onOpenComments={onOpenComments}

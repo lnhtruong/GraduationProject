@@ -18,8 +18,6 @@ export class UsersService {
       raw: true,
     });
 
-    // console.log('check user: ', user);
-
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -30,6 +28,7 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -37,7 +36,7 @@ export class UsersService {
 
   async getUserById(userId: number) {
     const user = await this.userModel.findByPk(userId, {
-      attributes: { exclude: ['password'] },
+      attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
     });
 
     if (!user) {
@@ -46,12 +45,9 @@ export class UsersService {
 
     return {
       id: user.id,
-      email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      avatarUrl: user.avatarUrl,
     };
   }
 }

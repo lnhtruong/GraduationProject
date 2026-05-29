@@ -22,8 +22,8 @@ function uniqueByFeedId(videos: NewsfeedItem[]) {
 
 export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollectionPageProps) {
 	const normalizedSearchTerm = searchTerm.trim();
-	const shouldLoadFeed = mode !== "search" || Boolean(normalizedSearchTerm);
-	const feedQuery = useNewsfeedFeed(shouldLoadFeed, 24, mode === "search" ? normalizedSearchTerm : "");
+	const shouldLoadFeed = mode === "search" && Boolean(normalizedSearchTerm);
+	const feedQuery = useNewsfeedFeed(shouldLoadFeed, 24, normalizedSearchTerm);
 	const viewedQuery = useNewsfeedViewedFeeds(mode === "history");
 	const savedQuery = useNewsfeedSavedFeeds(mode === "saved");
 	const { items: historyItems, clearHistory } = useNewsfeedHistory();
@@ -44,22 +44,17 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 		[savedQuery.data?.items],
 	);
 
-	const savedItems = useMemo(
-		() => feedItems.filter((item) => item.isSaved),
-		[feedItems],
-	);
-
 	const displayItems = useMemo(() => {
 		if (mode === "history") {
-			return viewedItems.length ? viewedItems : historyItems.length ? historyItems : feedItems;
+			return uniqueByFeedId(viewedItems.length ? viewedItems : historyItems);
 		}
 
 		if (mode === "saved") {
-			return savedApiItems.length ? savedApiItems : savedItems.length ? savedItems : feedItems;
+			return uniqueByFeedId(savedApiItems);
 		}
 
 		return uniqueByFeedId(feedItems);
-	}, [feedItems, historyItems, mode, savedApiItems, savedItems, viewedItems]);
+	}, [feedItems, historyItems, mode, savedApiItems, viewedItems]);
 
 	const pageTitle = useMemo(() => {
 		switch (mode) {
@@ -102,7 +97,7 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 				/>
 			)}
 
-			{mode === "history" && historyItems.length > 0 ? (
+			{mode === "history" && viewedItems.length === 0 && historyItems.length > 0 ? (
 				<div className="mx-auto w-full max-w-[1400px] px-3 pb-8 sm:px-4 lg:px-6">
 					<button
 						type="button"
