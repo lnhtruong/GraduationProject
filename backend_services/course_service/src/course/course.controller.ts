@@ -14,6 +14,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CoursesService } from './course.service';
+import type { CoursePublicSort } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CourseStatus } from 'src/models/course.model';
@@ -78,6 +79,8 @@ export class CoursesController {
     @Query('status') status?: CourseStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('sort') sort?: CoursePublicSort,
+    @Query('search') search?: string,
   ) {
     const parsedPage = page !== undefined ? Number(page) : undefined;
     const parsedLimit = limit !== undefined ? Number(limit) : undefined;
@@ -86,6 +89,8 @@ export class CoursesController {
       status,
       parsedPage,
       parsedLimit,
+      sort,
+      search,
     );
   }
 

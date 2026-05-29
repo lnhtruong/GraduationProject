@@ -18,8 +18,11 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { User } from 'src/users/user.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
 import { RequesterContext } from 'src/audit_logs/requester.types';
+
+export type CoursePublicSort = 'newest' | 'popular' | 'rating';
 
 @Injectable()
 export class CoursesService {
@@ -55,6 +58,66 @@ export class CoursesService {
       required: false,
     },
   ];
+
+  private readonly publicCourseAggregateAttributes = [
+    [
+      literal(`(
+        SELECT COALESCE(AVG(feedbacks.rating), 0)
+        FROM feedbacks
+        WHERE feedbacks.course_id = Course.id
+          AND feedbacks.deleted_at IS NULL
+          AND feedbacks.is_visible = TRUE
+      )`),
+      'avg_rating',
+    ],
+    [
+      literal(`(
+        SELECT COUNT(feedbacks.id)
+        FROM feedbacks
+        WHERE feedbacks.course_id = Course.id
+          AND feedbacks.deleted_at IS NULL
+          AND feedbacks.is_visible = TRUE
+      )`),
+      'review_count',
+    ],
+    [
+      literal(`(
+        SELECT COUNT(enrolls.id)
+        FROM enrolls
+        WHERE enrolls.course_id = Course.id
+      )`),
+      'enrolled_count',
+    ],
+  ] as const;
+
+  private buildPublicCourseInclude(): Includeable[] {
+    return [
+      {
+        model: Video,
+        as: 'video',
+        required: false,
+        attributes: ['id', 'url', 'thumbnail', 'duration', 'type'],
+      },
+      {
+        model: User,
+        as: 'instructor',
+        required: false,
+        attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
+      },
+    ];
+  }
+
+  private buildPublicCourseOrder(sort?: string): Order {
+    switch (sort) {
+      case 'popular':
+        return [[literal('enrolled_count'), 'DESC'], ['id', 'DESC']] as Order;
+      case 'rating':
+        return [[literal('avg_rating'), 'DESC'], ['id', 'DESC']] as Order;
+      case 'newest':
+      default:
+        return [['id', 'DESC']];
+    }
+  }
 
   private async validateVideoId(videoId: number | null | undefined): Promise<void> {
     if (videoId === undefined || videoId === null) {
@@ -156,6 +219,8 @@ export class CoursesService {
     status?: CourseStatus,
     page?: number,
     limit?: number,
+    sort?: CoursePublicSort,
+    search?: string,
   ): Promise<
     | Course[]
     | {
@@ -173,13 +238,25 @@ export class CoursesService {
     if (status) {
       whereCondition.status = status;
     }
+    const keyword = search?.trim();
+    if (keyword) {
+      whereCondition.name = { [Op.like]: `%${keyword}%` };
+    }
+
+    const queryOptions = {
+      where: whereCondition,
+      include: this.buildPublicCourseInclude(),
+      attributes: {
+        include: this.publicCourseAggregateAttributes as any,
+      },
+      order: this.buildPublicCourseOrder(sort),
+    };
 
     const shouldPaginate = page !== undefined || limit !== undefined;
 
     if (!shouldPaginate) {
       return await this.courseModel.findAll({
-        where: whereCondition,
-        include: [Video],
+        ...queryOptions,
       });
     }
 
@@ -189,11 +266,10 @@ export class CoursesService {
     const offset = (safePage - 1) * safeLimit;
 
     const { rows, count } = await this.courseModel.findAndCountAll({
-      where: whereCondition,
-      include: [Video],
+      ...queryOptions,
       offset,
       limit: safeLimit,
-      order: [['id', 'DESC']],
+      distinct: true,
     });
 
     return {
