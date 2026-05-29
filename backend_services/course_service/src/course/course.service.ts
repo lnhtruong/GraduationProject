@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Includeable, Order } from 'sequelize';
-import { col, fn, literal, Op } from 'sequelize';
+import { col, fn, literal, Op, where as sequelizeWhere } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { SearchCoursesQueryDto } from './dto/search-courses-query.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
@@ -18,8 +19,34 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { User } from 'src/users/user.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
 import { RequesterContext } from 'src/audit_logs/requester.types';
+import { PaginationMetaDto } from 'src/models/pagination.dto';
+
+type CourseSearchCard = {
+  id: number;
+  name: string;
+  thumbnailUrl: string | null;
+  price: number;
+  level: string;
+  language: string;
+  duration: string | null;
+  avgRating: number;
+  reviewCount: number;
+  enrollCount: number;
+  instructorName: string;
+  instructorAvatar: string | null;
+  status: CourseStatus;
+  createdAt: string | Date | null;
+};
+
+type CourseSearchResponse = {
+  data: CourseSearchCard[];
+  total: number;
+  page: number;
+  totalPages: number;
+};
 
 @Injectable()
 export class CoursesService {
@@ -96,6 +123,138 @@ export class CoursesService {
     return {
       ...payload,
       thumbnailUrl: normalizedThumbnailUrl,
+    };
+  }
+
+  private escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+  }
+
+  private parsePositiveInteger(value: number | undefined, fallback: number, max?: number): number {
+    if (!Number.isInteger(value) || value! <= 0) {
+      return fallback;
+    }
+    return max ? Math.min(value!, max) : value!;
+  }
+
+  private parseSearchNumber(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private mapCourseSearchCard(course: Course): CourseSearchCard {
+    const plain = course.get({ plain: true }) as Record<string, any>;
+    const instructor = plain.instructor as Record<string, unknown> | undefined;
+    const instructorName = [instructor?.firstName, instructor?.lastName]
+      .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+      .join(' ')
+      .trim();
+
+    return {
+      id: this.parseSearchNumber(plain.id),
+      name: String(plain.name ?? ''),
+      thumbnailUrl: plain.thumbnailUrl ?? plain.thumbnail_url ?? plain.video?.thumbnail ?? null,
+      price: this.parseSearchNumber(plain.price),
+      level: String(plain.level ?? ''),
+      language: String(plain.language ?? ''),
+      duration: plain.duration ?? null,
+      avgRating: this.parseSearchNumber(plain.avgRating),
+      reviewCount: this.parseSearchNumber(plain.reviewCount),
+      enrollCount: this.parseSearchNumber(plain.enrollCount),
+      instructorName,
+      instructorAvatar:
+        typeof instructor?.avatarUrl === 'string' && instructor.avatarUrl.trim().length > 0
+          ? instructor.avatarUrl
+          : null,
+      status: plain.status,
+      createdAt: plain.createdAt ?? plain.created_at ?? null,
+    };
+  }
+
+  async searchPublishedCourses(query: SearchCoursesQueryDto): Promise<CourseSearchResponse> {
+    const page = this.parsePositiveInteger(query.page, 1);
+    const limit = this.parsePositiveInteger(query.limit, 12, 100);
+    const offset = (page - 1) * limit;
+    const keyword = query.q?.trim();
+    const whereCondition: any = {
+      status: CourseStatus.PUBLISH,
+    };
+
+    if (keyword) {
+      const likeKeyword = `%${this.escapeLikePattern(keyword.toLowerCase())}%`;
+      whereCondition[Op.or] = [
+        sequelizeWhere(fn('LOWER', col('Course.name')), { [Op.like]: likeKeyword }),
+        sequelizeWhere(fn('LOWER', col('Course.description')), { [Op.like]: likeKeyword }),
+      ];
+    }
+
+    const { rows, count } = await this.courseModel.findAndCountAll({
+      where: whereCondition,
+      attributes: [
+        'id',
+        'name',
+        'thumbnailUrl',
+        'price',
+        'level',
+        'language',
+        'duration',
+        'status',
+        [col('Course.created_at'), 'createdAt'],
+        [
+          literal(`(
+            SELECT COALESCE(AVG(feedbacks.rating), 0)
+            FROM feedbacks
+            WHERE feedbacks.course_id = Course.id
+              AND feedbacks.deleted_at IS NULL
+              AND feedbacks.is_visible = TRUE
+          )`),
+          'avgRating',
+        ],
+        [
+          literal(`(
+            SELECT COUNT(feedbacks.id)
+            FROM feedbacks
+            WHERE feedbacks.course_id = Course.id
+              AND feedbacks.deleted_at IS NULL
+              AND feedbacks.is_visible = TRUE
+          )`),
+          'reviewCount',
+        ],
+        [
+          literal(`(
+            SELECT COUNT(enrolls.id)
+            FROM enrolls
+            WHERE enrolls.course_id = Course.id
+          )`),
+          'enrollCount',
+        ],
+      ],
+      include: [
+        {
+          model: User,
+          as: 'instructor',
+          required: false,
+          attributes: ['firstName', 'lastName', 'avatarUrl'],
+        },
+        {
+          model: Video,
+          as: 'video',
+          required: false,
+          attributes: ['thumbnail'],
+        },
+      ],
+      order: [[literal('`Course`.`created_at`'), 'DESC']],
+      limit,
+      offset,
+      distinct: true,
+    });
+
+    const pagination = new PaginationMetaDto(page, limit, count);
+    return {
+      data: rows.map((course) => this.mapCourseSearchCard(course)),
+      total: pagination.totalItems,
+      page: pagination.page,
+      totalPages: pagination.totalPages,
     };
   }
 

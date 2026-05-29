@@ -11,6 +11,7 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { User } from 'src/users/user.model';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Video } from 'src/models/video.model';
       QuizOption,
       Enroll,
       Feedback,
+      User,
     ]),
   ],
   controllers: [CoursesController],

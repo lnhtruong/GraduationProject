@@ -120,6 +120,7 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
+  { method: 'GET', pattern: '/api/course/courses/search', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },

@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { CoursesService } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { SearchCoursesQueryDto } from './dto/search-courses-query.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CourseLevel, CourseStatus } from 'src/models/course.model';
 import { buildRequesterFromHeaders } from 'src/audit_logs/requester.types';
@@ -115,6 +116,11 @@ export class CoursesController {
       maxPrice: parsedMaxPrice,
       userId: filterUserId,
     });
+  }
+
+  @Get('search')
+  search(@Query() query: SearchCoursesQueryDto) {
+    return this.coursesService.searchPublishedCourses(query);
   }
 
   @Get('stats/overview')
