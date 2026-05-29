@@ -155,7 +155,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               lessonsLength={state.lessons.length}
               completedLessonCount={state.completedLessonCount}
               courseProgressPercent={state.courseProgressPercent}
-              instructorLabel={`Giảng viên #${state.course.userId}`}
+              instructorLabel="Giảng viên"
               lessonId={state.selectedLesson.id}
               isAuthenticated={isAuthenticated}
             />
