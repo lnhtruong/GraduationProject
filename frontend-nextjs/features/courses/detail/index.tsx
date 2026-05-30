@@ -191,7 +191,7 @@ export default function CourseDetail({ courseId }: Props) {
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
         {enrollment ? (
           <>
-            <span className="text-sm font-medium text-primary">{enrollment.progress}% hoàn thành</span>
+            <span className="text-sm font-medium text-primary">{enrollment.progress ?? 0}% hoàn thành</span>
             <Button size="lg" variant="outline" className="flex-1 border-primary/40 text-primary" asChild>
               <a href={`/courses/${course.id}/learn`}>Tiếp tục học</a>
             </Button>

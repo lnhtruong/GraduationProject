@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "picsum.photos",
       },
+      {
+        protocol: "https",
+        hostname: "vz-e17ee266-cac.b-cdn.net",
+      },
       // TODO: thêm các hostname khác khi dùng ảnh từ CDN/backend
     ],
   },

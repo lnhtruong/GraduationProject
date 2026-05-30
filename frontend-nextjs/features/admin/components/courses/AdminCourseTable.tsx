@@ -37,6 +37,7 @@ function formatPrice(price: number) {
 interface Props {
   courses: Course[];
   isLoading?: boolean;
+  isFiltering?: boolean;
   showActions?: boolean;
   approvingId?: number | null;
   rejectingId?: number | null;
@@ -48,6 +49,7 @@ interface Props {
 export function AdminCourseTable({
   courses,
   isLoading,
+  isFiltering = false,
   showActions = true,
   approvingId,
   rejectingId,
@@ -74,7 +76,9 @@ export function AdminCourseTable({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
         <Eye className="h-8 w-8 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">Không có khóa học nào</p>
+        <p className="text-sm text-muted-foreground">
+          {isFiltering ? "Không tìm thấy khóa học phù hợp" : "Không có khóa học nào"}
+        </p>
       </div>
     );
   }
