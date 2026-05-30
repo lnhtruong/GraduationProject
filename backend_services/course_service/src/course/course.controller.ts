@@ -22,7 +22,7 @@ import { buildRequesterFromHeaders } from 'src/audit_logs/requester.types';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) { }
+  constructor(private readonly coursesService: CoursesService) {}
 
   private parseRequiredUserId(userIdHeader?: string): number {
     const userId = Number(userIdHeader);
@@ -44,7 +44,10 @@ export class CoursesController {
   }
 
   @Post()
-  create(@Body() createCourseDto: CreateCourseDto, @Headers('x-user-id') userIdHeader?: string) {
+  create(
+    @Body() createCourseDto: CreateCourseDto,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
     const user_id =
       typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
         ? Number(userIdHeader)
@@ -88,8 +91,10 @@ export class CoursesController {
   ) {
     const parsedPage = page !== undefined ? Number(page) : undefined;
     const parsedLimit = limit !== undefined ? Number(limit) : undefined;
-    const parsedMinPrice = minPrice !== undefined ? Number(minPrice) : undefined;
-    const parsedMaxPrice = maxPrice !== undefined ? Number(maxPrice) : undefined;
+    const parsedMinPrice =
+      minPrice !== undefined ? Number(minPrice) : undefined;
+    const parsedMaxPrice =
+      maxPrice !== undefined ? Number(maxPrice) : undefined;
 
     let filterUserId: number | undefined;
     if (userId !== undefined) {

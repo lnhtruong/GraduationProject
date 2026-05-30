@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { CategoriesController } from './categories.controller';
 import { CoursesController } from './course.controller';
 import { CoursesService } from './course.service';
 import { Course } from 'src/models/course.model';
@@ -28,7 +29,7 @@ import { User } from 'src/users/user.model';
       User,
     ]),
   ],
-  controllers: [CoursesController],
+  controllers: [CoursesController, CategoriesController],
   providers: [CoursesService],
   exports: [CoursesService],
 })
