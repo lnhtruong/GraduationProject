@@ -260,7 +260,12 @@ export class DiscussionsService {
     userId: number,
     role: number,
     options: { page?: number; limit?: number; sort?: DiscussionSort } = {},
-  ): Promise<{ data: DiscussionRoot[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: DiscussionRoot[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const lesson = await this.getLessonOrFail(lessonId);
     await this.assertCanReadLesson(lesson, userId, role);
 
@@ -268,7 +273,8 @@ export class DiscussionsService {
     const limit = Math.min(100, Math.max(1, options.limit ?? 20));
     const offset = (page - 1) * limit;
 
-    const sort: DiscussionSort = options.sort === 'upvotes' ? 'upvotes' : 'newest';
+    const sort: DiscussionSort =
+      options.sort === 'upvotes' ? 'upvotes' : 'newest';
     const order: any =
       sort === 'upvotes'
         ? [
@@ -316,7 +322,9 @@ export class DiscussionsService {
 
     const data: DiscussionRoot[] = rows.map((root) => ({
       ...this.serialise(root),
-      replies: (repliesByParent.get(root.id) ?? []).map((r) => this.serialise(r)),
+      replies: (repliesByParent.get(root.id) ?? []).map((r) =>
+        this.serialise(r),
+      ),
     }));
 
     return { data, total: count, page, limit };

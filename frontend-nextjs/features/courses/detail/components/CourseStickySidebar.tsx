@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Play,
   Video,
   FileText,
   Award,
@@ -43,27 +42,17 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.13)]">
-      {/* Thumbnail / preview */}
-      <div className="group relative aspect-video cursor-pointer overflow-hidden bg-zinc-900">
+      {/* Thumbnail */}
+      <div className="relative aspect-video overflow-hidden bg-zinc-900">
         {course.thumbnailUrl ? (
           <img
             src={course.thumbnailUrl}
             alt={course.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/20 via-primary/8 to-accent/10" />
         )}
-        {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 shadow-lg transition-all group-hover:scale-110 group-hover:bg-white">
-            <Play className="ml-1 h-6 w-6 fill-zinc-900 text-zinc-900" />
-          </div>
-        </div>
-        {/* "Xem trước" label */}
-        <span className="absolute bottom-3 left-0 right-0 text-center text-xs font-medium text-white/80">
-          Xem video giới thiệu khoá học
-        </span>
       </div>
 
       <div className="space-y-4 p-5">
