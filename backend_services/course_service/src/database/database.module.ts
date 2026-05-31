@@ -24,8 +24,9 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { HighlightFeed } from 'src/models/highlight-feed.model';
 import { DiscussionPost } from 'src/models/discussion-post.model';
 import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
-import { Notification } from 'src/models/notification.model';
 import { Wishlist } from 'src/models/wishlist.model';
+import { InstructorFollow } from 'src/models/instructor-follow.model';
+import { Notification } from 'src/models/notification.model';
 
 @Module({
   imports: [
@@ -55,10 +56,11 @@ import { Wishlist } from 'src/models/wishlist.model';
             Quiz,
             QuizQuestion,
             QuizOption,
-            Wishlist,,
-            HighlightFeed,,
+            HighlightFeed,
             DiscussionPost,
             DiscussionUpvote,
+            Wishlist,
+            InstructorFollow,
             Notification,
           ],
           autoLoadModels: true,
