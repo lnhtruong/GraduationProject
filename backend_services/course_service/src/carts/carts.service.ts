@@ -1,11 +1,20 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
-import { InjectConnection } from '@nestjs/sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { col, fn, Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Transaction } from 'sequelize';
 import { Cart } from '../models/cart.model';
 import { CartItem } from '../models/cart-item.model';
 import { Course } from '../models/course.model';
+import { Enroll } from '../models/enroll.model';
+import { Feedback } from '../models/feedback.model';
+import { HighlightFeed, HighlightFeedStatus } from '../models/highlight-feed.model';
+import { Video, VideoType } from '../models/video.model';
+import { User } from '../users/user.model';
+
+type CartCourseRating = {
+  avg_rating: number;
+  review_count: number;
+};
 
 @Injectable()
 export class CartsService {
@@ -17,11 +26,12 @@ export class CartsService {
     private cartItemModel: typeof CartItem,
     @InjectModel(Course)
     private courseModel: typeof Course,
+    @InjectModel(Feedback)
+    private feedbackModel: typeof Feedback,
+    @InjectModel(Enroll)
+    private enrollModel: typeof Enroll,
   ) {}
 
-  /**
-   * Get or create a cart for a user
-   */
   async getOrCreateCart(userId: number, t?: Transaction): Promise<Cart> {
     const [cart] = await this.cartModel.findOrCreate({
       where: { userId },
@@ -31,44 +41,46 @@ export class CartsService {
     return cart;
   }
 
-  /**
-   * Recalculate and persist total_quantity + total_amount for a cart
-   */
   private async recalculateTotals(cartId: number, t: Transaction): Promise<void> {
-    const items = await this.cartItemModel.findAll({ where: { cartId }, transaction: t });
-    const total_quantity = items.length;
+    const items = await this.cartItemModel.findAll({
+      where: { cartId, savedForLater: false },
+      transaction: t,
+    });
 
-    let total_amount = 0;
+    let totalAmount = 0;
     for (const item of items) {
       const course = await this.courseModel.findByPk(item.courseId, { transaction: t });
-      if (course) total_amount += Number(course.price);
+      if (course) {
+        totalAmount += Number(course.price);
+      }
     }
 
     await this.cartModel.update(
-      { totalQuantity: total_quantity, totalAmount: total_amount },
+      { totalQuantity: items.length, totalAmount },
       { where: { id: cartId }, transaction: t },
     );
   }
 
-  /**
-   * Add a course to the user's cart
-   */
   async addItem(userId: number, courseId: number): Promise<CartItem> {
     return this.sequelize.transaction(async (t) => {
       const course = await this.courseModel.findByPk(courseId, { transaction: t });
       if (!course) {
-        throw new NotFoundException(`Không tìm thấy khóa học ID: ${courseId}`);
+        throw new NotFoundException(`Course with ID ${courseId} not found`);
       }
 
       const cart = await this.getOrCreateCart(userId, t);
-
       const existingItem = await this.cartItemModel.findOne({
         where: { cartId: cart.id, courseId },
         transaction: t,
       });
 
       if (existingItem) {
-        throw new ConflictException('Khóa học đã có trong giỏ hàng');
+        if (existingItem.savedForLater) {
+          await existingItem.update({ savedForLater: false }, { transaction: t });
+          await this.recalculateTotals(cart.id, t);
+          return existingItem;
+        }
+        throw new ConflictException('Course already exists in cart');
       }
 
       const item = await this.cartItemModel.create(
@@ -80,14 +92,11 @@ export class CartsService {
     });
   }
 
-  /**
-   * Remove a course from the user's cart
-   */
   async removeItem(userId: number, courseId: number): Promise<void> {
     return this.sequelize.transaction(async (t) => {
       const cart = await this.cartModel.findOne({ where: { userId }, transaction: t });
       if (!cart) {
-        throw new NotFoundException('Giỏ hàng không tồn tại');
+        throw new NotFoundException('Cart not found');
       }
 
       const deleted = await this.cartItemModel.destroy({
@@ -96,20 +105,56 @@ export class CartsService {
       });
 
       if (!deleted) {
-        throw new NotFoundException('Khóa học không có trong giỏ hàng');
+        throw new NotFoundException('Course is not in cart');
       }
 
       await this.recalculateTotals(cart.id, t);
     });
   }
 
-  /**
-   * Get the user's cart with items, total_quantity and total_amount
-   */
   async getCart(userId: number): Promise<any> {
     const itemInclude = {
       model: CartItem,
-      attributes: ['id', 'courseId', 'created_at'],
+      attributes: ['id', 'courseId', 'savedForLater', 'created_at'],
+      include: [
+        {
+          model: Course,
+          attributes: ['id', 'name', 'price', 'level', 'duration', 'userId'],
+          include: [
+            {
+              model: Video,
+              as: 'video',
+              required: false,
+              attributes: ['id', 'thumbnail', 'url'],
+            },
+            {
+              model: User,
+              as: 'instructor',
+              required: false,
+              attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
+            },
+            {
+              model: HighlightFeed,
+              as: 'highlightFeeds',
+              required: false,
+              where: { status: HighlightFeedStatus.ACTIVE },
+              attributes: ['id', 'title'],
+              include: [
+                {
+                  model: Video,
+                  as: 'video',
+                  required: true,
+                  where: {
+                    type: VideoType.HIGHLIGHT,
+                    url: { [Op.ne]: null },
+                  },
+                  attributes: ['id', 'url'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
     };
 
     let cart = await this.cartModel.findOne({
@@ -123,23 +168,116 @@ export class CartsService {
         where: { userId },
         include: [itemInclude],
       });
-      if (!cart) throw new NotFoundException('Không thể khởi tạo giỏ hàng');
+      if (!cart) {
+        throw new NotFoundException('Unable to initialize cart');
+      }
     }
 
     const plain = cart.get({ plain: true });
+    const courseIds = (plain.items ?? [])
+      .map((item: any) => item.courseId)
+      .filter((courseId: unknown): courseId is number => Number.isInteger(courseId));
+    const { ratingMap, enrollMap } = await this.loadCartCourseAggregates(courseIds);
+
     return {
       ...plain,
       items: (plain.items ?? []).map((item: any) => ({
         id: item.id,
         courseId: item.courseId,
+        saved_for_later: Boolean(item.savedForLater),
         created_at: item.created_at,
+        course: item.course
+          ? this.serializeCartCourse(
+              item.course,
+              ratingMap.get(item.courseId),
+              enrollMap.get(item.courseId) ?? 0,
+            )
+          : null,
       })),
     };
   }
 
-  /**
-   * Clear all items from the user's cart
-   */
+  private async loadCartCourseAggregates(courseIds: number[]) {
+    const ratingMap = new Map<number, CartCourseRating>();
+    const enrollMap = new Map<number, number>();
+    if (courseIds.length === 0) {
+      return { ratingMap, enrollMap };
+    }
+
+    const [ratingRows, enrollRows] = await Promise.all([
+      this.feedbackModel.findAll({
+        where: {
+          courseId: { [Op.in]: courseIds },
+          isVisible: true,
+        },
+        attributes: [
+          'courseId',
+          [fn('AVG', col('rating')), 'avg_rating'],
+          [fn('COUNT', col('id')), 'review_count'],
+        ],
+        group: ['courseId'],
+        raw: true,
+      }),
+      this.enrollModel.findAll({
+        where: { courseId: { [Op.in]: courseIds } },
+        attributes: [
+          'courseId',
+          [fn('COUNT', col('id')), 'enrolled_count'],
+        ],
+        group: ['courseId'],
+        raw: true,
+      }),
+    ]);
+
+    for (const row of ratingRows as unknown as Array<Record<string, unknown>>) {
+      ratingMap.set(Number(row.courseId), {
+        avg_rating: Number(row.avg_rating ?? 0),
+        review_count: Number(row.review_count ?? 0),
+      });
+    }
+    for (const row of enrollRows as unknown as Array<Record<string, unknown>>) {
+      enrollMap.set(Number(row.courseId), Number(row.enrolled_count ?? 0));
+    }
+
+    return { ratingMap, enrollMap };
+  }
+
+  private serializeCartCourse(course: any, rating: CartCourseRating | undefined, enrolledCount: number) {
+    const highlightFeed = Array.isArray(course.highlightFeeds)
+      ? course.highlightFeeds.find((feed: any) => feed.video?.url)
+      : undefined;
+    const { highlightFeeds, ...rest } = course;
+
+    return {
+      ...rest,
+      avg_rating: rating?.avg_rating ?? 0,
+      review_count: rating?.review_count ?? 0,
+      enrolled_count: enrolledCount,
+      highlight_video_url: highlightFeed?.video?.url,
+      highlight_title: highlightFeed?.title,
+    };
+  }
+
+  async saveItemForLater(userId: number, courseId: number, saved: boolean): Promise<void> {
+    return this.sequelize.transaction(async (t) => {
+      const cart = await this.cartModel.findOne({ where: { userId }, transaction: t });
+      if (!cart) {
+        throw new NotFoundException('Cart not found');
+      }
+
+      const item = await this.cartItemModel.findOne({
+        where: { cartId: cart.id, courseId },
+        transaction: t,
+      });
+      if (!item) {
+        throw new NotFoundException('Course is not in cart');
+      }
+
+      await item.update({ savedForLater: saved }, { transaction: t });
+      await this.recalculateTotals(cart.id, t);
+    });
+  }
+
   async clearCart(userId: number): Promise<void> {
     return this.sequelize.transaction(async (t) => {
       const cart = await this.cartModel.findOne({ where: { userId }, transaction: t });
