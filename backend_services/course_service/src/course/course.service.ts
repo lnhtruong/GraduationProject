@@ -192,6 +192,7 @@ export class CoursesService {
       minPrice?: number;
       maxPrice?: number;
       userId?: number;
+      requesterRole?: number;
     } = {},
   ): Promise<
     | Course[]
@@ -205,12 +206,29 @@ export class CoursesService {
       };
     }
   > {
-    const { status, page, limit, search, level, minPrice, maxPrice, userId } =
-      params;
+    const {
+      status,
+      page,
+      limit,
+      search,
+      level,
+      minPrice,
+      maxPrice,
+      userId,
+      requesterRole,
+    } = params;
+    const isAdmin = requesterRole === this.ADMIN_ROLE;
     const whereCondition: any = {};
+    const effectiveStatus = isAdmin ? status : CourseStatus.PUBLISH;
 
-    if (status) {
-      whereCondition.status = status;
+    if (!isAdmin && status && status !== CourseStatus.PUBLISH) {
+      throw new ForbiddenException(
+        'Only admin can filter courses by this status',
+      );
+    }
+
+    if (effectiveStatus) {
+      whereCondition.status = effectiveStatus;
     }
 
     if (level) {
@@ -218,6 +236,11 @@ export class CoursesService {
     }
 
     if (typeof userId === 'number' && Number.isInteger(userId) && userId > 0) {
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Only admin can filter courses by lecturer userId',
+        );
+      }
       whereCondition.userId = userId;
     }
 
