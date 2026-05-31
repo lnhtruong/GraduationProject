@@ -5,8 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, literal } from 'sequelize';
+import { Op, literal, Transaction, UniqueConstraintError } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import { InjectConnection } from '@nestjs/sequelize';
 import { DiscussionPost } from '../models/discussion-post.model';
+import { DiscussionUpvote } from '../models/discussion-upvote.model';
 import { Lesson } from '../models/lesson.model';
 import { Course } from '../models/course.model';
 import { Enroll } from '../models/enroll.model';
@@ -51,7 +54,122 @@ export class DiscussionsService {
     @InjectModel(Course) private readonly courseModel: typeof Course,
     @InjectModel(Enroll) private readonly enrollModel: typeof Enroll,
     @InjectModel(User) private readonly userModel: typeof User,
+    @InjectModel(DiscussionUpvote)
+    private readonly upvoteModel: typeof DiscussionUpvote,
+    @InjectConnection() private readonly sequelize: Sequelize,
   ) {}
+
+  // ─────────────────────── BE-03: upvote toggle ───────────────────────
+
+  async toggleUpvote(
+    postId: number,
+    userId: number,
+  ): Promise<{ upvotes: number; voted: boolean }> {
+    return this.sequelize.transaction(async (t: Transaction) => {
+      const post = await this.postModel.findByPk(postId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!post) {
+        throw new NotFoundException(`Post ${postId} not found`);
+      }
+
+      const existing = await this.upvoteModel.findOne({
+        where: { postId, userId },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (existing) {
+        await existing.destroy({ transaction: t });
+        post.upvotes = Math.max(0, post.upvotes - 1);
+        await post.save({ transaction: t });
+        return { upvotes: post.upvotes, voted: false };
+      }
+
+      try {
+        await this.upvoteModel.create(
+          { postId, userId },
+          { transaction: t },
+        );
+      } catch (err) {
+        if (err instanceof UniqueConstraintError) {
+          // Lost the race against a concurrent insert — treat as already-voted.
+          return { upvotes: post.upvotes, voted: true };
+        }
+        throw err;
+      }
+      post.upvotes = post.upvotes + 1;
+      await post.save({ transaction: t });
+      return { upvotes: post.upvotes, voted: true };
+    });
+  }
+
+  // ─────────────────────── BE-03: best answer ───────────────────────
+
+  async toggleBestAnswer(
+    postId: number,
+    userId: number,
+    role: number,
+  ): Promise<PostSnapshot> {
+    const post = await this.postModel.findByPk(postId);
+    if (!post) {
+      throw new NotFoundException(`Post ${postId} not found`);
+    }
+    if (post.parentId === null) {
+      throw new BadRequestException(
+        'A root question cannot be marked as best answer — mark one of its replies instead',
+      );
+    }
+
+    // Verify caller is the course instructor of the lesson, or admin.
+    if (role !== ADMIN_ROLE) {
+      const lesson = await this.lessonModel.findByPk(post.lessonId);
+      const course = lesson
+        ? await this.courseModel.findByPk((lesson as any).courseId, {
+            attributes: ['id', 'userId'],
+          })
+        : null;
+      if (!course || course.userId !== userId || role !== LECTURER_ROLE) {
+        throw new ForbiddenException(
+          'Only the course instructor may mark a best answer',
+        );
+      }
+    }
+
+    await this.sequelize.transaction(async (t: Transaction) => {
+      if (post.isBestAnswer) {
+        post.isBestAnswer = false;
+        await post.save({ transaction: t });
+        return;
+      }
+      // Unset any other best-answer replies of the same root question.
+      await this.postModel.update(
+        { isBestAnswer: false },
+        {
+          where: {
+            parentId: post.parentId,
+            isBestAnswer: true,
+            id: { [Op.ne]: post.id },
+          },
+          transaction: t,
+        },
+      );
+      post.isBestAnswer = true;
+      await post.save({ transaction: t });
+    });
+
+    const refreshed = await this.postModel.findByPk(postId, {
+      include: [
+        {
+          model: this.userModel,
+          as: 'author',
+          attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
+        },
+      ],
+    });
+    return this.serialise(refreshed!);
+  }
 
   private serialiseAuthor(user?: User | null): AuthorSnapshot {
     if (!user) {

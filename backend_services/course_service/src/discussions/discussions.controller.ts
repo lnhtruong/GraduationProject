@@ -92,6 +92,26 @@ export class DiscussionsController {
     await this.service.remove(postId, userId, role);
   }
 
+  @Post('discussions/:postId/upvote')
+  async toggleUpvote(
+    @Param('postId', ParseIntPipe) postId: number,
+    @Headers('x-user-id') userIdHeader: string,
+  ) {
+    const userId = parseUserId(userIdHeader);
+    return this.service.toggleUpvote(postId, userId);
+  }
+
+  @Patch('discussions/:postId/best-answer')
+  async toggleBestAnswer(
+    @Param('postId', ParseIntPipe) postId: number,
+    @Headers('x-user-id') userIdHeader: string,
+    @Headers('x-user-role') roleHeader: string,
+  ) {
+    const userId = parseUserId(userIdHeader);
+    const role = parseRole(roleHeader);
+    return this.service.toggleBestAnswer(postId, userId, role);
+  }
+
   @Get('courses/:courseId/discussions')
   async listByCourse(
     @Param('courseId', ParseIntPipe) courseId: number,
