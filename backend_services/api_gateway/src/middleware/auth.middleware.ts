@@ -61,3 +61,38 @@ export const authMiddleware = (
     });
   }
 };
+
+export const optionalAuthMiddleware = (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction,
+) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return next();
+  }
+
+  const [scheme, token] = authHeader.split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret) as {
+      userId: number;
+      email: string;
+      role: number;
+    };
+
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    };
+  } catch {
+    // Public endpoints stay public; invalid tokens just do not add user context.
+  }
+
+  return next();
+};

@@ -5,13 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Includeable, Order } from 'sequelize';
-import { col, fn, literal, Op } from 'sequelize';
+import { Includeable, Order, WhereOptions } from 'sequelize';
+import { col, fn, literal, Op, where as sequelizeWhere } from 'sequelize';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { SearchCoursesQueryDto } from './dto/search-courses-query.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
-import { LessonActivity, ActivityStatus } from 'src/models/lesson-activity.model';
+import {
+  LessonActivity,
+  ActivityStatus,
+} from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
@@ -21,6 +25,38 @@ import { Video } from 'src/models/video.model';
 import { User } from 'src/users/user.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
 import { RequesterContext } from 'src/audit_logs/requester.types';
+import { PaginationMetaDto } from 'src/models/pagination.dto';
+import { CourseSearchSort } from './dto/search-courses-query.dto';
+
+type CourseSearchCard = {
+  id: number;
+  name: string;
+  thumbnailUrl: string | null;
+  price: number;
+  level: string;
+  language: string;
+  duration: string | null;
+  avgRating: number;
+  reviewCount: number;
+  enrollCount: number;
+  instructorName: string;
+  instructorAvatar: string | null;
+  status: CourseStatus;
+  createdAt: string | Date | null;
+};
+
+type CourseSearchResponse = {
+  data: CourseSearchCard[];
+  total: number;
+  page: number;
+  totalPages: number;
+};
+
+type CategorySummary = {
+  id: number;
+  name: string;
+  courseCount: number;
+};
 
 export type CoursePublicSort = 'newest' | 'popular' | 'rating';
 
@@ -119,7 +155,9 @@ export class CoursesService {
     }
   }
 
-  private async validateVideoId(videoId: number | null | undefined): Promise<void> {
+  private async validateVideoId(
+    videoId: number | null | undefined,
+  ): Promise<void> {
     if (videoId === undefined || videoId === null) {
       return;
     }
@@ -133,7 +171,9 @@ export class CoursesService {
     }
   }
 
-  private normalizeThumbnailUrl(value: string | null | undefined): string | null | undefined {
+  private normalizeThumbnailUrl(
+    value: string | null | undefined,
+  ): string | null | undefined {
     if (value === undefined) {
       return undefined;
     }
@@ -148,8 +188,13 @@ export class CoursesService {
 
   private buildCourseWritePayload(dto: CreateCourseDto | UpdateCourseDto) {
     const { thumbnail_url, thumbnailUrl, ...payload } = dto;
-    const hasCamelCaseThumbnail = Object.prototype.hasOwnProperty.call(dto, 'thumbnailUrl');
-    const rawThumbnailUrl = hasCamelCaseThumbnail ? thumbnailUrl : thumbnail_url;
+    const hasCamelCaseThumbnail = Object.prototype.hasOwnProperty.call(
+      dto,
+      'thumbnailUrl',
+    );
+    const rawThumbnailUrl = hasCamelCaseThumbnail
+      ? thumbnailUrl
+      : thumbnail_url;
     const normalizedThumbnailUrl = this.normalizeThumbnailUrl(rawThumbnailUrl);
 
     if (normalizedThumbnailUrl === undefined) {
@@ -162,7 +207,324 @@ export class CoursesService {
     };
   }
 
-  async create(createCourseDto: CreateCourseDto, userId: number | undefined): Promise<Course> {
+  private escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+  }
+
+  private parsePositiveInteger(
+    value: number | undefined,
+    fallback: number,
+    max?: number,
+  ): number {
+    if (!Number.isInteger(value) || value! <= 0) {
+      return fallback;
+    }
+    return max ? Math.min(value!, max) : value!;
+  }
+
+  private parseSearchNumber(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private normalizeCategories(value: unknown): string[] {
+    const parsed =
+      typeof value === 'string'
+        ? (() => {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return [];
+          }
+        })()
+        : value;
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => item.length > 0);
+  }
+
+  private async getCategorySummaries(): Promise<CategorySummary[]> {
+    const courses = await this.courseModel.findAll({
+      where: { status: CourseStatus.PUBLISH },
+      attributes: ['categories'],
+      raw: true,
+    });
+
+    const counts = new Map<string, number>();
+    for (const course of courses as Array<{ categories?: unknown }>) {
+      const uniqueCategories = new Set(
+        this.normalizeCategories(course.categories),
+      );
+      for (const category of uniqueCategories) {
+        counts.set(category, (counts.get(category) ?? 0) + 1);
+      }
+    }
+
+    return [...counts.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, courseCount], index) => ({
+        id: index + 1,
+        name,
+        courseCount,
+      }));
+  }
+
+  async findCategories(): Promise<CategorySummary[]> {
+    return this.getCategorySummaries();
+  }
+
+  private escapeSqlValue(value: string): string {
+    const sequelize = this.courseModel.sequelize;
+    if (!sequelize) {
+      return `'${value.replace(/'/g, "''")}'`;
+    }
+    return sequelize.escape(value);
+  }
+
+  private buildCategoryFilter(categoryNames: string[]) {
+    return {
+      [Op.or]: categoryNames.map((categoryName) =>
+        literal(
+          `JSON_CONTAINS(\`Course\`.\`categories\`, JSON_QUOTE(${this.escapeSqlValue(categoryName)}))`,
+        ),
+      ),
+    };
+  }
+
+  private getSearchAggregateSql() {
+    const avgRatingSql = `(
+      SELECT COALESCE(AVG(feedbacks.rating), 0)
+      FROM feedbacks
+      WHERE feedbacks.course_id = Course.id
+        AND feedbacks.deleted_at IS NULL
+        AND feedbacks.is_visible = TRUE
+    )`;
+    const reviewCountSql = `(
+      SELECT COUNT(feedbacks.id)
+      FROM feedbacks
+      WHERE feedbacks.course_id = Course.id
+        AND feedbacks.deleted_at IS NULL
+        AND feedbacks.is_visible = TRUE
+    )`;
+    const enrollCountSql = `(
+      SELECT COUNT(enrolls.id)
+      FROM enrolls
+      WHERE enrolls.course_id = Course.id
+    )`;
+
+    return { avgRatingSql, reviewCountSql, enrollCountSql };
+  }
+
+  private buildSearchOrder(sort: CourseSearchSort = 'newest'): Order {
+    switch (sort) {
+      case 'popular':
+        return [
+          [literal('enrollCount'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
+      case 'rating':
+        return [
+          [literal('avgRating'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
+      case 'price_asc':
+        return [
+          ['price', 'ASC'],
+          ['id', 'DESC'],
+        ] as Order;
+      case 'price_desc':
+        return [
+          ['price', 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
+      case 'newest':
+      default:
+        return [
+          [literal('`Course`.`created_at`'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
+    }
+  }
+
+  private mapCourseSearchCard(course: Course): CourseSearchCard {
+    const plain = course.get({ plain: true }) as Record<string, any>;
+    const instructor = plain.instructor as Record<string, unknown> | undefined;
+    const instructorName = [instructor?.firstName, instructor?.lastName]
+      .filter(
+        (part): part is string =>
+          typeof part === 'string' && part.trim().length > 0,
+      )
+      .join(' ')
+      .trim();
+
+    return {
+      id: this.parseSearchNumber(plain.id),
+      name: String(plain.name ?? ''),
+      thumbnailUrl:
+        plain.thumbnailUrl ??
+        plain.thumbnail_url ??
+        plain.video?.thumbnail ??
+        null,
+      price: this.parseSearchNumber(plain.price),
+      level: String(plain.level ?? ''),
+      language: String(plain.language ?? ''),
+      duration: plain.duration ?? null,
+      avgRating: this.parseSearchNumber(plain.avgRating),
+      reviewCount: this.parseSearchNumber(plain.reviewCount),
+      enrollCount: this.parseSearchNumber(plain.enrollCount),
+      instructorName,
+      instructorAvatar:
+        typeof instructor?.avatarUrl === 'string' &&
+          instructor.avatarUrl.trim().length > 0
+          ? instructor.avatarUrl
+          : null,
+      status: plain.status,
+      createdAt: plain.createdAt ?? plain.created_at ?? null,
+    };
+  }
+
+  async searchPublishedCourses(
+    query: SearchCoursesQueryDto,
+  ): Promise<CourseSearchResponse> {
+    const page = this.parsePositiveInteger(query.page, 1);
+    const limit = this.parsePositiveInteger(query.limit, 12, 100);
+    const offset = (page - 1) * limit;
+    const keyword = query.q?.trim();
+    const andConditions: Array<WhereOptions | ReturnType<typeof literal>> = [
+      { status: CourseStatus.PUBLISH },
+    ];
+
+    if (
+      query.minPrice !== undefined &&
+      query.maxPrice !== undefined &&
+      query.minPrice > query.maxPrice
+    ) {
+      throw new BadRequestException(
+        'minPrice must be less than or equal to maxPrice',
+      );
+    }
+
+    if (keyword) {
+      const likeKeyword = `%${this.escapeLikePattern(keyword.toLowerCase())}%`;
+      andConditions.push({
+        [Op.or]: [
+          sequelizeWhere(fn('LOWER', col('Course.name')), {
+            [Op.like]: likeKeyword,
+          }),
+          sequelizeWhere(fn('LOWER', col('Course.description')), {
+            [Op.like]: likeKeyword,
+          }),
+        ],
+      });
+    }
+
+    if (query.level) {
+      andConditions.push({ level: query.level });
+    }
+
+    const priceCondition: Record<symbol, number | [number, number]> = {};
+    if (query.minPrice !== undefined && query.maxPrice !== undefined) {
+      priceCondition[Op.between] = [query.minPrice, query.maxPrice];
+    } else {
+      if (query.minPrice !== undefined) {
+        priceCondition[Op.gte] = query.minPrice;
+      }
+      if (query.maxPrice !== undefined) {
+        priceCondition[Op.lte] = query.maxPrice;
+      }
+    }
+    if (Object.getOwnPropertySymbols(priceCondition).length > 0) {
+      andConditions.push({ price: priceCondition });
+    }
+
+    if (query.categoryIds?.length) {
+      const categorySummaries = await this.getCategorySummaries();
+      const categoryNameById = new Map(
+        categorySummaries.map((category) => [category.id, category.name]),
+      );
+      const categoryNames = [...new Set(query.categoryIds)]
+        .map((categoryId) => categoryNameById.get(categoryId))
+        .filter((categoryName): categoryName is string =>
+          Boolean(categoryName),
+        );
+
+      if (categoryNames.length === 0) {
+        andConditions.push(literal('1 = 0'));
+      } else {
+        andConditions.push(this.buildCategoryFilter(categoryNames));
+      }
+    }
+
+    const whereCondition = { [Op.and]: andConditions };
+    const { avgRatingSql, reviewCountSql, enrollCountSql } =
+      this.getSearchAggregateSql();
+    const having =
+      query.minRating !== undefined
+        ? literal(`${avgRatingSql} >= ${query.minRating}`)
+        : undefined;
+
+    const rows = await this.courseModel.findAll({
+      where: whereCondition,
+      attributes: [
+        'id',
+        'name',
+        'thumbnailUrl',
+        'price',
+        'level',
+        'language',
+        'duration',
+        'status',
+        [col('Course.created_at'), 'createdAt'],
+        [literal(avgRatingSql), 'avgRating'],
+        [literal(reviewCountSql), 'reviewCount'],
+        [literal(enrollCountSql), 'enrollCount'],
+      ],
+      include: [
+        {
+          model: User,
+          as: 'instructor',
+          required: false,
+          attributes: ['firstName', 'lastName', 'avatarUrl'],
+        },
+        {
+          model: Video,
+          as: 'video',
+          required: false,
+          attributes: ['thumbnail'],
+        },
+      ],
+      having,
+      order: this.buildSearchOrder(query.sort),
+      limit,
+      offset,
+      subQuery: false,
+    });
+
+    const countRows = await this.courseModel.findAll({
+      where: whereCondition,
+      attributes: ['id'],
+      having,
+      raw: true,
+    });
+
+    const pagination = new PaginationMetaDto(page, limit, countRows.length);
+    return {
+      data: rows.map((course) => this.mapCourseSearchCard(course)),
+      total: pagination.totalItems,
+      page: pagination.page,
+      totalPages: pagination.totalPages,
+    };
+  }
+
+  async create(
+    createCourseDto: CreateCourseDto,
+    userId: number | undefined,
+  ): Promise<Course> {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
@@ -255,6 +617,7 @@ export class CoursesService {
       minPrice?: number;
       maxPrice?: number;
       userId?: number;
+      requesterRole?: number;
       sort?: CoursePublicSort,
     } = {},
   ): Promise<
@@ -269,12 +632,30 @@ export class CoursesService {
       };
     }
   > {
-    const { status, page, limit, search, level, minPrice, maxPrice, userId, sort } =
-      params;
+    const {
+      status,
+      page,
+      limit,
+      search,
+      level,
+      minPrice,
+      maxPrice,
+      userId,
+      sort,
+      requesterRole,
+    } = params;
+    const isAdmin = requesterRole === this.ADMIN_ROLE;
     const whereCondition: any = {};
+    const effectiveStatus = isAdmin ? status : CourseStatus.PUBLISH;
 
-    if (status) {
-      whereCondition.status = status;
+    if (!isAdmin && status && status !== CourseStatus.PUBLISH) {
+      throw new ForbiddenException(
+        'Only admin can filter courses by this status',
+      );
+    }
+
+    if (effectiveStatus) {
+      whereCondition.status = effectiveStatus;
     }
 
     if (level) {
@@ -282,6 +663,11 @@ export class CoursesService {
     }
 
     if (typeof userId === 'number' && Number.isInteger(userId) && userId > 0) {
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Only admin can filter courses by lecturer userId',
+        );
+      }
       whereCondition.userId = userId;
     }
 
@@ -534,7 +920,9 @@ export class CoursesService {
       return;
     }
 
-    throw new ForbiddenException('You are not allowed to access this course statistics');
+    throw new ForbiddenException(
+      'You are not allowed to access this course statistics',
+    );
   }
 
   async getCourseStatsOverview(
@@ -574,25 +962,28 @@ export class CoursesService {
       }),
       this.feedbackModel.findAll({
         where: { courseId, isVisible: true },
-        attributes: [
-          'rating',
-          [fn('COUNT', col('id')), 'count'],
-        ],
+        attributes: ['rating', [fn('COUNT', col('id')), 'count']],
         group: ['rating'],
         raw: true,
       }),
     ]);
 
     const averageProgress = this.parseNumberValue(
-      (averageProgressRow as { averageProgress?: unknown } | null)?.averageProgress,
+      (averageProgressRow as { averageProgress?: unknown } | null)
+        ?.averageProgress,
     );
     const averageRating = this.parseNumberValue(
       (averageRatingRow as { averageRating?: unknown } | null)?.averageRating,
     );
     const completionRate =
-      totalEnrollments > 0 ? (completedEnrollments / totalEnrollments) * 100 : 0;
+      totalEnrollments > 0
+        ? (completedEnrollments / totalEnrollments) * 100
+        : 0;
 
-    const ratingRowsData = ratingRows as unknown as Array<{ rating: unknown; count: unknown }>;
+    const ratingRowsData = ratingRows as unknown as Array<{
+      rating: unknown;
+      count: unknown;
+    }>;
     const ratingCountMap = new Map<number, number>();
     for (const row of ratingRowsData) {
       ratingCountMap.set(
@@ -634,8 +1025,13 @@ export class CoursesService {
     if (requesterRole === this.LECTURER_ROLE) {
       courseWhere.userId = requesterUserId;
     }
-    if (requesterRole !== this.ADMIN_ROLE && requesterRole !== this.LECTURER_ROLE) {
-      throw new ForbiddenException('You are not allowed to access course statistics');
+    if (
+      requesterRole !== this.ADMIN_ROLE &&
+      requesterRole !== this.LECTURER_ROLE
+    ) {
+      throw new ForbiddenException(
+        'You are not allowed to access course statistics',
+      );
     }
 
     const courses = await this.courseModel.findAll({
@@ -670,14 +1066,18 @@ export class CoursesService {
           [
             fn(
               'SUM',
-              literal(`CASE WHEN status = '${EnrollStatus.ACTIVE}' THEN 1 ELSE 0 END`),
+              literal(
+                `CASE WHEN status = '${EnrollStatus.ACTIVE}' THEN 1 ELSE 0 END`,
+              ),
             ),
             'activeEnrollments',
           ],
           [
             fn(
               'SUM',
-              literal(`CASE WHEN status = '${EnrollStatus.COMPLETED}' THEN 1 ELSE 0 END`),
+              literal(
+                `CASE WHEN status = '${EnrollStatus.COMPLETED}' THEN 1 ELSE 0 END`,
+              ),
             ),
             'completedEnrollments',
           ],
@@ -701,13 +1101,18 @@ export class CoursesService {
       }),
     ]);
 
-    const enrollAggMap = new Map<number, {
-      totalEnrollments: number;
-      activeEnrollments: number;
-      completedEnrollments: number;
-      averageProgress: number;
-    }>();
-    const enrollAggRowsData = enrollAggRows as unknown as Array<Record<string, unknown>>;
+    const enrollAggMap = new Map<
+      number,
+      {
+        totalEnrollments: number;
+        activeEnrollments: number;
+        completedEnrollments: number;
+        averageProgress: number;
+      }
+    >();
+    const enrollAggRowsData = enrollAggRows as unknown as Array<
+      Record<string, unknown>
+    >;
     for (const row of enrollAggRowsData) {
       const courseId = this.parseNumberValue(row.courseId);
       enrollAggMap.set(courseId, {
@@ -718,11 +1123,16 @@ export class CoursesService {
       });
     }
 
-    const ratingAggMap = new Map<number, {
-      totalReviews: number;
-      averageRating: number;
-    }>();
-    const ratingAggRowsData = ratingAggRows as unknown as Array<Record<string, unknown>>;
+    const ratingAggMap = new Map<
+      number,
+      {
+        totalReviews: number;
+        averageRating: number;
+      }
+    >();
+    const ratingAggRowsData = ratingAggRows as unknown as Array<
+      Record<string, unknown>
+    >;
     for (const row of ratingAggRowsData) {
       const courseId = this.parseNumberValue(row.courseId);
       ratingAggMap.set(courseId, {
@@ -733,15 +1143,16 @@ export class CoursesService {
 
     const courseItems = courses.map((course) => {
       const courseId = this.parseNumberValue(course.id);
-      const enrollAgg =
-        enrollAggMap.get(courseId) ??
-        {
-          totalEnrollments: 0,
-          activeEnrollments: 0,
-          completedEnrollments: 0,
-          averageProgress: 0,
-        };
-      const ratingAgg = ratingAggMap.get(courseId) ?? { totalReviews: 0, averageRating: 0 };
+      const enrollAgg = enrollAggMap.get(courseId) ?? {
+        totalEnrollments: 0,
+        activeEnrollments: 0,
+        completedEnrollments: 0,
+        averageProgress: 0,
+      };
+      const ratingAgg = ratingAggMap.get(courseId) ?? {
+        totalReviews: 0,
+        averageRating: 0,
+      };
       const completionRate =
         enrollAgg.totalEnrollments > 0
           ? (enrollAgg.completedEnrollments / enrollAgg.totalEnrollments) * 100
@@ -770,8 +1181,10 @@ export class CoursesService {
         acc.activeEnrollments += item.enrollment.active;
         acc.completedEnrollments += item.enrollment.completed;
         acc.totalReviews += item.ratings.totalReviews;
-        acc.progressWeightedSum += item.enrollment.averageProgress * item.enrollment.total;
-        acc.ratingWeightedSum += item.ratings.averageRating * item.ratings.totalReviews;
+        acc.progressWeightedSum +=
+          item.enrollment.averageProgress * item.enrollment.total;
+        acc.ratingWeightedSum +=
+          item.ratings.averageRating * item.ratings.totalReviews;
         return acc;
       },
       {
@@ -794,7 +1207,9 @@ export class CoursesService {
         ? summary.progressWeightedSum / summary.totalEnrollments
         : 0;
     const averageRating =
-      summary.totalReviews > 0 ? summary.ratingWeightedSum / summary.totalReviews : 0;
+      summary.totalReviews > 0
+        ? summary.ratingWeightedSum / summary.totalReviews
+        : 0;
 
     return {
       summary: {
@@ -820,7 +1235,10 @@ export class CoursesService {
     }
     await this.validateVideoId(updateCourseDto.videoId);
     const coursePayload = this.buildCourseWritePayload(updateCourseDto);
-    return await course.update({ ...coursePayload, status: CourseStatus.DRAFT });
+    return await course.update({
+      ...coursePayload,
+      status: CourseStatus.DRAFT,
+    });
   }
 
   async remove(id: number, requester?: RequesterContext): Promise<void> {
@@ -853,11 +1271,12 @@ export class CoursesService {
     const seconds = Number(match[3]);
     const milliseconds = Number((match[4] ?? '0').padEnd(3, '0'));
 
-    return (((hours * 60 + minutes) * 60 + seconds) * 1000) + milliseconds;
+    return ((hours * 60 + minutes) * 60 + seconds) * 1000 + milliseconds;
   }
 
   private formatMillisecondsToTime(value: number): string {
-    const safeValue = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+    const safeValue =
+      Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
     const totalSeconds = Math.floor(safeValue / 1000);
     const milliseconds = safeValue % 1000;
 
