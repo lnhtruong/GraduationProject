@@ -140,6 +140,10 @@ app.use((req: AuthRequest, res: Response, next: NextFunction) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+// BE-06: instructor follow API lives in user_service; mount it under
+// /api/instructors using the same proxy so pathRewrite ^/api strips the prefix
+// and user_service receives /instructors/...
+app.use('/api/instructors', userRoutes);
 app.use('/api/course', courseRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/media', mediaRoutes);
