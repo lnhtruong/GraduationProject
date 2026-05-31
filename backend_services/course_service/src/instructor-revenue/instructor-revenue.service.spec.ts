@@ -1,28 +1,39 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Op } from 'sequelize';
 import { InstructorRevenueService } from './instructor-revenue.service';
 
 describe('InstructorRevenueService', () => {
   let query: jest.Mock;
+  let courseModel: { findOne: jest.Mock };
+  let transactionItemModel: { findAll: jest.Mock };
   let service: InstructorRevenueService;
 
   beforeEach(() => {
     query = jest.fn();
-    service = new InstructorRevenueService({ query } as any);
+    courseModel = { findOne: jest.fn() };
+    transactionItemModel = { findAll: jest.fn() };
+    service = new InstructorRevenueService(
+      { query } as any,
+      courseModel as any,
+      transactionItemModel as any,
+    );
   });
 
   it('returns null growthPercent when lastMonth is zero', async () => {
-    query.mockResolvedValueOnce([
-      { allTime: '300000', thisMonth: '100000', lastMonth: '0' },
-    ]).mockResolvedValueOnce([
-      {
-        courseId: '11',
-        courseName: 'NestJS Basics',
-        allTime: '300000',
-        thisMonth: '100000',
-        lastMonth: '0',
-        enrollCount: '3',
-      },
-    ]);
+    query
+      .mockResolvedValueOnce([
+        { allTime: '300000', thisMonth: '100000', lastMonth: '0' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          courseId: '11',
+          courseName: 'NestJS Basics',
+          allTime: '300000',
+          thisMonth: '100000',
+          lastMonth: '0',
+          enrollCount: '3',
+        },
+      ]);
 
     const result = await service.getSummary(7);
 
@@ -46,18 +57,20 @@ describe('InstructorRevenueService', () => {
   });
 
   it('keeps zero-revenue instructor courses in summary breakdown', async () => {
-    query.mockResolvedValueOnce([
-      { allTime: '300000', thisMonth: '100000', lastMonth: '50000' },
-    ]).mockResolvedValueOnce([
-      {
-        courseId: '11',
-        courseName: 'No Sales Yet',
-        allTime: '0',
-        thisMonth: '0',
-        lastMonth: '0',
-        enrollCount: '0',
-      },
-    ]);
+    query
+      .mockResolvedValueOnce([
+        { allTime: '300000', thisMonth: '100000', lastMonth: '50000' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          courseId: '11',
+          courseName: 'No Sales Yet',
+          allTime: '0',
+          thisMonth: '0',
+          lastMonth: '0',
+          enrollCount: '0',
+        },
+      ]);
 
     const result = await service.getSummary(7);
 
@@ -173,8 +186,18 @@ describe('InstructorRevenueService', () => {
         revenue: 350000,
         enrollCount: 3,
         courses: [
-          { courseId: 10, courseName: 'Course A', revenue: 100000, enrollCount: 1 },
-          { courseId: 20, courseName: 'Course B', revenue: 250000, enrollCount: 2 },
+          {
+            courseId: 10,
+            courseName: 'Course A',
+            revenue: 100000,
+            enrollCount: 1,
+          },
+          {
+            courseId: 20,
+            courseName: 'Course B',
+            revenue: 250000,
+            enrollCount: 2,
+          },
         ],
       },
     ]);
@@ -193,5 +216,151 @@ describe('InstructorRevenueService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('lists paid transaction items for an owned course in a date range', async () => {
+    courseModel.findOne.mockResolvedValueOnce({
+      id: 10,
+      name: 'Course A',
+    });
+    transactionItemModel.findAll.mockResolvedValueOnce([
+      {
+        id: 101,
+        transactionId: 501,
+        price: 150000,
+        transaction: {
+          id: 501,
+          userId: 31,
+          paidAt: '2026-05-12 10:30:00',
+          provider: 'payos',
+          providerOrderId: 'PO-501',
+          totalAmount: 250000,
+        },
+      },
+      {
+        id: 102,
+        transactionId: 502,
+        price: 200000,
+        transaction: {
+          id: 502,
+          userId: 32,
+          paidAt: '2026-05-13 09:00:00',
+          provider: 'payos',
+          providerOrderId: null,
+          totalAmount: 200000,
+        },
+      },
+    ]);
+
+    const result = await service.getTransactionItems(7, 10, {
+      from: '2026-05-01',
+      to: '2026-05-31',
+    });
+
+    expect(result).toEqual({
+      courseId: 10,
+      courseName: 'Course A',
+      from: '2026-05-01',
+      to: '2026-05-31',
+      totalRevenue: 350000,
+      totalItems: 2,
+      items: [
+        {
+          transactionItemId: 101,
+          transactionId: 501,
+          buyerUserId: 31,
+          price: 150000,
+          paidAt: '2026-05-12 10:30:00',
+          provider: 'payos',
+          providerOrderId: 'PO-501',
+          transactionTotalAmount: 250000,
+        },
+        {
+          transactionItemId: 102,
+          transactionId: 502,
+          buyerUserId: 32,
+          price: 200000,
+          paidAt: '2026-05-13 09:00:00',
+          provider: 'payos',
+          providerOrderId: null,
+          transactionTotalAmount: 200000,
+        },
+      ],
+    });
+
+    expect(courseModel.findOne).toHaveBeenCalledWith({
+      attributes: ['id', 'name'],
+      where: {
+        id: 10,
+        userId: 7,
+      },
+    });
+
+    const [findAllOptions] = transactionItemModel.findAll.mock.calls[0];
+    expect(findAllOptions.where).toEqual({ courseId: 10 });
+    expect(findAllOptions.include[0]).toMatchObject({
+      as: 'transaction',
+      required: true,
+      where: {
+        status: 'paid',
+      },
+    });
+    expect(findAllOptions.include[0].where.paidAt[Op.ne]).toBeNull();
+    expect(findAllOptions.include[0].where.paidAt[Op.gte]).toBe(
+      '2026-05-01 00:00:00',
+    );
+    expect(findAllOptions.include[0].where.paidAt[Op.lt]).toBe(
+      '2026-06-01 00:00:00',
+    );
+  });
+
+  it('defaults transaction item range to the current month', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
+    courseModel.findOne.mockResolvedValueOnce({
+      id: 10,
+      name: 'Course A',
+    });
+    transactionItemModel.findAll.mockResolvedValueOnce([]);
+
+    try {
+      const result = await service.getTransactionItems(7, 10, {});
+
+      expect(result.from).toBe('2026-05-01');
+      expect(result.to).toBe('2026-05-31');
+
+      const [findAllOptions] = transactionItemModel.findAll.mock.calls[0];
+      expect(findAllOptions.include[0].where.paidAt[Op.gte]).toBe(
+        '2026-05-01 00:00:00',
+      );
+      expect(findAllOptions.include[0].where.paidAt[Op.lt]).toBe(
+        '2026-06-01 00:00:00',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('throws BadRequestException when transaction item range is one-sided', async () => {
+    await expect(
+      service.getTransactionItems(7, 10, { from: '2026-05-01' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(query).not.toHaveBeenCalled();
+    expect(courseModel.findOne).not.toHaveBeenCalled();
+    expect(transactionItemModel.findAll).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when course is not owned by instructor', async () => {
+    courseModel.findOne.mockResolvedValueOnce(null);
+
+    await expect(
+      service.getTransactionItems(7, 10, {
+        from: '2026-05-01',
+        to: '2026-05-31',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(courseModel.findOne).toHaveBeenCalledTimes(1);
+    expect(transactionItemModel.findAll).not.toHaveBeenCalled();
   });
 });

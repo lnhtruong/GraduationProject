@@ -120,6 +120,12 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.LECTURER],
   },
+  {
+    method: 'GET',
+    pattern: '/api/instructor/revenue/:courseId/transaction-items',
+    access: 'roles',
+    roles: [UserRole.LECTURER],
+  },
 
   // Course service - public reads
   {

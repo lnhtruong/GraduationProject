@@ -1,7 +1,18 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/sequelize';
-import { QueryTypes } from 'sequelize';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { Course } from 'src/models/course.model';
+import { TransactionItem } from 'src/models/transaction-item.model';
+import {
+  PaymentTransaction,
+  TransactionStatus,
+} from 'src/models/transaction.model';
+import { InstructorRevenueTransactionItemsQueryDto } from './dto/instructor-revenue-transaction-items-query.dto';
 import {
   InstructorRevenueTimeseriesQueryDto,
   RevenueGranularity,
@@ -43,7 +54,12 @@ const DATE_FORMAT_BY_GRANULARITY: Record<RevenueGranularity, string> = {
 
 @Injectable()
 export class InstructorRevenueService {
-  constructor(@InjectConnection() private readonly sequelize: Sequelize) {}
+  constructor(
+    @InjectConnection() private readonly sequelize: Sequelize,
+    @InjectModel(Course) private readonly courseModel: typeof Course,
+    @InjectModel(TransactionItem)
+    private readonly transactionItemModel: typeof TransactionItem,
+  ) { }
 
   async getSummary(instructorId: number) {
     const now = new Date();
@@ -150,7 +166,9 @@ export class InstructorRevenueService {
           growthPercent:
             courseLastMonth === 0
               ? null
-              : this.roundCurrency(((courseThisMonth - courseLastMonth) / courseLastMonth) * 100),
+              : this.roundCurrency(
+                ((courseThisMonth - courseLastMonth) / courseLastMonth) * 100,
+              ),
         };
       }),
     };
@@ -197,16 +215,19 @@ export class InstructorRevenueService {
         },
       );
 
-      const aggregateByDate = new Map<string, {
-        revenue: number;
-        enrollCount: number;
-        courses: Array<{
-          courseId: number;
-          courseName: string;
+      const aggregateByDate = new Map<
+        string,
+        {
           revenue: number;
           enrollCount: number;
-        }>;
-      }>();
+          courses: Array<{
+            courseId: number;
+            courseName: string;
+            revenue: number;
+            enrollCount: number;
+          }>;
+        }
+      >();
 
       for (const row of rows) {
         const revenue = this.roundCurrency(this.toNumber(row.revenue));
@@ -228,15 +249,17 @@ export class InstructorRevenueService {
         aggregateByDate.set(row.date, aggregate);
       }
 
-      return this.buildBuckets(range.from, range.to, granularity).map((date) => {
-        const aggregate = aggregateByDate.get(date);
-        return {
-          date,
-          revenue: aggregate?.revenue ?? 0,
-          enrollCount: aggregate?.enrollCount ?? 0,
-          courses: aggregate?.courses ?? [],
-        };
-      });
+      return this.buildBuckets(range.from, range.to, granularity).map(
+        (date) => {
+          const aggregate = aggregateByDate.get(date);
+          return {
+            date,
+            revenue: aggregate?.revenue ?? 0,
+            enrollCount: aggregate?.enrollCount ?? 0,
+            courses: aggregate?.courses ?? [],
+          };
+        },
+      );
     }
 
     const rows = await this.sequelize.query<RevenueSeriesRow>(
@@ -280,6 +303,91 @@ export class InstructorRevenueService {
     }));
   }
 
+  async getTransactionItems(
+    instructorId: number,
+    courseId: number,
+    query: InstructorRevenueTransactionItemsQueryDto,
+  ) {
+    const range = this.parseTransactionItemsDateRange(query.from, query.to);
+    const toExclusive = this.addUtcDays(range.to, 1);
+    const replacements = {
+      instructorId,
+      courseId,
+      from: this.formatSqlDateTime(range.from),
+      toExclusive: this.formatSqlDateTime(toExclusive),
+    };
+
+    const course = await this.courseModel.findOne({
+      attributes: ['id', 'name'],
+      where: {
+        id: courseId,
+        userId: instructorId,
+      },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    const rows = await this.transactionItemModel.findAll({
+      attributes: ['id', 'transactionId', 'courseId', 'price'],
+      where: { courseId },
+      include: [
+        {
+          model: PaymentTransaction,
+          as: 'transaction',
+          attributes: [
+            'id',
+            'userId',
+            'totalAmount',
+            'paidAt',
+            'provider',
+            'providerOrderId',
+          ],
+          required: true,
+          where: {
+            status: TransactionStatus.PAID,
+            paidAt: {
+              [Op.ne]: null,
+              [Op.gte]: replacements.from,
+              [Op.lt]: replacements.toExclusive,
+            },
+          },
+        },
+      ],
+      order: [
+        [{ model: PaymentTransaction, as: 'transaction' }, 'paidAt', 'DESC'],
+        [{ model: PaymentTransaction, as: 'transaction' }, 'id', 'DESC'],
+        ['id', 'DESC'],
+      ],
+    });
+
+    const items = rows.map((row) => ({
+      transactionItemId: this.toNumber(row.id),
+      transactionId: this.toNumber(row.transaction?.id),
+      buyerUserId: this.toNumber(row.transaction?.userId),
+      price: this.roundCurrency(this.toNumber(row.price)),
+      paidAt: this.formatOutputDateTime(row.transaction?.paidAt),
+      provider: row.transaction?.provider ?? '',
+      providerOrderId: row.transaction?.providerOrderId ?? null,
+      transactionTotalAmount: this.roundCurrency(
+        this.toNumber(row.transaction?.totalAmount),
+      ),
+    }));
+
+    return {
+      courseId: this.toNumber(course.id),
+      courseName: course.name ?? '',
+      from: this.formatDate(range.from),
+      to: this.formatDate(range.to),
+      totalRevenue: this.roundCurrency(
+        items.reduce((total, item) => total + item.price, 0),
+      ),
+      totalItems: items.length,
+      items,
+    };
+  }
+
   private parseDateRange(fromValue?: string, toValue?: string): DateRange {
     const today = this.startOfUtcDay(new Date());
     let from = fromValue ? this.parseIsoDate(fromValue, 'from') : undefined;
@@ -305,10 +413,40 @@ export class InstructorRevenueService {
     return { from, to };
   }
 
+  private parseTransactionItemsDateRange(
+    fromValue?: string,
+    toValue?: string,
+  ): DateRange {
+    const hasFrom = Boolean(fromValue);
+    const hasTo = Boolean(toValue);
+
+    if (!hasFrom && !hasTo) {
+      const today = this.startOfUtcDay(new Date());
+      const from = this.startOfUtcMonth(today);
+      const to = this.addUtcDays(this.addUtcMonths(from, 1), -1);
+      return { from, to };
+    }
+
+    if (hasFrom !== hasTo) {
+      throw new BadRequestException('from and to must be provided together');
+    }
+
+    const from = this.parseIsoDate(fromValue as string, 'from');
+    const to = this.parseIsoDate(toValue as string, 'to');
+
+    if (from.getTime() > to.getTime()) {
+      throw new BadRequestException('from must be before or equal to to');
+    }
+
+    return { from, to };
+  }
+
   private parseIsoDate(value: string, fieldName: string): Date {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`${fieldName} must be a valid ISO date string`);
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO date string`,
+      );
     }
 
     return this.startOfUtcDay(parsed);
@@ -365,11 +503,9 @@ export class InstructorRevenueService {
   }
 
   private startOfUtcDay(date: Date): Date {
-    return new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-    ));
+    return new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
   }
 
   private startOfUtcMonth(date: Date): Date {
@@ -388,11 +524,9 @@ export class InstructorRevenueService {
   }
 
   private addUtcMonths(date: Date, amount: number): Date {
-    return new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth() + amount,
-      1,
-    ));
+    return new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + amount, 1),
+    );
   }
 
   private formatDate(date: Date): string {
@@ -411,11 +545,34 @@ export class InstructorRevenueService {
     return `${this.formatDate(date)} 00:00:00`;
   }
 
+  private formatOutputDateTime(value: unknown): string | null {
+    if (value instanceof Date) {
+      return [
+        this.formatDate(value),
+        [
+          this.pad2(value.getUTCHours()),
+          this.pad2(value.getUTCMinutes()),
+          this.pad2(value.getUTCSeconds()),
+        ].join(':'),
+      ].join(' ');
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    return null;
+  }
+
   private formatIsoWeek(date: Date): string {
     const normalized = this.startOfUtcDay(date);
-    normalized.setUTCDate(normalized.getUTCDate() + 4 - (normalized.getUTCDay() || 7));
+    normalized.setUTCDate(
+      normalized.getUTCDate() + 4 - (normalized.getUTCDay() || 7),
+    );
     const yearStart = new Date(Date.UTC(normalized.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((normalized.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    const week = Math.ceil(
+      ((normalized.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+    );
     return `${normalized.getUTCFullYear()}-W${this.pad2(week)}`;
   }
 

@@ -14,8 +14,7 @@ import { LecturerUpgradeRequest } from '../lecturer_requests/lecturer-request.mo
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, AuditLog],
-          models: [User, LecturerUpgradeRequest],
+          models: [User, AuditLog, LecturerUpgradeRequest],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };
