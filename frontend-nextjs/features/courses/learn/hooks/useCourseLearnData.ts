@@ -158,19 +158,19 @@ export function useCourseLearnData(courseId: number) {
       return 0;
     }
 
-    return Math.max(
-      0,
-      Number(
-        selectedLessonProgress.lastVideoPositionSec ??
-          // fallback for raw snake_case payloads
-          (
-            selectedLessonProgress as LessonProgressRecord & {
-              last_video_position_sec?: number;
-            }
-          ).last_video_position_sec ??
-          0,
-      ),
+    const positionMs = Number(
+      selectedLessonProgress.lastVideoPositionMs ??
+        // fallback for raw snake_case payloads
+        (
+          selectedLessonProgress as LessonProgressRecord & {
+            last_video_position_ms?: number;
+          }
+        ).last_video_position_ms ??
+        0,
     );
+
+    // Player works in seconds; storage is milliseconds.
+    return Math.max(0, positionMs / 1000);
   }, [selectedLessonProgress]);
 
   useEffect(() => {
@@ -291,7 +291,8 @@ export function useCourseLearnData(courseId: number) {
     (lessonProgressId: number, positionSec: number) => {
       sendLessonHeartbeat({
         lessonProgressId,
-        position: Math.max(0, Math.trunc(positionSec)),
+        // Store milliseconds (round, don't truncate) to avoid ~1s resume drift.
+        position: Math.max(0, Math.round(positionSec * 1000)),
       });
     },
     [sendLessonHeartbeat],

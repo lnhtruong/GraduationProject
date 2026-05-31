@@ -39,6 +39,11 @@ export class User extends Model {
   declare lastName: string;
 
   @Column({
+    type: DataType.STRING(500),
+    allowNull: true,
+  })
+
+  @Column({
     type: DataType.INTEGER,
     allowNull: true,
   })

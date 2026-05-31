@@ -8,12 +8,9 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Course, CourseStatus } from '../models/course.model';
 import { Lesson, LessonStatus } from '../models/lesson.model';
-import {
-  Report,
-  ReportStatus,
-  ReportTargetType,
-} from '../models/report.model';
+import { Report, ReportStatus, ReportTargetType } from '../models/report.model';
 import { User } from '../users/user.model';
+import { AuditLogsService } from '../audit_logs/audit-logs.service';
 import { ReportsService } from './reports.service';
 
 type Mock<T = any> = jest.Mock<T>;
@@ -22,19 +19,24 @@ interface ModelMock {
   findByPk: Mock;
   findOne: Mock;
   findAndCountAll: Mock;
+  count: Mock;
   create: Mock;
+  destroy: Mock;
 }
 
 const makeModelMock = (): ModelMock => ({
   findByPk: jest.fn(),
   findOne: jest.fn(),
   findAndCountAll: jest.fn(),
+  count: jest.fn(),
   create: jest.fn(),
+  destroy: jest.fn(),
 });
 
 const fakeRow = (data: Record<string, any>) => ({
   ...data,
-  get: ({ plain }: { plain: boolean } = { plain: true }) => (plain ? data : data),
+  get: ({ plain }: { plain: boolean } = { plain: true }) =>
+    plain ? data : data,
   update: jest.fn(async function (this: any, patch: Record<string, any>) {
     Object.assign(this, patch);
     return this;
@@ -61,6 +63,7 @@ describe('ReportsService', () => {
         { provide: getModelToken(Course), useValue: courseModel },
         { provide: getModelToken(Lesson), useValue: lessonModel },
         { provide: getModelToken(User), useValue: userModel },
+        { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
@@ -211,12 +214,19 @@ describe('ReportsService', () => {
         status: ReportStatus.PENDING,
         reporterId: 10,
       });
-      reportModel.findAndCountAll.mockResolvedValueOnce({ rows: [row], count: 1 });
+      reportModel.findAndCountAll.mockResolvedValueOnce({
+        rows: [row],
+        count: 1,
+      });
       courseModel.findByPk.mockResolvedValueOnce(
         fakeRow({ id: 5, name: 'C', status: CourseStatus.PUBLISH, userId: 99 }),
       );
 
-      const res = await service.listAll({ page: 1, limit: 10, status: ReportStatus.PENDING });
+      const res = await service.listAll({
+        page: 1,
+        limit: 10,
+        status: ReportStatus.PENDING,
+      });
 
       expect(res.pagination).toEqual({
         page: 1,
@@ -250,7 +260,9 @@ describe('ReportsService', () => {
   describe('getById', () => {
     it('404 khi không tồn tại', async () => {
       reportModel.findByPk.mockResolvedValueOnce(null);
-      await expect(service.getById(99)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getById(99)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('trả về detail kèm target', async () => {
@@ -262,10 +274,17 @@ describe('ReportsService', () => {
         }),
       );
       lessonModel.findByPk.mockResolvedValueOnce(
-        fakeRow({ id: 7, title: 'L', status: LessonStatus.ACTIVE, courseId: 5 }),
+        fakeRow({
+          id: 7,
+          title: 'L',
+          status: LessonStatus.ACTIVE,
+          courseId: 5,
+        }),
       );
       const res = await service.getById(1);
-      expect(res.target).toEqual(expect.objectContaining({ id: 7, title: 'L' }));
+      expect(res.target).toEqual(
+        expect.objectContaining({ id: 7, title: 'L' }),
+      );
     });
   });
 
@@ -312,7 +331,9 @@ describe('ReportsService', () => {
         reviewNote: 'vp',
       });
 
-      expect(courseRow.update).toHaveBeenCalledWith({ status: CourseStatus.BANNED });
+      expect(courseRow.update).toHaveBeenCalledWith({
+        status: CourseStatus.BANNED,
+      });
       expect(reportRow.update).toHaveBeenCalledWith(
         expect.objectContaining({
           status: ReportStatus.APPROVED,
@@ -338,7 +359,9 @@ describe('ReportsService', () => {
         banTarget: true,
       });
 
-      expect(lessonRow.update).toHaveBeenCalledWith({ status: LessonStatus.BLOCKED });
+      expect(lessonRow.update).toHaveBeenCalledWith({
+        status: LessonStatus.BLOCKED,
+      });
     });
 
     it('approve + banTarget=true ban teacher', async () => {

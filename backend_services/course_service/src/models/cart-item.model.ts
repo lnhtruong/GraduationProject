@@ -7,6 +7,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { Cart } from './cart.model';
+import { Course } from './course.model';
 
 @Table({
   tableName: 'cart_items',
@@ -39,4 +40,15 @@ export class CartItem extends Model {
     field: 'course_id',
   })
   declare courseId: number;
+
+  @BelongsTo(() => Course, { foreignKey: 'courseId', targetKey: 'id' })
+  declare course?: Course;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'saved_for_later',
+  })
+  declare savedForLater: boolean;
 }

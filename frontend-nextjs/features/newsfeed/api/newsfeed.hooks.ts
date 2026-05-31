@@ -1,9 +1,12 @@
+"use client";
+
 import {
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { newsfeedApi } from "./newsfeed.api";
 
@@ -20,8 +23,16 @@ export function useNewsfeedFeed(
 ) {
   const normalizedSearchTerm = searchTerm.trim();
   const mode = normalizedSearchTerm ? "search" : "recommended";
+  const feedSignature = `${mode}:${limit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
+  const sessionIdRef = useRef<string | null>(null);
+  const previousSignatureRef = useRef(feedSignature);
 
-  return useInfiniteQuery({
+  if (previousSignatureRef.current !== feedSignature) {
+    previousSignatureRef.current = feedSignature;
+    sessionIdRef.current = null;
+  }
+
+  const query = useInfiniteQuery({
     queryKey: newsfeedKeys.custom("feed", limit, mode, normalizedSearchTerm, courseId ?? "all"),
     queryFn: ({ pageParam }) =>
       newsfeedApi.getFeed({
@@ -30,12 +41,30 @@ export function useNewsfeedFeed(
         mode,
         search: normalizedSearchTerm || undefined,
         courseId,
+        sessionId: mode === "recommended" && sessionIdRef.current ? sessionIdRef.current : undefined,
       }),
     enabled,
     staleTime: 45 * 1000,
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  useEffect(() => {
+    if (mode !== "recommended") {
+      sessionIdRef.current = null;
+      return;
+    }
+
+    const latestPage = query.data?.pages.at(-1);
+    if (latestPage?.sessionId) {
+      sessionIdRef.current = latestPage.sessionId;
+    }
+  }, [mode, query.data?.pages]);
+
+  return {
+    ...query,
+    sessionId: mode === "recommended" ? sessionIdRef.current : null,
+  };
 }
 
 export function useNewsfeedViewedFeeds(enabled = true) {
@@ -107,6 +136,19 @@ export function useNewsfeedTrendingStats(
   });
 }
 
+export function useNewsfeedTrendingHashtags(
+  enabled = true,
+  days?: number,
+  limit?: number,
+) {
+  return useQuery({
+    queryKey: newsfeedKeys.custom("trending-hashtags", days ?? "default", limit ?? "default"),
+    queryFn: () => newsfeedApi.getTrendingHashtags({ days, limit }),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useNewsfeedCommentDetail(
   feedId: number | null,
   originCmt: number | null,
@@ -153,7 +195,7 @@ export function useNewsfeedRecordViewMutation() {
     mutationKey: newsfeedKeys.custom("record-view"),
     mutationFn: newsfeedApi.recordView,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.custom("viewed") });
     },
   });
 }

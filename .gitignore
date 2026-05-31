@@ -74,4 +74,5 @@ tmp/
 .claude
 .codegraph
 .claude.json
+CLAUDE.md
 be-tasks.html

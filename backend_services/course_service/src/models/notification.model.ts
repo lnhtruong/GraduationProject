@@ -1,5 +1,7 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
 
+export const DISCUSSION_REPLY_EVENT = 'discussion.reply.created';
+export const DISCUSSION_POST_SOURCE = 'discussion_post';
 export const COURSE_PUBLISH_EVENT = 'course.publish.new_from_instructor';
 export const COURSE_SOURCE = 'course';
 

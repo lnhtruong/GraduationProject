@@ -7,9 +7,10 @@ import type {
   NewsfeedActionType,
   NewsfeedCreatorStatsResponse,
   NewsfeedFeedMutationResponse,
+  NewsfeedFeedApiResponse,
   NewsfeedItem,
+  NewsfeedTrendingHashtagsResponse,
   NewsfeedTrendingStatsResponse,
-  NewsfeedFeedPageResponse,
   NewsfeedFeedResponse,
   NewsfeedRawItem,
   NewsfeedViewRecordResponse,
@@ -128,13 +129,17 @@ export const newsfeedApi = createApi({
     mode = "recommended",
     search,
     courseId,
+    sessionId,
+    hashtag,
   }: {
     cursor?: number;
     limit?: number;
     mode?: "recommended" | "search";
     search?: string;
     courseId?: number;
-  }): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
+    sessionId?: string | null;
+    hashtag?: string;
+  }): Promise<NewsfeedFeedApiResponse> => {
     const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(
       withQueryPath(FEED_ENDPOINT, {
         cursor,
@@ -142,16 +147,19 @@ export const newsfeedApi = createApi({
         mode,
         search,
         courseId,
+        sessionId,
+        hashtag,
       }),
     );
 
-    const { items, nextCursor } = parseFeedResponse(data);
+    const { items, nextCursor, sessionId: resolvedSessionId } = parseFeedResponse(data);
 
     return {
       items: items
         .map(mapFeedItem)
         .filter((item) => Boolean(item.videoUrl)),
       nextCursor,
+      sessionId: resolvedSessionId,
     };
   },
 
@@ -342,6 +350,23 @@ export const newsfeedApi = createApi({
     const { data } = await apiHttpClient.get<NewsfeedTrendingStatsResponse>(
       withQueryPath(`${FEED_ENDPOINT}/stats/trending`, {
         period,
+        limit,
+      }),
+    );
+
+    return data;
+  },
+
+  getTrendingHashtags: async ({
+    days,
+    limit,
+  }: {
+    days?: number;
+    limit?: number;
+  }): Promise<NewsfeedTrendingHashtagsResponse> => {
+    const { data } = await apiHttpClient.get<NewsfeedTrendingHashtagsResponse>(
+      withQueryPath(`${FEED_ENDPOINT}/hashtags/trending`, {
+        days,
         limit,
       }),
     );

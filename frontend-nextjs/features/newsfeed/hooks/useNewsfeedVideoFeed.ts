@@ -4,14 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
 import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
 
+function uniqueByFeedId<T extends { feedId: number }>(items: T[]) {
+  return items.filter((item, index, list) => list.findIndex((candidate) => candidate.feedId === item.feedId) === index);
+}
+
 export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVideoId?: number | null) {
   const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
   const appliedInitialVideoIdRef = useRef<number | null>(null);
 
   const videos = useMemo(
     () =>
-      feedQuery.data?.pages.flatMap((page) => page.items).filter((item) => Boolean(item.videoUrl)) ?? [],
+      uniqueByFeedId(
+        feedQuery.data?.pages.flatMap((page) => page.items).filter((item) => Boolean(item.videoUrl)) ?? [],
+      ),
     [feedQuery.data?.pages],
   );
 
@@ -21,6 +28,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
 
   useEffect(() => {
     setActiveIndex(0);
+    setScrollToIndex(null);
     appliedInitialVideoIdRef.current = null;
   }, [searchTerm]);
 
@@ -43,6 +51,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     }
 
     setActiveIndex(targetIndex);
+    setScrollToIndex(targetIndex);
     appliedInitialVideoIdRef.current = initialVideoId;
   }, [initialVideoId, videos]);
 
@@ -109,14 +118,22 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     if (!totalVideos) {
       return;
     }
-    setActiveIndex((current) => Math.min(current + 1, totalVideos - 1));
+    setActiveIndex((current) => {
+      const nextIndex = Math.min(current + 1, totalVideos - 1);
+      setScrollToIndex(nextIndex);
+      return nextIndex;
+    });
   }, [totalVideos]);
 
   const goPrev = useCallback(() => {
     if (!totalVideos) {
       return;
     }
-    setActiveIndex((current) => Math.max(current - 1, 0));
+    setActiveIndex((current) => {
+      const nextIndex = Math.max(current - 1, 0);
+      setScrollToIndex(nextIndex);
+      return nextIndex;
+    });
   }, [totalVideos]);
 
   const jumpTo = useCallback(
@@ -124,6 +141,19 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
       if (!totalVideos) {
         return;
       }
+      const nextIndex = Math.max(0, Math.min(index, totalVideos - 1));
+      setScrollToIndex(nextIndex);
+      setActiveIndex(nextIndex);
+    },
+    [totalVideos],
+  );
+
+  const setObservedActiveIndex = useCallback(
+    (index: number) => {
+      if (!totalVideos) {
+        return;
+      }
+
       setActiveIndex(Math.max(0, Math.min(index, totalVideos - 1)));
     },
     [totalVideos],
@@ -147,5 +177,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     goNext,
     goPrev,
     jumpTo,
+    setObservedActiveIndex,
+    scrollToIndex,
   };
 }

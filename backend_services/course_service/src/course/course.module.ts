@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { CategoriesController } from './categories.controller';
 import { CoursesController } from './course.controller';
 import { CoursesService } from './course.service';
 import { Course } from 'src/models/course.model';
@@ -11,6 +12,7 @@ import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll } from 'src/models/enroll.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import { User } from 'src/users/user.model';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
 import { Notification } from 'src/models/notification.model';
 
@@ -26,11 +28,12 @@ import { Notification } from 'src/models/notification.model';
       QuizOption,
       Enroll,
       Feedback,
+      User,
       InstructorFollow,
       Notification,
     ]),
   ],
-  controllers: [CoursesController],
+  controllers: [CoursesController, CategoriesController],
   providers: [CoursesService],
   exports: [CoursesService],
 })
