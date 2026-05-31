@@ -10,7 +10,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ShoppingCart } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { CartItemCard } from "./components/CartItemCard";
 import { CartOrderSummary } from "./components/CartOrderSummary";
 import { CartMobileBottomBar } from "./components/CartMobileBottomBar";
@@ -42,10 +41,8 @@ export default function CartPage() {
   const removeFromCartMutation = useRemoveFromCart();
   const createPayment = useCreatePayment();
 
-  // Sync API data vào store để dùng getInCartItems / getSavedItems / getTotal
   const items = cartItems ?? store.items;
   const inCartItems = items.filter((i) => !i.savedForLater);
-  const savedItems = store.getSavedItems();
 
   const handleRemove = async (courseId: number) => {
     setRemovingIds((prev) => new Set(prev).add(courseId));
@@ -59,14 +56,6 @@ export default function CartPage() {
         return next;
       });
     }
-  };
-
-  const handleSave = (courseId: number) => {
-    store.saveForLater(courseId);
-  };
-
-  const handleMoveToCart = (courseId: number) => {
-    store.moveToCart(courseId);
   };
 
   const handleCheckout = () => {
@@ -96,7 +85,7 @@ export default function CartPage() {
     );
   }
 
-  if (!isLoading && inCartItems.length === 0 && savedItems.length === 0) {
+  if (!isLoading && inCartItems.length === 0) {
     return <CartEmptyState />;
   }
 
@@ -156,58 +145,16 @@ export default function CartPage() {
             )}
 
             {/* Cart items */}
-            {inCartItems.length > 0 && (
-              <div className="space-y-4">
-                {inCartItems.map((item: CartItem) => (
-                  <CartItemCard
-                    key={item.id}
-                    item={item}
-                    isSavedView={false}
-                    onRemove={handleRemove}
-                    onSave={handleSave}
-                    onMoveToCart={handleMoveToCart}
-                    isRemoving={removingIds.has(item.courseId)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Empty in-cart but has saved items */}
-            {inCartItems.length === 0 && savedItems.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Giỏ hàng trống. Hãy chuyển khoá học từ &quot;Đã lưu&quot; vào giỏ để thanh toán.
-                </p>
-              </div>
-            )}
-
-            {/* Saved for later section */}
-            {savedItems.length > 0 && (
-              <div className="space-y-4">
-                <Separator />
-                <div>
-                  <h2 className="mb-1 text-base font-semibold">
-                    Đã lưu để sau
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {savedItems.length} khoá học
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  {savedItems.map((item: CartItem) => (
-                    <CartItemCard
-                      key={item.id}
-                      item={item}
-                      isSavedView={true}
-                      onRemove={handleRemove}
-                      onSave={handleSave}
-                      onMoveToCart={handleMoveToCart}
-                      isRemoving={removingIds.has(item.courseId)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="space-y-4">
+              {inCartItems.map((item: CartItem) => (
+                <CartItemCard
+                  key={item.id}
+                  item={item}
+                  onRemove={handleRemove}
+                  isRemoving={removingIds.has(item.courseId)}
+                />
+              ))}
+            </div>
           </div>
 
           {/* ── Right: Sticky sidebar (desktop) ───────────────── */}

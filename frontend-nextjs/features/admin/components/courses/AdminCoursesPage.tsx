@@ -105,6 +105,7 @@ export default function AdminCoursesPage() {
 
   const filteredPending = applyClientFilters(pendingData?.data ?? []);
   const filteredAll     = applyClientFilters(allData?.data     ?? []);
+  const isFiltering = debouncedSearch.trim() !== "" || levelFilter !== "all" || priceFilter !== "all";
 
   const approve = useApproveCourse();
   const reject  = useRejectCourse();
@@ -265,6 +266,7 @@ export default function AdminCoursesPage() {
                 <AdminCourseTable
                   courses={filteredPending}
                   isLoading={isPendingLoading}
+                  isFiltering={isFiltering}
                   showActions
                   approvingId={approvingId}
                   rejectingId={rejectingId}
@@ -300,6 +302,7 @@ export default function AdminCoursesPage() {
                 <AdminCourseTable
                   courses={filteredAll}
                   isLoading={isAllLoading}
+                  isFiltering={isFiltering}
                   showActions
                   approvingId={approvingId}
                   rejectingId={rejectingId}

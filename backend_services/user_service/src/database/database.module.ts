@@ -24,4 +24,4 @@ import { InstructorFollow } from '../models/instructor-follow.model';
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

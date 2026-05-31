@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Play, Star, Trash2, Bookmark, BookmarkCheck } from "lucide-react";
+import { Play, Star, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,19 +34,13 @@ const LEVEL_LABELS: Record<CartItem["level"], string> = {
 
 interface CartItemCardProps {
   item: CartItem;
-  isSavedView?: boolean; // true = đang trong "Saved for later" section
   onRemove: (courseId: number) => void;
-  onSave: (courseId: number) => void;
-  onMoveToCart: (courseId: number) => void;
   isRemoving?: boolean;
 }
 
 export function CartItemCard({
   item,
-  isSavedView = false,
   onRemove,
-  onSave,
-  onMoveToCart,
   isRemoving = false,
 }: CartItemCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -171,33 +165,7 @@ export function CartItemCard({
 
         {/* Actions */}
         <div className="mt-2 flex items-center gap-3 border-t border-border/40 pt-3 text-xs">
-          {isSavedView ? (
-            /* Saved view: "Thêm vào giỏ" + "Xoá" */
-            <>
-              <button
-                onClick={() => onMoveToCart(item.courseId)}
-                className="flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                <Bookmark className="h-3.5 w-3.5" />
-                Thêm vào giỏ hàng
-              </button>
-              <span className="text-border">·</span>
-              <RemoveButton courseId={item.courseId} onRemove={onRemove} />
-            </>
-          ) : (
-            /* Cart view: "Lưu để sau" + "Xoá" */
-            <>
-              <button
-                onClick={() => onSave(item.courseId)}
-                className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-primary"
-              >
-                <BookmarkCheck className="h-3.5 w-3.5" />
-                Lưu để sau
-              </button>
-              <span className="text-border">·</span>
-              <RemoveButton courseId={item.courseId} onRemove={onRemove} />
-            </>
-          )}
+          <RemoveButton courseId={item.courseId} onRemove={onRemove} />
         </div>
       </div>
     </div>

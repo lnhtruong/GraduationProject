@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { AuthRequest, authMiddleware } from './auth.middleware';
+import { AuthRequest, authMiddleware, optionalAuthMiddleware } from './auth.middleware';
 import { getAccessRule, UserRole } from './access-policy';
 
 function deny(res: Response, message: string): Response {
@@ -25,7 +25,7 @@ export function authorizationMiddleware(
   }
 
   if (rule.access === 'public') {
-    return next();
+    return optionalAuthMiddleware(req as AuthRequest, res, next);
   }
 
   return authMiddleware(req as AuthRequest, res, () => {

@@ -33,7 +33,8 @@ export interface LessonProgressRecord {
   courseId: number;
   lessonId: number;
   progress: LessonProgressStatus;
-  lastVideoPositionSec?: number;
+  /** Last watched video position, in milliseconds. */
+  lastVideoPositionMs?: number;
   lastWatchedAt?: string;
 }
 
@@ -44,7 +45,8 @@ export interface ContinueWatchingLesson {
   lessonTitle: string;
   courseTitle: string;
   thumbnailUrl?: string | null;
-  lastVideoPositionSec: number;
+  /** Last watched video position, in milliseconds. */
+  lastVideoPositionMs: number;
   percentage: number;
   updatedAt?: string;
 }

@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Headers,
+  Patch,
   Res,
   UnauthorizedException,
   BadRequestException,
@@ -15,15 +16,15 @@ import { CartsService } from './carts.service';
 
 @Controller('carts')
 export class CartsController {
-  constructor(private readonly cartsService: CartsService) {}
+  constructor(private readonly cartsService: CartsService) { }
 
   private resolveUserId(userId: string): number {
     if (!userId) {
-      throw new UnauthorizedException('Vui lòng đăng nhập');
+      throw new UnauthorizedException('Please login first');
     }
     const id = Number(userId);
     if (!Number.isInteger(id) || id <= 0) {
-      throw new UnauthorizedException('User không hợp lệ');
+      throw new UnauthorizedException('invalid User');
     }
     return id;
   }
@@ -48,10 +49,27 @@ export class CartsController {
   ) {
     const id = this.resolveUserId(userId);
     if (!courseId || !Number.isInteger(Number(courseId)) || Number(courseId) <= 0) {
-      throw new BadRequestException('courseId không hợp lệ');
+      throw new BadRequestException('invalid courseId');
     }
     const item = await this.cartsService.addItem(id, Number(courseId));
     return (res as any).status(201).json(item);
+  }
+
+  @Patch('items/:courseId/save')
+  async saveItemForLater(
+    @Headers('x-user-id') userId: string,
+    @Param('courseId') courseId: string,
+    @Body('saved') saved: boolean,
+  ) {
+    const id = this.resolveUserId(userId);
+    const cid = Number(courseId);
+    if (!Number.isInteger(cid) || cid <= 0) {
+      throw new BadRequestException('invalid courseId');
+    }
+    if (typeof saved !== 'boolean') {
+      throw new BadRequestException('saved must be boolean');
+    }
+    return this.cartsService.saveItemForLater(id, cid, saved);
   }
 
   /**
@@ -65,7 +83,7 @@ export class CartsController {
     const id = this.resolveUserId(userId);
     const cid = Number(courseId);
     if (!Number.isInteger(cid) || cid <= 0) {
-      throw new BadRequestException('courseId không hợp lệ');
+      throw new BadRequestException('invalid courseId');
     }
     return this.cartsService.removeItem(id, cid);
   }
