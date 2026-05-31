@@ -2,6 +2,9 @@ import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from '
 import { Video } from './video.model';
 import { Lesson } from './lesson.model';
 import { User } from 'src/users/user.model';
+import { Feedback } from './feedback.model';
+import { Enroll } from './enroll.model';
+import { HighlightFeed } from './highlight-feed.model';
 
 export enum CourseLevel {
   BEGINNER = 'Beginner',
@@ -121,4 +124,13 @@ export class Course extends Model {
 
   @HasMany(() => Lesson, { foreignKey: 'course_id', sourceKey: 'id', as: 'lessons' })
   declare lessons?: Lesson[];
+
+  @HasMany(() => Feedback, { foreignKey: 'course_id', sourceKey: 'id', as: 'feedbacks' })
+  declare feedbacks?: Feedback[];
+
+  @HasMany(() => Enroll, { foreignKey: 'course_id', sourceKey: 'id', as: 'enrolls' })
+  declare enrolls?: Enroll[];
+
+  @HasMany(() => HighlightFeed, { foreignKey: 'course_id', sourceKey: 'id', as: 'highlightFeeds' })
+  declare highlightFeeds?: HighlightFeed[];
 }

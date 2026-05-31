@@ -58,6 +58,8 @@ type CategorySummary = {
   courseCount: number;
 };
 
+export type CoursePublicSort = 'newest' | 'popular' | 'rating';
+
 @Injectable()
 export class CoursesService {
   constructor(
@@ -92,6 +94,66 @@ export class CoursesService {
       required: false,
     },
   ];
+
+  private readonly publicCourseAggregateAttributes = [
+    [
+      literal(`(
+        SELECT COALESCE(AVG(feedbacks.rating), 0)
+        FROM feedbacks
+        WHERE feedbacks.course_id = Course.id
+          AND feedbacks.deleted_at IS NULL
+          AND feedbacks.is_visible = TRUE
+      )`),
+      'avg_rating',
+    ],
+    [
+      literal(`(
+        SELECT COUNT(feedbacks.id)
+        FROM feedbacks
+        WHERE feedbacks.course_id = Course.id
+          AND feedbacks.deleted_at IS NULL
+          AND feedbacks.is_visible = TRUE
+      )`),
+      'review_count',
+    ],
+    [
+      literal(`(
+        SELECT COUNT(enrolls.id)
+        FROM enrolls
+        WHERE enrolls.course_id = Course.id
+      )`),
+      'enrolled_count',
+    ],
+  ] as const;
+
+  private buildPublicCourseInclude(): Includeable[] {
+    return [
+      {
+        model: Video,
+        as: 'video',
+        required: false,
+        attributes: ['id', 'url', 'thumbnail', 'duration', 'type'],
+      },
+      {
+        model: User,
+        as: 'instructor',
+        required: false,
+        attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
+      },
+    ];
+  }
+
+  private buildPublicCourseOrder(sort?: string): Order {
+    switch (sort) {
+      case 'popular':
+        return [[literal('enrolled_count'), 'DESC'], ['id', 'DESC']] as Order;
+      case 'rating':
+        return [[literal('avg_rating'), 'DESC'], ['id', 'DESC']] as Order;
+      case 'newest':
+      default:
+        return [['id', 'DESC']];
+    }
+  }
 
   private async validateVideoId(
     videoId: number | null | undefined,
@@ -556,6 +618,7 @@ export class CoursesService {
       maxPrice?: number;
       userId?: number;
       requesterRole?: number;
+      sort?: CoursePublicSort,
     } = {},
   ): Promise<
     | Course[]
@@ -578,6 +641,7 @@ export class CoursesService {
       minPrice,
       maxPrice,
       userId,
+      sort,
       requesterRole,
     } = params;
     const isAdmin = requesterRole === this.ADMIN_ROLE;
@@ -607,9 +671,6 @@ export class CoursesService {
       whereCondition.userId = userId;
     }
 
-    if (search && search.trim().length > 0) {
-      whereCondition.name = { [Op.like]: `%${search.trim()}%` };
-    }
 
     const priceCondition: Record<symbol, number> = {};
     if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
@@ -621,13 +682,25 @@ export class CoursesService {
     if (Object.getOwnPropertySymbols(priceCondition).length > 0) {
       whereCondition.price = priceCondition;
     }
+    const keyword = search?.trim();
+    if (keyword) {
+      whereCondition.name = { [Op.like]: `%${keyword}%` };
+    }
+
+    const queryOptions = {
+      where: whereCondition,
+      include: this.buildPublicCourseInclude(),
+      attributes: {
+        include: this.publicCourseAggregateAttributes as any,
+      },
+      order: this.buildPublicCourseOrder(sort),
+    };
 
     const shouldPaginate = page !== undefined || limit !== undefined;
 
     if (!shouldPaginate) {
       return await this.courseModel.findAll({
-        where: whereCondition,
-        include: [Video],
+        ...queryOptions,
       });
     }
 
@@ -637,11 +710,10 @@ export class CoursesService {
     const offset = (safePage - 1) * safeLimit;
 
     const { rows, count } = await this.courseModel.findAndCountAll({
-      where: whereCondition,
-      include: [Video],
+      ...queryOptions,
       offset,
       limit: safeLimit,
-      order: [['id', 'DESC']],
+      distinct: true,
     });
 
     return {
