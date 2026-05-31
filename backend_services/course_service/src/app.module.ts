@@ -21,6 +21,7 @@ import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 import { DiscussionsModule } from './discussions/discussions.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DiscussionsModule } from './discussions/discussions.module';
     ReportsModule,
     QuizSubmissionsModule,
     DiscussionsModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],

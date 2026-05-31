@@ -25,6 +25,7 @@ import { HighlightFeed } from 'src/models/highlight-feed.model';
 import { DiscussionPost } from 'src/models/discussion-post.model';
 import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
 import { Notification } from 'src/models/notification.model';
+import { Wishlist } from 'src/models/wishlist.model';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { Notification } from 'src/models/notification.model';
             Quiz,
             QuizQuestion,
             QuizOption,
+            Wishlist,,
             HighlightFeed,,
             DiscussionPost,
             DiscussionUpvote,

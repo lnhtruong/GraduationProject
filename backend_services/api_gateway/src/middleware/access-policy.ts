@@ -180,6 +180,22 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'authenticated',
   },
 
+
+  // Wishlist (BE-05) — student-only. The /check/:courseId rule MUST come
+  // before /:courseId so it isn't shadowed.
+  {
+    method: 'GET',
+    pattern: '/api/course/wishlist/check/:courseId',
+    access: 'authenticated',
+  },
+  { method: 'GET', pattern: '/api/course/wishlist', access: 'authenticated' },
+  { method: 'POST', pattern: '/api/course/wishlist', access: 'authenticated' },
+  {
+    method: 'DELETE',
+    pattern: '/api/course/wishlist/:courseId',
+    access: 'authenticated',
+  },
+
   // Specific rules MUST come before the catch-all /api/course/feedbacks/** below,
   // because getAccessRule() returns the first matching entry.
   { method: 'GET', pattern: '/api/course/feedbacks/check/:courseId', access: 'authenticated' },
