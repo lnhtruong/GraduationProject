@@ -55,22 +55,6 @@ export class CartsController {
     return (res as any).status(201).json(item);
   }
 
-  /**
-   * Remove a course from the cart
-   */
-  @Delete('items/:courseId')
-  async removeItem(
-    @Headers('x-user-id') userId: string,
-    @Param('courseId') courseId: string,
-  ) {
-    const id = this.resolveUserId(userId);
-    const cid = Number(courseId);
-    if (!Number.isInteger(cid) || cid <= 0) {
-      throw new BadRequestException('invalid courseId');
-    }
-    return this.cartsService.removeItem(id, cid);
-  }
-
   @Patch('items/:courseId/save')
   async saveItemForLater(
     @Headers('x-user-id') userId: string,
@@ -86,6 +70,22 @@ export class CartsController {
       throw new BadRequestException('saved must be boolean');
     }
     return this.cartsService.saveItemForLater(id, cid, saved);
+  }
+
+  /**
+   * Remove a course from the cart
+   */
+  @Delete('items/:courseId')
+  async removeItem(
+    @Headers('x-user-id') userId: string,
+    @Param('courseId') courseId: string,
+  ) {
+    const id = this.resolveUserId(userId);
+    const cid = Number(courseId);
+    if (!Number.isInteger(cid) || cid <= 0) {
+      throw new BadRequestException('invalid courseId');
+    }
+    return this.cartsService.removeItem(id, cid);
   }
 
   /**

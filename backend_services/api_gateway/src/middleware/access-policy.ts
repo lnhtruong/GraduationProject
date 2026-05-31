@@ -382,6 +382,11 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'authenticated',
   },
   {
+    method: 'PATCH',
+    pattern: '/api/course/carts/items/:courseId/save',
+    access: 'authenticated',
+  },
+  {
     method: 'DELETE',
     pattern: '/api/course/carts/items/:courseId',
     access: 'authenticated',

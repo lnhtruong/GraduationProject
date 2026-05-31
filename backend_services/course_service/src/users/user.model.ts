@@ -56,10 +56,4 @@ export class User extends Model {
     field: 'is_banned',
   })
   declare isBanned: boolean;
-
-  @Column({
-    type: DataType.STRING(512),
-    allowNull: true,
-  })
-  declare avatarUrl: string | null;
 }
