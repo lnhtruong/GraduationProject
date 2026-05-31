@@ -1,6 +1,7 @@
 import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from 'sequelize-typescript';
 import { Video } from './video.model';
 import { Lesson } from './lesson.model';
+import { User } from 'src/users/user.model';
 
 export enum CourseLevel {
   BEGINNER = 'Beginner',
@@ -88,6 +89,13 @@ export class Course extends Model {
     field: 'user_id',
   })
   declare userId: number;
+
+  @BelongsTo(() => User, {
+    foreignKey: 'userId',
+    targetKey: 'id',
+    as: 'instructor',
+  })
+  declare instructor?: User | null;
 
   @ForeignKey(() => Video)
   @Column({

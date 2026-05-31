@@ -6,11 +6,11 @@ from pathlib import Path
 # =========================
 # CONFIG
 # =========================
-LIBRARY_ID = "660578"
-API_KEY = "4ef4bfb1-fcb1-4d49-93fbdb33ae94-b6d1-461d"
+LIBRARY_ID = "671915"
+API_KEY = "0471ac64-7f82-4d2b-8591b7b3e9fa-f1c9-4397"
 
-YOUTUBE_URL = "https://www.youtube.com/watch?v=Dz3zBspjqWo"
-VIDEO_TITLE = "Phân Từ| TOEIC Grammar - Lesson 5: Participles"
+YOUTUBE_URL = "https://www.youtube.com/watch?v=W6NZfCO5SIk"
+VIDEO_TITLE = "Programming with Mosh JavaScript Tutorial"
 
 TEMP_DIR = Path("temp_videos")
 TEMP_DIR.mkdir(exist_ok=True)
