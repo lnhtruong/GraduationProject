@@ -42,7 +42,6 @@ export class User extends Model {
     type: DataType.STRING(500),
     allowNull: true,
   })
-  declare avatarUrl: string | null;
 
   @Column({
     type: DataType.INTEGER,

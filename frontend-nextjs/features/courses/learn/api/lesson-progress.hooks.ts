@@ -128,7 +128,7 @@ const useLessonProgressHeartbeatBase = createMutationHooks<
             record.id === payload.lessonProgressId
               ? {
                   ...record,
-                  lastVideoPositionSec: savedResponse.position,
+                  lastVideoPositionMs: savedResponse.position,
                   lastWatchedAt: savedResponse.lastWatchedAt,
                 }
               : record,
