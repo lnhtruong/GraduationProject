@@ -206,3 +206,9 @@ Khi frontend cần API chưa có ở backend, bổ sung vào section `## API Req
 - [ ] Không tự sort/filter full data ở client — phải dùng API params
 - [ ] Nếu có API mới cần → đã ghi vào `README.md`
 - [ ] Nếu phát hiện bug backend → đã đề xuất trước khi code workaround
+
+## Khi tôi yêu cầu viết file json cho postman import
+
+- [ ] Luôn điền sẵn các biến như {{PUBLIC_URL}}, authorization với header bearer {{ACCESS_TOKEN}}
+- [ ] Không cần 1 flow quá chi tiết như login, clean up, chỉ cần các api chính, quan trọng nhất
+- [ ] Đặt tên name cho các request nên liên quan tới các tính năng đang được test, ví dụ: Course - Get List Courses, Course - Create Course, Course - Update Course, Course - Delete Course,.....

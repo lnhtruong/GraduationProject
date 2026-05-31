@@ -21,6 +21,10 @@ import { LessonActivity } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
+import { HighlightFeed } from 'src/models/highlight-feed.model';
+import { DiscussionPost } from 'src/models/discussion-post.model';
+import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
+import { Notification } from 'src/models/notification.model';
 import { Wishlist } from 'src/models/wishlist.model';
 
 @Module({
@@ -51,7 +55,11 @@ import { Wishlist } from 'src/models/wishlist.model';
             Quiz,
             QuizQuestion,
             QuizOption,
-            Wishlist,
+            Wishlist,,
+            HighlightFeed,,
+            DiscussionPost,
+            DiscussionUpvote,
+            Notification,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)

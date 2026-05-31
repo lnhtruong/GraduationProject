@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import {
-  Check,
   X,
   Loader2,
   User,
@@ -16,6 +15,7 @@ import {
   ShieldBan,
   Mail,
   Hash,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,8 +28,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewReport } from "../../api/admin-reports.hooks";
 import type {
@@ -74,11 +72,6 @@ const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> 
   },
 };
 
-const BAN_TARGET_LABELS: Record<ReportTargetType, string> = {
-  course: "Cấm (ban) khóa học này",
-  lesson: "Khóa (block) bài học này",
-  teacher: "Cấm tài khoản giảng viên này",
-};
 
 function TargetDetail({ report }: { report: Report }) {
   const { targetType, targetId, target } = report;
@@ -190,14 +183,13 @@ interface Props {
 }
 
 export function AdminReportReviewModal({ report, open, onClose }: Props) {
-  const [banTarget, setBanTarget] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const review = useReviewReport();
 
   const isPending = report?.status === "pending";
   const isBusy = review.isPending;
 
-  const handleReview = async (decision: "approved" | "rejected") => {
+  const handleReview = async (decision: "approved" | "rejected", banTarget: boolean) => {
     if (!report) return;
     try {
       await review.mutateAsync({
@@ -205,12 +197,11 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
         dto: {
           decision,
           reviewNote: reviewNote.trim() || undefined,
-          banTarget: decision === "approved" ? banTarget : undefined,
+          banTarget: banTarget || undefined,
         },
       });
-      const label = decision === "approved" ? "Đã duyệt báo cáo" : "Đã từ chối báo cáo";
+      const label = decision === "approved" ? (banTarget ? "Đã ban đối tượng báo cáo" : "Đã duyệt báo cáo") : "Đã huỷ báo cáo";
       toast.success(label);
-      setBanTarget(false);
       setReviewNote("");
       onClose();
     } catch {
@@ -219,7 +210,6 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
   };
 
   const handleClose = () => {
-    setBanTarget(false);
     setReviewNote("");
     onClose();
   };
@@ -364,51 +354,24 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
         {report && (
           <div className="shrink-0 border-t border-border/60 bg-background p-4">
             {isPending ? (
-              <div className="space-y-3">
-                {/* Ban checkbox — grouped with Approve action */}
-                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 px-3 py-2.5 dark:border-emerald-800/40 dark:bg-emerald-950/10">
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="ban-target"
-                      checked={banTarget}
-                      onCheckedChange={(v) => setBanTarget(Boolean(v))}
-                      className="mt-0.5 border-emerald-400 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-                    />
-                    <Label
-                      htmlFor="ban-target"
-                      className="cursor-pointer text-xs leading-relaxed text-foreground/80"
-                    >
-                      {BAN_TARGET_LABELS[report.targetType]}
-                      <span className="mt-0.5 block font-normal text-muted-foreground">
-                        Tích để áp dụng đồng thời khi chấp nhận báo cáo
-                      </span>
-                    </Label>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                    onClick={() => handleReview("rejected")}
-                    disabled={isBusy}
-                  >
-                    {isBusy
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <X className="h-3.5 w-3.5" />}
-                    Từ chối
-                  </Button>
-                  <Button
-                    className="flex-1 gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-                    onClick={() => handleReview("approved")}
-                    disabled={isBusy}
-                  >
-                    {isBusy
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Check className="h-3.5 w-3.5" />}
-                    {banTarget ? `Chấp nhận & ${BAN_TARGET_LABELS[report.targetType].split(" ")[0].toLowerCase()}` : "Chấp nhận báo cáo"}
-                  </Button>
-                </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => handleReview("rejected", false)}
+                  disabled={isBusy}
+                >
+                  {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                  Huỷ báo cáo
+                </Button>
+                <Button
+                  className="flex-1 gap-2 bg-destructive text-white hover:bg-destructive/90"
+                  onClick={() => handleReview("approved", true)}
+                  disabled={isBusy}
+                >
+                  {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                  Ban
+                </Button>
               </div>
             ) : (
               <Button variant="outline" className="w-full" onClick={handleClose}>
