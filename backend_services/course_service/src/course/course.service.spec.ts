@@ -5,13 +5,17 @@ import { Op } from 'sequelize';
 
 import { Course, CourseStatus } from '../models/course.model';
 import { Lesson, LessonStatus } from '../models/lesson.model';
-import { LessonActivity, ActivityStatus } from '../models/lesson-activity.model';
+import {
+  LessonActivity,
+  ActivityStatus,
+} from '../models/lesson-activity.model';
 import { Quiz } from '../models/quiz.model';
 import { QuizQuestion } from '../models/quiz-question.model';
 import { QuizOption } from '../models/quiz-option.model';
 import { Enroll } from '../models/enroll.model';
 import { Feedback } from '../models/feedback.model';
 import { Video } from '../models/video.model';
+import { AuditLogsService } from '../audit_logs/audit-logs.service';
 
 import { CoursesService } from './course.service';
 
@@ -60,6 +64,7 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         { provide: getModelToken(Lesson), useValue: lessonModel },
         { provide: getModelToken(Enroll), useValue: enrollModel },
         { provide: getModelToken(Feedback), useValue: feedbackModel },
+        { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
@@ -68,7 +73,9 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
 
   it('ném 404 khi course không tồn tại', async () => {
     courseModel.findByPk.mockResolvedValueOnce(null);
-    await expect(service.findOne(123)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne(123)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('gọi findByPk đúng 1 lần với include tree đầy đủ', async () => {
@@ -76,7 +83,13 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
       id: 1,
       name: 'Test',
       description: 'desc',
-      video: { id: 9, url: 'https://x', duration: 10, thumbnail: 't', type: 'long' },
+      video: {
+        id: 9,
+        url: 'https://x',
+        duration: 10,
+        thumbnail: 't',
+        type: 'long',
+      },
       lessons: [],
     };
     courseModel.findByPk.mockResolvedValueOnce(fakeCourse);
@@ -95,7 +108,9 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     // Phải có 2 nhánh ở level 0: Video (preview) + Lessons
     expect(opts.include).toHaveLength(2);
 
-    const videoLeaf = opts.include.find((i: any) => i.model === Video && i.as === 'video');
+    const videoLeaf = opts.include.find(
+      (i: any) => i.model === Video && i.as === 'video',
+    );
     expect(videoLeaf).toBeDefined();
     expect(videoLeaf.required).toBe(false);
 
@@ -107,7 +122,9 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     expect(lessonsBranch.where.status[Op.ne]).toBe(LessonStatus.REMOVED);
     expect(Array.isArray(lessonsBranch.include)).toBe(true);
 
-    const lessonVideo = lessonsBranch.include.find((i: any) => i.model === Video);
+    const lessonVideo = lessonsBranch.include.find(
+      (i: any) => i.model === Video,
+    );
     expect(lessonVideo).toBeDefined();
 
     const activitiesBranch = lessonsBranch.include.find(
@@ -141,15 +158,26 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     const activitiesBranch = lessonsBranch.include.find(
       (i: any) => i.model === LessonActivity,
     );
-    const quizzesBranch = activitiesBranch.include.find((i: any) => i.model === Quiz);
+    const quizzesBranch = activitiesBranch.include.find(
+      (i: any) => i.model === Quiz,
+    );
     const questionsBranch = quizzesBranch.include.find(
       (i: any) => i.model === QuizQuestion,
     );
-    const optionsLeaf = questionsBranch.include.find((i: any) => i.model === QuizOption);
+    const optionsLeaf = questionsBranch.include.find(
+      (i: any) => i.model === QuizOption,
+    );
 
     expect(Array.isArray(lessonsBranch.attributes)).toBe(true);
     expect(lessonsBranch.attributes).toEqual(
-      expect.arrayContaining(['id', 'courseId', 'videoId', 'title', 'contentType', 'duration']),
+      expect.arrayContaining([
+        'id',
+        'courseId',
+        'videoId',
+        'title',
+        'contentType',
+        'duration',
+      ]),
     );
 
     expect(Array.isArray(activitiesBranch.attributes)).toBe(true);
@@ -164,12 +192,24 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
 
     expect(Array.isArray(questionsBranch.attributes)).toBe(true);
     expect(questionsBranch.attributes).toEqual(
-      expect.arrayContaining(['id', 'quizId', 'quesType', 'quesText', 'orderIndex']),
+      expect.arrayContaining([
+        'id',
+        'quizId',
+        'quesType',
+        'quesText',
+        'orderIndex',
+      ]),
     );
 
     expect(Array.isArray(optionsLeaf.attributes)).toBe(true);
     expect(optionsLeaf.attributes).toEqual(
-      expect.arrayContaining(['id', 'questionId', 'optionText', 'isCorrect', 'orderIndex']),
+      expect.arrayContaining([
+        'id',
+        'questionId',
+        'optionText',
+        'isCorrect',
+        'orderIndex',
+      ]),
     );
   });
 
@@ -218,8 +258,20 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
                       quesType: 'mcq',
                       orderIndex: 1,
                       options: [
-                        { id: 1, questionId: 60000, optionText: 'a', isCorrect: false, orderIndex: 1 },
-                        { id: 2, questionId: 60000, optionText: 'b', isCorrect: true, orderIndex: 2 },
+                        {
+                          id: 1,
+                          questionId: 60000,
+                          optionText: 'a',
+                          isCorrect: false,
+                          orderIndex: 1,
+                        },
+                        {
+                          id: 2,
+                          questionId: 60000,
+                          optionText: 'b',
+                          isCorrect: true,
+                          orderIndex: 2,
+                        },
                       ],
                     },
                   ],
@@ -242,9 +294,12 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
 
     // Nested chain phải đến tận QuizOption
     expect(result.lessons).toHaveLength(1);
-    expect(result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options).toHaveLength(2);
     expect(
-      result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options[1].isCorrect,
+      result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options,
+    ).toHaveLength(2);
+    expect(
+      result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options[1]
+        .isCorrect,
     ).toBe(true);
   });
 
@@ -274,7 +329,9 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
   });
 
   it('update maps thumbnailUrl and allows clearing with an empty string', async () => {
-    const update = jest.fn().mockResolvedValueOnce({ id: 1, thumbnailUrl: null });
+    const update = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 1, thumbnailUrl: null });
     courseModel.findByPk.mockResolvedValueOnce({
       id: 1,
       status: CourseStatus.DRAFT,
@@ -287,5 +344,42 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
       thumbnailUrl: null,
       status: CourseStatus.DRAFT,
     });
+  });
+
+  it('public course list defaults to published courses only', async () => {
+    courseModel.findAll.mockResolvedValueOnce([]);
+
+    await service.findAllPublic();
+
+    expect(courseModel.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: CourseStatus.PUBLISH },
+      }),
+    );
+  });
+
+  it('rejects non-admin course list status filters outside publish', async () => {
+    await expect(
+      service.findAllPublic({ status: CourseStatus.PENDING }),
+    ).rejects.toThrow('Only admin can filter courses by this status');
+  });
+
+  it('allows admin to filter courses by status and lecturer userId', async () => {
+    courseModel.findAll.mockResolvedValueOnce([]);
+
+    await service.findAllPublic({
+      status: CourseStatus.PENDING,
+      userId: 42,
+      requesterRole: 1,
+    });
+
+    expect(courseModel.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: CourseStatus.PENDING,
+          userId: 42,
+        },
+      }),
+    );
   });
 });

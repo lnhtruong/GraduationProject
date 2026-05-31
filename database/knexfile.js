@@ -16,6 +16,10 @@ module.exports = {
     migrations: {
       directory: "./knex_migrations",
       tableName: "knex_migrations",
+      // This shared dev DB has run migrations from feature branches whose
+      // files don't exist on `main` (e.g. instructor-follow / follow events).
+      // Tolerate those ledger entries instead of failing the whole run.
+      disableMigrationsListValidation: true,
     },
     seeds: {
       directory: "./seeds",

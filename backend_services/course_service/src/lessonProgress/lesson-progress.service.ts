@@ -133,7 +133,7 @@ export class LessonProgressService {
     // can't interleave a stale read with a fresher write.
     const [affected] = await this.lessonProgressModel.update(
       {
-        lastVideoPositionSec: position,
+        lastVideoPositionMs: position,
         lastWatchedAt,
         progress: LessonProgressStatus.IN_PROGRESS,
       },
@@ -158,7 +158,7 @@ export class LessonProgressService {
       // Already completed — return its persisted position without bumping it.
       return {
         ok: true,
-        position: row.lastVideoPositionSec,
+        position: row.lastVideoPositionMs,
         lastWatchedAt: row.lastWatchedAt ?? new Date(0),
       };
     }
@@ -174,7 +174,7 @@ export class LessonProgressService {
       progressId: number;
       course: Course | null;
       lesson: Lesson | null;
-      lastVideoPositionSec: number;
+      lastVideoPositionMs: number;
       lastWatchedAt: Date | null;
       percentage: number;
     }>;
@@ -221,7 +221,7 @@ export class LessonProgressService {
         progressId: row.id,
         course: row.course ?? null,
         lesson: row.lesson ?? null,
-        lastVideoPositionSec: row.lastVideoPositionSec,
+        lastVideoPositionMs: row.lastVideoPositionMs,
         lastWatchedAt: row.lastWatchedAt,
         percentage: percentByCourse.get(row.courseId) ?? 0,
       })),
