@@ -22,6 +22,8 @@ import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { HighlightFeed } from 'src/models/highlight-feed.model';
+import { DiscussionPost } from 'src/models/discussion-post.model';
+import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
 
 @Module({
   imports: [
@@ -51,7 +53,9 @@ import { HighlightFeed } from 'src/models/highlight-feed.model';
             Quiz,
             QuizQuestion,
             QuizOption,
-            HighlightFeed,
+            HighlightFeed,,
+            DiscussionPost,
+            DiscussionUpvote,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
