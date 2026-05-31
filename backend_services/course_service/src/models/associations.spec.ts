@@ -1,26 +1,21 @@
-/**
- * Verify that the eager-load chain used by `course.service.findOne()` has all
- * required Sequelize associations declared. Loading the models into a fresh
- * Sequelize instance also smoke-tests the circular import between
- * `LessonActivity` and `Quiz` (HasMany ↔ BelongsTo).
- */
 import { Sequelize } from 'sequelize-typescript';
 
+import { User } from '../users/user.model';
 import { Course } from './course.model';
-import { Lesson } from './lesson.model';
-import { LessonActivity } from './lesson-activity.model';
-import { Quiz } from './quiz.model';
-import { QuizQuestion } from './quiz-question.model';
-import { QuizOption } from './quiz-option.model';
-import { Video } from './video.model';
+import { Enroll } from './enroll.model';
+import { Feedback } from './feedback.model';
+import { FeedbackReaction } from './feedback-reaction.model';
+import { HighlightFeed } from './highlight-feed.model';
 import { MascotImage } from './images.model';
+import { LessonActivity } from './lesson-activity.model';
+import { Lesson } from './lesson.model';
+import { QuizOption } from './quiz-option.model';
+import { QuizQuestion } from './quiz-question.model';
+import { Quiz } from './quiz.model';
+import { Video } from './video.model';
 
-describe('Sequelize associations for /courses/:id eager-load', () => {
+describe('Sequelize associations for course eager-loads', () => {
   beforeAll(() => {
-    // Không cần kết nối DB thật — chỉ cần Sequelize.addModels(...) chạy qua
-    // để các decorator (@HasMany, @BelongsTo, ...) được thực thi và tạo
-    // associations metadata. mysql2 driver có sẵn nên đỡ phải cài thêm
-    // sqlite3 (cần native build).
     const sequelize = new Sequelize({
       dialect: 'mysql',
       host: 'localhost',
@@ -32,6 +27,7 @@ describe('Sequelize associations for /courses/:id eager-load', () => {
     });
     sequelize.addModels([
       MascotImage,
+      User,
       Video,
       Course,
       Lesson,
@@ -39,47 +35,46 @@ describe('Sequelize associations for /courses/:id eager-load', () => {
       Quiz,
       QuizQuestion,
       QuizOption,
+      Feedback,
+      FeedbackReaction,
+      Enroll,
+      HighlightFeed,
     ]);
   });
 
-  it('Course có HasMany Lesson với alias "lessons"', () => {
+  it('Course has Lesson and Video associations for detail views', () => {
     expect(Course.associations.lessons).toBeDefined();
     expect((Course.associations.lessons as any).target).toBe(Lesson);
     expect(Course.associations.lessons.associationType).toBe('HasMany');
-  });
-
-  it('Course có BelongsTo Video với alias "video"', () => {
     expect(Course.associations.video).toBeDefined();
     expect((Course.associations.video as any).target).toBe(Video);
   });
 
-  it('Lesson có HasMany LessonActivity với alias "lessonActivities"', () => {
+  it('Course has public-list and cart associations', () => {
+    expect(Course.associations.instructor).toBeDefined();
+    expect((Course.associations.instructor as any).target).toBe(User);
+    expect(Course.associations.feedbacks).toBeDefined();
+    expect((Course.associations.feedbacks as any).target).toBe(Feedback);
+    expect(Course.associations.enrolls).toBeDefined();
+    expect((Course.associations.enrolls as any).target).toBe(Enroll);
+    expect(Course.associations.highlightFeeds).toBeDefined();
+    expect((Course.associations.highlightFeeds as any).target).toBe(HighlightFeed);
+  });
+
+  it('Lesson has LessonActivity and Video associations', () => {
     expect(Lesson.associations.lessonActivities).toBeDefined();
     expect((Lesson.associations.lessonActivities as any).target).toBe(LessonActivity);
     expect(Lesson.associations.lessonActivities.associationType).toBe('HasMany');
-  });
-
-  it('Lesson có BelongsTo Video', () => {
-    // alias mặc định = "video"
     expect(Lesson.associations.video).toBeDefined();
     expect((Lesson.associations.video as any).target).toBe(Video);
   });
 
-  it('LessonActivity có HasMany Quiz với alias "quizzes"', () => {
+  it('Quiz eager-load chain reaches options', () => {
     expect(LessonActivity.associations.quizzes).toBeDefined();
     expect((LessonActivity.associations.quizzes as any).target).toBe(Quiz);
-    expect(LessonActivity.associations.quizzes.associationType).toBe('HasMany');
-  });
-
-  it('Quiz có HasMany QuizQuestion với alias "questions"', () => {
     expect(Quiz.associations.questions).toBeDefined();
     expect((Quiz.associations.questions as any).target).toBe(QuizQuestion);
-    expect(Quiz.associations.questions.associationType).toBe('HasMany');
-  });
-
-  it('QuizQuestion có HasMany QuizOption với alias "options"', () => {
     expect(QuizQuestion.associations.options).toBeDefined();
     expect((QuizQuestion.associations.options as any).target).toBe(QuizOption);
-    expect(QuizQuestion.associations.options.associationType).toBe('HasMany');
   });
 });

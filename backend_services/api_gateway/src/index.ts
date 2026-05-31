@@ -142,6 +142,7 @@ app.use((req: AuthRequest, res: Response, next: NextFunction) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/instructor', instructorRoutes);
+app.use('/api/instructors', userRoutes);
 app.use('/api/course', courseRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/media', mediaRoutes);

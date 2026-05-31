@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -19,16 +18,88 @@ echo "Cleaning up existing ngrok sessions..."
 killall ngrok 2>/dev/null || true
 sleep 1
 
-echo "Step 1: Starting API Gateway and other backend services using PM2..."
+echo "Step 1: Resolving PM2 command..."
 # Using npx to run pm2 in case it's not installed globally
 PM2_CMD="npx pm2"
 if command -v pm2 &> /dev/null; then
   PM2_CMD="pm2"
 fi
 
-$PM2_CMD start ecosystem.config.js || $PM2_CMD restart all
+# --- Build helpers -----------------------------------------------------------
+# A service needs rebuilding when its compiled entry is missing, or any file
+# under src/ is newer than that entry (i.e. source changed since last build).
+needs_build() {
+  local out="$1"     # absolute path to compiled entry, e.g. .../dist/main.js
+  local srcdir="$2"  # absolute path to .../src
+  [ -f "$out" ] || return 0
+  [ -d "$srcdir" ] || return 1
+  [ -n "$(find "$srcdir" -type f -newer "$out" -print -quit 2>/dev/null)" ]
+}
 
-echo "Step 2: Starting ngrok for API Gateway (Port $GATEWAY_PORT)..."
+run_build() {
+  local dir="$1"
+  if [ -f "$dir/yarn.lock" ]; then
+    ( cd "$dir" && { [ -d node_modules ] || yarn install --frozen-lockfile || yarn install; } && yarn build )
+  else
+    ( cd "$dir" && { [ -d node_modules ] || npm install; } && npm run build )
+  fi
+}
+
+echo "Step 2: Building service dist/ if sources changed..."
+# Enumerate apps declared in ecosystem.config.js as: name<TAB>cwd<TAB>script
+APPS=$(node -e 'const c=require("./ecosystem.config.js");for(const a of c.apps){process.stdout.write(`${a.name}\t${a.cwd}\t${a.script}\n`)}')
+while IFS=$'\t' read -r APP_NAME APP_CWD APP_SCRIPT; do
+  [ -z "$APP_NAME" ] && continue
+  case "$APP_SCRIPT" in
+    dist/*)
+      OUT="$APP_CWD/$APP_SCRIPT"
+      SRC="$APP_CWD/src"
+      if needs_build "$OUT" "$SRC"; then
+        echo "  ↻ $APP_NAME: source changed → building..."
+        run_build "$APP_CWD"
+      else
+        echo "  ✓ $APP_NAME: dist up-to-date"
+      fi
+      ;;
+    *)
+      echo "  • $APP_NAME: runs $APP_SCRIPT (no build step)"
+      ;;
+  esac
+done <<EOF
+$APPS
+EOF
+
+echo "Step 3: Starting/reloading backend services with PM2..."
+# startOrReload only touches apps declared in ecosystem.config.js — unrelated
+# pm2 processes are left alone — and it loads the freshly built dist/.
+$PM2_CMD startOrReload ecosystem.config.js --update-env
+
+# Recover anything left in an errored/stopped state: restart once, then report
+# whatever is still broken so it doesn't fail silently.
+list_broken() {
+  $PM2_CMD jlist 2>/dev/null | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{let l=[];try{l=JSON.parse(d)}catch(e){}for(const p of l){const s=p.pm2_env&&p.pm2_env.status;if(s==="errored"||s==="stopped")console.log(p.name)}})'
+}
+BROKEN=$(list_broken || true)
+if [ -n "$BROKEN" ]; then
+  echo "Step 3b: Recovering errored/stopped services..."
+  while IFS= read -r svc; do
+    [ -z "$svc" ] && continue
+    echo "  ↻ restarting $svc ..."
+    $PM2_CMD restart "$svc" --update-env >/dev/null 2>&1 || true
+  done <<< "$BROKEN"
+  sleep 2
+  STILL=$(list_broken || true)
+  if [ -n "$STILL" ]; then
+    echo "  ⚠️  Still not running (inspect with: pm2 logs <name>):"
+    echo "$STILL" | sed 's/^/      - /'
+  else
+    echo "  ✓ all services recovered"
+  fi
+fi
+
+$PM2_CMD save >/dev/null 2>&1 || true
+
+echo "Step 4: Starting ngrok for API Gateway (Port $GATEWAY_PORT)..."
 # Start ngrok in background
 ngrok http $GATEWAY_PORT --log=stdout > /tmp/ngrok_gateway.log &
 NGROK_GW_PID=$!

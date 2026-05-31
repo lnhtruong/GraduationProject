@@ -21,6 +21,8 @@ import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 import { InstructorRevenueModule } from './instructor-revenue/instructor-revenue.module';
+import { DiscussionsModule } from './discussions/discussions.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { InstructorRevenueModule } from './instructor-revenue/instructor-revenue
     ReportsModule,
     QuizSubmissionsModule,
     InstructorRevenueModule,
+    DiscussionsModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -23,6 +23,12 @@ import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { PaymentTransaction } from 'src/models/transaction.model';
 import { TransactionItem } from 'src/models/transaction-item.model';
+import { HighlightFeed } from 'src/models/highlight-feed.model';
+import { DiscussionPost } from 'src/models/discussion-post.model';
+import { DiscussionUpvote } from 'src/models/discussion-upvote.model';
+import { Wishlist } from 'src/models/wishlist.model';
+import { InstructorFollow } from 'src/models/instructor-follow.model';
+import { Notification } from 'src/models/notification.model';
 
 @Module({
   imports: [
@@ -54,6 +60,12 @@ import { TransactionItem } from 'src/models/transaction-item.model';
             QuizOption,
             PaymentTransaction,
             TransactionItem,
+            HighlightFeed,
+            DiscussionPost,
+            DiscussionUpvote,
+            Wishlist,
+            InstructorFollow,
+            Notification,
           ],
           autoLoadModels: true,
           synchronize: false, // Set to true to create new tables (carts, cart_items)
