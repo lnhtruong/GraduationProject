@@ -258,21 +258,32 @@ export function NewsfeedVideoCard({
       return;
     }
 
+    const tryPlay = async () => {
+      await element.play();
+      setIsPaused(false);
+    };
+
     if (element.paused) {
       try {
-        await element.play();
-        setIsPaused(false);
+        await tryPlay();
       } catch (error) {
         if (isAbortError(error)) {
           return;
         }
+        const shouldRestoreAudio = !element.muted;
         element.muted = true;
-        setIsMuted(true);
         try {
-          await element.play();
-          setIsPaused(false);
+          await tryPlay();
+          if (shouldRestoreAudio) {
+            window.setTimeout(() => {
+              const currentElement = videoRef.current;
+              if (currentElement) {
+                currentElement.muted = false;
+              }
+            }, 0);
+          }
         } catch {
-          // Ignore secondary playback failures.
+          setIsPaused(true);
         }
       }
       return;
@@ -327,14 +338,22 @@ export function NewsfeedVideoCard({
             return;
           }
 
+          const shouldRestoreAudio = !element.muted;
           element.muted = true;
-          setIsMuted(true);
           void element.play()
             .then(() => {
               setIsPaused(false);
+              if (shouldRestoreAudio) {
+                window.setTimeout(() => {
+                  const currentElement = videoRef.current;
+                  if (currentElement) {
+                    currentElement.muted = false;
+                  }
+                }, 0);
+              }
             })
             .catch(() => {
-              // Ignore secondary playback failures.
+              setIsPaused(true);
             });
         });
       return;

@@ -212,7 +212,7 @@ export default function Home() {
               {continueWatchingList.map((item) => (
                 <Link
                   key={`${item.lessonProgressId}-${item.lessonId}`}
-                  href={`/courses/${item.courseId}/learn?lessonId=${item.lessonId}&resume=1&resumeSec=${Math.max(0, item.lastVideoPositionSec)}`}
+                  href={`/courses/${item.courseId}/learn?lessonId=${item.lessonId}&resume=1&resumeSec=${Math.max(0, item.lastVideoPositionMs / 1000)}`}
                 >
                   <Card className="group h-full overflow-hidden border-border/60 bg-card/90 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg">
                     <CardContent className="p-0">
@@ -251,9 +251,9 @@ export default function Home() {
                         </h3>
                         <p className="text-xs text-muted-foreground">
                           Đã xem đến{" "}
-                          {Math.floor(item.lastVideoPositionSec / 60)}:
+                          {Math.floor(item.lastVideoPositionMs / 1000 / 60)}:
                           {String(
-                            Math.floor(item.lastVideoPositionSec % 60),
+                            Math.floor((item.lastVideoPositionMs / 1000) % 60),
                           ).padStart(2, "0")}
                         </p>
                         <div className="flex items-center justify-between gap-3">

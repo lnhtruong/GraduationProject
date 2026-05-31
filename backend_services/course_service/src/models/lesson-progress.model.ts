@@ -69,9 +69,9 @@ export class LessonProgress extends Model {
     type: DataType.INTEGER,
     allowNull: false,
     defaultValue: 0,
-    field: 'last_video_position_sec',
+    field: 'last_video_position_ms',
   })
-  declare lastVideoPositionSec: number;
+  declare lastVideoPositionMs: number;
 
   @Column({
     type: DataType.DATE,

@@ -18,6 +18,7 @@ function isNewsfeedPlaybackRate(value: string): value is NewsfeedPlaybackRate {
 interface NewsfeedVideoFeedProps {
   videos: NewsfeedItem[];
   activeIndex: number;
+  scrollToIndex?: number | null;
   onActiveIndexChange: (index: number) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
@@ -28,6 +29,7 @@ interface NewsfeedVideoFeedProps {
 export function NewsfeedVideoFeed({
   videos,
   activeIndex,
+  scrollToIndex,
   onActiveIndexChange,
   onOpenCourse,
   onOpenComments,
@@ -93,17 +95,21 @@ export function NewsfeedVideoFeed({
   }, [onActiveIndexChange, videos.length]);
 
   useEffect(() => {
-    const target = itemRefs.current.get(activeIndex);
+    if (scrollToIndex == null) {
+      return;
+    }
+
+    const target = itemRefs.current.get(scrollToIndex);
     if (!target) {
       return;
     }
     ignoreObserverRef.current = true;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    target.scrollIntoView({ behavior: "auto", block: "start" });
     const timeout = window.setTimeout(() => {
       ignoreObserverRef.current = false;
-    }, 360);
+    }, 120);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex]);
+  }, [scrollToIndex]);
 
   const nextIndex = useMemo(() => activeIndex + 1, [activeIndex]);
 
@@ -118,7 +124,7 @@ export function NewsfeedVideoFeed({
     >
       {videos.map((video, index) => (
         <div
-          key={video.id}
+          key={video.feedId}
           ref={(node) => setItemRef(index, node)}
           data-index={index}
           className="snap-start"

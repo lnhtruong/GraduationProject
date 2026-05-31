@@ -120,7 +120,9 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
-  { method: 'GET', pattern: '/api/course/courses', access: 'roles', roles: [UserRole.ADMIN, UserRole.STUDENT] },
+  { method: 'GET', pattern: '/api/course/courses/search', access: 'public' },
+  { method: 'GET', pattern: '/api/course/categories', access: 'public' },
+  { method: 'GET', pattern: '/api/course/courses', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'authenticated' },
@@ -377,6 +379,11 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'POST',
     pattern: '/api/course/carts/items',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/carts/items/:courseId/save',
     access: 'authenticated',
   },
   {
