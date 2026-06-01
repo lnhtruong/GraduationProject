@@ -14,6 +14,7 @@ import userRoutes from './routes/user.routes';
 import mediaRoutes from './routes/media.routes';
 import mascotColabRoutes from './routes/mascot_colab_routes';
 import courseRoutes from './routes/course.routes';
+import instructorRoutes from './routes/instructor.routes';
 import paymentRoutes from './routes/payment.routes';
 import feedRoutes from './routes/feed.routes';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -140,9 +141,7 @@ app.use((req: AuthRequest, res: Response, next: NextFunction) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-// BE-06: instructor follow API lives in user_service; mount it under
-// /api/instructors using the same proxy so pathRewrite ^/api strips the prefix
-// and user_service receives /instructors/...
+app.use('/api/instructor', instructorRoutes);
 app.use('/api/instructors', userRoutes);
 app.use('/api/course', courseRoutes);
 app.use('/api/payment', paymentRoutes);

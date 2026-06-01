@@ -25,4 +25,4 @@ import { Notification } from '../models/notification.model';
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }
