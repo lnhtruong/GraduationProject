@@ -10,6 +10,7 @@ import {
   Heart,
   Flame,
   CheckCircle2,
+  DollarSign,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,6 +21,7 @@ import {
 import { CourseStatsSection } from "./CourseStatsSection";
 import { FeedStatsSection } from "./FeedStatsSection";
 import { TrendingFeedSection } from "./TrendingFeedSection";
+import { RevenueTab } from "./RevenueTab";
 import type { StatPeriod } from "../../analytics/types";
 
 // ── Period selector ───────────────────────────────────────────────────────────
@@ -287,6 +289,17 @@ export default function AnalyticsPage() {
             isLoading={trendingLoading}
           />
         </div>
+      </div>
+
+      {/* ── Section 4: Thu nhập ── */}
+      <div className="space-y-3">
+        <SectionHeader
+          label="Thu nhập"
+          sublabel="Doanh thu từ khoá học và lịch sử giao dịch"
+          icon={DollarSign}
+          iconColor="text-emerald-600 dark:text-emerald-400"
+        />
+        <RevenueTab />
       </div>
     </div>
   );
