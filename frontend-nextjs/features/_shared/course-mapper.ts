@@ -2,6 +2,15 @@ import type { CourseCardData } from "./course-card.types";
 
 const PLACEHOLDER_THUMBNAIL = "https://placehold.co/320x180/png?text=thumbnail";
 
+function parseNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /** Raw shape BE trả về từ GET /course/courses và GET /course/courses/:id */
 export type CourseRaw = {
   id: number;
@@ -46,7 +55,8 @@ export function mapCourseRaw(raw: CourseRaw): CourseCardData {
 
   const inst = raw.instructor;
   const instructorName = inst
-    ? `${inst.first_name ?? inst.firstName ?? ""} ${inst.last_name ?? inst.lastName ?? ""}`.trim() || null
+    ? `${inst.first_name ?? inst.firstName ?? ""} ${inst.last_name ?? inst.lastName ?? ""}`.trim() ||
+      null
     : null;
   const instructorAvatar = inst?.avatar_url ?? inst?.avatarUrl ?? null;
 
@@ -55,9 +65,9 @@ export function mapCourseRaw(raw: CourseRaw): CourseCardData {
     title: raw.name,
     instructorName,
     instructorAvatar,
-    avgRating: raw.avg_rating ?? null,
-    reviewCount: raw.review_count ?? null,
-    enrolledCount: raw.enrolled_count ?? null,
+    avgRating: parseNullableNumber(raw.avg_rating),
+    reviewCount: parseNullableNumber(raw.review_count),
+    enrolledCount: parseNullableNumber(raw.enrolled_count),
     price: raw.price === 0 ? null : raw.price,
     category: cats[0]?.name ?? null,
     thumbnailUrl: thumbnail,

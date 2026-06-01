@@ -10,6 +10,19 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course }: CourseCardProps) {
+  const avgRating =
+    typeof course.avgRating === "number"
+      ? course.avgRating
+      : Number(course.avgRating);
+  const reviewCount =
+    typeof course.reviewCount === "number"
+      ? course.reviewCount
+      : Number(course.reviewCount);
+  const enrolledCount =
+    typeof course.enrolledCount === "number"
+      ? course.enrolledCount
+      : Number(course.enrolledCount);
+
   return (
     <Link href={`/courses/${course.id}`}>
       <Card className="group h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
@@ -67,23 +80,23 @@ export function CourseCard({ course }: CourseCardProps) {
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-3">
               {/* Rating — chỉ hiện khi có data thật */}
-              {course.avgRating !== null && course.avgRating > 0 && (
+              {Number.isFinite(avgRating) && avgRating > 0 && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                   <span className="font-medium text-foreground">
-                    {course.avgRating.toFixed(1)}
+                    {avgRating.toFixed(1)}
                   </span>
-                  {course.reviewCount !== null && course.reviewCount > 0 && (
-                    <span>({course.reviewCount.toLocaleString()})</span>
+                  {Number.isFinite(reviewCount) && reviewCount > 0 && (
+                    <span>({reviewCount.toLocaleString()})</span>
                   )}
                 </span>
               )}
 
               {/* Enrolled — chỉ hiện khi có data thật */}
-              {course.enrolledCount !== null && course.enrolledCount > 0 && (
+              {Number.isFinite(enrolledCount) && enrolledCount > 0 && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Users className="h-3 w-3" />
-                  <span>{course.enrolledCount.toLocaleString()}</span>
+                  <span>{enrolledCount.toLocaleString()}</span>
                 </span>
               )}
             </div>
