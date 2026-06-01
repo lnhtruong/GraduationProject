@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -30,25 +30,26 @@ import {
   useRejectCourse,
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
-import { useDebounce } from "@/hooks/useDebounce";
 
 type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
 type PriceFilter = "all" | "free" | "under200" | "200to500" | "over500";
 
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 400;
 
-const PRICE_RANGES: Record<PriceFilter, { label: string; test: (p: number) => boolean }> = {
-  all:       { label: "Tất cả giá",    test: () => true },
-  free:      { label: "Miễn phí",      test: (p) => p === 0 },
-  under200:  { label: "Dưới 200k",     test: (p) => p > 0 && p < 200_000 },
-  "200to500":{ label: "200k – 500k",   test: (p) => p >= 200_000 && p <= 500_000 },
-  over500:   { label: "Trên 500k",     test: (p) => p > 500_000 },
+const PRICE_RANGES: Record<PriceFilter, { label: string; minPrice?: number; maxPrice?: number }> = {
+  all:        { label: "Tất cả giá" },
+  free:       { label: "Miễn phí",    minPrice: 0,       maxPrice: 0 },
+  under200:   { label: "Dưới 200k",   minPrice: 1,       maxPrice: 199_999 },
+  "200to500": { label: "200k – 500k", minPrice: 200_000, maxPrice: 500_000 },
+  over500:    { label: "Trên 500k",   minPrice: 500_001 },
 };
 
 type ConfirmAction = { type: "approve"; course: Course } | { type: "reject"; course: Course };
 
 export default function AdminCoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
@@ -57,18 +58,34 @@ export default function AdminCoursesPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { setSearch(searchInput); resetPages(); }, SEARCH_DEBOUNCE_MS);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  const priceRange = PRICE_RANGES[priceFilter];
+  const serverFilters = {
+    search: search || undefined,
+    level: levelFilter !== "all" ? levelFilter : undefined,
+    minPrice: priceRange.minPrice,
+    maxPrice: priceRange.maxPrice,
+  };
 
   const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminCoursesPaginated({
     status: "pending",
     page: pendingPage,
     limit: PAGE_SIZE,
+    ...serverFilters,
   });
   const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminCoursesPaginated({
     page: allPage,
     limit: PAGE_SIZE,
+    ...serverFilters,
   });
-
-  const debouncedSearch = useDebounce(search, 300);
 
   const { data: pendingStats } = useAdminCourseStats("pending");
   const { data: approvedStats } = useAdminCourseStats("approved");
@@ -83,29 +100,12 @@ export default function AdminCoursesPage() {
   const pendingTotalPages = pendingData?.pagination.totalPages ?? 1;
   const allTotalPages     = allData?.pagination.totalPages     ?? 1;
 
-  // Client-side filters: search + level + price (applied on current page)
-  function applyClientFilters(courses: Course[]) {
-    const keyword = debouncedSearch.trim().toLowerCase();
-    return courses.filter((c) => {
-      const bySearch =
-        !keyword ||
-        c.name.toLowerCase().includes(keyword) ||
-        (c.description ?? "").toLowerCase().includes(keyword) ||
-        c.categories.some((cat) => cat.toLowerCase().includes(keyword));
-      const byLevel = levelFilter === "all" || c.level === levelFilter;
-      const byPrice = PRICE_RANGES[priceFilter].test(c.price);
-      return bySearch && byLevel && byPrice;
-    });
-  }
-
   function resetPages() {
     setPendingPage(1);
     setAllPage(1);
   }
 
-  const filteredPending = applyClientFilters(pendingData?.data ?? []);
-  const filteredAll     = applyClientFilters(allData?.data     ?? []);
-  const isFiltering = debouncedSearch.trim() !== "" || levelFilter !== "all" || priceFilter !== "all";
+  const isFiltering = search.trim() !== "" || levelFilter !== "all" || priceFilter !== "all";
 
   const approve = useApproveCourse();
   const reject  = useRejectCourse();
@@ -196,9 +196,9 @@ export default function AdminCoursesPage() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); resetPages(); }}
-                placeholder="Tìm theo tên, mô tả, danh mục..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Tìm theo tên khoá học..."
                 className="h-9 w-64 pl-8 text-sm"
               />
             </div>
@@ -234,12 +234,13 @@ export default function AdminCoursesPage() {
             </Select>
 
             {/* Clear filters */}
-            {(search || levelFilter !== "all" || priceFilter !== "all") && (
+            {(searchInput || levelFilter !== "all" || priceFilter !== "all") && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => {
+                  setSearchInput("");
                   setSearch("");
                   setLevelFilter("all");
                   setPriceFilter("all");
@@ -264,7 +265,7 @@ export default function AdminCoursesPage() {
             ) : (
               <>
                 <AdminCourseTable
-                  courses={filteredPending}
+                  courses={pendingData?.data ?? []}
                   isLoading={isPendingLoading}
                   isFiltering={isFiltering}
                   showActions
@@ -300,7 +301,7 @@ export default function AdminCoursesPage() {
             ) : (
               <>
                 <AdminCourseTable
-                  courses={filteredAll}
+                  courses={allData?.data ?? []}
                   isLoading={isAllLoading}
                   isFiltering={isFiltering}
                   showActions

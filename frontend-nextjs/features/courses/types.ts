@@ -176,4 +176,9 @@ export type CourseListParams = {
   status?: CourseStatus;
   page?: number;
   limit?: number;
+  search?: string;
+  level?: CourseLevel;
+  minPrice?: number;
+  maxPrice?: number;
+  userId?: number;
 };

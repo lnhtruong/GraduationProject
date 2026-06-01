@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
-import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, AlertTriangle, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { Clock4, CheckCircle2, XCircle, Flag, BookOpen, PlayCircle, GraduationCap, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, Search, AlertTriangle, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -20,34 +21,41 @@ type TypeFilter = "all" | ReportTargetType;
 type SortOrder = "newest" | "oldest";
 
 const PAGE_SIZE = 10;
-
-function sortReports(reports: Report[], order: SortOrder): Report[] {
-  return [...reports].sort((a, b) => {
-    const ta = new Date(a.created_at).getTime();
-    const tb = new Date(b.created_at).getTime();
-    return order === "newest" ? tb - ta : ta - tb;
-  });
-}
+const SEARCH_DEBOUNCE_MS = 400;
 
 export default function AdminReportsPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [pendingPage, setPendingPage] = useState(1);
   const [allPage, setAllPage] = useState(1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { setSearch(searchInput); setPendingPage(1); setAllPage(1); }, SEARCH_DEBOUNCE_MS);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchInput]);
 
   const targetType = typeFilter === "all" ? undefined : typeFilter;
+  const serverSortOrder = sortOrder === "newest" ? "desc" : "asc";
 
   const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminReports({
     status: "pending",
     targetType,
     page: pendingPage,
     limit: PAGE_SIZE,
+    sortOrder: serverSortOrder,
+    search: search || undefined,
   });
   const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminReports({
     targetType,
     page: allPage,
     limit: PAGE_SIZE,
+    sortOrder: serverSortOrder,
+    search: search || undefined,
   });
   const { data: approvedData } = useAdminReports({ status: "approved", limit: 1 });
   const { data: rejectedData } = useAdminReports({ status: "rejected", limit: 1 });
@@ -60,9 +68,6 @@ export default function AdminReportsPage() {
 
   const pendingTotalPages = pendingData?.pagination.totalPages ?? 1;
   const allTotalPages = allData?.pagination.totalPages ?? 1;
-
-  const sortedPending = useMemo(() => sortReports(pendingData?.items ?? [], sortOrder), [pendingData, sortOrder]);
-  const sortedAll     = useMemo(() => sortReports(allData?.items     ?? [], sortOrder), [allData,     sortOrder]);
 
   const handleTypeFilter = (v: string) => {
     setTypeFilter(v as TypeFilter);
@@ -126,7 +131,18 @@ export default function AdminReportsPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Row 2: filters */}
+          {/* Row 2: search */}
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm theo lý do báo cáo..."
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+
+          {/* Row 3: filters */}
           <div className="flex flex-wrap items-center gap-2">
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 
@@ -168,12 +184,12 @@ export default function AdminReportsPage() {
             </Select>
 
             {/* Clear filters */}
-            {(typeFilter !== "all" || sortOrder !== "newest") && (
+            {(typeFilter !== "all" || sortOrder !== "newest" || searchInput) && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => { setTypeFilter("all"); setSortOrder("newest"); setPendingPage(1); setAllPage(1); }}
+                onClick={() => { setTypeFilter("all"); setSortOrder("newest"); setSearchInput(""); setSearch(""); setPendingPage(1); setAllPage(1); }}
               >
                 Xóa filter
               </Button>
@@ -195,7 +211,7 @@ export default function AdminReportsPage() {
             ) : (
               <>
                 <AdminReportTable
-                  reports={sortedPending}
+                  reports={pendingData?.items ?? []}
                   isLoading={isPendingLoading}
                   onViewDetail={setSelectedReport}
                 />
@@ -225,7 +241,7 @@ export default function AdminReportsPage() {
             ) : (
               <>
                 <AdminReportTable
-                  reports={sortedAll}
+                  reports={allData?.items ?? []}
                   isLoading={isAllLoading}
                   onViewDetail={setSelectedReport}
                 />
