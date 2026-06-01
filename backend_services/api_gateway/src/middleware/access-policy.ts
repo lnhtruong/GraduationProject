@@ -403,10 +403,10 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
   {
-    method: 'POST',
-    pattern: '/api/course/lesson-progress',
-    access: 'roles',
-    roles: [UserRole.ADMIN, UserRole.LECTURER],
+    method: "POST",
+    pattern: "/api/course/lesson-progress",
+    access: "roles",
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'GET',

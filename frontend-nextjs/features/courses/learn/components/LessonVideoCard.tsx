@@ -8,8 +8,6 @@ import {
   Pause,
   Play,
   PlayCircle,
-  Rewind,
-  FastForward,
   Volume2,
   VolumeX,
   Sparkles,
@@ -191,24 +189,7 @@ export function LessonVideoCard({
   return (
     <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
       <CardContent className="space-y-4 p-3 sm:p-4 lg:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-[1.75rem] border border-border/60 bg-background/80 px-4 py-3 shadow-sm backdrop-blur-sm">
-          <div className="min-w-0 space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Player
-            </p>
-            <h2 className="line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg">
-              {lessonTitle ?? "Bài học video"}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1">
-              {currentLessonDurationLabel}
-            </span>
-            <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1">
-              {playbackRate}x
-            </span>
-          </div>
-        </div>
+        {/* header removed: showing only the player for a cleaner layout */}
 
         <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black p-2 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
           <div
@@ -292,12 +273,7 @@ export function LessonVideoCard({
               </button>
             ) : null}
 
-            <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 text-[11px] text-white/85 backdrop-blur-md">
-              <span
-                className={`h-2 w-2 rounded-full ${isPlaying ? "bg-emerald-400" : "bg-amber-300"}`}
-              />
-              {isPlaying ? "Đang phát" : "Đang tạm dừng"}
-            </div>
+            {/* top-left status badge removed - using per-control tooltips only */}
 
             <AnimatePresence>
               {activeQuizPoint ? (
@@ -305,14 +281,14 @@ export function LessonVideoCard({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                  className="absolute inset-0 z-45 flex items-center justify-center bg-black/50 p-3 backdrop-blur-[2px] sm:p-5"
+                  className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
                 >
-                  <div className="relative w-[92%] max-w-2xl rounded-3xl border border-white/15 bg-slate-950/78 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-6">
+                  <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
                     <div className="text-center">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
                         Kiem tra nhanh
                       </p>
-                      <h3 className="mt-3 text-lg font-semibold leading-snug text-white sm:text-xl">
+                      <h3 className="mt-3 text-lg font-semibold leading-snug text-white sm:text-xl whitespace-pre-wrap break-words">
                         {activeQuizPoint.question}
                       </h3>
                     </div>
@@ -358,11 +334,8 @@ export function LessonVideoCard({
                           <button
                             key={`${activeQuizPoint.id}-${optionIndex}`}
                             type="button"
-                            disabled={
-                              submitted ||
-                              inVideoAnswers[activeQuizPoint.id] !== undefined
-                            }
-                            className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
+                            disabled={submitted}
+                            className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
                             onClick={() =>
                               onSelectInVideoAnswer(
                                 activeQuizPoint.id,
@@ -375,7 +348,7 @@ export function LessonVideoCard({
                             >
                               {String.fromCharCode(65 + optionIndex)}
                             </div>
-                            <span className="flex-1 text-sm font-medium sm:text-base">
+                            <span className="flex-1 min-w-0 break-words text-sm font-medium sm:text-base">
                               {option}
                             </span>
                             {isCorrectAnswer ? (
@@ -452,9 +425,9 @@ export function LessonVideoCard({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                  className="absolute inset-0 z-46 flex items-center justify-center bg-black/50 p-3 backdrop-blur-[2px] sm:p-5"
+                  className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
                 >
-                  <div className="relative w-[92%] max-w-2xl rounded-3xl border border-white/15 bg-slate-950/78 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-6">
+                  <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
                     <div className="text-center">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
                         Kiem tra nhanh
@@ -472,7 +445,7 @@ export function LessonVideoCard({
                               key={question.id}
                               className="rounded-2xl border border-white/12 bg-white/5 p-3 text-white"
                             >
-                              <p className="mb-2 text-sm font-medium text-white">
+                              <p className="mb-2 text-sm font-medium text-white whitespace-pre-wrap break-words">
                                 Câu {questionIndex + 1}: {question.question}
                               </p>
                               <div className="mt-4 space-y-3">
@@ -518,7 +491,7 @@ export function LessonVideoCard({
                                       key={`${question.id}-${optionIndex}`}
                                       type="button"
                                       disabled={afterLessonSubmitted}
-                                      className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
+                                      className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
                                       onClick={() =>
                                         onSelectAfterLessonAnswer(
                                           question.id,
@@ -531,7 +504,7 @@ export function LessonVideoCard({
                                       >
                                         {String.fromCharCode(65 + optionIndex)}
                                       </div>
-                                      <span className="flex-1 text-base font-medium">
+                                      <span className="flex-1 min-w-0 break-words text-base font-medium">
                                         {option}
                                       </span>
                                       {isCorrectAnswer ? (
@@ -670,24 +643,12 @@ export function LessonVideoCard({
               ) : null}
             </AnimatePresence>
 
-            <div className="pointer-events-none absolute left-4 top-4 z-10 hidden max-w-[70%] rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[11px] text-white/80 shadow-lg backdrop-blur-md sm:block">
-              Phím tắt: Space để phát/tạm dừng, ←/→ để tua, M để tắt âm, F để
-              toàn màn hình
-            </div>
+            {/* Top-left help removed: prefer per-control tooltips that appear on hover like Windows Media Player */}
 
             <div
               className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${playerBlocked ? "pointer-events-none opacity-40" : controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
-              <div className="mb-3 flex items-center justify-between text-[11px] text-white/75">
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/8 px-2.5 py-1 backdrop-blur-md">
-                  <Rewind className="h-3 w-3" />
-                  -10s
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/8 px-2.5 py-1 backdrop-blur-md">
-                  <FastForward className="h-3 w-3" />
-                  +10s
-                </span>
-              </div>
+              {/* Skip buttons removed: using per-control tooltips only */}
 
               <div
                 className="group relative mb-3 flex h-4 w-full cursor-pointer items-center"
@@ -769,37 +730,59 @@ export function LessonVideoCard({
 
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                  <button
-                    type="button"
-                    onClick={onTogglePlayback}
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
-                    aria-label={isPlaying ? "Pause video" : "Play video"}
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="ml-0.5 h-5 w-5" />
-                    )}
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={onTogglePlayback}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
+                        aria-label={isPlaying ? "Pause video" : "Play video"}
+                      >
+                        {isPlaying ? (
+                          <Pause className="h-5 w-5" />
+                        ) : (
+                          <Play className="ml-0.5 h-5 w-5" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
+                    >
+                      <span className="sr-only">Phát/Tạm dừng</span>
+                      {isPlaying ? "Tạm dừng (Space)" : "Phát (Space)"}
+                    </TooltipContent>
+                  </Tooltip>
 
                   <div className="group flex items-center">
-                    <button
-                      type="button"
-                      onClick={onToggleMute}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
-                      aria-label={
-                        isMuted || volume === 0
-                          ? "Bật âm lượng"
-                          : "Tắt âm lượng"
-                      }
-                      title="Âm lượng"
-                    >
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="h-4.5 w-4.5" />
-                      ) : (
-                        <Volume2 className="h-4.5 w-4.5" />
-                      )}
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={onToggleMute}
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+                          aria-label={
+                            isMuted || volume === 0
+                              ? "Bật âm lượng"
+                              : "Tắt âm lượng"
+                          }
+                        >
+                          {isMuted || volume === 0 ? (
+                            <VolumeX className="h-4.5 w-4.5" />
+                          ) : (
+                            <Volume2 className="h-4.5 w-4.5" />
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
+                      >
+                        {isMuted || volume === 0
+                          ? "Bật âm lượng (M)"
+                          : "Tắt âm lượng (M)"}
+                      </TooltipContent>
+                    </Tooltip>
 
                     <div className="w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:w-18 group-hover:opacity-100 sm:group-hover:w-24">
                       <input
@@ -825,47 +808,72 @@ export function LessonVideoCard({
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <Select
-                    value={String(playbackRate)}
-                    onValueChange={(value) => onSetPlaybackRate(Number(value))}
-                  >
-                    <SelectTrigger
-                      className="h-8 w-17 border border-white/20 bg-black/45 px-2 text-[13px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.25)] transition-all hover:border-white/35 hover:bg-black/60 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_10px_24px_rgba(0,0,0,0.32)] focus:border-white/40 focus:ring-0 focus:ring-offset-0"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <SelectValue placeholder="1x" />
-                    </SelectTrigger>
-                    <SelectContent
-                      align="end"
-                      side="top"
-                      sideOffset={12}
-                      className="border-white/10 bg-black/90 text-white backdrop-blur-md"
-                    >
-                      {PLAYBACK_RATES.map((rate) => (
-                        <SelectItem
-                          key={rate}
-                          value={String(rate)}
-                          className="focus:bg-white/20 focus:text-white"
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Select
+                          value={String(playbackRate)}
+                          onValueChange={(value) =>
+                            onSetPlaybackRate(Number(value))
+                          }
                         >
-                          {rate}x
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          <SelectTrigger
+                            className="h-8 w-17 border border-white/20 bg-black/45 px-2 text-[13px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.25)] transition-all hover:border-white/35 hover:bg-black/60 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_10px_24px_rgba(0,0,0,0.32)] focus:border-white/40 focus:ring-0 focus:ring-offset-0"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <SelectValue placeholder="1x" />
+                          </SelectTrigger>
+                          <SelectContent
+                            align="end"
+                            side="top"
+                            sideOffset={12}
+                            className="border-white/10 bg-black/90 text-white backdrop-blur-md"
+                          >
+                            {PLAYBACK_RATES.map((rate) => (
+                              <SelectItem
+                                key={rate}
+                                value={String(rate)}
+                                className="focus:bg-white/20 focus:text-white"
+                              >
+                                {rate}x
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
+                    >
+                      Tốc độ phát: {playbackRate}x
+                    </TooltipContent>
+                  </Tooltip>
 
-                  <button
-                    type="button"
-                    onClick={onToggleFullscreen}
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
-                    aria-label="Toàn màn hình"
-                    title="Toàn màn hình"
-                  >
-                    {isFullscreen ? (
-                      <Minimize className="h-4.5 w-4.5" />
-                    ) : (
-                      <Maximize className="h-4.5 w-4.5" />
-                    )}
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={onToggleFullscreen}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+                        aria-label="Toàn màn hình"
+                      >
+                        {isFullscreen ? (
+                          <Minimize className="h-4.5 w-4.5" />
+                        ) : (
+                          <Maximize className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
+                    >
+                      {isFullscreen
+                        ? "Thoát toàn màn hình (F)"
+                        : "Toàn màn hình (F)"}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </div>

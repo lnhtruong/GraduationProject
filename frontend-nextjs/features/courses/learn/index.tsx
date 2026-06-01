@@ -85,12 +85,16 @@ export default function CourseLearnPage({ courseId }: Props) {
       </div>
 
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
-        <div className="mb-5 flex items-center justify-between gap-3 text-sm text-muted-foreground">
-          Khóa học <span className="px-1">&gt;</span> {state.course.name}{" "}
-          <span className="px-1">&gt;</span> {state.selectedLesson.title}
-          <span className="hidden rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs text-muted-foreground xl:inline-flex">
-            Phát video, tua nhanh, resume và tiếp tục học theo kiểu watch page
-          </span>
+        <div className="mb-5 flex items-center gap-3 text-sm text-muted-foreground">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <span>Khóa học</span>
+            <span className="opacity-60">›</span>
+            <span className="truncate max-w-[24rem]">{state.course.name}</span>
+            <span className="opacity-60">›</span>
+            <span className="font-semibold truncate max-w-[24rem]">
+              {state.selectedLesson.title}
+            </span>
+          </nav>
         </div>
 
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">

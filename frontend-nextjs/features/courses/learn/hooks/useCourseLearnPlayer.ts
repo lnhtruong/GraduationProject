@@ -15,6 +15,7 @@ import {
   type ConfettiPiece,
   type InVideoQuizPoint,
 } from "../utils";
+import type { SubmitQuizPayload } from "../types";
 
 interface Props {
   selectedLesson?: InstructorLesson;
@@ -29,8 +30,13 @@ interface Props {
     lessonProgressId?: number | null,
   ) => void;
   onHeartbeat: (lessonProgressId: number, positionSec: number) => void;
+  onSubmitQuizAttempt: (payload: SubmitQuizPayload) => void;
   initialResumePositionSec: number;
   selectedLessonProgressId?: number | null;
+  persistedInVideoAnswers: Record<string, number>;
+  persistedInVideoSubmitted: Record<string, boolean>;
+  persistedAfterLessonAnswers: Record<string, number>;
+  persistedAfterLessonSubmitted: boolean;
 }
 
 export function useCourseLearnPlayer({
@@ -43,8 +49,13 @@ export function useCourseLearnPlayer({
   onSelectLesson,
   onMarkLessonCompleted,
   onHeartbeat,
+  onSubmitQuizAttempt,
   initialResumePositionSec,
   selectedLessonProgressId,
+  persistedInVideoAnswers,
+  persistedInVideoSubmitted,
+  persistedAfterLessonAnswers,
+  persistedAfterLessonSubmitted,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
@@ -88,6 +99,24 @@ export function useCourseLearnPlayer({
     [activeQuizPointId, inVideoQuizPoints],
   );
 
+  const effectiveInVideoAnswers = useMemo(
+    () => ({ ...persistedInVideoAnswers, ...inVideoAnswers }),
+    [inVideoAnswers, persistedInVideoAnswers],
+  );
+
+  const effectiveInVideoSubmitted = useMemo(
+    () => ({ ...persistedInVideoSubmitted, ...inVideoSubmitted }),
+    [inVideoSubmitted, persistedInVideoSubmitted],
+  );
+
+  const effectiveAfterLessonAnswers = useMemo(
+    () => ({ ...persistedAfterLessonAnswers, ...afterLessonAnswers }),
+    [afterLessonAnswers, persistedAfterLessonAnswers],
+  );
+
+  const effectiveAfterLessonSubmitted =
+    persistedAfterLessonSubmitted || afterLessonSubmitted;
+
   const effectiveDuration =
     videoDuration > 0 ? videoDuration : selectedLessonDuration;
 
@@ -111,9 +140,9 @@ export function useCourseLearnPlayer({
 
   const isQuizSolved = useCallback(
     (point: InVideoQuizPoint) => {
-      return Boolean(inVideoSubmitted[point.id]);
+      return Boolean(effectiveInVideoSubmitted[point.id]);
     },
-    [inVideoSubmitted],
+    [effectiveInVideoSubmitted],
   );
 
   const progressPercent =
@@ -122,7 +151,7 @@ export function useCourseLearnPlayer({
       : 0;
 
   const afterLessonScore = useMemo(() => {
-    if (!afterLessonSubmitted || !afterLessonQuiz.length) {
+    if (!effectiveAfterLessonSubmitted || !afterLessonQuiz.length) {
       return null;
     }
 
@@ -130,7 +159,7 @@ export function useCourseLearnPlayer({
     for (const question of afterLessonQuiz) {
       if (
         question.answerIndex !== null &&
-        afterLessonAnswers[question.id] === question.answerIndex
+        effectiveAfterLessonAnswers[question.id] === question.answerIndex
       ) {
         correct += 1;
       }
@@ -141,22 +170,27 @@ export function useCourseLearnPlayer({
       total: afterLessonQuiz.length,
       percent: Math.round((correct / afterLessonQuiz.length) * 100),
     };
-  }, [afterLessonAnswers, afterLessonQuiz, afterLessonSubmitted]);
+  }, [
+    afterLessonQuiz,
+    effectiveAfterLessonAnswers,
+    effectiveAfterLessonSubmitted,
+  ]);
 
   const afterLessonPassed = Boolean(
     afterLessonScore && afterLessonScore.percent >= 70,
   );
 
   const inVideoScore = useMemo(() => {
-    if (!activeQuizPoint || !inVideoSubmitted[activeQuizPoint.id]) {
+    if (!activeQuizPoint || !effectiveInVideoSubmitted[activeQuizPoint.id]) {
       return null;
     }
 
     return (
       activeQuizPoint.answerIndex !== null &&
-      inVideoAnswers[activeQuizPoint.id] === activeQuizPoint.answerIndex
+      effectiveInVideoAnswers[activeQuizPoint.id] ===
+        activeQuizPoint.answerIndex
     );
-  }, [activeQuizPoint, inVideoAnswers, inVideoSubmitted]);
+  }, [activeQuizPoint, effectiveInVideoAnswers, effectiveInVideoSubmitted]);
 
   const handleSelectLesson = useCallback(
     (lessonId: number) => {
@@ -313,6 +347,56 @@ export function useCourseLearnPlayer({
     };
   }, []);
 
+  // Global keyboard shortcuts: handle when video isn't focused (Space, Arrows, M, F)
+  useEffect(() => {
+    const isTypingInInput = (el: EventTarget | null) => {
+      if (!el || !(el instanceof Element)) return false;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea") return true;
+      if (el instanceof HTMLElement && el.isContentEditable) return true;
+      return false;
+    };
+
+    const onKey = (ev: globalThis.KeyboardEvent) => {
+      // ignore when user is typing in a form field
+      if (isTypingInInput(ev.target)) return;
+
+      switch (ev.code) {
+        case "Space":
+          ev.preventDefault();
+          handleTogglePlayback();
+          break;
+        case "ArrowLeft":
+          ev.preventDefault();
+          handleSeekBackward();
+          break;
+        case "ArrowRight":
+          ev.preventDefault();
+          handleSeekForward();
+          break;
+        case "KeyM":
+          ev.preventDefault();
+          handleToggleMute();
+          break;
+        case "KeyF":
+          ev.preventDefault();
+          handleToggleFullscreen();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    handleSeekBackward,
+    handleSeekForward,
+    handleToggleFullscreen,
+    handleToggleMute,
+    handleTogglePlayback,
+  ]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) {
@@ -326,7 +410,7 @@ export function useCourseLearnPlayer({
   const handleVideoEnded = useCallback(() => {
     setIsPlaying(false);
 
-    if (!afterLessonQuiz.length) {
+    if (!afterLessonQuiz.length || effectiveAfterLessonSubmitted) {
       if (selectedLesson) {
         onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
       }
@@ -337,6 +421,7 @@ export function useCourseLearnPlayer({
     videoRef.current?.pause();
   }, [
     afterLessonQuiz.length,
+    effectiveAfterLessonSubmitted,
     onMarkLessonCompleted,
     selectedLesson,
     selectedLessonProgressId,
@@ -387,6 +472,22 @@ export function useCourseLearnPlayer({
       return;
     }
 
+    const selectedOptionId = activeQuizPoint.optionIds[selectedAnswerIndex];
+    if (selectedOptionId === undefined) {
+      return;
+    }
+
+    onSubmitQuizAttempt({
+      quizId: activeQuizPoint.quizId,
+      answers: [
+        {
+          questionId: activeQuizPoint.questionId,
+          selectedOptionId,
+        },
+      ],
+      timeSpentSeconds: Math.max(0, Math.round(currentTime)),
+    });
+
     setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: true }));
 
     if (inVideoQuizResolveTimeoutRef.current !== null) {
@@ -402,7 +503,7 @@ export function useCourseLearnPlayer({
       });
       inVideoQuizResolveTimeoutRef.current = null;
     }, 900);
-  }, [activeQuizPoint, inVideoAnswers]);
+  }, [activeQuizPoint, currentTime, inVideoAnswers, onSubmitQuizAttempt]);
 
   const handleAdvanceToNextLesson = useCallback(() => {
     if (nextLesson) {
@@ -656,7 +757,11 @@ export function useCourseLearnPlayer({
   );
 
   useEffect(() => {
-    if (!afterLessonSubmitted || !afterLessonScore || !afterLessonPassed) {
+    if (
+      !effectiveAfterLessonSubmitted ||
+      !afterLessonScore ||
+      !afterLessonPassed
+    ) {
       const resetFrame = window.requestAnimationFrame(() => {
         setCelebrationArmed(false);
         setConfettiPieces([]);
@@ -687,14 +792,14 @@ export function useCourseLearnPlayer({
   }, [
     afterLessonPassed,
     afterLessonScore,
-    afterLessonSubmitted,
+    effectiveAfterLessonSubmitted,
     celebrationArmed,
   ]);
 
   useEffect(() => {
     if (
       !showAfterLessonOverlay ||
-      !afterLessonSubmitted ||
+      !effectiveAfterLessonSubmitted ||
       !afterLessonScore ||
       !afterLessonPassed ||
       !nextLesson
@@ -710,7 +815,7 @@ export function useCourseLearnPlayer({
   }, [
     afterLessonPassed,
     afterLessonScore,
-    afterLessonSubmitted,
+    effectiveAfterLessonSubmitted,
     nextLesson,
     showAfterLessonOverlay,
   ]);
@@ -761,6 +866,52 @@ export function useCourseLearnPlayer({
     [],
   );
 
+  const handleSubmitAfterLessonQuiz = useCallback(() => {
+    if (!afterLessonQuiz.length) {
+      return;
+    }
+
+    const firstQuiz = afterLessonQuiz[0];
+    const answers = afterLessonQuiz
+      .map((question) => {
+        const selectedAnswerIndex = effectiveAfterLessonAnswers[question.id];
+        if (selectedAnswerIndex === undefined) {
+          return null;
+        }
+
+        const selectedOptionId = question.optionIds[selectedAnswerIndex];
+        if (selectedOptionId === undefined) {
+          return null;
+        }
+
+        return {
+          questionId: question.questionId,
+          selectedOptionId,
+        };
+      })
+      .filter(
+        (answer): answer is { questionId: number; selectedOptionId: number } =>
+          answer !== null,
+      );
+
+    if (!answers.length) {
+      return;
+    }
+
+    onSubmitQuizAttempt({
+      quizId: firstQuiz.quizId,
+      answers,
+      timeSpentSeconds: Math.max(0, Math.round(currentTime)),
+    });
+
+    setAfterLessonSubmitted(true);
+  }, [
+    afterLessonQuiz,
+    currentTime,
+    effectiveAfterLessonAnswers,
+    onSubmitQuizAttempt,
+  ]);
+
   return {
     videoRef,
     currentTime,
@@ -772,11 +923,11 @@ export function useCourseLearnPlayer({
     progressPercent,
     playbackDuration: effectiveDuration,
     activeQuizPoint,
-    inVideoAnswers,
-    inVideoSubmitted,
+    inVideoAnswers: effectiveInVideoAnswers,
+    inVideoSubmitted: effectiveInVideoSubmitted,
     inVideoScore,
-    afterLessonAnswers,
-    afterLessonSubmitted,
+    afterLessonAnswers: effectiveAfterLessonAnswers,
+    afterLessonSubmitted: effectiveAfterLessonSubmitted,
     afterLessonScore,
     afterLessonPassed,
     isQuizSolved,
@@ -802,7 +953,7 @@ export function useCourseLearnPlayer({
     handleVideoKeyDown,
     onSelectInVideoAnswer,
     onSelectAfterLessonAnswer,
-    onSubmitAfterLessonQuiz: () => setAfterLessonSubmitted(true),
+    onSubmitAfterLessonQuiz: handleSubmitAfterLessonQuiz,
     onSeekBackward: handleSeekBackward,
     onSeekForward: handleSeekForward,
     setIsPlaying,
