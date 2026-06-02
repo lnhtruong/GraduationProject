@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import { FollowButton } from "@/features/instructor/FollowButton";
 import { getInitials } from "../../utils";
 import type { CourseInstructor } from "../../types";
 
@@ -76,6 +77,11 @@ export function InstructorSection({ instructor, courseId }: Props) {
           {instructor.title && (
             <p className="text-sm text-muted-foreground">{instructor.title}</p>
           )}
+
+          {/* Follow button */}
+          <div className="pt-1">
+            <FollowButton instructorId={instructor.id} />
+          </div>
 
           {/* Stats row */}
           <div className="flex flex-wrap items-center gap-4 pt-1 text-sm">

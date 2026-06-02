@@ -1,132 +1,184 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus, BookOpen, Receipt } from "lucide-react";
+import { useState } from "react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { useRevenueCoursesByRange } from "../../revenue/hooks";
 import type { CourseRevenueSummary } from "../../revenue/types";
 
 function formatVND(amount: number): string {
-  return `${amount.toLocaleString("vi-VN")}đ`;
+  if (amount >= 1_000_000)
+    return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}tr ₫`;
+  if (amount >= 1_000) return `${Math.round(amount / 1_000)}k ₫`;
+  return `${amount.toLocaleString("vi-VN")} ₫`;
 }
 
-function GrowthCell({ value }: { value: number | null }) {
-  if (value === null)
-    return <span className="text-muted-foreground">—</span>;
-  const positive = value >= 0;
+type SortKey = "allTime" | "enrollCount";
+type SortDir = "asc" | "desc";
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active)
+    return <ChevronsUpDown className="ml-1 inline h-3 w-3 opacity-30" />;
+  return dir === "desc" ? (
+    <ChevronDown className="ml-1 inline h-3 w-3" />
+  ) : (
+    <ChevronUp className="ml-1 inline h-3 w-3" />
+  );
+}
+
+function Th({
+  children,
+  sortKey,
+  current,
+  dir,
+  onSort,
+  align = "right",
+}: {
+  children: React.ReactNode;
+  sortKey: SortKey;
+  current: SortKey;
+  dir: SortDir;
+  onSort: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs font-medium ${
-        positive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
-      }`}
+    <th
+      className={`cursor-pointer select-none px-4 py-2.5 text-${align} text-xs font-medium text-muted-foreground hover:text-foreground`}
+      onClick={() => onSort(sortKey)}
     >
-      {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {positive ? "+" : ""}{value.toFixed(1)}%
-    </span>
+      {children}
+      <SortIcon active={current === sortKey} dir={dir} />
+    </th>
   );
 }
 
 interface Props {
-  courses: CourseRevenueSummary[];
-  isLoading: boolean;
-  onViewDetail: (course: CourseRevenueSummary) => void;
+  from?: string;
+  to?: string;
+  allCourses: CourseRevenueSummary[];
 }
 
-export function CourseRevenueTable({ courses, isLoading, onViewDetail }: Props) {
+export function CourseRevenueTable({ from, to, allCourses }: Props) {
+  const [sortKey, setSortKey] = useState<SortKey>("allTime");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const hasDateRange = Boolean(from && to);
+  const { data: rangedCourses = [], isLoading: rangedLoading } =
+    useRevenueCoursesByRange(from, to);
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  const isLoading = hasDateRange ? rangedLoading : allCourses.length === 0;
+
   if (isLoading) {
     return (
       <div className="divide-y divide-border/40">
-        {Array.from({ length: 3 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
-            <Skeleton className="h-4 w-4/12" />
-            <Skeleton className="h-4 w-2/12" />
-            <Skeleton className="h-4 w-2/12" />
-            <Skeleton className="h-4 w-2/12" />
-            <Skeleton className="h-4 w-1/12 ml-auto" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-12" />
           </div>
         ))}
       </div>
     );
   }
 
-  if (courses.length === 0) {
+  let displayCourses: CourseRevenueSummary[];
+  if (hasDateRange) {
+    const rangedMap = new Map(rangedCourses.map((c) => [c.courseId, c]));
+    displayCourses = allCourses.map((base) => {
+      const ranged = rangedMap.get(base.courseId);
+      return ranged ?? { ...base, allTime: 0, enrollCount: 0, growthPercent: null };
+    });
+  } else {
+    displayCourses = [...allCourses];
+  }
+
+  const sorted = [...displayCourses].sort((a, b) => {
+    const diff = a[sortKey] - b[sortKey];
+    return sortDir === "desc" ? -diff : diff;
+  });
+
+  if (sorted.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-        <BookOpen className="h-8 w-8 text-muted-foreground/30" />
-        <p className="text-sm font-medium text-muted-foreground">Chưa có khoá học nào</p>
-        <p className="text-xs text-muted-foreground/70">
-          Doanh thu sẽ hiển thị sau khi có học viên đăng ký
-        </p>
+        <BookOpen className="h-7 w-7 text-muted-foreground/25" />
+        <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
       </div>
     );
   }
+
+  const maxRevenue = Math.max(...sorted.map((c) => c.allTime), 1);
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border/40 bg-muted/30">
+          <tr className="border-b border-border/40">
             <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
               Khoá học
             </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Đã bán
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Tháng trước
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Tháng này
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Tổng
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Tăng trưởng
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground" />
+            <Th
+              sortKey="allTime"
+              current={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+            >
+              Doanh thu
+            </Th>
+            <Th
+              sortKey="enrollCount"
+              current={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+            >
+              Học viên
+            </Th>
           </tr>
         </thead>
         <tbody>
-          {courses.map((course) => (
-            <tr
-              key={course.courseId}
-              className="border-b border-border/40 transition-colors hover:bg-muted/20"
-            >
-              <td className="max-w-[200px] px-4 py-3">
-                <p className="truncate font-medium">{course.courseName}</p>
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                {course.enrollCount}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                {formatVND(course.lastMonth)}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {formatVND(course.thisMonth)}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums font-semibold">
-                {formatVND(course.allTime)}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <GrowthCell value={course.growthPercent} />
-              </td>
-              <td className="px-4 py-3 text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => onViewDetail(course)}
-                >
-                  <Receipt className="h-3.5 w-3.5" />
-                  Chi tiết
-                </Button>
-              </td>
-            </tr>
-          ))}
+          {sorted.map((course) => {
+            const pct = maxRevenue > 0 ? (course.allTime / maxRevenue) * 100 : 0;
+            return (
+              <tr
+                key={course.courseId}
+                className="group border-b border-border/30 transition-colors hover:bg-muted/20 last:border-0"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex flex-col gap-1">
+                    <p className="max-w-[300px] truncate font-medium leading-tight">
+                      {course.courseName}
+                    </p>
+                    {/* Revenue bar */}
+                    <div className="h-1 w-full max-w-[300px] rounded-full bg-muted/50">
+                      <div
+                        className="h-1 rounded-full bg-primary/50 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  <span className={`font-semibold ${course.allTime === 0 ? "text-muted-foreground/50" : ""}`}>
+                    {formatVND(course.allTime)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  {course.enrollCount}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 }
-
-export { Minus };

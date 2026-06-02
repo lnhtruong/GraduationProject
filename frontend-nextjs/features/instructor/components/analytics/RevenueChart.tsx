@@ -23,7 +23,6 @@ function formatVND(amount: number): string {
   return String(amount);
 }
 
-// "YYYY-Wxx" → "Tuần xx" | "YYYY-MM" → "Tháng MM" | "YYYY-MM-DD" → "DD/MM"
 function formatDateLabel(date: string): string {
   const weekly = date.match(/^(\d{4})-W(\d{1,2})$/);
   if (weekly) return `T${weekly[2]}`;
@@ -36,53 +35,80 @@ function formatDateLabel(date: string): string {
 
 interface Props {
   data: TimeseriesItem[];
-  title?: string;
+  isLoading?: boolean;
 }
 
-export function RevenueChart({ data, title = "Doanh thu (₫)" }: Props) {
+export function RevenueChart({ data, isLoading }: Props) {
+  if (isLoading) {
+    return (
+      <div className="flex h-[240px] items-center justify-center">
+        <div className="flex gap-1.5 items-end h-24">
+          {[40, 70, 50, 90, 60, 80, 45].map((h, i) => (
+            <div
+              key={i}
+              className="w-7 animate-pulse rounded-t-md bg-muted"
+              style={{ height: `${h}%` }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[240px] flex-col items-center justify-center gap-2 text-center">
+        <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu</p>
+        <p className="text-xs text-muted-foreground/60">
+          Chọn khoảng thời gian hoặc chờ giao dịch đầu tiên
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-5">
-      <h3 className="mb-4 text-sm font-semibold">{title}</h3>
-      <ChartContainer config={chartConfig} className="h-[220px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickFormatter={formatDateLabel}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={formatVND}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-              width={55}
-            />
-            <Tooltip
-              formatter={(value: number) => [
-                `${value.toLocaleString("vi-VN")}đ`,
-                "Doanh thu",
-              ]}
-              labelFormatter={formatDateLabel}
-              contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            />
-            <Bar
-              dataKey="revenue"
-              fill="var(--primary)"
-              radius={[4, 4, 0, 0]}
-              opacity={0.85}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartContainer>
-    </div>
+    <ChartContainer config={chartConfig} className="h-[240px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickFormatter={formatDateLabel}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={formatVND}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            axisLine={false}
+            tickLine={false}
+            width={52}
+          />
+          <Tooltip
+            cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+            formatter={(value: number) => [
+              `${value.toLocaleString("vi-VN")} ₫`,
+              "Doanh thu",
+            ]}
+            labelFormatter={formatDateLabel}
+            contentStyle={{
+              backgroundColor: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              fontSize: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          />
+          <Bar
+            dataKey="revenue"
+            fill="var(--primary)"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={48}
+            opacity={0.9}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartContainer>
   );
 }

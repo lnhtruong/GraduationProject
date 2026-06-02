@@ -22,6 +22,15 @@ export interface TimeseriesItem {
   enrollCount: number;
 }
 
+export interface TimeseriesWithCoursesItem extends TimeseriesItem {
+  courses?: {
+    courseId: number;
+    courseName: string;
+    revenue: number;
+    enrollCount: number;
+  }[];
+}
+
 export interface CourseTransactionItems {
   courseId: number;
   courseName: string;
