@@ -15,13 +15,28 @@ Each diagram is provided as a renderable **Mermaid** `.md` and a tool-agnostic
 - [schema.json](./schema.json) — JSON Schema documenting the shared node/edge export shape.
 - Design spec: [`docs/superpowers/specs/2026-06-02-system-diagrams-design.md`](../superpowers/specs/2026-06-02-system-diagrams-design.md)
 
-## Rendering
+## Rendered images
 
-Mermaid blocks render natively on GitHub and in most Markdown viewers. To render
-standalone (PNG/SVG), use the Mermaid CLI:
+Pre-rendered images live alongside the sources (white background, 2× scale):
+
+- `erd.png` / `.svg`, `architecture-logical-view.png` / `.svg`, `use-case.png` / `.svg`
+- `activity-1-auth`, `activity-2-otp`, `activity-3-course-lifecycle`, `activity-4-payment`,
+  `activity-5-video-upload`, `activity-6-ai-quiz`, `activity-7-newsfeed`,
+  `activity-8-lecturer-upgrade` (each `.png` + `.svg`)
+
+> **Uploading to Google Drive / Word / slides → use the PNG files.** Mermaid SVGs embed
+> text via `<foreignObject>` (HTML-in-SVG), which Google Drive's previewer and some editors
+> do **not** render, so text appears missing. The SVG is not corrupted — it just needs a
+> renderer that supports `foreignObject` (e.g. a web browser). PNG always displays correctly.
+
+## Rendering (regenerate)
+
+Run from **inside this folder** (`docs/diagrams/`), not the repo root:
 
 ```bash
-npx -p @mermaid-js/mermaid-cli mmdc -i erd.md -o erd.svg
+cd docs/diagrams
+npx -p @mermaid-js/mermaid-cli mmdc -i erd.md -o erd.svg      # vector
+npx -p @mermaid-js/mermaid-cli mmdc -i erd.md -o erd.png -b white -s 2   # raster (Drive-safe)
 ```
 
 ## Regenerating
