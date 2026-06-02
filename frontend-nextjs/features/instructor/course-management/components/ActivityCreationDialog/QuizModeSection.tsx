@@ -61,6 +61,12 @@ export function QuizModeSection({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const safeDuration = Math.max(0, Number(lessonVideoDuration ?? 0));
 
+  useEffect(() => {
+    if (!canUseInVideoQuiz && quizMode === "in_video") {
+      onQuizModeChange("outside_video");
+    }
+  }, [canUseInVideoQuiz, onQuizModeChange, quizMode]);
+
   const syncFromVideoTime = (currentTime: number) => {
     onTimestampChange(toTimestamp(currentTime));
   };
@@ -105,7 +111,9 @@ export function QuizModeSection({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="outside_video">Ngoài video</SelectItem>
-            <SelectItem value="in_video">Trong video</SelectItem>
+            {canUseInVideoQuiz ? (
+              <SelectItem value="in_video">Trong video</SelectItem>
+            ) : null}
           </SelectContent>
         </Select>
       </div>

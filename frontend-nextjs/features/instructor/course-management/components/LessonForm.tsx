@@ -65,6 +65,11 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
   const [showQuizEditorModal, setShowQuizEditorModal] = useState(false);
   const [pendingQuizState, setPendingQuizState] =
     useState<QuizEditorState | null>(null);
+  const [draftVideoBlobUrl, setDraftVideoBlobUrl] = useState<string | null>(
+    null,
+  );
+  const [draftVideoDurationSeconds, setDraftVideoDurationSeconds] =
+    useState<number>(0);
   const [quizMode, setQuizMode] = useState<"in_video" | "outside_video">(
     "outside_video",
   );
@@ -106,15 +111,27 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
     Boolean(selectedVideoId),
   );
 
+  const selectedVideoDurationSeconds = Number(selectedVideo?.duration ?? 0);
+  const activeVideoDurationSeconds =
+    selectedVideoDurationSeconds > 0
+      ? selectedVideoDurationSeconds
+      : draftVideoDurationSeconds;
+
   const timestampOptions = useMemo(
-    () => generateTimestampOptions(Number(selectedVideo?.duration ?? 0)),
-    [selectedVideo?.duration],
+    () => generateTimestampOptions(activeVideoDurationSeconds),
+    [activeVideoDurationSeconds],
   );
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
-    Boolean(selectedVideoId),
+    Boolean(selectedVideoId || draftVideoBlobUrl),
     timestampOptions.length,
   );
+
+  useEffect(() => {
+    if (!canUseInVideoQuiz && quizMode === "in_video") {
+      setQuizMode("outside_video");
+    }
+  }, [canUseInVideoQuiz, quizMode]);
 
   useEffect(() => {
     reset(initialValues);
@@ -303,12 +320,17 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                 videosLoading={videosLoading}
                 userVideos={userVideos}
                 selectedVideoId={selectedVideoId}
+                canUseInVideoQuiz={canUseInVideoQuiz}
                 onRefreshVideos={async () => {
                   await refetchUserVideos();
                 }}
                 onVideoSelect={(videoId) =>
                   setValue("videoId", videoId, { shouldDirty: true })
                 }
+                onDraftVideoChange={({ blobUrl, durationSeconds }) => {
+                  setDraftVideoBlobUrl(blobUrl);
+                  setDraftVideoDurationSeconds(durationSeconds ?? 0);
+                }}
                 onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
               />
             )}
@@ -318,12 +340,17 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                 videosLoading={videosLoading}
                 userVideos={userVideos}
                 selectedVideoId={selectedVideoId}
+                canUseInVideoQuiz={canUseInVideoQuiz}
                 onRefreshVideos={async () => {
                   await refetchUserVideos();
                 }}
                 onVideoSelect={(videoId) =>
                   setValue("videoId", videoId, { shouldDirty: true })
                 }
+                onDraftVideoChange={({ blobUrl, durationSeconds }) => {
+                  setDraftVideoBlobUrl(blobUrl);
+                  setDraftVideoDurationSeconds(durationSeconds ?? 0);
+                }}
                 lessonId={lessonId}
                 onOpenCreateQuizModal={() => {
                   setEditingOutsideQuizActivityId(null);
@@ -458,11 +485,11 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                               </option>
                             ))}
                           </select>
-                          {selectedVideo?.duration && (
+                          {activeVideoDurationSeconds > 0 && (
                             <span className="text-xs text-muted-foreground">
-                              / {Math.floor(selectedVideo.duration / 60)}:
+                              / {Math.floor(activeVideoDurationSeconds / 60)}:
                               {String(
-                                Math.floor(selectedVideo.duration % 60),
+                                Math.floor(activeVideoDurationSeconds % 60),
                               ).padStart(2, "0")}
                             </span>
                           )}
@@ -473,7 +500,7 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                 )}
               </div>
 
-              {!canUseInVideoQuiz && selectedVideoId && (
+              {!canUseInVideoQuiz && (selectedVideoId || draftVideoBlobUrl) && (
                 <p className="mt-3 text-xs text-amber-600 bg-amber-50 p-2 rounded">
                   Chỉ quiz trong video mới cần video đã có thời lượng. Quiz
                   ngoài video có thể tạo ngay khi bài học chưa có

@@ -9,6 +9,7 @@ import {
   Heart,
   Loader2,
   Plus,
+  Sparkles,
   Tag,
   Video,
   X,
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ManagementPageShell } from "./components/ManagementPageShell";
+import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
   useCourseFeed,
   useCourseFeedById,
@@ -66,6 +68,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const [captionDraft, setCaptionDraft] = useState<string | null>(null);
   const [hashtagsDraft, setHashtagsDraft] = useState<string[] | null>(null);
   const [hashtagDraft, setHashtagDraft] = useState("");
+  const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
 
   const isFeedLoading = feedDetailLoading || feedListLoading;
   const isReady = !courseLoading && !isFeedLoading && Boolean(course && feed);
@@ -176,12 +179,25 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
         { label: "Sửa feed" },
       ]}
       action={
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link href={`/instructor/courses/${course.id}/feed`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Quay lại danh sách feed
-          </Link>
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Tạo highlight"
+            title="Tạo highlight"
+            onClick={() => setIsHighlightUploadOpen(true)}
+          >
+            <Sparkles className="h-4 w-4" />
+          </Button>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={`/instructor/courses/${course.id}/feed`}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Quay lại danh sách feed
+            </Link>
+          </Button>
+        </div>
       }
     >
       <div className="space-y-4 p-3 sm:p-4 lg:p-5">
@@ -338,6 +354,10 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
           </div>
         </div>
       </div>
+      <HighlightUploadDialog
+        open={isHighlightUploadOpen}
+        onOpenChange={setIsHighlightUploadOpen}
+      />
     </ManagementPageShell>
   );
 }

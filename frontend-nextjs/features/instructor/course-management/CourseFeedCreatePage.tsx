@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  Sparkles,
   Search,
   Tag,
   Video,
@@ -22,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
+import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
   useCourseFeed,
   useCourseFeedCandidateVideos,
@@ -100,6 +102,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
     "all" | "highlight" | "mascot"
   >("all");
   const [visibleCount, setVisibleCount] = useState(12);
+  const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
 
   const feedVideoIds = useMemo(
     () => new Set((feeds ?? []).map((item) => item.video?.id)),
@@ -246,12 +249,14 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         { label: "Tạo feed" },
       ]}
       action={
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link href={`/instructor/courses/${course.id}/feed`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Quay lại danh sách feed
-          </Link>
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={`/instructor/courses/${course.id}/feed`}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Quay lại danh sách feed
+            </Link>
+          </Button>
+        </div>
       }
     >
       <div className="min-h-[calc(100vh-11rem)] bg-linear-to-br from-background via-background to-muted/20 p-3 sm:p-5">
@@ -386,6 +391,19 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                 <div className="text-xs text-muted-foreground">
                   Hiển thị {visibleVideos.length}/{filteredVideos.length}
                 </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Tạo highlight"
+                    title="Tạo highlight"
+                    onClick={() => setIsHighlightUploadOpen(true)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               <div className="grid gap-2 md:grid-cols-[1fr_auto]">
@@ -485,8 +503,8 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               </div>
                             )}
 
-                            <div className="absolute inset-x-0 bottom-0 p-2 text-white">
-                              <p className="line-clamp-2 text-sm font-semibold leading-tight">
+                            <div className="absolute inset-x-0 bottom-0 p-1 text-white">
+                              <p className="line-clamp-1 text-xs font-medium leading-tight">
                                 {video.name}
                               </p>
                               <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] text-white/90">
@@ -652,6 +670,10 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
           </section>
         </div>
       </div>
+      <HighlightUploadDialog
+        open={isHighlightUploadOpen}
+        onOpenChange={setIsHighlightUploadOpen}
+      />
     </ManagementPageShell>
   );
 }

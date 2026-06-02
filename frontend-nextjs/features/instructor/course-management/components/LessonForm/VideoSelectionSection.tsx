@@ -24,8 +24,14 @@ interface Props {
   videosLoading: boolean;
   userVideos?: Video[] | null;
   selectedVideoId: number | null;
+  canUseInVideoQuiz?: boolean;
   onVideoSelect: (videoId: number) => void;
   onRefreshVideos?: () => Promise<void>;
+  onDraftVideoChange?: (draftVideo: {
+    blobUrl: string | null;
+    durationSeconds: number | null;
+    fileName: string | null;
+  }) => void;
   lessonId?: number | null;
   onOpenCreateQuizModal?: () => void;
   onPendingCreateQuiz?: () => void;
@@ -35,8 +41,10 @@ export function VideoSelectionSection({
   videosLoading,
   userVideos,
   selectedVideoId,
+  canUseInVideoQuiz,
   onVideoSelect,
   onRefreshVideos,
+  onDraftVideoChange,
   lessonId,
   onOpenCreateQuizModal,
   onPendingCreateQuiz,
@@ -61,8 +69,13 @@ export function VideoSelectionSection({
       if (previewBlobUrl) {
         URL.revokeObjectURL(previewBlobUrl);
       }
+      onDraftVideoChange?.({
+        blobUrl: null,
+        durationSeconds: null,
+        fileName: null,
+      });
     };
-  }, [previewBlobUrl]);
+  }, [onDraftVideoChange, previewBlobUrl]);
 
   useEffect(() => {
     if (!session.videoId) return;
@@ -91,6 +104,11 @@ export function VideoSelectionSection({
     const blobUrl = URL.createObjectURL(file);
     setPreviewBlobUrl(blobUrl);
     setPreviewFileName(file.name);
+    onDraftVideoChange?.({
+      blobUrl,
+      durationSeconds: null,
+      fileName: file.name,
+    });
 
     try {
       await startUpload({
@@ -148,12 +166,24 @@ export function VideoSelectionSection({
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
             <div className="bg-black">
               <video
-                className="block h-auto max-h-[26rem] w-full object-contain"
+                className="block h-auto max-h-104 w-full object-contain"
                 src={previewBlobUrl}
                 poster={previewBlobUrl}
                 controls
                 preload="metadata"
                 playsInline
+                onLoadedMetadata={(event) => {
+                  const durationSeconds = event.currentTarget.duration;
+                  const safeDuration =
+                    Number.isFinite(durationSeconds) && durationSeconds > 0
+                      ? durationSeconds
+                      : null;
+                  onDraftVideoChange?.({
+                    blobUrl: previewBlobUrl,
+                    durationSeconds: safeDuration,
+                    fileName: previewFileName,
+                  });
+                }}
               >
                 Trình duyệt không hỗ trợ phát video.
               </video>
@@ -178,7 +208,7 @@ export function VideoSelectionSection({
                 }
               }}
             >
-              Tạo Quiz
+              {canUseInVideoQuiz ? "Tạo Quiz" : "Tạo quiz ngoài video"}
             </Button>
           ) : null}
         </div>
