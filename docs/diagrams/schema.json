@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GraduationProject diagram export schema",
+  "description": "Generic, tool-agnostic node/edge representation shared by all diagram JSON exports in docs/diagrams/.",
+  "type": "object",
+  "required": ["diagramType", "title", "nodes", "edges"],
+  "properties": {
+    "diagramType": {
+      "type": "string",
+      "enum": ["logical-view", "use-case", "activity", "erd"]
+    },
+    "title": { "type": "string" },
+    "generatedAt": { "type": "string", "description": "YYYY-MM-DD" },
+    "source": { "type": "string", "description": "Optional source-of-truth reference" },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "kind"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "kind": { "type": "string", "enum": ["layer", "lane", "subsystem"] }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "type": {
+            "type": "string",
+            "description": "Per diagramType: logical-view=spa|gateway|service|database|cache|external; use-case=actor|usecase; activity=start|end|action|decision; erd=entity"
+          },
+          "group": { "type": "string", "description": "References a groups[].id" },
+          "meta": {
+            "type": "object",
+            "description": "Free-form. For erd entities: { columns: [{name,type,pk?,fk?,uk?}], uniqueKeys?: [[...]] }"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string", "description": "node id" },
+          "to": { "type": "string", "description": "node id" },
+          "type": {
+            "type": "string",
+            "description": "Per diagramType: logical-view=rest|ws-sse|redis-pubsub|external-http|db|cache; use-case=association|generalization|include|extend; activity=transition (label = guard condition); erd=many-to-one|one-to-one|many-to-many"
+          },
+          "label": { "type": "string" }
+        }
+      }
+    }
+  }
+}
