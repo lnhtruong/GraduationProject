@@ -65,7 +65,8 @@ export function Header() {
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
-  const { data: cartSummary } = useCartSummary();
+  const shouldFetchCartSummary = pathname === "/cart";
+  const { data: cartSummary } = useCartSummary(shouldFetchCartSummary);
   const cartCount = isAuthenticated ? (cartSummary?.itemCount ?? 0) : 0;
 
   useEffect(() => {
