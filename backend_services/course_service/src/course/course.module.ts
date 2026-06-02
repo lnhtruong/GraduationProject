@@ -14,7 +14,6 @@ import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { User } from 'src/users/user.model';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
-import { Notification } from 'src/models/notification.model';
 
 @Module({
   imports: [
@@ -30,7 +29,6 @@ import { Notification } from 'src/models/notification.model';
       Feedback,
       User,
       InstructorFollow,
-      Notification,
     ]),
   ],
   controllers: [CoursesController, CategoriesController],

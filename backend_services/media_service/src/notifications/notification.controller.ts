@@ -17,6 +17,7 @@ import { NotificationService } from './notification.service';
 import { PatchNotificationDto } from './dto/patch-notification.dto';
 import { BulkUpdateNotificationsDto } from './dto/bulk-update-notifications.dto';
 import { CreateInternalNotificationDto } from './dto/create-internal-notification.dto';
+import { CreateInternalNotificationsBulkDto } from './dto/create-internal-notifications-bulk.dto';
 
 @Controller('notifications')
 export class NotificationController {
@@ -30,6 +31,13 @@ export class NotificationController {
     return userId;
   }
 
+  private assertInternalSecret(secret?: string): void {
+    const expected = process.env.INTERNAL_SERVICE_SECRET;
+    if (expected && expected !== secret) {
+      throw new UnauthorizedException('Invalid internal secret');
+    }
+  }
+
   // Server-to-server endpoint. Not exposed via api_gateway — other services
   // call media_service directly (e.g. http://localhost:8003/notifications/internal).
   // Optional shared-secret check via INTERNAL_SERVICE_SECRET env var.
@@ -39,10 +47,7 @@ export class NotificationController {
     @Headers('x-internal-secret') secret: string | undefined,
     @Body() body: CreateInternalNotificationDto,
   ) {
-    const expected = process.env.INTERNAL_SERVICE_SECRET;
-    if (expected && expected !== secret) {
-      throw new UnauthorizedException('Invalid internal secret');
-    }
+    this.assertInternalSecret(secret);
 
     const row = await this.notificationService.createAndEmit({
       userId: body.userId,
@@ -55,6 +60,33 @@ export class NotificationController {
       sourceId: body.sourceId,
     });
     return this.notificationService.toResponse(row);
+  }
+
+  @Post('internal/bulk')
+  @HttpCode(201)
+  async createInternalBulk(
+    @Headers('x-internal-secret') secret: string | undefined,
+    @Body() body: CreateInternalNotificationsBulkDto,
+  ) {
+    this.assertInternalSecret(secret);
+
+    const rows = await this.notificationService.createManyAndEmit(
+      body.items.map((item) => ({
+        userId: item.userId,
+        eventType: item.eventType,
+        sseEventType: item.sseEventType,
+        title: item.title,
+        message: item.message ?? null,
+        payload: item.payload,
+        sourceType: item.sourceType,
+        sourceId: item.sourceId,
+      })),
+    );
+
+    return {
+      data: rows.map((row) => this.notificationService.toResponse(row)),
+      created: rows.length,
+    };
   }
 
   @Get()

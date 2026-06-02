@@ -23,6 +23,8 @@ export type CreateNotificationInput = {
   sourceId?: number;
 };
 
+const BULK_INSERT_CHUNK_SIZE = 200;
+
 @Injectable()
 export class NotificationService {
   constructor(
@@ -30,6 +32,33 @@ export class NotificationService {
     private readonly notificationModel: typeof Notification,
     private readonly sseService: SseService,
   ) { }
+
+  private buildCreatedEvent(
+    notification: Notification,
+    sseEventType: NotificationSseEventType,
+    payload?: Record<string, unknown>,
+  ): MessageEvent {
+    return {
+      type: sseEventType,
+      data: {
+        success: true,
+        notification: {
+          id: notification.id,
+          user_id: notification.user_id,
+          event_type: notification.event_type,
+          title: notification.title,
+          message: notification.message,
+          payload: notification.payload,
+          is_read: notification.is_read,
+          source_type: notification.source_type,
+          source_id: notification.source_id,
+          created_at: notification.get('created_at'),
+        },
+        data: payload ?? null,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
 
   async createAndEmit(input: CreateNotificationInput): Promise<Notification> {
     let notification;
@@ -47,29 +76,47 @@ export class NotificationService {
     }
 
 
-    const event: MessageEvent = {
-      type: input.sseEventType,
-      data: {
-        success: true,
-        notification: {
-          id: notification.id,
-          user_id: notification.user_id,
-          event_type: notification.event_type,
-          title: notification.title,
-          message: notification.message,
-          payload: notification.payload,
-          is_read: notification.is_read,
-          source_type: notification.source_type,
-          source_id: notification.source_id,
-          created_at: notification.get('created_at'),
-        },
-        data: input.payload ?? null,
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    this.sseService.emitToUser(input.userId, event);
+    this.sseService.emitToUser(
+      input.userId,
+      this.buildCreatedEvent(notification, input.sseEventType, input.payload),
+    );
     return notification;
+  }
+
+  async createManyAndEmit(
+    inputs: CreateNotificationInput[],
+  ): Promise<Notification[]> {
+    const createdRows: Notification[] = [];
+
+    for (let i = 0; i < inputs.length; i += BULK_INSERT_CHUNK_SIZE) {
+      const chunk = inputs.slice(i, i + BULK_INSERT_CHUNK_SIZE);
+      const rows = await this.notificationModel.bulkCreate(
+        chunk.map((input) => ({
+          user_id: input.userId,
+          event_type: input.eventType,
+          title: input.title,
+          message: input.message ?? null,
+          payload: input.payload ?? null,
+          source_type: input.sourceType ?? null,
+          source_id: input.sourceId ?? null,
+          is_read: false,
+        })),
+        { returning: true },
+      );
+
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const input = chunk[index];
+        this.sseService.emitToUser(
+          input.userId,
+          this.buildCreatedEvent(row, input.sseEventType, input.payload),
+        );
+      }
+
+      createdRows.push(...rows);
+    }
+
+    return createdRows;
   }
 
   toResponse(row: Notification) {
