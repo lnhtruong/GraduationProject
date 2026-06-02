@@ -759,6 +759,11 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',
+    pattern: '/api/media/feed/:feedId/view',
+    access: 'authenticated',
+  },
+  {
+    method: 'POST',
     pattern: '/api/media/feed/:feedId/comments',
     access: 'authenticated',
     // roles: [UserRole.LECTURER, UserRole.ADMIN],
