@@ -7,7 +7,6 @@ import {
   type LessonProgressListParams,
 } from "./lesson-progress.api";
 import type {
-  ContinueWatchingLesson,
   LessonProgressRecord,
   LessonProgressStatus,
   UpsertLessonProgressPayload,
@@ -59,6 +58,15 @@ function mergeLessonProgress(
   );
 }
 
+function getHttpStatus(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  const response = (error as { response?: { status?: unknown } }).response;
+  return typeof response?.status === "number" ? response.status : undefined;
+}
+
 export function useLessonProgressByCourseId(
   courseId: number | null,
   enabled = true,
@@ -79,7 +87,32 @@ const useUpsertLessonProgressBase = createMutationHooks<
       });
     }
 
-    return lessonProgressApi.create(payload);
+    try {
+      return await lessonProgressApi.create(payload);
+    } catch (err: unknown) {
+      // Backend may still return 409 for existing records in some deploys.
+      // Fall back to querying existing progress for this course/lesson.
+      if (getHttpStatus(err) === 409) {
+        // Fetch list for course and find matching lessonId. Call safely in case
+        // the API object does not expose `list` (typed optional).
+        const listFn =
+          lessonProgressApi.list ?? lessonProgressApi.listPaginated;
+        if (listFn) {
+          const items = await listFn({
+            courseId: payload.courseId,
+            limit: 100,
+          } as LessonProgressListParams);
+          const records = Array.isArray(items) ? items : items.data;
+          const matches = (records ?? []).filter(
+            (record: LessonProgressRecord) =>
+              Number(record.lessonId) === Number(payload.lessonId),
+          );
+          if (matches.length > 0) return matches[0];
+        }
+      }
+
+      throw err;
+    }
   },
   {
     onSuccess: (savedRecord, payload, queryClient) => {

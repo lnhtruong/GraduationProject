@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { LecturerRequestsModule } from './lecturer_requests/lecturer-requests.module';
+import { FollowsModule } from './follows/follows.module';
 import { DatabaseModule } from './database/database.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -22,6 +23,9 @@ import jwtConfig from './config/jwt.config';
     DatabaseModule,
     AuditLogsModule,
     LecturerRequestsModule,
+    // FollowsModule before UsersModule so /users/following route is registered
+    // before /users/:id catch in UsersController.
+    FollowsModule,
     UsersModule,
   ],
   controllers: [AppController],

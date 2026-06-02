@@ -11,9 +11,17 @@ import {
   useLessonProgressHeartbeat,
   useUpsertLessonProgress,
 } from "../api/lesson-progress.hooks";
+import {
+  useQuizSubmissionsByQuizIds,
+  useSubmitQuizSubmission,
+} from "../api/quiz-submissions.hooks";
 import { useEnrollmentCheck } from "../../api/enrollment.api";
 import { useAuthStore } from "@/store/auth";
-import type { LessonProgressRecord } from "../types";
+import type {
+  LessonProgressRecord,
+  QuizSubmissionRecord,
+  SubmitQuizPayload,
+} from "../types";
 import {
   buildAfterLessonQuiz,
   buildInVideoQuizPoints,
@@ -65,8 +73,11 @@ export function useCourseLearnData(courseId: number) {
     isLoading: lessonProgressLoading,
     isFetching: lessonProgressFetching,
   } = useLessonProgressByCourseId(courseId, Boolean(course && lessons.length));
-  const { mutate: upsertLessonProgress, isPending: lessonProgressUpdating } =
-    useUpsertLessonProgress(courseId);
+  const {
+    mutate: upsertLessonProgress,
+    mutateAsync: upsertLessonProgressAsync,
+    isPending: lessonProgressUpdating,
+  } = useUpsertLessonProgress(courseId);
   const { mutate: sendLessonHeartbeat } = useLessonProgressHeartbeat();
 
   const lessonProgressMap = useMemo(
@@ -158,19 +169,19 @@ export function useCourseLearnData(courseId: number) {
       return 0;
     }
 
-    return Math.max(
-      0,
-      Number(
-        selectedLessonProgress.lastVideoPositionSec ??
-          // fallback for raw snake_case payloads
-          (
-            selectedLessonProgress as LessonProgressRecord & {
-              last_video_position_sec?: number;
-            }
-          ).last_video_position_sec ??
-          0,
-      ),
+    const positionMs = Number(
+      selectedLessonProgress.lastVideoPositionMs ??
+        // fallback for raw snake_case payloads
+        (
+          selectedLessonProgress as LessonProgressRecord & {
+            last_video_position_ms?: number;
+          }
+        ).last_video_position_ms ??
+        0,
     );
+
+    // Player works in seconds; storage is milliseconds.
+    return Math.max(0, positionMs / 1000);
   }, [selectedLessonProgress]);
 
   useEffect(() => {
@@ -190,12 +201,24 @@ export function useCourseLearnData(courseId: number) {
       return;
     }
 
-    upsertLessonProgress({
-      courseId,
-      lessonId: selectedLesson.id,
-      progress: "in_progress",
-      lessonProgressId: selectedLessonProgress?.id,
-    });
+    (async () => {
+      try {
+        const saved = await upsertLessonProgressAsync({
+          courseId,
+          lessonId: selectedLesson.id,
+          progress: "in_progress",
+          lessonProgressId: selectedLessonProgress?.id,
+        });
+
+        // If the caller needs to heartbeat immediately after creation, they
+        // can use the saved.id. We don't call heartbeat here to avoid
+        // assumptions about player timing, but returning the result makes
+        // the mutation-based cache updated and available synchronously.
+        return saved;
+      } catch (e) {
+        // noop: leave reconciliation to react-query
+      }
+    })();
   }, [
     courseId,
     lessonProgressLoading,
@@ -242,6 +265,97 @@ export function useCourseLearnData(courseId: number) {
     [afterVideoQuizzes],
   );
 
+  const selectedLessonQuizIds = useMemo(
+    () => [
+      ...new Set(
+        [...(inVideoQuizzes ?? []), ...(afterVideoQuizzes ?? [])].map(
+          (quiz) => quiz.id,
+        ),
+      ),
+    ],
+    [afterVideoQuizzes, inVideoQuizzes],
+  );
+
+  const quizSubmissionQueries = useQuizSubmissionsByQuizIds(
+    selectedLessonQuizIds,
+    Boolean(selectedLesson?.id),
+  );
+  const { mutate: submitQuizSubmission, isPending: quizSubmissionSubmitting } =
+    useSubmitQuizSubmission();
+
+  const quizSubmissionsByQuizId = useMemo(() => {
+    const map = new Map<number, QuizSubmissionRecord[]>();
+
+    selectedLessonQuizIds.forEach((quizId, index) => {
+      map.set(quizId, quizSubmissionQueries[index]?.data ?? []);
+    });
+
+    return map;
+  }, [quizSubmissionQueries, selectedLessonQuizIds]);
+
+  const persistedInVideoState = useMemo(() => {
+    const answers: Record<string, number> = {};
+    const submitted: Record<string, boolean> = {};
+
+    for (const point of inVideoQuizPoints) {
+      const submissions = quizSubmissionsByQuizId.get(point.quizId) ?? [];
+
+      for (const submission of submissions) {
+        const matchedAnswer = submission.answers?.find(
+          (answer) => answer.questionId === point.questionId,
+        );
+        if (!matchedAnswer) {
+          continue;
+        }
+
+        const matchedOptionIndex = point.optionIds.findIndex(
+          (optionId) => optionId === matchedAnswer.selectedOptionId,
+        );
+        if (matchedOptionIndex < 0) {
+          continue;
+        }
+
+        answers[point.id] = matchedOptionIndex;
+        submitted[point.id] = true;
+        break;
+      }
+    }
+
+    return { answers, submitted };
+  }, [inVideoQuizPoints, quizSubmissionsByQuizId]);
+
+  const persistedAfterLessonState = useMemo(() => {
+    const firstQuiz = afterLessonQuiz[0];
+    if (!firstQuiz) {
+      return { answers: {}, submitted: false };
+    }
+
+    const submissions = quizSubmissionsByQuizId.get(firstQuiz.quizId) ?? [];
+    const latestSubmission = submissions[0];
+    if (!latestSubmission) {
+      return { answers: {}, submitted: false };
+    }
+
+    const answers: Record<string, number> = {};
+    for (const question of afterLessonQuiz) {
+      const matchedAnswer = latestSubmission.answers?.find(
+        (answer) => answer.questionId === question.questionId,
+      );
+      if (!matchedAnswer) {
+        continue;
+      }
+
+      const matchedOptionIndex = question.optionIds.findIndex(
+        (optionId) => optionId === matchedAnswer.selectedOptionId,
+      );
+      if (matchedOptionIndex >= 0) {
+        answers[question.id] = matchedOptionIndex;
+      }
+    }
+
+    return { answers, submitted: Object.keys(answers).length > 0 };
+  }, [afterLessonQuiz, quizSubmissionsByQuizId]);
+
   const completedLessonCount =
     lessonProgressRecords?.filter(
       (record: LessonProgressRecord) => record.progress === "completed",
@@ -263,7 +377,18 @@ export function useCourseLearnData(courseId: number) {
   const totalQuizMarkers = inVideoQuizPoints.length;
   const currentLessonDurationLabel = formatTime(selectedLessonDuration);
   const progressSyncing =
-    lessonProgressLoading || lessonProgressFetching || lessonProgressUpdating;
+    lessonProgressLoading ||
+    lessonProgressFetching ||
+    lessonProgressUpdating ||
+    quizSubmissionSubmitting ||
+    quizSubmissionQueries.some((query) => query.isLoading || query.isFetching);
+
+  const submitQuizAttempt = useCallback(
+    (payload: SubmitQuizPayload) => {
+      submitQuizSubmission(payload);
+    },
+    [submitQuizSubmission],
+  );
 
   const handleSelectLesson = useCallback(
     (lessonId: number) => {
@@ -291,7 +416,8 @@ export function useCourseLearnData(courseId: number) {
     (lessonProgressId: number, positionSec: number) => {
       sendLessonHeartbeat({
         lessonProgressId,
-        position: Math.max(0, Math.trunc(positionSec)),
+        // Store milliseconds (round, don't truncate) to avoid ~1s resume drift.
+        position: Math.max(0, Math.round(positionSec * 1000)),
       });
     },
     [sendLessonHeartbeat],
@@ -317,6 +443,8 @@ export function useCourseLearnData(courseId: number) {
     nextLesson,
     inVideoQuizPoints,
     afterLessonQuiz,
+    persistedInVideoState,
+    persistedAfterLessonState,
     completedLessonCount,
     courseProgressPercent,
     totalLessonDuration,
@@ -326,5 +454,6 @@ export function useCourseLearnData(courseId: number) {
     handleSelectLesson,
     markLessonCompleted,
     sendHeartbeat,
+    submitQuizAttempt,
   };
 }

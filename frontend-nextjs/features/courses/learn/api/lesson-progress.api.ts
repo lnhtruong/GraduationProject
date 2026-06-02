@@ -30,7 +30,7 @@ type UpdateLessonProgressPayload = {
 };
 
 type RawLessonProgressRecord = LessonProgressRecord & {
-  last_video_position_sec?: number;
+  last_video_position_ms?: number;
   last_watched_at?: string;
 };
 
@@ -53,7 +53,7 @@ type RawContinueWatchingLesson = Partial<ContinueWatchingLesson> & {
   lesson_title?: string;
   course_title?: string;
   thumbnail_url?: string | null;
-  last_video_position_sec?: number;
+  last_video_position_ms?: number;
   lastWatchedAt?: string;
   last_watched_at?: string;
   percentage?: number;
@@ -77,8 +77,8 @@ function mapLessonProgressRecord(
 ): LessonProgressRecord {
   return {
     ...raw,
-    lastVideoPositionSec:
-      raw.lastVideoPositionSec ?? raw.last_video_position_sec ?? 0,
+    lastVideoPositionMs:
+      raw.lastVideoPositionMs ?? raw.last_video_position_ms ?? 0,
     lastWatchedAt: raw.lastWatchedAt ?? raw.last_watched_at,
   };
 }
@@ -112,8 +112,8 @@ function mapContinueWatchingItem(
     lessonTitle: String(lessonTitle ?? "Bài học"),
     courseTitle: String(courseTitle ?? "Khóa học"),
     thumbnailUrl,
-    lastVideoPositionSec: Number(
-      raw.lastVideoPositionSec ?? raw.last_video_position_sec ?? 0,
+    lastVideoPositionMs: Number(
+      raw.lastVideoPositionMs ?? raw.last_video_position_ms ?? 0,
     ),
     percentage: Number(raw.percentage ?? 0),
     updatedAt:

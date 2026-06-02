@@ -84,7 +84,29 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/users/lecturer-requests/:id',
     access: 'authenticated',
   },
+  // BE-06: instructor following list. MUST come before /api/users/:id catch.
+  {
+    method: 'GET',
+    pattern: '/api/users/following',
+    access: 'authenticated',
+  },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
+  // BE-06: instructor follow / stats endpoints proxied via /api/instructors.
+  {
+    method: 'POST',
+    pattern: '/api/instructors/:id/follow',
+    access: 'authenticated',
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/instructors/:id/follow',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/instructors/:id/stats',
+    access: 'public',
+  },
   {
     method: 'GET',
     pattern: '/api/users',
@@ -107,6 +129,26 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
 
+  // Instructor revenue
+  {
+    method: 'GET',
+    pattern: '/api/instructor/revenue/summary',
+    access: 'roles',
+    roles: [UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/instructor/revenue/timeseries',
+    access: 'roles',
+    roles: [UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/instructor/revenue/:courseId/transaction-items',
+    access: 'roles',
+    roles: [UserRole.LECTURER],
+  },
+
   // Course service - public reads
   {
     method: 'GET',
@@ -120,6 +162,8 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
+  { method: 'GET', pattern: '/api/course/courses/search', access: 'public' },
+  { method: 'GET', pattern: '/api/course/categories', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
@@ -137,6 +181,63 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/roadmaps', access: 'public' },
   { method: 'GET', pattern: '/api/course/roadmaps/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/users/:id', access: 'authenticated' },
+
+  // Discussion Forum (BE-02..BE-04). All authenticated; the service enforces
+  // enrollment/author/instructor rules per endpoint.
+  {
+    method: 'GET',
+    pattern: '/api/course/lessons/:lessonId/discussions',
+    access: 'authenticated',
+  },
+  {
+    method: 'POST',
+    pattern: '/api/course/lessons/:lessonId/discussions',
+    access: 'authenticated',
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/:courseId/discussions',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'POST',
+    pattern: '/api/course/discussions/:postId/upvote',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/discussions/:postId/best-answer',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/discussions/:postId',
+    access: 'authenticated',
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/course/discussions/:postId',
+    access: 'authenticated',
+  },
+
+
+  // Wishlist (BE-05) — student-only. The /check/:courseId rule MUST come
+  // before /:courseId so it isn't shadowed.
+  {
+    method: 'GET',
+    pattern: '/api/course/wishlist/check/:courseId',
+    access: 'authenticated',
+  },
+  { method: 'GET', pattern: '/api/course/wishlist', access: 'authenticated' },
+  { method: 'POST', pattern: '/api/course/wishlist', access: 'authenticated' },
+  {
+    method: 'DELETE',
+    pattern: '/api/course/wishlist/:courseId',
+    access: 'authenticated',
+  },
+
   // Specific rules MUST come before the catch-all /api/course/feedbacks/** below,
   // because getAccessRule() returns the first matching entry.
   { method: 'GET', pattern: '/api/course/feedbacks/check/:courseId', access: 'authenticated' },
@@ -302,10 +403,10 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
   {
-    method: 'POST',
-    pattern: '/api/course/lesson-progress',
-    access: 'roles',
-    roles: [UserRole.ADMIN, UserRole.LECTURER],
+    method: "POST",
+    pattern: "/api/course/lesson-progress",
+    access: "roles",
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'GET',
@@ -377,6 +478,11 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'POST',
     pattern: '/api/course/carts/items',
+    access: 'authenticated',
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/course/carts/items/:courseId/save',
     access: 'authenticated',
   },
   {

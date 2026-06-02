@@ -9,12 +9,18 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { EnrollsService } from 'src/enrolls/enrolls.service';
 import { Course } from 'src/models/course.model';
-import { LessonProgress, LessonProgressStatus } from 'src/models/lesson-progress.model';
+import {
+  LessonProgress,
+  LessonProgressStatus,
+} from 'src/models/lesson-progress.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { CreateLessonProgressDto } from './dto/create-lesson-progress.dto';
 import { UpdateLessonProgressDto } from './dto/update-lesson-progress.dto';
 import { GetLessonProgressQueryDto } from './dto/get-lesson-progress-query.dto';
-import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
+import {
+  PaginationMetaDto,
+  PaginatedResponseDto,
+} from 'src/models/pagination.dto';
 
 @Injectable()
 export class LessonProgressService {
@@ -26,9 +32,12 @@ export class LessonProgressService {
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
     private readonly enrollsService: EnrollsService,
-  ) { }
+  ) {}
 
-  async create(dto: CreateLessonProgressDto, userId: number | undefined): Promise<LessonProgress> {
+  async create(
+    dto: CreateLessonProgressDto,
+    userId: number | undefined,
+  ): Promise<LessonProgress> {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
@@ -42,10 +51,20 @@ export class LessonProgressService {
         lessonId: dto.lessonId,
       },
     });
+
     if (duplicate) {
-      throw new ConflictException(
-        'Lesson progress already exists for this user, course, and lesson',
-      );
+      let didUpdate = false;
+      if (dto.progress !== undefined && dto.progress !== duplicate.progress) {
+        await duplicate.update({ progress: dto.progress });
+        didUpdate = true;
+      }
+
+      if (didUpdate && dto.progress === LessonProgressStatus.COMPLETED) {
+        // If we just marked lesson complete, sync enroll progress for course.
+        await this.enrollsService.syncEnrollProgress(userId, dto.courseId);
+      }
+
+      return duplicate;
     }
 
     const row = await this.lessonProgressModel.create({
@@ -55,6 +74,7 @@ export class LessonProgressService {
       progress: dto.progress ?? LessonProgressStatus.NOT_STARTED,
     });
 
+    // New row created — sync enroll progress for safety (e.g., if started/completed).
     await this.enrollsService.syncEnrollProgress(userId, dto.courseId);
     return row;
   }
@@ -133,7 +153,7 @@ export class LessonProgressService {
     // can't interleave a stale read with a fresher write.
     const [affected] = await this.lessonProgressModel.update(
       {
-        lastVideoPositionSec: position,
+        lastVideoPositionMs: position,
         lastWatchedAt,
         progress: LessonProgressStatus.IN_PROGRESS,
       },
@@ -158,7 +178,7 @@ export class LessonProgressService {
       // Already completed — return its persisted position without bumping it.
       return {
         ok: true,
-        position: row.lastVideoPositionSec,
+        position: row.lastVideoPositionMs,
         lastWatchedAt: row.lastWatchedAt ?? new Date(0),
       };
     }
@@ -174,7 +194,7 @@ export class LessonProgressService {
       progressId: number;
       course: Course | null;
       lesson: Lesson | null;
-      lastVideoPositionSec: number;
+      lastVideoPositionMs: number;
       lastWatchedAt: Date | null;
       percentage: number;
     }>;
@@ -221,7 +241,7 @@ export class LessonProgressService {
         progressId: row.id,
         course: row.course ?? null,
         lesson: row.lesson ?? null,
-        lastVideoPositionSec: row.lastVideoPositionSec,
+        lastVideoPositionMs: row.lastVideoPositionMs,
         lastWatchedAt: row.lastWatchedAt,
         percentage: percentByCourse.get(row.courseId) ?? 0,
       })),
