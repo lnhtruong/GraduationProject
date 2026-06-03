@@ -4,6 +4,7 @@ import { GraduationCap, Star, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CourseCardData } from "@/features/_shared/course-card.types";
+import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 
 interface CourseCardProps {
   course: CourseCardData;
@@ -11,8 +12,15 @@ interface CourseCardProps {
 
 export function CourseCard({ course }: CourseCardProps) {
   return (
-    <Link href={`/courses/${course.id}`}>
-      <Card className="group h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
+    <div className="group relative h-full">
+      {/* WishlistButton nằm ngoài Link để tránh nested interactive elements */}
+      <WishlistButton
+        courseId={course.id}
+        className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+      />
+
+      <Link href={`/courses/${course.id}`} className="block h-full">
+      <Card className="h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-muted">
           {course.thumbnailUrl ? (
@@ -99,6 +107,7 @@ export function CourseCard({ course }: CourseCardProps) {
           </div>
         </CardContent>
       </Card>
-    </Link>
+      </Link>
+    </div>
   );
 }
