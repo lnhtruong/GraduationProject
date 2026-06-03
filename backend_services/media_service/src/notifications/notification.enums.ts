@@ -8,6 +8,9 @@ export const NotificationEventType = {
   IMAGE_UPLOAD_COMPLETED: 'image.upload.completed',
   LECTURER_REQUEST_APPROVED: 'lecturer_request.approved',
   LECTURER_REQUEST_REJECTED: 'lecturer_request.rejected',
+  DISCUSSION_REPLY_CREATED: 'discussion.reply.created',
+  INSTRUCTOR_FOLLOW_NEW: 'instructor.follow.new',
+  COURSE_PUBLISH_NEW_FROM_INSTRUCTOR: 'course.publish.new_from_instructor',
 } as const;
 
 export type NotificationEventType =
@@ -20,6 +23,9 @@ export const NotificationSourceType = {
   VIDEO_JOB: 'video_job',
   IMAGE: 'image',
   LECTURER_REQUEST: 'lecturer_request',
+  DISCUSSION_POST: 'discussion_post',
+  INSTRUCTOR_FOLLOW: 'instructor_follow',
+  COURSE: 'course',
 } as const;
 
 export type NotificationSourceType =
@@ -49,6 +55,9 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.IMAGE_UPLOAD_COMPLETED,
   NotificationEventType.LECTURER_REQUEST_APPROVED,
   NotificationEventType.LECTURER_REQUEST_REJECTED,
+  NotificationEventType.DISCUSSION_REPLY_CREATED,
+  NotificationEventType.INSTRUCTOR_FOLLOW_NEW,
+  NotificationEventType.COURSE_PUBLISH_NEW_FROM_INSTRUCTOR,
 ] as const;
 
 export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [
@@ -57,4 +66,7 @@ export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [
   NotificationSourceType.VIDEO_JOB,
   NotificationSourceType.IMAGE,
   NotificationSourceType.LECTURER_REQUEST,
+  NotificationSourceType.DISCUSSION_POST,
+  NotificationSourceType.INSTRUCTOR_FOLLOW,
+  NotificationSourceType.COURSE,
 ] as const;

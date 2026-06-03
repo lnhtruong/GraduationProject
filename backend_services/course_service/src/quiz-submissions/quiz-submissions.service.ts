@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
-import { fn, col, literal, Transaction } from 'sequelize';
+import { fn, col, literal, Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
@@ -336,13 +336,17 @@ export class QuizSubmissionsService {
     transaction?: Transaction,
   ): Promise<void> {
     const enroll = await this.enrollModel.findOne({
-      where: { userId, courseId, status: EnrollStatus.ACTIVE },
+      where: {
+        userId,
+        courseId,
+        status: { [Op.in]: [EnrollStatus.ACTIVE, EnrollStatus.COMPLETED] },
+      },
       transaction,
     });
 
     if (!enroll) {
       throw new ForbiddenException(
-        'You must be actively enrolled in this course to submit the quiz.',
+        'You must be enrolled in this course to submit the quiz.',
       );
     }
   }
