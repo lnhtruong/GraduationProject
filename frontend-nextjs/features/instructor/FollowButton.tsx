@@ -24,13 +24,14 @@ function formatCount(count: number): string {
 
 export function FollowButton({ instructorId }: Props) {
   const router = useRouter();
-  const { isAuthenticated } = useAuthState();
+  const { user, isAuthenticated } = useAuthState();
   const { data: stats, isLoading } = useInstructorStats(instructorId);
   const followMutation = useFollowMutation(instructorId);
   const unfollowMutation = useUnfollowMutation(instructorId);
 
   const [hovered, setHovered] = useState(false);
 
+  const isOwnProfile = isAuthenticated && user?.id === instructorId;
   const isFollowing = stats?.isFollowing ?? false;
   const followerCount = stats?.followerCount ?? 0;
   const isPending = followMutation.isPending || unfollowMutation.isPending;
@@ -46,6 +47,8 @@ export function FollowButton({ instructorId }: Props) {
       followMutation.mutate();
     }
   }
+
+  if (isOwnProfile) return null;
 
   if (isLoading) {
     return (

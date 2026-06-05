@@ -5,8 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowingInstructors } from "@/features/instructor/follow/follow.hooks";
 
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
 }
 
 export function FollowingInstructorsGrid() {
@@ -47,8 +49,7 @@ export function FollowingInstructorsGrid() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {instructors.map((instructor) => {
-        const fullName = `${instructor.firstName} ${instructor.lastName}`;
-        const initials = getInitials(instructor.firstName, instructor.lastName);
+        const initials = getInitials(instructor.name);
         return (
           <div
             key={instructor.id}
@@ -56,17 +57,14 @@ export function FollowingInstructorsGrid() {
           >
             <Avatar className="h-14 w-14 border-2 border-primary/20">
               {instructor.avatarUrl && (
-                <AvatarImage src={instructor.avatarUrl} alt={fullName} />
+                <AvatarImage src={instructor.avatarUrl} alt={instructor.name} />
               )}
               <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 w-full">
-              <p className="truncate text-sm font-semibold">{fullName}</p>
-              {instructor.title && (
-                <p className="truncate text-xs text-muted-foreground">{instructor.title}</p>
-              )}
+              <p className="truncate text-sm font-semibold">{instructor.name}</p>
             </div>
           </div>
         );

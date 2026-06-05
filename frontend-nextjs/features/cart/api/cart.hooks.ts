@@ -2,6 +2,7 @@ import {
   createQueryHooks,
   createMutationHooks,
 } from "@/features/_shared/react-query-factories";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { cartApi } from "./cart.api";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -14,7 +15,11 @@ const cartItemsHooks = createQueryHooks(
 );
 
 export const cartKeys = cartItemsHooks.keys;
-export const useCartQuery = cartItemsHooks.useQuery;
+
+export function useCartQuery() {
+  const { isAuthenticated } = useAuthState();
+  return cartItemsHooks.useQuery(isAuthenticated);
+}
 
 // Derive từ useCartQuery — không gọi API thêm
 export function useCartSummary() {

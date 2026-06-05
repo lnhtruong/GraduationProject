@@ -5,8 +5,6 @@ export interface InstructorStats {
 
 export interface FollowingInstructor {
   id: number;
-  firstName: string;
-  lastName: string;
+  name: string;
   avatarUrl?: string;
-  title?: string;
 }

@@ -167,7 +167,7 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/courses', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
-  { method: 'GET', pattern: '/api/course/lessons/course', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes', access: 'public' },
   { method: 'GET', pattern: '/api/course/quizzes/lesson/:id', access: 'authenticated' },
@@ -180,7 +180,7 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/course/roadmaps', access: 'public' },
   { method: 'GET', pattern: '/api/course/roadmaps/:id', access: 'public' },
-  { method: 'GET', pattern: '/api/course/users/:id', access: 'authenticated' },
+  { method: 'GET', pattern: '/api/course/users/:id', access: 'public' },
 
   // Discussion Forum (BE-02..BE-04). All authenticated; the service enforces
   // enrollment/author/instructor rules per endpoint.
