@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CirclePlus,
+  MessageSquare,
   Search,
   Filter,
   Trash2,
@@ -214,6 +215,12 @@ export default function CourseOverviewPage({ courseId }: Props) {
       ]}
       action={
         <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={`/instructor/courses/${course.id}/qa`}>
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Q&A
+            </Link>
+          </Button>
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={`/instructor/courses/${course.id}/feed`}>
               <Clapperboard className="mr-2 h-4 w-4" />

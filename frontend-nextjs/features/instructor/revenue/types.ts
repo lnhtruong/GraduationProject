@@ -9,6 +9,8 @@ export interface RevenueSummary {
 export interface CourseRevenueSummary {
   courseId: number;
   courseName: string;
+  thumbnailUrl?: string | null;
+  avgRating?: number | null;
   allTime: number;
   thisMonth: number;
   lastMonth: number;

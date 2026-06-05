@@ -5,6 +5,7 @@ import { CalendarDays, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRevenueSummary, useRevenueTimeseries } from "../../revenue/hooks";
+import { useCourseStatsOverview } from "../../analytics/hooks";
 import type { RevenueGranularity, RevenueTimeseriesParams } from "../../revenue/types";
 import { RevenueSummaryCards } from "./RevenueSummaryCards";
 import { RevenueChart } from "./RevenueChart";
@@ -63,8 +64,18 @@ export function RevenueTab() {
   };
 
   const { data: summary, isLoading: summaryLoading } = useRevenueSummary();
+  const { data: statsOverview } = useCourseStatsOverview();
   const { data: timeseries = [], isLoading: chartLoading } =
     useRevenueTimeseries(chartParams);
+
+  const ratingMap = new Map(
+    (statsOverview?.courses ?? []).map((c) => [c.courseId, c.ratings.averageRating]),
+  );
+
+  const enrichedCourses = (summary?.courses ?? []).map((c) => ({
+    ...c,
+    avgRating: ratingMap.get(c.courseId) ?? null,
+  }));
 
   const dateRangeInvalid = Boolean(from && to && from > to);
   const canApply = Boolean(from && to && !dateRangeInvalid);
@@ -176,7 +187,7 @@ export function RevenueTab() {
         <CourseRevenueTable
           from={appliedFrom}
           to={appliedTo}
-          allCourses={summary?.courses ?? []}
+          allCourses={enrichedCourses}
         />
       </div>
     </div>
