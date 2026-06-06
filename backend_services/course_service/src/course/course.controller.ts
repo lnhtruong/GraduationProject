@@ -18,6 +18,7 @@ import type { CoursePublicSort } from './course.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { SearchCoursesQueryDto } from './dto/search-courses-query.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { ReviewChangeRequestDto } from './dto/review-change-request.dto';
 import { CourseLevel, CourseStatus } from 'src/models/course.model';
 import { buildRequesterFromHeaders } from 'src/audit_logs/requester.types';
 
@@ -153,6 +154,42 @@ export class CoursesController {
     return this.coursesService.getCourseStatsOverview(id, userId, role);
   }
 
+  // Change requests — phải khai báo TRƯỚC route ':id' để 'change-requests'
+  // không bị ParseIntPipe của GET/PATCH ':id' bắt nhầm.
+  @Get('change-requests')
+  listChangeRequests(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.coursesService.listChangeRequests({
+      status,
+      page: page !== undefined ? Number(page) : undefined,
+      limit: limit !== undefined ? Number(limit) : undefined,
+    });
+  }
+
+  @Patch('change-requests/:requestId/review')
+  reviewChangeRequest(
+    @Param('requestId', ParseIntPipe) requestId: number,
+    @Body() body: ReviewChangeRequestDto,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
+  ) {
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua);
+    if (!requester) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return this.coursesService.reviewChangeRequest(
+      requestId,
+      body.decision,
+      requester,
+      body.note,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.coursesService.findOne(id);
@@ -162,8 +199,18 @@ export class CoursesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCourseDto: UpdateCourseDto,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
   ) {
-    return this.coursesService.update(id, updateCourseDto);
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua);
+    if (!requester) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    // Course đã publish → service tự tạo change request chờ admin duyệt
+    // (không sửa trực tiếp). Course chưa publish → sửa trực tiếp như cũ.
+    return this.coursesService.update(id, updateCourseDto, requester);
   }
 
   @Delete(':id')

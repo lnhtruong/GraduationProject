@@ -12,6 +12,7 @@ import { RoadMapCourse } from '../models/roadmap-course.model';
 import { Feedback } from '../models/feedback.model';
 import { FeedbackReaction } from '../models/feedback-reaction.model';
 import { Enroll } from '../models/enroll.model';
+import { CourseChangeRequest } from '../models/course-change-request.model';
 import { LessonProgress } from '../models/lesson-progress.model';
 import { MascotImage } from 'src/models/images.model';
 import { Report } from '../models/report.model';
@@ -50,6 +51,7 @@ import { Notification } from 'src/models/notification.model';
             Feedback,
             FeedbackReaction,
             Enroll,
+            CourseChangeRequest,
             LessonProgress,
             Report,
             AuditLog,
@@ -75,4 +77,4 @@ import { Notification } from 'src/models/notification.model';
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

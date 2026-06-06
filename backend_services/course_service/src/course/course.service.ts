@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -20,6 +21,11 @@ import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
+import {
+  CourseChangeRequest,
+  CourseChangeRequestStatus,
+  CourseUpdatePayload,
+} from 'src/models/course-change-request.model';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
@@ -79,12 +85,14 @@ export class CoursesService {
     private readonly lessonModel: typeof Lesson,
     @InjectModel(Enroll)
     private readonly enrollModel: typeof Enroll,
+    @InjectModel(CourseChangeRequest)
+    private readonly courseChangeRequestModel: typeof CourseChangeRequest,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
     private readonly auditLogsService: AuditLogsService,
-  ) { }
+  ) {}
 
   /**
    * BE-07: notify every follower of the publishing instructor that a new
@@ -244,9 +252,15 @@ export class CoursesService {
   private buildPublicCourseOrder(sort?: string): Order {
     switch (sort) {
       case 'popular':
-        return [[literal('enrolled_count'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('enrolled_count'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'rating':
-        return [[literal('avg_rating'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('avg_rating'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'newest':
       default:
         return [['id', 'DESC']];
@@ -329,12 +343,12 @@ export class CoursesService {
     const parsed =
       typeof value === 'string'
         ? (() => {
-          try {
-            return JSON.parse(value);
-          } catch {
-            return [];
-          }
-        })()
+            try {
+              return JSON.parse(value);
+            } catch {
+              return [];
+            }
+          })()
         : value;
 
     if (!Array.isArray(parsed)) {
@@ -478,7 +492,7 @@ export class CoursesService {
       instructorName,
       instructorAvatar:
         typeof instructor?.avatarUrl === 'string' &&
-          instructor.avatarUrl.trim().length > 0
+        instructor.avatarUrl.trim().length > 0
           ? instructor.avatarUrl
           : null,
       status: plain.status,
@@ -650,14 +664,14 @@ export class CoursesService {
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -716,19 +730,19 @@ export class CoursesService {
       maxPrice?: number;
       userId?: number;
       requesterRole?: number;
-      sort?: CoursePublicSort,
+      sort?: CoursePublicSort;
     } = {},
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     const {
       status,
@@ -768,7 +782,6 @@ export class CoursesService {
       }
       whereCondition.userId = userId;
     }
-
 
     const priceCondition: Record<symbol, number> = {};
     if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
@@ -1324,19 +1337,136 @@ export class CoursesService {
     };
   }
 
-  async update(id: number, updateCourseDto: UpdateCourseDto): Promise<Course> {
+  /**
+   * Cập nhật course.
+   * - Course CHƯA publish → sửa trực tiếp, đưa về `DRAFT` (hành vi cũ).
+   * - Course ĐÃ `PUBLISH` → KHÔNG sửa trực tiếp. Tự động tạo (hoặc ghi đè)
+   *   một change request `pending` để admin duyệt; course giữ nguyên `PUBLISH`
+   *   và nội dung live. Trả về change request thay vì course.
+   * Tối đa 1 request `pending` / course: gọi lại sẽ ghi đè payload pending.
+   */
+  async update(
+    id: number,
+    updateCourseDto: UpdateCourseDto,
+    requester: RequesterContext,
+  ): Promise<Course | CourseChangeRequest> {
     const course = await this.findOne(id);
-    if (course.status === CourseStatus.PUBLISH) {
-      throw new BadRequestException(
-        'Cannot edit a published course. Only quiz edits are allowed after publishing.',
-      );
+
+    const ownerId = (course as Course & { userId?: number }).userId;
+    if (requester.role !== this.ADMIN_ROLE && ownerId !== requester.userId) {
+      throw new ForbiddenException('You are not the owner of this course');
     }
+
     await this.validateVideoId(updateCourseDto.videoId);
-    const coursePayload = this.buildCourseWritePayload(updateCourseDto);
+    const payload = this.buildCourseWritePayload(
+      updateCourseDto,
+    ) as CourseUpdatePayload;
+
+    if (course.status === CourseStatus.PUBLISH) {
+      const existing = await this.courseChangeRequestModel.findOne({
+        where: { courseId: id, status: CourseChangeRequestStatus.PENDING },
+      });
+      if (existing) {
+        return await existing.update({
+          payload,
+          requestedBy: requester.userId,
+        });
+      }
+      return await this.courseChangeRequestModel.create({
+        courseId: id,
+        requestedBy: requester.userId,
+        payload,
+        status: CourseChangeRequestStatus.PENDING,
+      });
+    }
+
     return await course.update({
-      ...coursePayload,
+      ...payload,
       status: CourseStatus.DRAFT,
     });
+  }
+
+  /** Danh sách change request (admin), filter theo status + phân trang server-side. */
+  async listChangeRequests(params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: CourseChangeRequest[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const page = this.parsePositiveInteger(params.page, 1);
+    const limit = this.parsePositiveInteger(params.limit, 20, 100);
+
+    const where: WhereOptions = {};
+    if (params.status) {
+      where.status = params.status;
+    }
+
+    const { rows, count } = await this.courseChangeRequestModel.findAndCountAll(
+      {
+        where,
+        order: [['id', 'DESC']],
+        limit,
+        offset: (page - 1) * limit,
+      },
+    );
+
+    return { data: rows, total: count, page, limit };
+  }
+
+  /**
+   * Admin duyệt change request. `approved` → apply payload vào course
+   * (giữ nguyên `PUBLISH`) + ghi audit log; `rejected` → course không đổi.
+   */
+  async reviewChangeRequest(
+    requestId: number,
+    decision: 'approved' | 'rejected',
+    requester: RequesterContext,
+    note?: string,
+  ): Promise<{ changeRequest: CourseChangeRequest; course: Course | null }> {
+    const request = await this.courseChangeRequestModel.findByPk(requestId);
+    if (!request) {
+      throw new NotFoundException(`Change request ${requestId} not found`);
+    }
+    if (request.status !== CourseChangeRequestStatus.PENDING) {
+      throw new ConflictException('Change request is no longer pending');
+    }
+
+    if (decision === 'rejected') {
+      const rejected = await request.update({
+        status: CourseChangeRequestStatus.REJECTED,
+        reviewedBy: requester.userId,
+        reviewNote: note ?? null,
+      });
+      return { changeRequest: rejected, course: null };
+    }
+
+    const course = await this.findOne(request.courseId);
+    const before = this.auditableCourseSnapshot(course);
+    const updatedCourse = await course.update(request.payload);
+    const approved = await request.update({
+      status: CourseChangeRequestStatus.APPROVED,
+      reviewedBy: requester.userId,
+      reviewNote: note ?? null,
+    });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.approve',
+      targetType: 'course',
+      targetId: course.id,
+      before,
+      after: this.auditableCourseSnapshot(updatedCourse),
+      metadata: { changeRequestId: requestId },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    return { changeRequest: approved, course: updatedCourse };
   }
 
   async remove(id: number, requester?: RequesterContext): Promise<void> {
