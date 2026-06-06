@@ -6,6 +6,8 @@ import { QuizQuestion } from './quiz-question.model';
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  paranoid: true,
+  deletedAt: 'deleted_at',
 })
 export class QuizOption extends Model {
   @Column({
@@ -22,17 +24,17 @@ export class QuizOption extends Model {
     allowNull: false,
     field: 'question_id',
   })
-  questionId: number;
+  declare questionId: number;
 
   @BelongsTo(() => QuizQuestion)
-  question: QuizQuestion;
+  declare question: QuizQuestion;
 
   @Column({
     type: DataType.TEXT,
     allowNull: false,
     field: 'option_text',
   })
-  optionText: string;
+  declare optionText: string;
 
   @Column({
     type: DataType.BOOLEAN,
@@ -40,12 +42,19 @@ export class QuizOption extends Model {
     defaultValue: false,
     field: 'is_correct',
   })
-  isCorrect: boolean;
+  declare isCorrect: boolean;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'order_index',
   })
-  orderIndex: number;
+  declare orderIndex: number;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+    field: 'deleted_at',
+  })
+  declare deletedAt: Date | null;
 }

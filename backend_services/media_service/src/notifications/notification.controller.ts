@@ -59,6 +59,11 @@ export class NotificationController {
       sourceType: body.sourceType,
       sourceId: body.sourceId,
     });
+    // row có thể null nếu event là VIDEO_JOB_PROGRESS (skip persist).
+    // Internal API hiện không dùng cho progress event, nhưng vẫn handle defensively.
+    if (!row) {
+      return { success: true, persisted: false };
+    }
     return this.notificationService.toResponse(row);
   }
 

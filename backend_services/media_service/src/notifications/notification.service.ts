@@ -34,15 +34,17 @@ export class NotificationService {
   ) { }
 
   private buildCreatedEvent(
-    notification: Notification,
+    notification: Notification | null,
     sseEventType: NotificationSseEventType,
     payload?: Record<string, unknown>,
+    fallback?: { userId: number; title: string; message?: string | null;
+                  sourceType?: NotificationSourceType; sourceId?: number;
+                  eventType?: NotificationEventType },
   ): MessageEvent {
-    return {
-      type: sseEventType,
-      data: {
-        success: true,
-        notification: {
+    // Khi notification không persist (vd VIDEO_JOB_PROGRESS) — build event từ fallback
+    // để vẫn emit SSE đúng schema mà không touch DB.
+    const notif = notification
+      ? {
           id: notification.id,
           user_id: notification.user_id,
           event_type: notification.event_type,
@@ -53,15 +55,38 @@ export class NotificationService {
           source_type: notification.source_type,
           source_id: notification.source_id,
           created_at: notification.get('created_at'),
-        },
+        }
+      : fallback
+        ? {
+            id: null,
+            user_id: fallback.userId,
+            event_type: fallback.eventType ?? null,
+            title: fallback.title,
+            message: fallback.message ?? null,
+            payload: payload ?? null,
+            is_read: false,
+            source_type: fallback.sourceType ?? null,
+            source_id: fallback.sourceId ?? null,
+            created_at: new Date(),
+          }
+        : null;
+
+    return {
+      type: sseEventType,
+      data: {
+        success: true,
+        notification: notif,
         data: payload ?? null,
         timestamp: new Date().toISOString(),
       },
     };
   }
 
-  async createAndEmit(input: CreateNotificationInput): Promise<Notification> {
-    let notification;
+  async createAndEmit(input: CreateNotificationInput): Promise<Notification | null> {
+    // VIDEO_JOB_PROGRESS events spam quá nhiều (mỗi stage transition) → skip DB,
+    // chỉ emit SSE. Đó là intent ban đầu — nhưng version cũ pass `undefined`
+    // vào buildCreatedEvent → crash. Fix: build event từ input thay vì DB row.
+    let notification: Notification | null = null;
     if (input.eventType !== NotificationEventType.VIDEO_JOB_PROGRESS) {
       notification = await this.notificationModel.create({
         user_id: input.userId,
@@ -75,10 +100,16 @@ export class NotificationService {
       });
     }
 
-
     this.sseService.emitToUser(
       input.userId,
-      this.buildCreatedEvent(notification, input.sseEventType, input.payload),
+      this.buildCreatedEvent(notification, input.sseEventType, input.payload, {
+        userId: input.userId,
+        title: input.title,
+        message: input.message,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        eventType: input.eventType,
+      }),
     );
     return notification;
   }

@@ -5,6 +5,8 @@ export const NotificationEventType = {
   VIDEO_JOB_PROGRESS: 'video.job.progress',
   VIDEO_JOB_FAILED: 'video.job.failed',
   VIDEO_JOB_COMPLETED: 'video.job.completed',
+  TRANSCRIBE_COMPLETED: 'transcribe.completed',
+  QUIZ_GENERATED: 'quiz.generated',
   IMAGE_UPLOAD_COMPLETED: 'image.upload.completed',
   LECTURER_REQUEST_APPROVED: 'lecturer_request.approved',
   LECTURER_REQUEST_REJECTED: 'lecturer_request.rejected',
@@ -38,6 +40,8 @@ export const NotificationSseEventType = {
   VIDEO_PROGRESS: 'video:progress',
   VIDEO_ERROR: 'video:error',
   VIDEO_COMPLETED: 'video:completed',
+  TRANSCRIBE_COMPLETED: 'transcribe:completed',
+  QUIZ_GENERATED: 'quiz:generated',
   NOTIFY_LECTURER_REQUEST: 'notify:lecturer-request',
 } as const;
 
@@ -52,6 +56,8 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.VIDEO_JOB_PROGRESS,
   NotificationEventType.VIDEO_JOB_FAILED,
   NotificationEventType.VIDEO_JOB_COMPLETED,
+  NotificationEventType.TRANSCRIBE_COMPLETED,
+  NotificationEventType.QUIZ_GENERATED,
   NotificationEventType.IMAGE_UPLOAD_COMPLETED,
   NotificationEventType.LECTURER_REQUEST_APPROVED,
   NotificationEventType.LECTURER_REQUEST_REJECTED,
