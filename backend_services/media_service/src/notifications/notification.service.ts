@@ -23,6 +23,8 @@ export type CreateNotificationInput = {
   sourceId?: number;
 };
 
+const BULK_INSERT_CHUNK_SIZE = 200;
+
 @Injectable()
 export class NotificationService {
   constructor(
@@ -31,8 +33,60 @@ export class NotificationService {
     private readonly sseService: SseService,
   ) { }
 
-  async createAndEmit(input: CreateNotificationInput): Promise<Notification> {
-    let notification;
+  private buildCreatedEvent(
+    notification: Notification | null,
+    sseEventType: NotificationSseEventType,
+    payload?: Record<string, unknown>,
+    fallback?: { userId: number; title: string; message?: string | null;
+                  sourceType?: NotificationSourceType; sourceId?: number;
+                  eventType?: NotificationEventType },
+  ): MessageEvent {
+    // Khi notification không persist (vd VIDEO_JOB_PROGRESS) — build event từ fallback
+    // để vẫn emit SSE đúng schema mà không touch DB.
+    const notif = notification
+      ? {
+          id: notification.id,
+          user_id: notification.user_id,
+          event_type: notification.event_type,
+          title: notification.title,
+          message: notification.message,
+          payload: notification.payload,
+          is_read: notification.is_read,
+          source_type: notification.source_type,
+          source_id: notification.source_id,
+          created_at: notification.get('created_at'),
+        }
+      : fallback
+        ? {
+            id: null,
+            user_id: fallback.userId,
+            event_type: fallback.eventType ?? null,
+            title: fallback.title,
+            message: fallback.message ?? null,
+            payload: payload ?? null,
+            is_read: false,
+            source_type: fallback.sourceType ?? null,
+            source_id: fallback.sourceId ?? null,
+            created_at: new Date(),
+          }
+        : null;
+
+    return {
+      type: sseEventType,
+      data: {
+        success: true,
+        notification: notif,
+        data: payload ?? null,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  async createAndEmit(input: CreateNotificationInput): Promise<Notification | null> {
+    // VIDEO_JOB_PROGRESS events spam quá nhiều (mỗi stage transition) → skip DB,
+    // chỉ emit SSE. Đó là intent ban đầu — nhưng version cũ pass `undefined`
+    // vào buildCreatedEvent → crash. Fix: build event từ input thay vì DB row.
+    let notification: Notification | null = null;
     if (input.eventType !== NotificationEventType.VIDEO_JOB_PROGRESS) {
       notification = await this.notificationModel.create({
         user_id: input.userId,
@@ -46,30 +100,54 @@ export class NotificationService {
       });
     }
 
-
-    const event: MessageEvent = {
-      type: input.sseEventType,
-      data: {
-        success: true,
-        notification: {
-          id: notification.id,
-          user_id: notification.user_id,
-          event_type: notification.event_type,
-          title: notification.title,
-          message: notification.message,
-          payload: notification.payload,
-          is_read: notification.is_read,
-          source_type: notification.source_type,
-          source_id: notification.source_id,
-          created_at: notification.get('created_at'),
-        },
-        data: input.payload ?? null,
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    this.sseService.emitToUser(input.userId, event);
+    this.sseService.emitToUser(
+      input.userId,
+      this.buildCreatedEvent(notification, input.sseEventType, input.payload, {
+        userId: input.userId,
+        title: input.title,
+        message: input.message,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        eventType: input.eventType,
+      }),
+    );
     return notification;
+  }
+
+  async createManyAndEmit(
+    inputs: CreateNotificationInput[],
+  ): Promise<Notification[]> {
+    const createdRows: Notification[] = [];
+
+    for (let i = 0; i < inputs.length; i += BULK_INSERT_CHUNK_SIZE) {
+      const chunk = inputs.slice(i, i + BULK_INSERT_CHUNK_SIZE);
+      const rows = await this.notificationModel.bulkCreate(
+        chunk.map((input) => ({
+          user_id: input.userId,
+          event_type: input.eventType,
+          title: input.title,
+          message: input.message ?? null,
+          payload: input.payload ?? null,
+          source_type: input.sourceType ?? null,
+          source_id: input.sourceId ?? null,
+          is_read: false,
+        })),
+        { returning: true },
+      );
+
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const input = chunk[index];
+        this.sseService.emitToUser(
+          input.userId,
+          this.buildCreatedEvent(row, input.sseEventType, input.payload),
+        );
+      }
+
+      createdRows.push(...rows);
+    }
+
+    return createdRows;
   }
 
   toResponse(row: Notification) {

@@ -3,6 +3,9 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { QuizzesService } from './quizzes.service';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
+import { CreateQuizFromAIDto } from './dto/create-quiz-from-ai.dto';
+import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
+import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -31,6 +34,19 @@ export class QuizzesController {
   async createAI(@Body() body: CreateQuizAIDto | CreateQuizAIDto[]) {
     if (Array.isArray(body)) return await this.quizzesService.createManyByAI(body);
     return await this.quizzesService.createOneByAI(body);
+  }
+
+  /**
+   * Endpoint async — nhận quiz đã pre-generated từ Colab (qua media_service webhook).
+   * Skip OpenAI inline gen, chỉ map shape Colab → DB và insert.
+   *
+   * Phân biệt với `/quizzes/ai`:
+   *   - `/quizzes/ai`     : block 30s+ vì gen OpenAI inline; truyền `videoId` để đọc srt_raw_url
+   *   - `/quizzes/from-ai`: instant insert; truyền `questions[]` đã sinh sẵn
+   */
+  @Post('from-ai')
+  async createFromAI(@Body() body: CreateQuizFromAIDto) {
+    return await this.quizzesService.createFromAI(body);
   }
 
   @Get()
@@ -65,8 +81,51 @@ export class QuizzesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
+    // Soft delete (paranoid mode trên Quiz model) — set deleted_at, không xoá vĩnh viễn
     await this.quizzesService.remove(Number(id));
     return { success: true };
+  }
+
+  /**
+   * Bulk-filter câu hỏi: giảng viên gửi `keepQuestionIds` → backend soft-delete
+   * những câu còn lại + reindex orderIndex theo thứ tự keep.
+   *
+   * Use case chính: sau khi AI sinh 30 câu, giảng viên chọn 15 câu ưng nhất.
+   */
+  @Patch(':id/filter-questions')
+  async filterQuestions(
+    @Param('id') id: string,
+    @Body() body: FilterQuizQuestionsDto,
+  ) {
+    return await this.quizzesService.filterQuestions(Number(id), body);
+  }
+
+  /** Soft-delete 1 câu hỏi cụ thể (không xoá toàn bộ quiz). */
+  @Delete(':id/questions/:questionId')
+  async removeQuestion(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+  ) {
+    await this.quizzesService.softDeleteQuestion(Number(id), Number(questionId));
+    return { success: true };
+  }
+
+  /** Khôi phục câu hỏi đã bị soft-delete (undo). */
+  @Post(':id/restore-questions')
+  async restoreQuestions(
+    @Param('id') id: string,
+    @Body() body: RestoreQuizQuestionsDto,
+  ) {
+    return await this.quizzesService.restoreQuestions(Number(id), body);
+  }
+
+  /**
+   * Show toàn bộ câu hỏi của quiz (cả active lẫn soft-deleted).
+   * Trả `{active: [...], deleted: [...]}` cho FE hiển thị "Đã xoá (5)" để undo.
+   */
+  @Get(':id/questions/all')
+  async listAllQuestions(@Param('id') id: string) {
+    return await this.quizzesService.listAllQuestions(Number(id));
   }
 }
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { HttpModule } from '@nestjs/axios';
 import { WebhookService } from './webhook.service';
 import { WebhookController } from './webhook.controller';
 import { Video } from 'src/videos/video.model';
@@ -12,6 +13,8 @@ import { NotificationModule } from 'src/notifications/notification.module';
         SequelizeModule.forFeature([Video, Image]),
         NotificationModule,
         BunnyModule,
+        // Để forward quiz tới course_service /quizzes/from-ai
+        HttpModule.register({ timeout: 30000 }),
     ],
     providers: [WebhookService],
     controllers: [WebhookController],

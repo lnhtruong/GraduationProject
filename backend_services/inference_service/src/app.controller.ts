@@ -35,6 +35,7 @@ export class AppController {
       message:
         'Forwards inference workload to a pool of Colab notebooks behind ngrok.',
       endpoints: {
+        transcribe: 'POST /transcribe (JSON)',
         highlight_upload: 'POST /highlight-reel (FormData)',
         highlight_link: 'POST /highlight-reel-link (JSON)',
         generate_quiz: 'POST /generate-quiz',
@@ -44,6 +45,15 @@ export class AppController {
         pool_status: 'GET /pool/status',
       },
     };
+  }
+
+  // POST /transcribe — JSON với { video_url, source_original_filename, language? }
+  @Post('transcribe')
+  async createTranscribe(
+    @Body() body: unknown,
+    @Headers('x-user-id') userIdHeader?: string,
+  ): Promise<unknown> {
+    return this.appService.createTranscribe(body, parseUserId(userIdHeader));
   }
 
   // GET /pool/status — Ops/debug

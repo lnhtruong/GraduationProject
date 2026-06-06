@@ -60,11 +60,13 @@ type CategorySummary = {
 export type CoursePublicSort = 'newest' | 'popular' | 'rating';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
 import {
-  Notification,
   COURSE_PUBLISH_EVENT,
   COURSE_SOURCE,
 } from 'src/models/notification.model';
 import { User } from 'src/users/user.model';
+
+const NOTIFY_CREATED_SSE_EVENT = 'notify:created';
+const INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE = 1000;
 
 @Injectable()
 export class CoursesService {
@@ -81,8 +83,6 @@ export class CoursesService {
     private readonly feedbackModel: typeof Feedback,
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
-    @InjectModel(Notification)
-    private readonly notificationModel: typeof Notification,
     private readonly auditLogsService: AuditLogsService,
   ) { }
 
@@ -128,6 +128,7 @@ export class CoursesService {
       const records = follows.map((f) => ({
         userId: f.followerId,
         eventType: COURSE_PUBLISH_EVENT,
+        sseEventType: NOTIFY_CREATED_SSE_EVENT,
         title: 'Khóa học mới từ giảng viên bạn theo dõi',
         message: `${instructorName} vừa ra mắt khóa học mới: ${courseName}`,
         payload: payloadBase,
@@ -135,10 +136,37 @@ export class CoursesService {
         sourceId: course.id,
       }));
 
-      const CHUNK = 200;
-      for (let i = 0; i < records.length; i += CHUNK) {
-        const chunk = records.slice(i, i + CHUNK);
-        await this.notificationModel.bulkCreate(chunk);
+      const mediaServiceUrl =
+        process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
+      const secret = process.env.INTERNAL_SERVICE_SECRET;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (secret) headers['x-internal-secret'] = secret;
+
+      for (
+        let i = 0;
+        i < records.length;
+        i += INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE
+      ) {
+        const items = records.slice(
+          i,
+          i + INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE,
+        );
+        const res = await fetch(
+          `${mediaServiceUrl}/notifications/internal/bulk`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ items }),
+          },
+        );
+        if (!res.ok) {
+          const text = await res.text();
+          console.warn(
+            `[courses] follower notification dispatch failed (${res.status}): ${text}`,
+          );
+        }
       }
     } catch (err) {
       // eslint-disable-next-line no-console

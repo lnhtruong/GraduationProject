@@ -315,6 +315,39 @@ const ACCESS_RULES: AccessRule[] = [
     access: 'roles',
     roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
+  // Internal — gọi từ media_service webhook khi nhận quiz từ Colab.
+  // Để authenticated cho phép FE fallback gọi trực tiếp khi pending_insert.
+  {
+    method: 'POST',
+    pattern: '/api/course/quizzes/from-ai',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  // Soft-delete + filter — chỉ owner (lecturer) hoặc admin được sửa
+  {
+    method: 'PATCH',
+    pattern: '/api/course/quizzes/:id/filter-questions',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/course/quizzes/:id/questions/:questionId',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'POST',
+    pattern: '/api/course/quizzes/:id/restore-questions',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/quizzes/:id/questions/all',
+    access: 'roles',
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
   {
     method: 'PATCH',
     pattern: '/api/course/quizzes/:id',
