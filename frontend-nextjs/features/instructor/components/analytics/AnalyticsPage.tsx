@@ -43,14 +43,14 @@ function PeriodSelector({
   onChange: (v: StatPeriod) => void;
 }) {
   return (
-    <div className="flex items-center rounded-lg border border-border/60 bg-muted/30 p-0.5">
+    <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5">
       {PERIOD_OPTIONS.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.value
-              ? "bg-background text-foreground shadow-sm"
+              ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -111,9 +111,7 @@ interface TabSummaryRowProps {
 
 function TabSummaryRow({ items, isLoading, cols = 4 }: TabSummaryRowProps) {
   const gridClass =
-    cols === 3
-      ? "grid-cols-1 sm:grid-cols-3"
-      : "grid-cols-2 lg:grid-cols-4";
+    cols === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 lg:grid-cols-4";
 
   return (
     <div className={`grid ${gridClass} gap-3`}>
@@ -158,7 +156,8 @@ export default function AnalyticsPage() {
     return `${amount.toLocaleString("vi-VN")}đ`;
   }
 
-  // ── KPI strip data ──────────────────────────────────────────────────────────
+  const globalLoading = courseLoading || feedLoading || revenueLoading;
+
   const kpiItems = [
     {
       label: "Tổng khóa học",
@@ -168,7 +167,6 @@ export default function AnalyticsPage() {
       iconColor: "text-primary",
       topBorderClass: "border-t-primary",
       valueClass: "text-primary",
-      isLoading: courseLoading,
     },
     {
       label: "Tổng học viên",
@@ -180,7 +178,6 @@ export default function AnalyticsPage() {
       iconColor: "text-blue-600 dark:text-blue-400",
       topBorderClass: "border-t-blue-500",
       valueClass: "text-blue-600 dark:text-blue-400",
-      isLoading: courseLoading,
     },
     {
       label: "Doanh thu tháng này",
@@ -190,7 +187,6 @@ export default function AnalyticsPage() {
       iconColor: "text-emerald-600 dark:text-emerald-400",
       topBorderClass: "border-t-emerald-500",
       valueClass: "text-emerald-600 dark:text-emerald-400",
-      isLoading: revenueLoading,
     },
     {
       label: "Lượt xem Feed",
@@ -202,7 +198,6 @@ export default function AnalyticsPage() {
       iconColor: "text-violet-600 dark:text-violet-400",
       topBorderClass: "border-t-violet-500",
       valueClass: "text-violet-600 dark:text-violet-400",
-      isLoading: feedLoading,
     },
     {
       label: "Tổng tương tác",
@@ -212,67 +207,81 @@ export default function AnalyticsPage() {
       iconColor: "text-rose-500 dark:text-rose-400",
       topBorderClass: "border-t-rose-500",
       valueClass: "text-rose-500 dark:text-rose-400",
-      isLoading: feedLoading,
     },
   ];
 
-  const globalLoading = courseLoading || feedLoading || revenueLoading;
-
   return (
     <div className="space-y-5">
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 border-b border-border/50 pb-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <BarChart3 className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Thống kê</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Tổng quan hiệu suất khóa học và nội dung Shorts Feed
-          </p>
-        </div>
-      </div>
+      {/* ── Hero banner ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
+        {/* Decorative blur blobs */}
+        <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-6 right-1/3 h-36 w-36 rounded-full bg-blue-500/6 blur-2xl" />
 
-      {/* ── KPI summary strip ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {globalLoading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border/60 bg-background shadow-sm">
-                <SummaryCardSkeleton />
-              </div>
-            ))
-          : kpiItems.map((item) => (
-              <div
-                key={item.label}
-                className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm border-t-2 ${item.topBorderClass}`}
-              >
-                <SummaryCard {...item} />
-              </div>
-            ))}
+        <div className="relative px-6 py-6">
+          {/* Title row */}
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25">
+              <BarChart3 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Thống kê</h1>
+              <p className="text-sm text-muted-foreground">
+                Tổng quan hiệu suất khóa học và nội dung Shorts Feed
+              </p>
+            </div>
+          </div>
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            {globalLoading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border/60 bg-background shadow-sm">
+                    <SummaryCardSkeleton />
+                  </div>
+                ))
+              : kpiItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm border-t-2 ${item.topBorderClass}`}
+                  >
+                    <SummaryCard {...item} />
+                  </div>
+                ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4"
-      >
-        {/* TabsList + PeriodSelector row */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        {/* Tab bar + period selector */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="h-9 rounded-lg bg-muted/50 p-0.5">
-            <TabsTrigger value="courses" className="h-8 gap-1.5 rounded-md px-3 text-sm">
+          <TabsList className="h-10 gap-0.5 rounded-xl bg-muted/60 p-1">
+            <TabsTrigger
+              value="courses"
+              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
               <BookOpen className="h-3.5 w-3.5" />
               Khóa học
             </TabsTrigger>
-            <TabsTrigger value="feed" className="h-8 gap-1.5 rounded-md px-3 text-sm">
+            <TabsTrigger
+              value="feed"
+              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
               <TrendingUp className="h-3.5 w-3.5" />
               Shorts Feed
             </TabsTrigger>
-            <TabsTrigger value="trending" className="h-8 gap-1.5 rounded-md px-3 text-sm">
+            <TabsTrigger
+              value="trending"
+              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
               <Flame className="h-3.5 w-3.5" />
               Trending
             </TabsTrigger>
-            <TabsTrigger value="revenue" className="h-8 gap-1.5 rounded-md px-3 text-sm">
+            <TabsTrigger
+              value="revenue"
+              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
               <DollarSign className="h-3.5 w-3.5" />
               Thu nhập
             </TabsTrigger>
