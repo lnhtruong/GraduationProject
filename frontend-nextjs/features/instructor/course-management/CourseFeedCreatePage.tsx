@@ -14,6 +14,12 @@ import {
   Video,
   X,
   Plus,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  NotebookText,
+  Clapperboard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
@@ -87,7 +94,6 @@ function formatDuration(duration: number | null | undefined): string {
 
 export default function CourseFeedCreatePage({ courseId }: Props) {
   const router = useRouter();
-  const previewVideoRef = useRef<HTMLDivElement | null>(null);
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: feeds } = useCourseFeed(courseId);
@@ -239,6 +245,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
     <ManagementPageShell
       title={`Tạo feed cho ${course.name}`}
       description="Chọn 1 video và nhập metadata để tạo feed item mới."
+      noCard
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name, href: `/instructor/courses/${course.id}` },
@@ -249,425 +256,379 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         { label: "Tạo feed" },
       ]}
       action={
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline" className="h-10 text-xs font-semibold px-4">
             <Link href={`/instructor/courses/${course.id}/feed`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Quay lại danh sách feed
+              Quay lại
             </Link>
+          </Button>
+          <Button
+            onClick={() => void handleCreate()}
+            disabled={createFeedMutation.isPending || !selectedVideo || !form.title.trim()}
+            className="h-10 text-xs font-semibold px-4"
+          >
+            {createFeedMutation.isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang tạo...
+              </span>
+            ) : (
+              "Tạo feed"
+            )}
           </Button>
         </div>
       }
     >
-      <div className="min-h-[calc(100vh-11rem)] bg-linear-to-br from-background via-background to-muted/20 p-3 sm:p-5">
-        <div className="mx-auto max-w-6xl space-y-5">
-          <section className="overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
-            <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr] xl:items-stretch">
-              <div className="flex h-full flex-col space-y-3 border-b border-border/60 px-5 py-5 sm:px-6 xl:border-b-0 xl:border-r">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline" className="rounded-full">
-                    Tạo mới
-                  </Badge>
-                  <span>Mỗi feed item chỉ chọn 1 video</span>
-                </div>
-
-                <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                  Chọn video và tạo feed
-                </h2>
-
-                <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                  Tìm video từ thư viện của bạn, chọn một item rồi nhập tiêu đề
-                  và hashtag.
-                </p>
-
-                <div className="overflow-hidden rounded-2xl border border-border/60 bg-muted/10">
-                  <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-                    <Badge
-                      variant="outline"
-                      className="rounded-full px-2 py-0.5 text-[11px]"
-                    >
-                      Live preview nội dung feed
-                    </Badge>
+      <div className="p-3 sm:p-4 lg:p-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Cột trái: Thông tin bài viết & Thư viện video */}
+          <div className="space-y-6 lg:col-span-8">
+            {/* Card 1: Thông tin feed */}
+            <Card className="border-border/60 shadow-sm">
+              <CardContent className="space-y-5 p-6">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <NotebookText className="h-4 w-4" />
                   </div>
-
-                  <div className="p-4">
-                    <div className="rounded-2xl border border-border/60 bg-muted/10 p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-                          {(course.name?.trim().charAt(0) || "C").toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {course.name}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 space-y-2 rounded-xl border border-border/60 bg-background px-3 py-3">
-                        <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                          {form.title.trim() || "Tiêu đề sẽ hiển thị ở đây"}
-                        </p>
-                        <p className="line-clamp-3 text-sm text-muted-foreground">
-                          {form.caption.trim() || "Caption sẽ hiển thị ở đây"}
-                        </p>
-                        <div className="flex min-h-8 flex-wrap gap-2">
-                          {form.hashtags.length ? (
-                            form.hashtags.map((tagItem) => (
-                              <Badge
-                                key={tagItem}
-                                variant="secondary"
-                                className="rounded-full border border-border/60 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-foreground"
-                              >
-                                #{tagItem}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Hashtags sẽ hiển thị ở đây
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4 bg-muted/10 px-5 py-5 sm:px-6">
-                <div className="overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
-                  <div className="border-b border-border/60 px-3 py-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Preview video đã chọn
+                  <div>
+                    <p className="text-base font-semibold">Thông tin bài viết</p>
+                    <p className="text-xs text-muted-foreground">
+                      Nhập tiêu đề, caption và hashtags hiển thị trên bảng tin.
                     </p>
                   </div>
-                  <div ref={previewVideoRef} className="relative bg-black">
-                    {selectedVideo ? (
-                      <video
-                        key={selectedVideo.id}
-                        className="block h-auto w-full max-h-[70vh] object-contain"
-                        src={selectedVideo.url}
-                        poster={getVideoThumbnail(selectedVideo) ?? undefined}
-                        controls
-                        preload="metadata"
-                        playsInline
-                      >
-                        Trình duyệt không hỗ trợ phát video.
-                      </video>
-                    ) : (
-                      <div className="flex min-h-80 items-center justify-center text-muted-foreground">
-                        <Video className="h-10 w-10" />
-                      </div>
-                    )}
-
-                    <div className="absolute left-3 top-3 flex gap-2">
-                      <Badge
-                        variant="secondary"
-                        className="pointer-events-none rounded-full bg-black/70 px-3 py-1 text-[11px] text-white"
-                      >
-                        {selectedVideo ? selectedVideo.type : "Chưa chọn"}
-                      </Badge>
-                    </div>
-                  </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  Mẹo: Chọn video ở danh sách bên dưới để cập nhật preview và
-                  metadata ngay lập tức.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-3 rounded-2xl border border-border/60 bg-background p-4 sm:p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Thư viện video</p>
-                  <p className="text-xs text-muted-foreground">
-                    Chọn một thumbnail để gắn vào feed.
-                  </p>
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  Hiển thị {visibleVideos.length}/{filteredVideos.length}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    aria-label="Tạo highlight"
-                    title="Tạo highlight"
-                    onClick={() => setIsHighlightUploadOpen(true)}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <div className="grid gap-2">
+                  <Label htmlFor="feed-title">Tiêu đề *</Label>
                   <Input
-                    value={videoQuery}
-                    onChange={(event) => {
-                      setVideoQuery(event.target.value);
-                      setVisibleCount(12);
-                    }}
-                    placeholder="Tìm video..."
-                    className="pl-9"
+                    id="feed-title"
+                    value={form.title}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, title: event.target.value }))
+                    }
+                    placeholder="Nhập tiêu đề hấp dẫn cho feed..."
+                    className="h-11"
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {(
-                    [
-                      { key: "all", label: "Tất cả" },
-                      { key: "highlight", label: "Highlight" },
-                      { key: "mascot", label: "Mascot" },
-                    ] as const
-                  ).map((option) => (
-                    <Button
-                      key={option.key}
-                      type="button"
-                      size="sm"
-                      variant={
-                        videoTypeFilter === option.key ? "default" : "outline"
-                      }
-                      onClick={() => {
-                        setVideoTypeFilter(option.key);
-                        setVisibleCount(12);
-                      }}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="feed-hashtags">Hashtags</Label>
+                  <div className="space-y-3 rounded-xl border border-input bg-background p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(form.hashtags ?? []).map((hashtag, index) => (
+                        <Badge
+                          key={`${hashtag}-${index}`}
+                          variant="secondary"
+                          className="gap-1 rounded-full border border-border/60 bg-primary/10 px-2.5 py-1 text-xs font-medium text-foreground"
+                        >
+                          <Tag className="h-3 w-3 text-muted-foreground" />
+                          {hashtag}
+                          <button
+                            type="button"
+                            className="rounded-full p-0.5 transition hover:bg-muted"
+                            onClick={() =>
+                              setForm((prev) => ({
+                                ...prev,
+                                hashtags: (prev.hashtags ?? []).filter(
+                                  (_, i) => i !== index,
+                                ),
+                              }))
+                            }
+                            aria-label={`Xóa hashtag ${hashtag}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
 
-              {candidateLoading ? (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 p-5 text-sm text-muted-foreground">
-                  Đang tải video...
-                </div>
-              ) : filteredVideos.length ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                    {visibleVideos.map((video) => {
-                      const isSelected = String(video.id) === form.videoId;
-                      const thumbnail = getVideoThumbnail(video);
-
-                      return (
-                        <button
-                          key={video.id}
-                          type="button"
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              videoId: String(video.id),
-                            }))
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        id="feed-hashtags"
+                        value={hashtagDraft}
+                        onChange={(event) => setHashtagDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === ",") {
+                            event.preventDefault();
+                            addHashtags(hashtagDraft);
                           }
-                          className={cn(
-                            "group relative overflow-hidden rounded-2xl border bg-background text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
-                            isSelected
-                              ? "border-primary ring-2 ring-primary/20"
-                              : "border-border/60",
-                          )}
-                        >
-                          <div className="relative aspect-4/3 bg-muted">
-                            {thumbnail ? (
-                              <div
-                                className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.03]"
-                                style={{ backgroundImage: `url(${thumbnail})` }}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                <Video className="h-8 w-8" />
-                              </div>
-                            )}
-
-                            <div className="absolute inset-0 bg-linear-to-t from-black/65 via-transparent to-transparent" />
-
-                            <div className="absolute left-2 top-2 flex gap-1.5">
-                              <Badge
-                                variant="secondary"
-                                className="rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white"
-                              >
-                                {video.type}
-                              </Badge>
-                            </div>
-
-                            {isSelected && (
-                              <div className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                                <CheckCircle2 className="h-4 w-4" />
-                              </div>
-                            )}
-
-                            <div className="absolute inset-x-0 bottom-0 p-1 text-white">
-                              <p className="line-clamp-1 text-xs font-medium leading-tight">
-                                {video.name}
-                              </p>
-                              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] text-white/90">
-                                <Clock3 className="h-3.5 w-3.5" />
-                                {formatDuration(video.duration)}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/20 px-3 py-2">
-                    <span className="text-xs text-muted-foreground">
-                      {hasMoreVideos
-                        ? `Đang xem ${visibleVideos.length} trong ${filteredVideos.length} video`
-                        : `Đã hiển thị toàn bộ ${filteredVideos.length} video`}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {visibleCount > 12 && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setVisibleCount(12)}
-                        >
-                          Thu gọn
-                        </Button>
-                      )}
-                      {hasMoreVideos && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setVisibleCount((prev) => prev + 12)}
-                        >
-                          Xem thêm 12
-                        </Button>
-                      )}
+                        }}
+                        placeholder="VD: react, typescript (nhấn Enter hoặc dấu phẩy để thêm)"
+                        className="h-10 w-full"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10 w-full shrink-0 p-2 sm:w-auto"
+                        onClick={() => addHashtags(hashtagDraft)}
+                        title="Thêm hashtag"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 text-sm text-muted-foreground">
-                  Không có video phù hợp.
+
+                <div className="grid gap-2">
+                  <Label htmlFor="feed-caption">Caption</Label>
+                  <Textarea
+                    id="feed-caption"
+                    value={form.caption}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        caption: event.target.value,
+                      }))
+                    }
+                    placeholder="Mô tả chi tiết hoặc thông tin đi kèm..."
+                    className="min-h-24"
+                  />
                 </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="space-y-4 rounded-2xl border border-border/60 bg-background p-4 sm:p-5 shadow-sm lg:sticky lg:top-5">
-              <div className="space-y-2">
-                <Label htmlFor="feed-title">Tiêu đề</Label>
-                <Input
-                  id="feed-title"
-                  value={form.title}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, title: event.target.value }))
-                  }
-                  placeholder="Nhập tiêu đề feed"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="feed-hashtags">Hashtags</Label>
-                <div className="space-y-3 rounded-2xl border border-input bg-background p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(form.hashtags ?? []).map((hashtag, index) => (
-                      <Badge
-                        key={`${hashtag}-${index}`}
-                        variant="secondary"
-                        className="gap-1 rounded-full border border-border/60 bg-primary/10 px-2.5 py-1 text-xs font-medium text-foreground"
-                      >
-                        <Tag className="h-3 w-3 text-muted-foreground" />
-                        {hashtag}
-                        <button
-                          type="button"
-                          className="rounded-full p-0.5 transition hover:bg-muted"
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              hashtags: (prev.hashtags ?? []).filter(
-                                (_, i) => i !== index,
-                              ),
-                            }))
-                          }
-                          aria-label={`Xóa hashtag ${hashtag}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+            {/* Card 2: Thư viện video */}
+            <Card className="border-border/60 shadow-sm">
+              <CardContent className="space-y-5 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                      <Clapperboard className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold">Thư viện video</p>
+                      <p className="text-xs text-muted-foreground">
+                        Chọn một video để hiển thị trên bảng tin.
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Input
-                      id="feed-hashtags"
-                      value={hashtagDraft}
-                      onChange={(event) => setHashtagDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === ",") {
-                          event.preventDefault();
-                          addHashtags(hashtagDraft);
-                        }
-                      }}
-                      placeholder="VD: react, typescript"
-                      className="h-10 w-full"
-                    />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Hiển thị {visibleVideos.length}/{filteredVideos.length}
+                    </span>
                     <Button
                       type="button"
-                      variant="secondary"
-                      className="h-10 w-full shrink-0 p-2 sm:w-auto"
-                      onClick={() => addHashtags(hashtagDraft)}
-                      title="Thêm hashtag"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                      title="Tạo highlight"
+                      onClick={() => setIsHighlightUploadOpen(true)}
                     >
-                      <Plus className="h-4 w-4" />
+                      <Sparkles className="h-4 w-4" />
+                      <span>Tạo video highlight</span>
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="feed-caption">Caption</Label>
-                <Textarea
-                  id="feed-caption"
-                  value={form.caption}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      caption: event.target.value,
-                    }))
-                  }
-                  placeholder="Mô tả ngắn cho feed (tùy chọn)"
-                  className="min-h-24"
-                />
-              </div>
+                <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={videoQuery}
+                      onChange={(event) => {
+                        setVideoQuery(event.target.value);
+                        setVisibleCount(12);
+                      }}
+                      placeholder="Tìm video..."
+                      className="pl-9 h-10"
+                    />
+                  </div>
 
-              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-                <Button
-                  asChild
-                  variant="outline"
-                  disabled={createFeedMutation.isPending}
-                  className="w-full sm:w-auto"
-                >
-                  <Link href={`/instructor/courses/${courseId}/feed`}>Hủy</Link>
-                </Button>
-                <Button
-                  onClick={() => void handleCreate()}
-                  disabled={createFeedMutation.isPending || !selectedVideo}
-                  className="w-full sm:w-auto"
-                >
-                  {createFeedMutation.isPending ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Đang tạo...
-                    </span>
-                  ) : (
-                    "Tạo feed"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </section>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(
+                      [
+                        { key: "all", label: "Tất cả" },
+                        { key: "highlight", label: "Highlight" },
+                        { key: "mascot", label: "Mascot" },
+                      ] as const
+                    ).map((option) => (
+                      <Button
+                        key={option.key}
+                        type="button"
+                        size="sm"
+                        variant={
+                          videoTypeFilter === option.key ? "default" : "outline"
+                        }
+                        onClick={() => {
+                          setVideoTypeFilter(option.key);
+                          setVisibleCount(12);
+                        }}
+                        className="h-10"
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {candidateLoading ? (
+                  <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-8 text-center text-sm text-muted-foreground animate-pulse">
+                    Đang tải danh sách video...
+                  </div>
+                ) : filteredVideos.length ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {visibleVideos.map((video) => {
+                        const isSelected = String(video.id) === form.videoId;
+                        const thumbnail = getVideoThumbnail(video);
+
+                        return (
+                          <button
+                            key={video.id}
+                            type="button"
+                            onClick={() =>
+                              setForm((prev) => ({
+                                ...prev,
+                                videoId: String(video.id),
+                              }))
+                            }
+                            className={cn(
+                              "group relative overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                              isSelected
+                                ? "border-primary ring-2 ring-primary/20"
+                                : "border-border/60 hover:border-primary/40",
+                            )}
+                          >
+                            <div className="relative aspect-video bg-muted overflow-hidden shrink-0">
+                              {thumbnail ? (
+                                <div
+                                  className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                                  style={{ backgroundImage: `url(${thumbnail})` }}
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-muted">
+                                  <Video className="h-5 w-5" />
+                                </div>
+                              )}
+
+                              <div className="absolute left-2 top-2 flex gap-1.5">
+                                <Badge
+                                  variant="secondary"
+                                  className="rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white border-0"
+                                >
+                                  {video.type}
+                                </Badge>
+                              </div>
+
+                              {isSelected && (
+                                <div className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                </div>
+                              )}
+
+                              <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium text-white tracking-wide leading-none shadow-sm">
+                                {formatDuration(video.duration)}
+                              </span>
+                            </div>
+
+                            <div className="p-3 space-y-1">
+                              <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground group-hover:text-primary transition-colors">
+                                {video.name}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">
+                        {hasMoreVideos
+                          ? `Đang xem ${visibleVideos.length} trong ${filteredVideos.length} video`
+                          : `Đã hiển thị toàn bộ ${filteredVideos.length} video`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {visibleCount > 12 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setVisibleCount(12)}
+                          >
+                            Thu gọn
+                          </Button>
+                        )}
+                        {hasMoreVideos && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setVisibleCount((prev) => prev + 12)}
+                          >
+                            Xem thêm 12
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex min-h-36 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 text-sm text-muted-foreground">
+                    Không có video phù hợp.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Cột phải: Live Preview */}
+          <div className="space-y-6 lg:col-span-4 lg:sticky lg:top-24 lg:h-fit">
+            <Card className="border-border/60 shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                <div className="flex items-center gap-2 border-b border-border/60 px-5 py-4 bg-muted/20">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold">Xem trước trên Web</p>
+                    <p className="text-xs text-muted-foreground">
+                      Giao diện hiển thị thực tế trên newsfeed.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <div className="relative overflow-hidden rounded-xl border border-border bg-black shadow-lg aspect-video w-full">
+                    {/* Video Area */}
+                    <div className="relative h-full w-full bg-black flex items-center justify-center overflow-hidden">
+                      {selectedVideo ? (
+                        <video
+                          key={selectedVideo.id}
+                          className="h-full w-full object-contain"
+                          src={selectedVideo.url}
+                          poster={getVideoThumbnail(selectedVideo) ?? undefined}
+                          controls
+                          preload="metadata"
+                          playsInline
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-muted-foreground/80 p-4 text-center">
+                          <Video className="h-7 w-7 mb-1.5 opacity-60" />
+                          <span className="text-[11px]">Chưa chọn video</span>
+                        </div>
+                      )}
+
+                      {/* Bottom details overlay on the video */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3 pt-8 text-white z-10 text-left pointer-events-none">
+                        <p className="text-xs font-semibold truncate">
+                          {form.title.trim() || "Tiêu đề bài viết"}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-white/85 line-clamp-2 leading-relaxed">
+                          {form.caption.trim() || "Caption bài viết"}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {form.hashtags.map((tag) => (
+                            <span key={tag} className="text-[9px] font-medium text-primary-foreground bg-primary/30 px-1 py-0.2 rounded">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
       <HighlightUploadDialog

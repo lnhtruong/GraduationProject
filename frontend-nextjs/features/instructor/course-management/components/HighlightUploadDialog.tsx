@@ -195,6 +195,8 @@ export function HighlightUploadDialog({
                 progressPercent={progressPercent}
                 onViewResults={handleViewResults}
                 onStartNew={handleStartNew}
+                mode="feed"
+                onClose={() => onOpenChange(false)}
               />
             )}
 

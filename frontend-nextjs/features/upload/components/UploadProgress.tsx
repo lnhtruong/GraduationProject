@@ -19,6 +19,8 @@ interface UploadProgressProps {
   onStartNew?: () => void;
   stage?: string;
   progressPercent?: number;
+  mode?: "upload" | "feed";
+  onClose?: () => void;
 }
 
 // ============================================================================
@@ -36,6 +38,8 @@ export default function UploadProgress({
   progressPercent,
   onViewResults,
   onStartNew,
+  mode,
+  onClose,
 }: UploadProgressProps) {
   // Show upload progress bar
   if (progress !== null && status === "uploading") {
@@ -72,6 +76,8 @@ export default function UploadProgress({
         clipsCount={clipsCount}
         onViewResults={onViewResults}
         onStartNew={onStartNew}
+        mode={mode}
+        onClose={onClose}
       />
     );
   }
