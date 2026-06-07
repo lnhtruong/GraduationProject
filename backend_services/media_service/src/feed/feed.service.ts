@@ -540,7 +540,13 @@ export class FeedService {
 
     const cacheKey = this.buildTrendingCacheKey();
     let cachedIds: number[] | null = null;
-    const raw = await this.redisService.get(cacheKey);
+    let raw: string | null = null;
+    try {
+      raw = await this.redisService.get(cacheKey);
+    } catch (err) {
+      // Redis unavailable — fall back to DB compute below instead of failing the request.
+      console.warn('Trending cache read failed, falling back to DB', err);
+    }
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as unknown;
@@ -556,11 +562,16 @@ export class FeedService {
 
     if (!cachedIds || cachedIds.length === 0) {
       cachedIds = await this.computeTrendingFeedIds();
-      await this.redisService.set(
-        cacheKey,
-        JSON.stringify(cachedIds),
-        this.TRENDING_CACHE_TTL_SECONDS,
-      );
+      try {
+        await this.redisService.set(
+          cacheKey,
+          JSON.stringify(cachedIds),
+          this.TRENDING_CACHE_TTL_SECONDS,
+        );
+      } catch (err) {
+        // Best-effort cache write; a Redis outage must not crash the request.
+        console.warn('Trending cache write failed', err);
+      }
     }
 
     const pageIds = cachedIds.slice(0, safeLimit);
