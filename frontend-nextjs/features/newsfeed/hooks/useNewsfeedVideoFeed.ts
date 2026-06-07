@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
 import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
 
+// Cửa sổ throttle dùng chung cho mọi nguồn điều hướng (scroll, vuốt, phím, nút):
+// mỗi thao tác chỉ chuyển đúng 1 video, dù lặp nhanh đến đâu.
+const NEWSFEED_NAV_COOLDOWN_MS = 620;
+
 function uniqueByFeedId<T extends { feedId: number }>(items: T[]) {
   return items.filter((item, index, list) => list.findIndex((candidate) => candidate.feedId === item.feedId) === index);
 }
@@ -13,6 +17,29 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
   const appliedInitialVideoIdRef = useRef<number | null>(null);
+  // Throttle điều hướng: chặn thao tác kế tiếp cho tới khi hết cooldown.
+  const navLockedRef = useRef(false);
+  const navTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimeoutRef.current != null) {
+        window.clearTimeout(navTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const acquireNavLock = useCallback(() => {
+    if (navLockedRef.current) {
+      return false;
+    }
+    navLockedRef.current = true;
+    navTimeoutRef.current = window.setTimeout(() => {
+      navLockedRef.current = false;
+      navTimeoutRef.current = null;
+    }, NEWSFEED_NAV_COOLDOWN_MS);
+    return true;
+  }, []);
 
   const videos = useMemo(
     () =>
@@ -114,7 +141,10 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     return videos[safeIndex - 1] ?? null;
   }, [safeIndex, totalVideos, videos]);
 
-  const goNext = useCallback(() => {
+  // Điều hướng tức thì, KHÔNG throttle. Dùng cho scroll/vuốt: việc "1 video /
+  // gesture" đã do idle-reset trong NewsfeedVideoFeed lo, nên không áp cooldown
+  // ở đây (áp vào sẽ chặn các cú vuốt liên tiếp -> cảm giác khựng).
+  const goNextImmediate = useCallback(() => {
     if (!totalVideos) {
       return;
     }
@@ -125,7 +155,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     });
   }, [totalVideos]);
 
-  const goPrev = useCallback(() => {
+  const goPrevImmediate = useCallback(() => {
     if (!totalVideos) {
       return;
     }
@@ -136,6 +166,21 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     });
   }, [totalVideos]);
 
+  // Bản có throttle (cooldown) dành cho 2 nút mũi tên và phím: chống bấm dồn.
+  const goNext = useCallback(() => {
+    if (!acquireNavLock()) {
+      return;
+    }
+    goNextImmediate();
+  }, [acquireNavLock, goNextImmediate]);
+
+  const goPrev = useCallback(() => {
+    if (!acquireNavLock()) {
+      return;
+    }
+    goPrevImmediate();
+  }, [acquireNavLock, goPrevImmediate]);
+
   const jumpTo = useCallback(
     (index: number) => {
       if (!totalVideos) {
@@ -144,17 +189,6 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
       const nextIndex = Math.max(0, Math.min(index, totalVideos - 1));
       setScrollToIndex(nextIndex);
       setActiveIndex(nextIndex);
-    },
-    [totalVideos],
-  );
-
-  const setObservedActiveIndex = useCallback(
-    (index: number) => {
-      if (!totalVideos) {
-        return;
-      }
-
-      setActiveIndex(Math.max(0, Math.min(index, totalVideos - 1)));
     },
     [totalVideos],
   );
@@ -176,8 +210,9 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     fetchNextPage: feedQuery.fetchNextPage,
     goNext,
     goPrev,
+    goNextImmediate,
+    goPrevImmediate,
     jumpTo,
-    setObservedActiveIndex,
     scrollToIndex,
   };
 }
