@@ -332,7 +332,13 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/library/wishlist" className="cursor-pointer">
+                    <Link href="/my-courses" className="cursor-pointer">
+                      <GraduationCap className="mr-2 h-4 w-4" />
+                      <span>Khóa học của tôi</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/wishlist" className="cursor-pointer">
                       <Heart className="mr-2 h-4 w-4" />
                       <span>Khóa học đã lưu</span>
                     </Link>
