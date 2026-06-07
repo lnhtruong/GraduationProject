@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Youtube as YoutubeIcon,
 } from "lucide-react";
+import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useFeaturedCourses } from "./api/home.hooks";
@@ -20,6 +21,35 @@ import { CourseCard } from "./component/CourseCard";
 import { useContinueWatchingList } from "@/features/courses/learn/api/lesson-progress.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+
+// ─── Animation helpers ───────────────────────────────────────────────────────
+
+function AnimatedSection({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.15 });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 28 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+const courseGridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+};
 
 // ─── Static config (UI copy / icons – không cần từ backend) ─────────────────
 
@@ -134,6 +164,7 @@ export default function Home() {
       </section>
 
       {/* ── 2. Features – Tab toggle ─────────────────────────────────────────── */}
+      <AnimatedSection>
       <section className="py-16 bg-muted/30 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex justify-center mb-10">
@@ -178,9 +209,11 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </AnimatedSection>
 
       {/* ── 3. Tiếp tục học — chỉ hiện khi đã login và có data ─────────────── */}
       {isAuthenticated && (continueWatchingLoading || !!continueWatchingList?.length) && (
+        <AnimatedSection>
         <section className="py-14 border-t border-border/40">
           <div className="container mx-auto px-6 lg:px-8">
             <div className="flex items-center justify-between mb-6">
@@ -265,8 +298,10 @@ export default function Home() {
             )}
           </div>
         </section>
+        </AnimatedSection>
       )}
 
+      <AnimatedSection>
       <section className="py-16 border-t border-border/40">
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
@@ -281,7 +316,13 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+            variants={courseGridVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.1 }}
+          >
             {coursesLoading ? (
               <div className="col-span-full">
                 <PageLoader
@@ -294,9 +335,10 @@ export default function Home() {
                 <CourseCard key={course.id} course={course} />
               ))
             )}
-          </div>
+          </motion.div>
         </div>
       </section>
+      </AnimatedSection>
     </div>
   );
 }

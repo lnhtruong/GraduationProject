@@ -11,6 +11,7 @@ import {
   Flame,
   CheckCircle2,
   DollarSign,
+  BarChart3,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -68,16 +69,20 @@ interface SummaryCardProps {
   icon: React.ElementType;
   iconBg: string;
   iconColor: string;
+  topBorderClass?: string;
+  valueClass?: string;
 }
 
-function SummaryCard({ label, value, icon: Icon, iconBg, iconColor }: SummaryCardProps) {
+function SummaryCard({ label, value, icon: Icon, iconBg, iconColor, valueClass }: SummaryCardProps) {
   return (
     <div className="flex items-center gap-3 p-4">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-lg font-bold tabular-nums leading-tight">{value}</p>
+        <p className={`text-lg font-bold tabular-nums leading-tight ${valueClass ?? "text-foreground"}`}>
+          {value}
+        </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">{label}</p>
       </div>
     </div>
@@ -111,12 +116,23 @@ function TabSummaryRow({ items, isLoading, cols = 4 }: TabSummaryRowProps) {
       : "grid-cols-2 lg:grid-cols-4";
 
   return (
-    <div
-      className={`grid ${gridClass} divide-x divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm sm:divide-y-0`}
-    >
+    <div className={`grid ${gridClass} gap-3`}>
       {isLoading
-        ? Array.from({ length: cols }).map((_, i) => <SummaryCardSkeleton key={i} />)
-        : items.map((item) => <SummaryCard key={item.label} {...item} />)}
+        ? Array.from({ length: cols }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border/60 bg-background shadow-sm">
+              <SummaryCardSkeleton />
+            </div>
+          ))
+        : items.map((item) => (
+            <div
+              key={item.label}
+              className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm ${
+                item.topBorderClass ? `border-t-2 ${item.topBorderClass}` : ""
+              }`}
+            >
+              <SummaryCard {...item} />
+            </div>
+          ))}
     </div>
   );
 }
@@ -150,6 +166,8 @@ export default function AnalyticsPage() {
       icon: BookOpen,
       iconBg: "bg-primary/10",
       iconColor: "text-primary",
+      topBorderClass: "border-t-primary",
+      valueClass: "text-primary",
       isLoading: courseLoading,
     },
     {
@@ -160,6 +178,8 @@ export default function AnalyticsPage() {
       icon: Users,
       iconBg: "bg-blue-50 dark:bg-blue-950/30",
       iconColor: "text-blue-600 dark:text-blue-400",
+      topBorderClass: "border-t-blue-500",
+      valueClass: "text-blue-600 dark:text-blue-400",
       isLoading: courseLoading,
     },
     {
@@ -168,6 +188,8 @@ export default function AnalyticsPage() {
       icon: DollarSign,
       iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
       iconColor: "text-emerald-600 dark:text-emerald-400",
+      topBorderClass: "border-t-emerald-500",
+      valueClass: "text-emerald-600 dark:text-emerald-400",
       isLoading: revenueLoading,
     },
     {
@@ -178,6 +200,8 @@ export default function AnalyticsPage() {
       icon: Eye,
       iconBg: "bg-violet-50 dark:bg-violet-950/30",
       iconColor: "text-violet-600 dark:text-violet-400",
+      topBorderClass: "border-t-violet-500",
+      valueClass: "text-violet-600 dark:text-violet-400",
       isLoading: feedLoading,
     },
     {
@@ -186,6 +210,8 @@ export default function AnalyticsPage() {
       icon: Heart,
       iconBg: "bg-rose-50 dark:bg-rose-950/30",
       iconColor: "text-rose-500 dark:text-rose-400",
+      topBorderClass: "border-t-rose-500",
+      valueClass: "text-rose-500 dark:text-rose-400",
       isLoading: feedLoading,
     },
   ];
@@ -194,22 +220,35 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-5">
-      {/* ── Gradient stripe ── */}
-      <div className="h-1 rounded-full bg-linear-to-r from-primary/80 via-amber-400/70 to-primary/20" />
-
       {/* ── Header ── */}
-      <div className="border-b border-border/50 pb-4">
-        <h1 className="text-xl font-bold tracking-tight">Thống kê</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Tổng quan hiệu suất khóa học và nội dung Shorts Feed
-        </p>
+      <div className="flex items-center gap-3 border-b border-border/50 pb-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <BarChart3 className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Thống kê</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Tổng quan hiệu suất khóa học và nội dung Shorts Feed
+          </p>
+        </div>
       </div>
 
       {/* ── KPI summary strip ── */}
-      <div className="grid grid-cols-2 divide-x divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {globalLoading
-          ? Array.from({ length: 5 }).map((_, i) => <SummaryCardSkeleton key={i} />)
-          : kpiItems.map((item) => <SummaryCard key={item.label} {...item} />)}
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border/60 bg-background shadow-sm">
+                <SummaryCardSkeleton />
+              </div>
+            ))
+          : kpiItems.map((item) => (
+              <div
+                key={item.label}
+                className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm border-t-2 ${item.topBorderClass}`}
+              >
+                <SummaryCard {...item} />
+              </div>
+            ))}
       </div>
 
       {/* ── Tabs ── */}
@@ -255,6 +294,8 @@ export default function AnalyticsPage() {
                 icon: BookOpen,
                 iconBg: "bg-primary/10",
                 iconColor: "text-primary",
+                topBorderClass: "border-t-primary",
+                valueClass: "text-primary",
               },
               {
                 label: "Tổng học viên",
@@ -262,6 +303,8 @@ export default function AnalyticsPage() {
                 icon: Users,
                 iconBg: "bg-blue-50 dark:bg-blue-950/30",
                 iconColor: "text-blue-600 dark:text-blue-400",
+                topBorderClass: "border-t-blue-500",
+                valueClass: "text-blue-600 dark:text-blue-400",
               },
               {
                 label: "Tỉ lệ hoàn thành",
@@ -269,6 +312,8 @@ export default function AnalyticsPage() {
                 icon: CheckCircle2,
                 iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
                 iconColor: "text-emerald-600 dark:text-emerald-400",
+                topBorderClass: "border-t-emerald-500",
+                valueClass: "text-emerald-600 dark:text-emerald-400",
               },
               {
                 label: "Điểm đánh giá TB",
@@ -276,6 +321,8 @@ export default function AnalyticsPage() {
                 icon: Star,
                 iconBg: "bg-amber-50 dark:bg-amber-950/30",
                 iconColor: "text-amber-500 dark:text-amber-400",
+                topBorderClass: "border-t-amber-500",
+                valueClass: "text-amber-500 dark:text-amber-400",
               },
             ]}
           />
@@ -298,6 +345,8 @@ export default function AnalyticsPage() {
                 icon: TrendingUp,
                 iconBg: "bg-primary/10",
                 iconColor: "text-primary",
+                topBorderClass: "border-t-primary",
+                valueClass: "text-primary",
               },
               {
                 label: "Tổng lượt xem",
@@ -305,6 +354,8 @@ export default function AnalyticsPage() {
                 icon: Eye,
                 iconBg: "bg-blue-50 dark:bg-blue-950/30",
                 iconColor: "text-blue-600 dark:text-blue-400",
+                topBorderClass: "border-t-blue-500",
+                valueClass: "text-blue-600 dark:text-blue-400",
               },
               {
                 label: "Tổng tương tác",
@@ -312,6 +363,8 @@ export default function AnalyticsPage() {
                 icon: Heart,
                 iconBg: "bg-rose-50 dark:bg-rose-950/30",
                 iconColor: "text-rose-500 dark:text-rose-400",
+                topBorderClass: "border-t-rose-500",
+                valueClass: "text-rose-500 dark:text-rose-400",
               },
               {
                 label: "Tỉ lệ hoàn thành",
@@ -319,6 +372,8 @@ export default function AnalyticsPage() {
                 icon: CheckCircle2,
                 iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
                 iconColor: "text-emerald-600 dark:text-emerald-400",
+                topBorderClass: "border-t-emerald-500",
+                valueClass: "text-emerald-600 dark:text-emerald-400",
               },
             ]}
           />

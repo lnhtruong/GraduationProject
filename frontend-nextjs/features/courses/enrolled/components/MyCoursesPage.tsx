@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { BookOpen, Flame, Trophy } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -76,9 +76,17 @@ function StatCard({
   value: number;
   color: string;
 }) {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (v) => Math.round(v));
+
+  useEffect(() => {
+    const controls = animate(count, value, { duration: 0.8, ease: "easeOut" });
+    return controls.stop;
+  }, [value, count]);
+
   return (
     <div className="flex flex-col gap-0.5 rounded-xl border border-border/60 bg-card px-5 py-4">
-      <span className={`text-2xl font-bold ${color}`}>{value}</span>
+      <motion.span className={`text-2xl font-bold ${color}`}>{rounded}</motion.span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
