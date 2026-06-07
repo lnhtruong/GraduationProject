@@ -35,6 +35,7 @@ interface RawCourse {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  thumbnailUrl?: string | null;
   video?: RawVideo | null;
 }
 
@@ -167,7 +168,7 @@ async function fetchCourseDetail(courseId: number): Promise<CourseDetail> {
     name: raw.name ?? "",
     shortDescription,
     description,
-    thumbnailUrl: video?.thumbnail ?? undefined,
+    thumbnailUrl: raw.thumbnailUrl ?? undefined,
     previewVideoUrl: video?.url ?? undefined,
     highlightClipUrl: undefined,
     categories,
