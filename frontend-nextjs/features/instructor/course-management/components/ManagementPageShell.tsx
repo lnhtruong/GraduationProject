@@ -14,6 +14,7 @@ interface Props {
   leadingAction?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
+  noCard?: boolean;
 }
 
 export function ManagementPageShell({
@@ -23,6 +24,7 @@ export function ManagementPageShell({
   leadingAction,
   action,
   children,
+  noCard = false,
 }: Props) {
   return (
     <div className="space-y-5">
@@ -34,9 +36,13 @@ export function ManagementPageShell({
         action={action}
       />
 
-      <Card className="border-border/60 shadow-sm">
-        <CardContent className="p-0">{children}</CardContent>
-      </Card>
+      {noCard ? (
+        <div className="w-full">{children}</div>
+      ) : (
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-0">{children}</CardContent>
+        </Card>
+      )}
     </div>
   );
 }

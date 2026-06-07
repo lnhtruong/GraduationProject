@@ -190,6 +190,7 @@ export function useLessonVideoUpload() {
   }, [startUpload]);
 
   const clearSession = useCallback(() => {
+    void lessonVideoUploadManager.cancelCurrentUpload();
     setSession(INITIAL_SESSION);
     lastUploadArgsRef.current = null;
     try {

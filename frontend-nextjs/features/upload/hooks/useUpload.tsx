@@ -105,7 +105,12 @@ function resolveProjectId(response: unknown): number | null {
   );
 }
 
-export function useUpload(): UploadHookReturn {
+export interface UseUploadOptions {
+  autoCreateProject?: boolean;
+}
+
+export function useUpload(options?: UseUploadOptions): UploadHookReturn {
+  const autoCreateProject = options?.autoCreateProject ?? true;
   const [state, setState] = useState<UploadState>(INITIAL_STATE);
   const { user } = useAuth();
   const router = useRouter();
@@ -341,6 +346,10 @@ export function useUpload(): UploadHookReturn {
   // AUTO-CREATE PROJECT AND REDIRECT WHEN VIDEO COMPLETES
   // ============================================================================
   useEffect(() => {
+    if (!autoCreateProject) {
+      return;
+    }
+
     if (state.status !== "completed" || state.clips.length === 0) {
       return;
     }
