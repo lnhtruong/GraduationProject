@@ -21,11 +21,13 @@ import type { HighlightParams } from "@/features/upload/types";
 interface HighlightUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onUploadSuccess?: () => void;
 }
 
 export function HighlightUploadDialog({
   open,
   onOpenChange,
+  onUploadSuccess,
 }: HighlightUploadDialogProps) {
   const router = useRouter();
   const {
@@ -43,7 +45,7 @@ export function HighlightUploadDialog({
     startUpload,
     ensureProjectForClip,
     cancel,
-  } = useUpload();
+  } = useUpload({ autoCreateProject: false });
   const [showForm, setShowForm] = React.useState(false);
 
   React.useEffect(() => {
@@ -59,6 +61,12 @@ export function HighlightUploadDialog({
       setFile(null);
     }
   }, [open]);
+
+  React.useEffect(() => {
+    if (status === "completed" && clips.length > 0) {
+      onUploadSuccess?.();
+    }
+  }, [status, clips, onUploadSuccess]);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -117,6 +125,7 @@ export function HighlightUploadDialog({
 
   const isProcessing =
     status === "uploading" || status === "pending" || status === "processing";
+  const isCompleted = status === "completed" && clips.length > 0;
 
   return (
     <Dialog
@@ -129,83 +138,86 @@ export function HighlightUploadDialog({
         }
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
-        <DialogHeader className="space-y-3">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Tạo highlight video
-          </div>
-          <div>
-            <DialogTitle className="text-xl sm:text-2xl">
-              Upload video highlight ngay trong trang quản lý
-            </DialogTitle>
-            <DialogDescription className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Chọn file, đặt topic và keyword, rồi hệ thống sẽ tạo project
-              highlight cho bạn mà không cần mở trang /upload.
-            </DialogDescription>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-4 pb-1 pt-2">
-          {!file && (
-            <UploadDropzone
-              onFileSelect={handleFileSelect}
-              variant="hero"
-              title="Kéo và thả video highlight vào đây"
-              subtitle="hoặc"
-            />
-          )}
-
-          {file && !showForm && !isProcessing && (
-            <FilePreview
-              file={file}
-              onRemove={handleRemoveFile}
-              onUpload={handleConfirmFile}
-              isUploading={false}
-            />
-          )}
-
-          {file && showForm && !isProcessing && (
-            <HighlightParamsForm
-              onSubmit={handleFormSubmit}
-              onCancel={handleCancelForm}
-              isSubmitting={false}
-            />
-          )}
-
-          {isProcessing && (
-            <UploadProgress
-              progress={progress}
-              status={status}
-              jobId={jobId}
-              isDownloading={isDownloading}
-              clipsCount={clips.length}
-              error={error}
-              stage={stage}
-              progressPercent={progressPercent}
-              onViewResults={handleViewResults}
-              onStartNew={handleStartNew}
-            />
-          )}
-
-          {!file && (
-            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-              Tip: dùng file gốc chất lượng cao để AI cắt highlight chuẩn hơn.
+      <DialogContent className="h-[90vh] w-[96vw] max-w-5xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col">
+        <div className="flex h-full min-h-0 flex-col">
+          <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 text-left sm:px-6">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary animate-pulse">
+              <Sparkles className="h-3.5 w-3.5" />
+              Tạo highlight video
             </div>
-          )}
-        </div>
+            <div className="mt-2">
+              <DialogTitle className="text-xl font-bold">
+                Tải lên video bài giảng & Tạo Highlight
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
+                Chọn file, đặt topic và keyword để AI tự động cắt các clip ngắn chất lượng cao.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
-          <div className="text-xs text-muted-foreground">
-            Sẵn sàng upload highlight mới
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 space-y-4">
+            {!file && (
+              <UploadDropzone
+                onFileSelect={handleFileSelect}
+                variant="hero"
+                title="Kéo và thả video highlight vào đây"
+                subtitle="hoặc"
+              />
+            )}
+
+            {file && !showForm && !isProcessing && !isCompleted && (
+              <FilePreview
+                file={file}
+                onRemove={handleRemoveFile}
+                onUpload={handleConfirmFile}
+                isUploading={false}
+              />
+            )}
+
+            {file && showForm && !isProcessing && !isCompleted && (
+              <HighlightParamsForm
+                onSubmit={handleFormSubmit}
+                onCancel={handleCancelForm}
+                isSubmitting={false}
+                noCard={true}
+              />
+            )}
+
+            {(isProcessing || isCompleted) && (
+              <UploadProgress
+                progress={progress}
+                status={status}
+                jobId={jobId}
+                isDownloading={isDownloading}
+                clipsCount={clips.length}
+                error={error}
+                stage={stage}
+                progressPercent={progressPercent}
+                onViewResults={handleViewResults}
+                onStartNew={handleStartNew}
+              />
+            )}
+
+            {!file && (
+              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                Tip: dùng file gốc chất lượng cao để AI cắt highlight chuẩn hơn.
+              </div>
+            )}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Đóng
-          </Button>
+
+          <div className="sticky bottom-0 border-t border-border/70 bg-background px-5 py-4 flex items-center justify-between gap-3 sm:px-6">
+            <div className="text-xs text-muted-foreground">
+              {isCompleted ? "Xử lý video hoàn tất" : isProcessing ? "Đang xử lý..." : "Sẵn sàng tải lên video mới"}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-9 text-xs font-semibold px-4 shadow-sm"
+            >
+              Đóng
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

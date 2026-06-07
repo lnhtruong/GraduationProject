@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
+import { NotebookText, Clapperboard } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -39,11 +40,14 @@ import {
   generateTimestampOptions,
   createQuizPayload,
 } from "../utils/activity-creation.utils";
+import { resolveActiveVideoSource } from "../utils/draft-video.utils";
+import type { LessonFormVideoContext } from "../utils/draft-video.utils";
 import { ActivitiesDisplay } from "./LessonForm/ActivitiesDisplay";
 import { LessonMetadataForm } from "./LessonForm/LessonMetadataForm";
 import { VideoPreview } from "./LessonForm/VideoPreview";
 import { VideoSelectionSection } from "./LessonForm/VideoSelectionSection";
 import { OutsideQuizEditorDialog } from "./LessonForm/OutsideQuizEditorDialog";
+import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
 import {
   ActivityQuizForm,
   type ActivityQuizFormHandle,
@@ -53,18 +57,26 @@ interface Props {
   lesson?: InstructorLesson | null;
   courseId: number;
   course?: InstructorCourse | null;
-  onSave?: (payload: LessonFormValues) => Promise<void> | void;
+  onSave?: (payload: LessonFormValues) => Promise<number | void>;
+  onSaved?: () => void;
+  onVideoContextChange?: (context: LessonFormVideoContext) => void;
 }
 
-export function LessonForm({ lesson, courseId, onSave }: Props) {
+export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange }: Props) {
   const { user } = useAuth();
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalTarget(document.getElementById("lesson-form-actions-portal"));
+  }, []);
+
   const isEdit = isLessonEditMode(lesson);
   const lessonId = lesson?.id ?? null;
   const [editingOutsideQuizActivityId, setEditingOutsideQuizActivityId] =
     useState<number | null>(null);
   const [showQuizEditorModal, setShowQuizEditorModal] = useState(false);
-  const [pendingQuizState, setPendingQuizState] =
-    useState<QuizEditorState | null>(null);
+  const [pendingQuizStates, setPendingQuizStates] = useState<QuizEditorState[]>(
+    [],
+  );
   const [draftVideoBlobUrl, setDraftVideoBlobUrl] = useState<string | null>(
     null,
   );
@@ -74,6 +86,7 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
     "outside_video",
   );
   const [quizTimestamp, setQuizTimestamp] = useState("00:00:00.000");
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
 
   const {
     data: userVideos,
@@ -112,10 +125,17 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
   );
 
   const selectedVideoDurationSeconds = Number(selectedVideo?.duration ?? 0);
-  const activeVideoDurationSeconds =
-    selectedVideoDurationSeconds > 0
-      ? selectedVideoDurationSeconds
-      : draftVideoDurationSeconds;
+  const {
+    url: activeVideoUrl,
+    durationSeconds: activeVideoDurationSeconds,
+    hasVideoSource,
+  } = resolveActiveVideoSource({
+    serverUrl: selectedVideo?.url,
+    serverDuration: selectedVideo?.duration,
+    draftBlobUrl: draftVideoBlobUrl,
+    draftDurationSeconds: draftVideoDurationSeconds,
+    hasVideoId: Boolean(selectedVideoId),
+  });
 
   const timestampOptions = useMemo(
     () => generateTimestampOptions(activeVideoDurationSeconds),
@@ -123,9 +143,37 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
   );
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
-    Boolean(selectedVideoId || draftVideoBlobUrl),
+    hasVideoSource,
     timestampOptions.length,
   );
+
+  const handleDraftVideoChange = useCallback(
+    ({
+      blobUrl,
+      durationSeconds,
+    }: {
+      blobUrl: string | null;
+      durationSeconds: number | null;
+      fileName: string | null;
+    }) => {
+      setDraftVideoBlobUrl(blobUrl);
+      setDraftVideoDurationSeconds(durationSeconds ?? 0);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    onVideoContextChange?.({
+      selectedVideoId,
+      draftVideoBlobUrl,
+      draftVideoDurationSeconds,
+    });
+  }, [
+    draftVideoBlobUrl,
+    draftVideoDurationSeconds,
+    onVideoContextChange,
+    selectedVideoId,
+  ]);
 
   useEffect(() => {
     if (!canUseInVideoQuiz && quizMode === "in_video") {
@@ -142,7 +190,10 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
       return;
     }
 
-    const durationSeconds = Number(selectedVideo?.duration ?? 0);
+    const durationSeconds =
+      Number(selectedVideo?.duration ?? 0) > 0
+        ? Number(selectedVideo?.duration ?? 0)
+        : draftVideoDurationSeconds;
     if (durationSeconds <= 0) {
       return;
     }
@@ -151,38 +202,64 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
       shouldDirty: true,
       shouldValidate: true,
     });
-  }, [isEdit, selectedVideo?.duration, setValue]);
+  }, [draftVideoDurationSeconds, isEdit, selectedVideo?.duration, setValue]);
+
+  const parseTimestampToSeconds = (ts: string): number => {
+    const parts = ts.split(":");
+    if (parts.length !== 3) return 0;
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    const seconds = Number(parts[2]);
+    return hours * 3600 + minutes * 60 + seconds;
+  };
 
   useEffect(() => {
-    if (!pendingQuizState || !lessonId) {
+    if (activeVideoDurationSeconds <= 0 || pendingQuizStates.length === 0) {
       return;
     }
-    // Auto save pending quiz after lesson is created
-    (async () => {
-      try {
-        const nextOrderIndex = (activities?.length ?? 0) + 1;
-        const createdActivity = await createLessonActivityMutation.mutateAsync({
-          lessonId,
-          activityType: "quiz",
-          title: pendingQuizState.title.trim() || "Quiz: Bài học",
-          description: pendingQuizState.description.trim() || "Activity quiz",
-          orderIndex: nextOrderIndex,
-          status: "draft",
-          createdBy: user?.id,
-        });
 
-        await createQuizMutation.mutateAsync({
-          ...pendingQuizState,
-          lessonActivityId: createdActivity.id,
-        });
+    let hasAdjusted = false;
+    const adjusted = pendingQuizStates.map((quiz) => {
+      if (!quiz.isInVideo) return quiz;
 
-        toast.success("Đã tạo quiz");
-      } catch (error) {
-        toast.error("Không thể lưu quiz");
-      }
-      setPendingQuizState(null);
-    })();
-  }, [lessonId, pendingQuizState]);
+      const updatedQuestions = quiz.questions.map((q) => {
+        if (!q.videoTimestamp) return q;
+
+        const sec = parseTimestampToSeconds(q.videoTimestamp);
+        if (sec > activeVideoDurationSeconds) {
+          hasAdjusted = true;
+          const totalSec = Math.floor(activeVideoDurationSeconds);
+          const h = Math.floor(totalSec / 3600);
+          const m = Math.floor((totalSec % 3600) / 60);
+          const s = totalSec % 60;
+          return {
+            ...q,
+            videoTimestamp: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.000`,
+          };
+        }
+        return q;
+      });
+
+      return { ...quiz, questions: updatedQuestions };
+    });
+
+    if (hasAdjusted) {
+      setPendingQuizStates(adjusted);
+      toast.warning(
+        "Một số mốc thời gian Quiz trong video vượt quá thời lượng video mới và đã được tự động đưa về cuối video mới."
+      );
+    }
+  }, [activeVideoDurationSeconds, pendingQuizStates]);
+
+  const hasInvalidSavedQuizzes = useMemo(() => {
+    if (!activeVideoDurationSeconds || !inVideoQuizzes) return false;
+    return inVideoQuizzes.some((quiz) =>
+      quiz.questions?.some((q) => {
+        if (!q.videoTimestamp) return false;
+        return parseTimestampToSeconds(q.videoTimestamp) > activeVideoDurationSeconds;
+      })
+    );
+  }, [inVideoQuizzes, activeVideoDurationSeconds]);
 
   const timelineMarkers = useMemo(
     () => buildQuizTimelineMarkers(inVideoQuizzes, activities),
@@ -202,6 +279,38 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
       return outsideVideoActivityIds.has(activity.id);
     });
   }, [activities, outVideoQuizzes]);
+
+  const savePendingQuizzes = async (
+    targetLessonId: number,
+    quizzes: QuizEditorState[],
+  ) => {
+    if (quizzes.length === 0) {
+      return;
+    }
+
+    let nextOrderIndex = (activities?.length ?? 0) + 1;
+
+    for (const pendingQuiz of quizzes) {
+      const createdActivity = await createLessonActivityMutation.mutateAsync({
+        lessonId: targetLessonId,
+        activityType: "quiz",
+        title: pendingQuiz.title.trim() || "Quiz: Bài học",
+        description: pendingQuiz.description.trim() || "Activity quiz",
+        orderIndex: nextOrderIndex,
+        status: "draft",
+        createdBy: user?.id,
+      });
+      nextOrderIndex += 1;
+
+      await createQuizMutation.mutateAsync({
+        ...pendingQuiz,
+        lessonActivityId: createdActivity.id,
+      });
+    }
+
+    setPendingQuizStates([]);
+    toast.success(`Đã lưu ${quizzes.length} quiz`);
+  };
 
   const handleSaveLocalQuiz = async (state: QuizEditorState) => {
     if (lessonId) {
@@ -231,75 +340,88 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
       setQuizMode("outside_video");
       setQuizTimestamp("00:00:00.000");
     } else {
-      // Pending quiz - will save after lesson is created
       const quizPayload = createQuizPayload(
         state,
         null as any,
         quizMode,
         quizTimestamp,
       );
-      setPendingQuizState(quizPayload);
+      setPendingQuizStates((current) => [...current, quizPayload]);
       setShowQuizEditorModal(false);
       setQuizMode("outside_video");
       setQuizTimestamp("00:00:00.000");
-      toast.info("Sẽ lưu quiz sau khi tạo bài học");
+      toast.info("Quiz sẽ được lưu khi bạn tạo bài học");
     }
   };
 
   const onSubmit = async (values: LessonFormValues) => {
-    await onSave?.({
-      courseId: values.courseId,
-      title: values.title.trim(),
-      description: values.description.trim(),
-      contentType: "video",
-      duration: Number(values.duration || 0),
-      content: {
-        ...values.content,
-        url:
-          selectedVideo?.url ??
-          (values.content as { url?: string }).url ??
-          undefined,
-      },
-      videoId: values.videoId,
-    });
+    try {
+      const savedLessonId = await onSave?.({
+        courseId: values.courseId,
+        title: values.title.trim(),
+        description: values.description.trim(),
+        contentType: "video",
+        duration: Number(values.duration || activeVideoDurationSeconds || 0),
+        content: {
+          ...values.content,
+          url:
+            selectedVideo?.url ??
+            activeVideoUrl ??
+            (values.content as { url?: string }).url ??
+            undefined,
+        },
+        videoId: values.videoId,
+      });
 
-    toast.success(isEdit ? "Đã cập nhật bài học" : "Đã tạo bài học mới");
+      if (typeof savedLessonId === "number" && pendingQuizStates.length > 0) {
+        await savePendingQuizzes(savedLessonId, pendingQuizStates);
+      }
+
+      onSaved?.();
+      toast.success(isEdit ? "Đã cập nhật bài học" : "Đã tạo bài học mới");
+    } catch {
+      toast.error("Không thể lưu bài học");
+    }
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 p-3 sm:p-4 lg:p-6">
+    <div className="w-full space-y-6">
+      {portalTarget && createPortal(
+        <Button
+          type="submit"
+          form="lesson-form"
+          className="min-w-[120px]"
+          disabled={formState.isSubmitting || isUploadingVideo}
+        >
+          {isUploadingVideo ? "Đang tải video..." : (isEdit ? "Lưu bài học" : "Tạo bài học")}
+        </Button>,
+        portalTarget
+      )}
+
       {/* Lesson Form Section */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Card className="overflow-hidden border-border/70 bg-linear-to-br from-background via-background to-muted/20 shadow-sm">
-          <CardContent className="space-y-6 p-4 sm:p-6">
-            <div>
-              <div className="mb-5 rounded-2xl border border-border/70 bg-background/70 p-4 shadow-xs">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Lesson workspace
-                    </p>
-                    <h2 className="text-xl font-semibold tracking-tight">
-                      Thiết kế nội dung bài học
-                    </h2>
-                    <p className="text-xs text-muted-foreground sm:text-sm">
-                      Tạo nội dung rõ ràng, sau đó chọn hoặc upload video để gắn
-                      cho bài học.
-                    </p>
-                  </div>
+      <form id="lesson-form" onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
+        {hasInvalidSavedQuizzes && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive flex flex-col gap-1.5 shadow-sm">
+            <p className="font-semibold">⚠️ Cảnh báo mốc thời gian Quiz</p>
+            <p>Video mới ngắn hơn thời lượng video cũ, khiến một số Quiz đã lưu có mốc thời gian vượt quá video. Vui lòng kiểm tra lại danh sách Quiz đã lưu bên dưới.</p>
+          </div>
+        )}
 
-                  <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:pt-1">
-                    <Button
-                      type="submit"
-                      className="h-10 w-full rounded-full px-5 whitespace-nowrap sm:w-auto"
-                      disabled={formState.isSubmitting}
-                    >
-                      {isEdit ? "Lưu bài học" : "Tạo bài học"}
-                    </Button>
-                  </div>
-                </div>
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="space-y-4 p-6">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <NotebookText className="h-4 w-4" />
               </div>
+              <div>
+                <p className="text-base font-semibold">Thông tin bài học</p>
+                <p className="text-xs text-muted-foreground">
+                  Đặt tên bài học và viết mô tả tóm tắt nội dung.
+                </p>
+              </div>
+            </div>
 
+            <div className="pt-2">
               <LessonMetadataForm
                 titleRegister={register("title", { required: true })}
                 descriptionRegister={register("description", {
@@ -314,61 +436,79 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
                 })}
               />
             </div>
+          </CardContent>
+        </Card>
 
-            {!isEdit && (
-              <VideoSelectionSection
-                videosLoading={videosLoading}
-                userVideos={userVideos}
-                selectedVideoId={selectedVideoId}
-                canUseInVideoQuiz={canUseInVideoQuiz}
-                onRefreshVideos={async () => {
-                  await refetchUserVideos();
-                }}
-                onVideoSelect={(videoId) =>
-                  setValue("videoId", videoId, { shouldDirty: true })
-                }
-                onDraftVideoChange={({ blobUrl, durationSeconds }) => {
-                  setDraftVideoBlobUrl(blobUrl);
-                  setDraftVideoDurationSeconds(durationSeconds ?? 0);
-                }}
-                onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
-              />
-            )}
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="space-y-4 p-6">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <Clapperboard className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-base font-semibold">Video bài học</p>
+                <p className="text-xs text-muted-foreground">
+                  Tải lên hoặc chọn video gắn cho bài học này.
+                </p>
+              </div>
+            </div>
 
-            {isEdit && (
-              <VideoSelectionSection
-                videosLoading={videosLoading}
-                userVideos={userVideos}
-                selectedVideoId={selectedVideoId}
-                canUseInVideoQuiz={canUseInVideoQuiz}
-                onRefreshVideos={async () => {
-                  await refetchUserVideos();
-                }}
-                onVideoSelect={(videoId) =>
-                  setValue("videoId", videoId, { shouldDirty: true })
-                }
-                onDraftVideoChange={({ blobUrl, durationSeconds }) => {
-                  setDraftVideoBlobUrl(blobUrl);
-                  setDraftVideoDurationSeconds(durationSeconds ?? 0);
-                }}
-                lessonId={lessonId}
-                onOpenCreateQuizModal={() => {
-                  setEditingOutsideQuizActivityId(null);
-                }}
-              />
-            )}
+            <div className="pt-2">
+              {!isEdit && (
+                <VideoSelectionSection
+                  isEdit={false}
+                  videosLoading={videosLoading}
+                  userVideos={userVideos}
+                  selectedVideoId={selectedVideoId}
+                  onRefreshVideos={async () => {
+                    await refetchUserVideos();
+                  }}
+                  onVideoSelect={(videoId) =>
+                    setValue("videoId", videoId, { shouldDirty: true })
+                  }
+                  onDraftVideoChange={handleDraftVideoChange}
+                  onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
+                  onUploadStateChange={setIsUploadingVideo}
+                />
+              )}
+
+              {isEdit && (
+                <VideoSelectionSection
+                  isEdit={true}
+                  videosLoading={videosLoading}
+                  userVideos={userVideos}
+                  selectedVideoId={selectedVideoId}
+                  onRefreshVideos={async () => {
+                    await refetchUserVideos();
+                  }}
+                  onVideoSelect={(videoId) =>
+                    setValue("videoId", videoId, { shouldDirty: true })
+                  }
+                  onDraftVideoChange={handleDraftVideoChange}
+                  lessonId={lessonId}
+                  onOpenCreateQuizModal={() => setShowQuizEditorModal(true)}
+                  onUploadStateChange={setIsUploadingVideo}
+                />
+              )}
+            </div>
           </CardContent>
         </Card>
       </form>
 
+      {!isEdit && pendingQuizStates.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {pendingQuizStates.length} quiz đang chờ — sẽ lưu khi bạn tạo bài học.
+        </p>
+      ) : null}
+
       {/* Video Preview - Edit Page Only */}
-      {isEdit && (
+      {isEdit && hasVideoSource && (
         <VideoPreview
           courseId={courseId}
           lessonId={lessonId ?? 0}
-          videoUrl={selectedVideo?.url}
-          videoDurationSeconds={Number(selectedVideo?.duration ?? 0)}
-          videoLoading={videoLoading}
+          videoUrl={activeVideoUrl}
+          videoDurationSeconds={activeVideoDurationSeconds}
+          videoLoading={videoLoading && !draftVideoBlobUrl}
           timelineMarkers={timelineMarkers}
         />
       )}
@@ -402,146 +542,69 @@ export function LessonForm({ lesson, courseId, onSave }: Props) {
 
       {/* Local Quiz Editor Modal */}
       <Dialog open={showQuizEditorModal} onOpenChange={setShowQuizEditorModal}>
-        <DialogContent className="max-h-[92vh] w-[96vw] max-w-5xl overflow-y-auto p-0">
-          <DialogHeader className="border-b border-border/60 px-5 py-4">
-            <DialogTitle>Tạo hoạt động mới</DialogTitle>
-            <DialogDescription>
-              Tạo quiz dây để ngay trong popup hoặc tạo activity bài tập. Quiz
-              ngoài video có thể tạo ngay khi bài học chưa có
-              &quot;videoId&quot;.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="h-[90vh] w-[96vw] max-w-5xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col">
+          <div className="flex h-full min-h-0 flex-col">
+            <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 text-left">
+              <DialogTitle className="text-xl font-bold">Tạo hoạt động mới</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
+                Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-6 p-4 sm:p-5">
-            {/* Quiz Mode Section */}
-            <div className="rounded-lg border border-border/60 bg-background/80 p-4">
-              <h3 className="mb-4 font-semibold text-sm">Vị trí quiz</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="quizMode"
-                      value="outside_video"
-                      checked={quizMode === "outside_video"}
-                      onChange={(e) =>
-                        setQuizMode(
-                          e.target.value as "outside_video" | "in_video",
-                        )
-                      }
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <p className="text-sm font-medium">Ngoài video</p>
-                      <p className="text-xs text-muted-foreground">
-                        Chọn &quot;Ngoài video&quot; nếu bạn muốn tạo quiz ngay.
-                        Chọn &quot;Trong video&quot; chỉ khi video đã có thời
-                        lượng để lấy mốc.
-                      </p>
-                    </div>
-                  </label>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 space-y-6">
+              <QuizModeSection
+                quizMode={quizMode}
+                onQuizModeChange={setQuizMode}
+                quizTimestamp={quizTimestamp}
+                onTimestampChange={setQuizTimestamp}
+                canUseInVideoQuiz={canUseInVideoQuiz}
+                lessonVideoUrl={activeVideoUrl}
+                lessonVideoDuration={activeVideoDurationSeconds}
+              />
+
+              {!canUseInVideoQuiz && hasVideoSource ? (
+                <div className="rounded-xl border border-dashed border-amber-300 bg-amber-500/[0.03] p-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Video đang tải thông tin. Quiz ngoài video có thể tạo ngay; quiz trong video sẽ khả dụng khi video tải xong thời lượng.</span>
                 </div>
+              ) : null}
 
-                {canUseInVideoQuiz && (
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="quizMode"
-                        value="in_video"
-                        checked={quizMode === "in_video"}
-                        onChange={(e) =>
-                          setQuizMode(
-                            e.target.value as "outside_video" | "in_video",
-                          )
-                        }
-                        className="w-4 h-4"
-                      />
-                      <div>
-                        <p className="text-sm font-medium">Trong video</p>
-                        <p className="text-xs text-muted-foreground">
-                          Chọn mốc quiz trong timeline video
-                        </p>
-                      </div>
-                    </label>
-
-                    {quizMode === "in_video" && (
-                      <div className="mt-3 ml-7 space-y-2">
-                        <label className="text-xs font-medium">
-                          Chọn mốc quiz trên timeline video
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            Mốc chọn:
-                          </span>
-                          <select
-                            value={quizTimestamp}
-                            onChange={(e) => setQuizTimestamp(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-border/60 text-sm"
-                          >
-                            {timestampOptions.map((timestamp) => (
-                              <option key={timestamp} value={timestamp}>
-                                {timestamp}
-                              </option>
-                            ))}
-                          </select>
-                          {activeVideoDurationSeconds > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              / {Math.floor(activeVideoDurationSeconds / 60)}:
-                              {String(
-                                Math.floor(activeVideoDurationSeconds % 60),
-                              ).padStart(2, "0")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {!canUseInVideoQuiz && (selectedVideoId || draftVideoBlobUrl) && (
-                <p className="mt-3 text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                  Chỉ quiz trong video mới cần video đã có thời lượng. Quiz
-                  ngoài video có thể tạo ngay khi bài học chưa có
-                  &quot;videoId&quot;.
-                </p>
-              )}
+              {/* Quiz Form */}
+              <ActivityQuizForm
+                ref={quizFormRef}
+                initialInVideo={quizMode === "in_video"}
+                defaultTimestamp={quizTimestamp}
+                onSubmit={handleSaveLocalQuiz}
+              />
             </div>
 
-            {/* Quiz Form */}
-            <ActivityQuizForm
-              ref={quizFormRef}
-              initialInVideo={quizMode === "in_video"}
-              defaultTimestamp={quizTimestamp}
-              onSubmit={handleSaveLocalQuiz}
-            />
-          </div>
-
-          <DialogFooter className="border-t border-border/60 px-5 py-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowQuizEditorModal(false);
-                setQuizMode("outside_video");
-                setQuizTimestamp("00:00:00.000");
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={() => void quizFormRef.current?.submit()}
-              disabled={
-                createLessonActivityMutation.isPending ||
+            <DialogFooter className="sticky bottom-0 border-t border-border/70 bg-background px-5 py-4 flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowQuizEditorModal(false);
+                  setQuizMode("outside_video");
+                  setQuizTimestamp("00:00:00.000");
+                }}
+                className="h-9 text-xs font-semibold px-4"
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={() => void quizFormRef.current?.submit()}
+                disabled={
+                  createLessonActivityMutation.isPending ||
+                  createQuizMutation.isPending
+                }
+                className="h-9 text-xs font-semibold px-4"
+              >
+                {createLessonActivityMutation.isPending ||
                 createQuizMutation.isPending
-              }
-            >
-              {createLessonActivityMutation.isPending ||
-              createQuizMutation.isPending
-                ? "Đang lưu..."
-                : "Tạo quiz"}
-            </Button>
-          </DialogFooter>
+                  ? "Đang lưu..."
+                  : "Tạo quiz"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

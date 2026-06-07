@@ -22,6 +22,7 @@ export interface InstructorCourse {
   id: number;
   name: string;
   description: string;
+  thumbnailUrl?: string | null;
   categories: string[];
   level: CourseLevel;
   duration: string;
@@ -92,6 +93,7 @@ export interface InstructorQuiz {
 export interface CourseFormValues {
   name: string;
   description: string;
+  thumbnailUrl?: string | null;
   categories: string[];
   level: CourseLevel;
   duration: string;

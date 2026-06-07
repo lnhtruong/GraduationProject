@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -61,6 +62,13 @@ export function QuizModeSection({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const safeDuration = Math.max(0, Number(lessonVideoDuration ?? 0));
 
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startSeconds, setStartSeconds] = useState(0);
+  const [showSwipeIndicator, setShowSwipeIndicator] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<"forward" | "backward" | null>(null);
+
   useEffect(() => {
     if (!canUseInVideoQuiz && quizMode === "in_video") {
       onQuizModeChange("outside_video");
@@ -79,6 +87,7 @@ export function QuizModeSection({
     return Math.min(safeDuration, Math.max(0, raw));
   }, [quizTimestamp, safeDuration]);
 
+  // Sync video position when selectedSeconds changes externally
   useEffect(() => {
     const element = videoRef.current;
     if (!element || safeDuration === 0) {
@@ -91,22 +100,73 @@ export function QuizModeSection({
     }
   }, [selectedSeconds, safeDuration]);
 
+  const togglePlay = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch((err) => console.log("Play error:", err));
+    }
+  };
+
+  // Video Drag-to-Seek Handlers (Gestures on Video Screen)
+  const handleVideoMouseDown = (e: React.MouseEvent<HTMLVideoElement>) => {
+    if (!videoRef.current || !safeDuration) return;
+    setIsMouseDown(true);
+    setStartX(e.clientX);
+    setStartSeconds(videoRef.current.currentTime);
+  };
+
+  const handleVideoMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
+    if (!isMouseDown || !videoRef.current || !safeDuration) return;
+    const diffX = e.clientX - startX;
+    
+    // 1px clientX equivalent to 0.15 seconds
+    const seekDelta = diffX * 0.15;
+    let nextSeconds = startSeconds + seekDelta;
+    nextSeconds = Math.min(safeDuration, Math.max(0, nextSeconds));
+    
+    videoRef.current.currentTime = nextSeconds;
+    syncFromVideoTime(nextSeconds);
+
+    if (Math.abs(diffX) > 8) {
+      setShowSwipeIndicator(true);
+      setSwipeDirection(diffX > 0 ? "forward" : "backward");
+    }
+  };
+
+  const handleVideoMouseUp = () => {
+    setIsMouseDown(false);
+    setShowSwipeIndicator(false);
+    setSwipeDirection(null);
+  };
+
+  const handleVideoMouseLeave = () => {
+    if (isMouseDown) {
+      setIsMouseDown(false);
+      setShowSwipeIndicator(false);
+      setSwipeDirection(null);
+    }
+  };
+
   return (
-    <div className="grid gap-4 rounded-2xl border border-border/60 bg-muted/15 p-4">
+    <div className="grid gap-4 rounded-xl border border-border/80 bg-muted/20 p-4 transition-all duration-200">
       {/* Quiz Mode Selector */}
-      <div className="grid gap-2">
-        <Label>Vị trí quiz</Label>
-        <p className="text-xs text-muted-foreground">
-          Chọn &quot;Ngoài video&quot; nếu bạn muốn tạo quiz ngay. Chọn
-          &quot;Trong video&quot; chỉ khi video đã có thời lượng để lấy mốc.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <Label className="text-sm font-bold text-foreground">Vị trí hiển thị Quiz</Label>
+          <p className="text-[11px] text-muted-foreground max-w-md leading-relaxed">
+            Đặt câu hỏi kiểm tra tại mốc thời gian cụ thể (Trong video) hoặc hiển thị sau khi học sinh xem xong bài học (Ngoài video).
+          </p>
+        </div>
         <Select
           value={quizMode}
           onValueChange={(value: "in_video" | "outside_video") =>
             onQuizModeChange(value)
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 bg-background border-border shadow-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -120,52 +180,119 @@ export function QuizModeSection({
 
       {/* Timeline selector for in-video mode */}
       {quizMode === "in_video" ? (
-        <div className="grid gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
-          <Label>Chọn mốc quiz trên timeline video</Label>
+        <div className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm animate-fadeIn">
+          <Label className="text-xs font-bold uppercase tracking-wider text-primary">
+            Kéo trực tiếp trên video để định vị mốc Quiz
+          </Label>
 
           {lessonVideoUrl ? (
-            <div className="overflow-hidden rounded-lg border border-border/60 bg-black">
+            <div className="relative group overflow-hidden rounded-xl border border-border bg-black shadow-lg">
+              {/* Main Video Element */}
               <video
                 ref={videoRef}
-                className="h-auto max-h-56 w-full object-contain"
+                className="mx-auto block h-auto max-h-[300px] w-full object-contain cursor-pointer select-none"
                 src={lessonVideoUrl}
-                controls
                 preload="metadata"
                 playsInline
+                onClick={togglePlay}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
                 onSeeked={(event) => {
                   syncFromVideoTime(event.currentTarget.currentTime);
                 }}
-                onPause={(event) => {
-                  syncFromVideoTime(event.currentTarget.currentTime);
-                }}
-              >
-                Trình duyệt không hỗ trợ phát video.
-              </video>
+                onMouseDown={handleVideoMouseDown}
+                onMouseMove={handleVideoMouseMove}
+                onMouseUp={handleVideoMouseUp}
+                onMouseLeave={handleVideoMouseLeave}
+              />
+
+              {/* Large Play Overlay on Pause */}
+              {!isPlaying && !isMouseDown && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 transition-all cursor-pointer"
+                  onClick={togglePlay}
+                >
+                  <div className="p-4 rounded-full bg-background/95 text-foreground shadow-lg hover:scale-105 transition-transform duration-200">
+                    <Play className="h-6 w-6 fill-foreground text-foreground" />
+                  </div>
+                </div>
+              )}
+
+              {/* Swipe/Drag gesture feedback Indicator */}
+              {showSwipeIndicator && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white text-xs font-bold px-3 py-2 rounded-full flex items-center gap-1.5 shadow-md select-none pointer-events-none z-10 border border-white/10 animate-pulse">
+                  {swipeDirection === "forward" ? (
+                    <RotateCw className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                  )}
+                  <span>Tua tới: {quizTimestamp}</span>
+                </div>
+              )}
+
+              {/* Custom Bottom Controller Bar */}
+              <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/95 via-black/70 to-transparent p-3 pt-8 flex flex-col gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 z-10">
+                
+                {/* Custom Progress Bar / Slider */}
+                <div className="relative h-1.5 w-full bg-white/20 rounded-full cursor-pointer group/timeline">
+                  {/* Progress fill */}
+                  <div 
+                    className="absolute h-full bg-primary rounded-full"
+                    style={{ width: `${(selectedSeconds / (safeDuration || 1)) * 100}%` }}
+                  />
+                  {/* Overlay Range Input for smooth slider handling */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={safeDuration || 0}
+                    step={0.1}
+                    value={selectedSeconds}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value || 0);
+                      onTimestampChange(toTimestamp(nextValue));
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  />
+                  {/* Thumb Indicator */}
+                  <div 
+                    className="absolute h-3.5 w-3.5 rounded-full bg-primary border-2 border-white -top-[4px] -translate-x-1/2 opacity-0 group-hover/timeline:opacity-100 transition-opacity duration-150 shadow-md pointer-events-none"
+                    style={{ left: `${(selectedSeconds / (safeDuration || 1)) * 100}%` }}
+                  />
+                </div>
+
+                {/* Sub Controls Row */}
+                <div className="flex items-center justify-between text-white text-xs font-semibold select-none">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button" 
+                      onClick={togglePlay} 
+                      className="hover:text-primary transition-colors focus:outline-none p-1"
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-4 w-4 fill-white text-white" />
+                      ) : (
+                        <Play className="h-4 w-4 fill-white text-white" />
+                      )}
+                    </button>
+                    <span className="font-mono text-[11px] tracking-wide text-zinc-200">
+                      {formatClock(selectedSeconds)} / {formatClock(safeDuration)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                      Mốc Quiz: {quizTimestamp}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <input
-              type="range"
-              min={0}
-              max={safeDuration || 0}
-              step={0.001}
-              value={selectedSeconds}
-              disabled={!canUseInVideoQuiz || safeDuration === 0}
-              onChange={(event) => {
-                const nextValue = Number(event.target.value || 0);
-                onTimestampChange(toTimestamp(nextValue));
-              }}
-              className="w-full"
-            />
-
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Mốc chọn: {quizTimestamp}</span>
-              <span>
-                {formatClock(selectedSeconds)} / {formatClock(safeDuration)}
-              </span>
-            </div>
-          </div>
+          {/* Clean minimalist guide tip */}
+          <p className="text-[11px] text-muted-foreground text-center mt-1 select-none">
+            Mẹo: Kéo thả trên màn hình video hoặc click timeline để tua nhanh.
+          </p>
         </div>
       ) : null}
     </div>

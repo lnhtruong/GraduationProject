@@ -452,13 +452,13 @@ export function NewsfeedVideoCard({
       ref={containerRef}
       className="relative flex h-[calc(100vh-64px)] w-full snap-start items-center justify-center"
     >
-      <div className="flex h-full w-full items-center justify-center gap-4 px-2 md:px-6">
+      <div className="relative flex h-full w-full items-center justify-center gap-4 px-2 md:px-6">
         <div
           className={cn(
             "relative overflow-hidden rounded-2xl border border-border/60 bg-black shadow-xl",
             isPortraitVideo
-              ? "h-[calc(100vh-96px)] aspect-[9/16]"
-              : "w-full max-w-[min(78vw,1100px)] aspect-video max-h-[calc(100vh-120px)]",
+              ? "h-[calc(100vh-96px)] max-h-full aspect-[9/16] max-w-full"
+              : "w-full max-w-[min(78vw,1100px)] aspect-video max-h-[calc(100vh-120px)] max-w-full",
           )}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => {
@@ -753,7 +753,7 @@ export function NewsfeedVideoCard({
         </div>
 
         <div
-          className="flex flex-col items-center gap-3 pb-6"
+          className="absolute right-2 bottom-20 md:static flex flex-col items-center gap-3 pb-6 z-20"
           onPointerDown={(event) => event.stopPropagation()}
         >
           <Button
