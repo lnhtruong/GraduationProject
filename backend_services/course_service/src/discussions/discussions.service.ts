@@ -15,7 +15,6 @@ import { Course } from '../models/course.model';
 import { Enroll } from '../models/enroll.model';
 import { User } from '../users/user.model';
 import {
-  Notification,
   DISCUSSION_REPLY_EVENT,
   DISCUSSION_POST_SOURCE,
 } from '../models/notification.model';
@@ -24,6 +23,7 @@ import { UpdateDiscussionDto } from './dto/update-discussion.dto';
 
 const LECTURER_ROLE = 3;
 const ADMIN_ROLE = 1;
+const NOTIFY_CREATED_SSE_EVENT = 'notify:created';
 
 export type DiscussionSort = 'newest' | 'upvotes';
 export type DiscussionStatus = 'answered' | 'unanswered';
@@ -61,10 +61,8 @@ export class DiscussionsService {
     @InjectModel(User) private readonly userModel: typeof User,
     @InjectModel(DiscussionUpvote)
     private readonly upvoteModel: typeof DiscussionUpvote,
-    @InjectModel(Notification)
-    private readonly notificationModel: typeof Notification,
     @InjectConnection() private readonly sequelize: Sequelize,
-  ) {}
+  ) { }
 
   // ─────────────────────── BE-03: upvote toggle ───────────────────────
 
@@ -132,8 +130,8 @@ export class DiscussionsService {
       const lesson = await this.lessonModel.findByPk(post.lessonId);
       const course = lesson
         ? await this.courseModel.findByPk((lesson as any).courseId, {
-            attributes: ['id', 'userId'],
-          })
+          attributes: ['id', 'userId'],
+        })
         : null;
       if (!course || course.userId !== userId || role !== LECTURER_ROLE) {
         throw new ForbiddenException(
@@ -190,8 +188,8 @@ export class DiscussionsService {
       const rootId = parent.parentId ?? parent.id;
       const root = parent.parentId
         ? await this.postModel.findByPk(rootId, {
-            attributes: ['id', 'userId'],
-          })
+          attributes: ['id', 'userId'],
+        })
         : parent;
       if (!root || root.userId === reply.userId) return;
 
@@ -219,11 +217,14 @@ export class DiscussionsService {
         ? `/courses/${courseId}/lessons/${reply.lessonId}#discussion-${root.id}`
         : `/lessons/${reply.lessonId}#discussion-${root.id}`;
 
-      await this.notificationModel.create({
+      const mediaServiceUrl =
+        process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
+      const body = {
         userId: root.userId,
         eventType: DISCUSSION_REPLY_EVENT,
-        title: 'Bạn có một câu trả lời mới',
-        message: `${replyName} đã trả lời câu hỏi của bạn trong bài ${lessonTitle}`,
+        sseEventType: NOTIFY_CREATED_SSE_EVENT,
+        title: 'You have a new reply for your discussion!',
+        message: `${replyName} has answered your question in the post ${lessonTitle}`,
         payload: {
           replyId: reply.id,
           rootPostId: root.id,
@@ -234,10 +235,27 @@ export class DiscussionsService {
         },
         sourceType: DISCUSSION_POST_SOURCE,
         sourceId: reply.id,
+      };
+      const secret = process.env.INTERNAL_SERVICE_SECRET;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (secret) headers['x-internal-secret'] = secret;
+
+      const res = await fetch(`${mediaServiceUrl}/notifications/internal`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
       });
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn(
+          `[discussions] reply notification dispatch failed (${res.status}): ${text}`,
+        );
+      }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('[discussions] failed to create reply notification', err);
+
+      console.warn('[discussions] failed to dispatch reply notification', err);
     }
   }
 
@@ -348,9 +366,9 @@ export class DiscussionsService {
     const order: any =
       sort === 'upvotes'
         ? [
-            ['upvotes', 'DESC'],
-            ['created_at', 'DESC'],
-          ]
+          ['upvotes', 'DESC'],
+          ['created_at', 'DESC'],
+        ]
         : [['created_at', 'DESC']];
 
     const { rows, count } = await this.postModel.findAndCountAll({
@@ -486,8 +504,8 @@ export class DiscussionsService {
       const lesson = await this.lessonModel.findByPk(post.lessonId);
       const course = lesson
         ? await this.courseModel.findByPk((lesson as any).courseId, {
-            attributes: ['id', 'userId'],
-          })
+          attributes: ['id', 'userId'],
+        })
         : null;
       if (!course || course.userId !== userId || role !== LECTURER_ROLE) {
         throw new ForbiddenException(

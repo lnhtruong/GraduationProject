@@ -23,6 +23,8 @@ export enum QuestionType {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  paranoid: true,
+  deletedAt: 'deleted_at',
 })
 export class QuizQuestion extends Model {
   @Column({
@@ -39,54 +41,61 @@ export class QuizQuestion extends Model {
     allowNull: false,
     field: 'quiz_id',
   })
-  quizId: number;
+  declare quizId: number;
 
   @BelongsTo(() => Quiz)
-  quiz: Quiz;
+  declare quiz: Quiz;
 
   @Column({
     type: DataType.ENUM(...Object.values(QuestionType)),
     allowNull: false,
     field: 'ques_type',
   })
-  quesType: QuestionType;
+  declare quesType: QuestionType;
 
   @Column({
     type: DataType.TEXT,
     allowNull: false,
     field: 'ques_text',
   })
-  quesText: string;
+  declare quesText: string;
 
   @Column({
     type: DataType.DECIMAL(10, 2),
     allowNull: true,
   })
-  point: number;
+  declare point: number;
 
   @Column({
     type: DataType.TEXT,
     allowNull: true,
     field: 'correct_ans',
   })
-  correctAns: string;
+  declare correctAns: string;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'order_index',
   })
-  orderIndex: number;
+  declare orderIndex: number;
 
   @Column({
     type: 'TIME(3)' as any,
     allowNull: true,
     field: 'video_timestamp',
   })
-  videoTimestamp: string | null;
+  declare videoTimestamp: string | null;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+    field: 'deleted_at',
+  })
+  declare deletedAt: Date | null;
 
   // @HasMany(() => require('./quiz-option.model').QuizOption, { onDelete: 'CASCADE', hooks: true })
   // options: import('./quiz-option.model').QuizOption[];
   @HasMany(() => QuizOption, { onDelete: 'CASCADE', hooks: true })
-  options: QuizOption[];
+  declare options: QuizOption[];
 }

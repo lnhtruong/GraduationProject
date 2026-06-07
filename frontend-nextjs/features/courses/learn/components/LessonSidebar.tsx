@@ -27,18 +27,18 @@ export function LessonSidebar({
       <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Up next</CardTitle>
+            <CardTitle className="text-base">Tiếp theo</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Playlist bài học, chọn bài để tiếp tục xem như một watch queue.
+              Danh sách phát bài học — chọn bài để xem tiếp.
             </p>
           </div>
           <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-xs text-muted-foreground">
-            {completedLessonCount}/{lessons.length}
+            {completedLessonCount}/{lessons.length} hoàn thành
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-112 sm:h-128 xl:h-[calc(100vh-8.5rem)] xl:min-h-105">
+        <ScrollArea className="max-h-112 sm:max-h-128 xl:h-[calc(100vh-8.5rem)] xl:min-h-105">
           <div className="space-y-2 p-3">
             {lessons.map((lesson, index) => {
               const isSelected = lesson.id === selectedLessonId;
@@ -144,7 +144,7 @@ export function LessonSidebar({
           </span>
           <span className="inline-flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Playlist
+            Danh sách phát
           </span>
         </div>
       </CardContent>

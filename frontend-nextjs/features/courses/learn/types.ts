@@ -1,17 +1,60 @@
 export type LessonProgressStatus = "not_started" | "in_progress" | "completed";
 
+export interface QuizSubmissionAnswerSnapshot {
+  questionId: number;
+  questionText: string;
+  selectedOptionId: number;
+  selectedOptionText: string;
+  correctOptionId: number | null;
+  correctOptionText: string | null;
+  isCorrect: boolean;
+  point: number;
+  maxPoint: number;
+}
+
+export interface QuizSubmissionRecord {
+  id: number;
+  quizId: number;
+  userId: number;
+  score: number | null;
+  maxScore: number | null;
+  percent: number | null;
+  passed: boolean;
+  timeSpentSeconds: number | null;
+  answers: QuizSubmissionAnswerSnapshot[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SubmitQuizAnswerPayload {
+  questionId: number;
+  selectedOptionId: number;
+}
+
+export interface SubmitQuizPayload {
+  quizId: number;
+  answers: SubmitQuizAnswerPayload[];
+  timeSpentSeconds?: number;
+}
+
 export interface InVideoQuizPoint {
   id: string;
+  quizId: number;
+  questionId: number;
   timestamp: number;
   question: string;
   options: string[];
+  optionIds: number[];
   answerIndex: number | null;
 }
 
 export interface AfterLessonQuizQuestion {
   id: string;
+  quizId: number;
+  questionId: number;
   question: string;
   options: string[];
+  optionIds: number[];
   answerIndex: number | null;
 }
 

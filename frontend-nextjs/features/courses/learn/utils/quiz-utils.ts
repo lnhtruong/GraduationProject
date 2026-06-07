@@ -4,6 +4,10 @@ import type {
 } from "../../../instructor/course-management/types";
 import type { AfterLessonQuizQuestion, InVideoQuizPoint } from "../types";
 
+export function makeQuizPointId(quizId: number, questionId: number): string {
+  return `${quizId}-${questionId}`;
+}
+
 export function resolveInitialLessonId(
   lessons: InstructorLesson[],
   rawLessonParam: string | null,
@@ -44,7 +48,11 @@ function parseVideoTimestampToSeconds(value?: string | null): number | null {
 }
 
 function resolveQuestionAnswerIndex(quizQuestion: {
-  options?: Array<{ isCorrect?: boolean | null; optionText?: string | null }>;
+  options?: Array<{
+    id?: number;
+    isCorrect?: boolean | null;
+    optionText?: string | null;
+  }>;
   correctAns?: string | null;
 }): number | null {
   const options = quizQuestion.options ?? [];
@@ -85,15 +93,26 @@ export function buildInVideoQuizPoints(
         continue;
       }
 
+      const questionId = question.id;
+      if (questionId === undefined || questionId === null) {
+        continue;
+      }
+
+      const optionIds = (question.options ?? [])
+        .map((option: { id?: number }) => option.id)
+        .filter((optionId): optionId is number => typeof optionId === "number");
       const options = (question.options ?? [])
         .map((option: { optionText?: string | null }) => option.optionText)
         .filter(Boolean) as string[];
 
       points.push({
-        id: `${quiz.id}-${question.id ?? questionIndex}`,
+        id: makeQuizPointId(quiz.id, questionId),
+        quizId: quiz.id,
+        questionId,
         timestamp,
         question: question.quesText,
         options,
+        optionIds,
         answerIndex: resolveQuestionAnswerIndex(question),
       });
     }
@@ -115,16 +134,21 @@ export function buildAfterLessonQuiz(
       question: {
         id?: number | string | null;
         quesText: string;
-        options?: Array<{ optionText?: string | null }>;
+        options?: Array<{ id?: number; optionText?: string | null }>;
         correctAns?: string | null;
       },
       index: number,
     ) => ({
-      id: `${firstQuiz.id}-${question.id ?? index}`,
+      id: makeQuizPointId(firstQuiz.id, Number(question.id ?? index + 1)),
+      quizId: firstQuiz.id,
+      questionId: Number(question.id ?? index + 1),
       question: question.quesText,
       options: (question.options ?? [])
         .map((option: { optionText?: string | null }) => option.optionText)
         .filter(Boolean) as string[],
+      optionIds: (question.options ?? [])
+        .map((option: { id?: number }) => option.id)
+        .filter((optionId): optionId is number => typeof optionId === "number"),
       answerIndex: resolveQuestionAnswerIndex(question),
     }),
   );

@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import { AxiosError } from 'axios';
 import { Video, VideoType } from 'src/videos/video.model';
 import { Image, MascotImageType } from 'src/images_mascot/images.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
@@ -46,6 +49,33 @@ export interface ai_model_result {
     srt_url?: string;
     duration?: number;
     display_name?: string;
+    source_original_filename?: string;
+
+    // Dành cho quiz type=quiz
+    quiz?: {
+        questions: Array<{
+            question: string;
+            options?: Record<string, string>;
+            correct: 'a' | 'b' | 'c' | 'd';
+            explanation?: string;
+            evidence?: {
+                text?: string;
+                text_from_srt?: string;
+                srt_indices?: number[];
+                start_ms: number;
+                end_ms: number;
+            };
+            difficulty?: 'easy' | 'medium' | 'hard';
+        }>;
+        total?: number;
+        model?: string;
+    };
+    // Shared giữa subtitle + quiz:
+    //   - subtitle: update `videos.srt_raw_url WHERE id=<video_id>`
+    //   - quiz:     link quiz vào video + lesson_activity (course_service /quizzes/from-ai)
+    video_id?: number;
+    lesson_activity_id?: number;
+    quiz_name?: string;
 
     // Dành cho progress / failed
     stage?: string;
@@ -65,6 +95,7 @@ export class WebhookService {
         // private readonly websocketService: WebsocketService,
         private readonly notificationService: NotificationService,
         private readonly bunnyService: BunnyService,
+        private readonly httpService: HttpService,
     ) { }
 
     /**
@@ -531,24 +562,194 @@ export class WebhookService {
                 break;
 
             case 'completed': {
-                // Chỉ check URL khi job đã xong
+                const jobId =
+                    typeof payload.job_id === 'string' && payload.job_id.trim().length > 0
+                        ? payload.job_id.trim()
+                        : undefined;
+
+                // ---- TYPE = subtitle (transcribe job) -----------------------
+                if (rawType === 'subtitle') {
+                    const srtUrl = payload.srt_url;
+                    if (!srtUrl) {
+                        this.logger.warn('subtitle completed missing srt_url');
+                        return { ignored: true, reason: 'missing_srt_url' };
+                    }
+
+                    // Resolve video row theo thứ tự ưu tiên:
+                    //   1. `payload.video_id` (FE truyền khi đã có row từ Bunny upload)
+                    //      → update đúng row đó, không tạo orphan
+                    //   2. `payload.job_id` → findOrCreate by job_id (legacy / standalone transcribe)
+                    let row: Video | null = null;
+                    const videoIdFromPayload = payload.video_id;
+
+                    if (typeof videoIdFromPayload === 'number' && videoIdFromPayload > 0) {
+                        row = await this.videoModel.findByPk(videoIdFromPayload);
+                        if (!row) {
+                            this.logger.warn(
+                                `subtitle webhook: video_id=${videoIdFromPayload} không tồn tại — fallback theo job_id`,
+                            );
+                        } else if (row.user_id !== userId) {
+                            // An ninh: chống FE gửi nhầm video_id của user khác
+                            this.logger.warn(
+                                `subtitle webhook: video_id=${videoIdFromPayload} thuộc user khác (${row.user_id} vs ${userId}) — reject`,
+                            );
+                            return { ignored: true, reason: 'video_id_user_mismatch' };
+                        } else {
+                            await row.update({ srt_raw_url: srtUrl });
+                        }
+                    }
+
+                    // Fallback: nếu không có video_id hoặc lookup fail → findOrCreate by job_id
+                    if (!row && jobId) {
+                        const [created] = await this.videoModel.findOrCreate({
+                            where: { job_id: jobId },
+                            defaults: {
+                                job_id: jobId,
+                                user_id: userId,
+                                type: VideoType.HIGHLIGHT,
+                                url: null,
+                                duration: null,
+                                thumbnail: 'https://placehold.co/320x180/png?text=thumbnail',
+                                srt_raw_url: srtUrl,
+                            },
+                        });
+                        row = created;
+                        if (row.srt_raw_url !== srtUrl) {
+                            await row.update({ srt_raw_url: srtUrl });
+                        }
+                    }
+
+                    if (row) {
+                        completedVideoId = row.id;
+                    }
+
+                    await this.notificationService.createAndEmit({
+                        userId,
+                        eventType: NotificationEventType.TRANSCRIBE_COMPLETED,
+                        sseEventType: NotificationSseEventType.TRANSCRIBE_COMPLETED,
+                        title: 'Transcribe completed',
+                        message: 'Your video subtitle is ready',
+                        sourceType: NotificationSourceType.VIDEO_JOB,
+                        sourceId: completedVideoId,
+                        payload: {
+                            videoId: completedVideoId,
+                            jobId,
+                            srtUrl,
+                            type: 'subtitle',
+                            sourceOriginalFilename: payload.source_original_filename,
+                            status: 'completed',
+                        },
+                    });
+                    break;
+                }
+
+                // ---- TYPE = quiz (quiz generation job) ----------------------
+                if (rawType === 'quiz') {
+                    const quiz = payload.quiz;
+                    if (!quiz?.questions?.length) {
+                        this.logger.warn('quiz completed missing questions[]');
+                        return { ignored: true, reason: 'missing_quiz_questions' };
+                    }
+                    const lessonActivityId = payload.lesson_activity_id;
+                    const videoIdFromPayload = payload.video_id;
+                    if (!lessonActivityId || !videoIdFromPayload) {
+                        this.logger.warn(
+                            'quiz completed missing lesson_activity_id/video_id — FE phải gửi 2 field này khi submit /generate-quiz',
+                        );
+                        // Vẫn bắn SSE để FE biết quiz đã sinh xong (FE có thể tự gọi /quizzes/from-ai)
+                        await this.notificationService.createAndEmit({
+                            userId,
+                            eventType: NotificationEventType.QUIZ_GENERATED,
+                            sseEventType: NotificationSseEventType.QUIZ_GENERATED,
+                            title: 'Quiz generated',
+                            message: `${quiz.questions.length} questions ready — pending FE submit`,
+                            sourceType: NotificationSourceType.VIDEO_JOB,
+                            payload: {
+                                jobId, type: 'quiz', status: 'pending_insert',
+                                quiz, // FE đọc và call /quizzes/from-ai
+                                sourceOriginalFilename: payload.source_original_filename,
+                            },
+                        });
+                        return { ok: true, pending_insert: true };
+                    }
+
+                    // Forward quiz → course_service POST /quizzes/from-ai
+                    const courseUrl = process.env.COURSE_SERVICE_URL ?? 'http://localhost:8008';
+                    const quizName =
+                        payload.quiz_name ??
+                        `AI Quiz — ${payload.source_original_filename ?? jobId ?? 'unnamed'}`;
+                    try {
+                        const resp = await firstValueFrom(
+                            this.httpService.post<{ id?: number }>(
+                                `${courseUrl}/quizzes/from-ai`,
+                                {
+                                    lessonActivityId,
+                                    videoId: videoIdFromPayload,
+                                    name: quizName,
+                                    jobId,
+                                    model: quiz.model,
+                                    questions: quiz.questions,
+                                    isInVideo: true,
+                                },
+                                {
+                                    headers: { 'x-user-id': String(userId) },
+                                    timeout: 30000,
+                                },
+                            ),
+                        );
+                        const createdQuiz = resp.data;
+                        await this.notificationService.createAndEmit({
+                            userId,
+                            eventType: NotificationEventType.QUIZ_GENERATED,
+                            sseEventType: NotificationSseEventType.QUIZ_GENERATED,
+                            title: 'Quiz generated',
+                            message: `${quiz.questions.length} questions saved to your lesson`,
+                            sourceType: NotificationSourceType.VIDEO_JOB,
+                            payload: {
+                                jobId,
+                                quizId: createdQuiz.id,
+                                lessonActivityId,
+                                videoId: videoIdFromPayload,
+                                questionCount: quiz.questions.length,
+                                type: 'quiz',
+                                status: 'completed',
+                            },
+                        });
+                        return { ok: true, quizId: createdQuiz.id };
+                    } catch (err) {
+                        const ae = err as AxiosError;
+                        const detail = ae.response?.data ?? ae.message;
+                        this.logger.error(
+                            `Forward quiz to course_service failed: ${JSON.stringify(detail)}`,
+                        );
+                        await this.notificationService.createAndEmit({
+                            userId,
+                            eventType: NotificationEventType.VIDEO_JOB_FAILED,
+                            sseEventType: NotificationSseEventType.VIDEO_ERROR,
+                            title: 'Quiz insert failed',
+                            message: 'Could not save generated quiz to lesson',
+                            sourceType: NotificationSourceType.VIDEO_JOB,
+                            payload: {
+                                jobId, type: 'quiz', status: 'failed',
+                                error: typeof detail === 'string' ? detail : JSON.stringify(detail),
+                            },
+                        });
+                        return { ok: false, error: 'forward_failed' };
+                    }
+                }
+
+                // ---- TYPE = highlight | mascot | long (logic cũ) ------------
                 const url = payload.url ?? payload.video_url;
                 if (!url) {
                     this.logger.warn('AI model webhook missing url for completed event');
                     return { ignored: true, reason: 'missing_url' };
                 }
 
-                const jobId =
-                    typeof payload.job_id === 'string' && payload.job_id.trim().length > 0
-                        ? payload.job_id.trim()
-                        : undefined;
-
                 let videoId: number | undefined;
                 if (jobId) {
                     const videoRow = await this.videoModel.findOne({
                         where: { job_id: jobId },
                     });
-
                     if (videoRow) {
                         videoId = videoRow.id;
                         completedVideoId = videoRow.id;
@@ -559,7 +760,6 @@ export class WebhookService {
                     this.logger.warn('AI model webhook completed event missing job_id');
                 }
 
-                // Bắn SSE báo hoàn thành (kèm srt_url nếu có)
                 await this.notificationService.createAndEmit({
                     userId,
                     eventType: NotificationEventType.VIDEO_JOB_COMPLETED,

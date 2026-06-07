@@ -16,6 +16,8 @@ import { QuizQuestion } from './quiz-question.model';
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  paranoid: true,
+  deletedAt: 'deleted_at',
 })
 export class Quiz extends Model {
   @Column({
@@ -32,16 +34,16 @@ export class Quiz extends Model {
     allowNull: false,
     field: 'lesson_activity_id',
   })
-  lessonActivityId: number;
+  declare lessonActivityId: number;
 
   @BelongsTo(() => LessonActivity)
-  lessonActivity: LessonActivity;
+  declare lessonActivity: LessonActivity;
 
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
   })
-  name: string;
+  declare name: string;
 
   @Column({
     type: DataType.BOOLEAN,
@@ -49,7 +51,7 @@ export class Quiz extends Model {
     defaultValue: false,
     field: 'shuffle_question',
   })
-  shuffleQuestion: boolean;
+  declare shuffleQuestion: boolean;
 
   @Column({
     type: DataType.BOOLEAN,
@@ -57,21 +59,21 @@ export class Quiz extends Model {
     defaultValue: false,
     field: 'shuffle_option',
   })
-  shuffleOption: boolean;
+  declare shuffleOption: boolean;
 
   @Column({
     type: DataType.DOUBLE,
     allowNull: true,
     field: 'passing_score',
   })
-  passingScore: number;
+  declare passingScore: number;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
     field: 'time_limit_minutes',
   })
-  timeLimitMinutes: number;
+  declare timeLimitMinutes: number;
 
   @Column({
     type: DataType.BOOLEAN,
@@ -79,10 +81,17 @@ export class Quiz extends Model {
     defaultValue: false,
     field: 'is_in_video',
   })
-  isInVideo: boolean;
+  declare isInVideo: boolean;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+    field: 'deleted_at',
+  })
+  declare deletedAt: Date | null;
 
   // @HasMany(() => require('./quiz-question.model').QuizQuestion, { onDelete: 'CASCADE', hooks: true })
   // questions: import('./quiz-question.model').QuizQuestion[];
   @HasMany(() => QuizQuestion, { onDelete: 'CASCADE', hooks: true })
-  questions: QuizQuestion[];
+  declare questions: QuizQuestion[];
 }

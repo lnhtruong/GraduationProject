@@ -176,6 +176,41 @@ export class AppService {
   }
 
   // -----------------------------------------------------------------
+  // 2b. Transcribe — Whisper SRT từ video URL
+  //
+  // Body từ FE:
+  //   {
+  //     video_url: string                  (bắt buộc)
+  //     source_original_filename: string
+  //     language?: 'vi'|'en'|...
+  //     video_id?: number                  ← MỚI: ID của row `videos` đã có
+  //                                          → khi xong, webhook tự update
+  //                                            videos.srt_raw_url WHERE id=<video_id>
+  //                                          không cần FE call thêm endpoint
+  //   }
+  // -----------------------------------------------------------------
+  async createTranscribe(
+    body: unknown,
+    userIdFromHeader?: number,
+  ): Promise<unknown> {
+    return this.pickAndPersist(async (colabUrl) => {
+      const formData = new FormData();
+      formData.append('user_id', String(userIdFromHeader ?? ''));
+
+      // Forward các field client gửi (video_url, source_original_filename, language, video_id)
+      if (isRecord(body)) {
+        for (const [k, v] of Object.entries(body)) {
+          if (typeof v === 'string') formData.append(k, v);
+          else if (typeof v === 'number' || typeof v === 'boolean')
+            formData.append(k, String(v));
+        }
+      }
+
+      return this.forwardForm(colabUrl, '/transcribe', formData);
+    });
+  }
+
+  // -----------------------------------------------------------------
   // 3. Mascot Video (legacy endpoint — vẫn route qua pool)
   // -----------------------------------------------------------------
   async createMascot(

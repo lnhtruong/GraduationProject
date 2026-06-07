@@ -6,7 +6,6 @@ import { Lesson } from '../models/lesson.model';
 import { Course } from '../models/course.model';
 import { Enroll } from '../models/enroll.model';
 import { User } from '../users/user.model';
-import { Notification } from '../models/notification.model';
 import { DiscussionsController } from './discussions.controller';
 import { DiscussionsService } from './discussions.service';
 
@@ -19,7 +18,6 @@ import { DiscussionsService } from './discussions.service';
       Course,
       Enroll,
       User,
-      Notification,
     ]),
   ],
   controllers: [DiscussionsController],
