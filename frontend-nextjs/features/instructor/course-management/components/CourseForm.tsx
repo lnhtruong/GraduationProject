@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { courseFormSchema } from "../schemas";
 import { toast } from "sonner";
 import {
   BarChart2,
@@ -128,7 +130,8 @@ export function CourseForm({ course, onSave }: Props) {
     [course],
   );
 
-  const { register, control, handleSubmit, reset, setValue } = useForm<CourseFormValues>({
+  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<CourseFormValues>({
+    resolver: zodResolver(courseFormSchema),
     defaultValues: initialValues,
   });
 
@@ -430,28 +433,39 @@ export function CourseForm({ course, onSave }: Props) {
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Tên khóa học</label>
+                <label className="text-sm font-medium">
+                  Tên khóa học <span className="text-destructive">*</span>
+                </label>
                 <Input
-                  {...register("name", { required: true })}
+                  {...register("name")}
                   placeholder="VD: React từ đầu"
-                  className="h-11"
+                  className={cn("h-11", errors.name && "border-destructive focus-visible:ring-destructive")}
                 />
+                {errors.name && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.name.message}</p>
+                )}
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Mô tả</label>
+                <label className="text-sm font-medium">
+                  Mô tả <span className="text-destructive">*</span>
+                </label>
                 <Controller
                   name="description"
                   control={control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <RichTextBoxCKE
+                      ref={field.ref}
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       placeholder="Mô tả khóa học, bạn có thể copy paste từ các nền tảng khác..."
+                      error={Boolean(errors.description)}
                     />
                   )}
                 />
+                {errors.description && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.description.message}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -479,7 +493,7 @@ export function CourseForm({ course, onSave }: Props) {
                     control={control}
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="h-11 w-full">
+                        <SelectTrigger ref={field.ref} className="h-11 w-full">
                           <SelectValue placeholder="Chọn trình độ" />
                         </SelectTrigger>
                         <SelectContent>
@@ -494,13 +508,15 @@ export function CourseForm({ course, onSave }: Props) {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium">Ngôn ngữ</label>
+                  <label className="text-sm font-medium">
+                    Ngôn ngữ <span className="text-destructive">*</span>
+                  </label>
                   <Controller
                     name="language"
                     control={control}
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="h-11 w-full">
+                        <SelectTrigger ref={field.ref} className={cn("h-11 w-full", errors.language && "border-destructive focus:ring-destructive")}>
                           <SelectValue placeholder="Chọn ngôn ngữ" />
                         </SelectTrigger>
                         <SelectContent>
@@ -513,16 +529,21 @@ export function CourseForm({ course, onSave }: Props) {
                       </Select>
                     )}
                   />
+                  {errors.language && (
+                    <p className="text-xs text-destructive mt-0.5">{errors.language.message}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Danh mục</label>
+                <label className="text-sm font-medium">
+                  Danh mục <span className="text-destructive">*</span>
+                </label>
                 <Controller
                   name="categories"
                   control={control}
                   render={({ field }) => (
-                    <div className="space-y-2 rounded-lg border border-input bg-background p-2.5">
+                    <div ref={field.ref} tabIndex={-1} className={cn("space-y-2 rounded-lg border bg-background p-2.5 focus:outline-none focus:ring-1", errors.categories ? "border-destructive focus:ring-destructive" : "border-input focus:ring-primary/30")}>
                       <div className="flex flex-wrap gap-1.5">
                         {(field.value ?? []).length ? (
                           (field.value ?? []).map((category) => (
@@ -591,6 +612,9 @@ export function CourseForm({ course, onSave }: Props) {
                     </div>
                   )}
                 />
+                {errors.categories && (
+                  <p className="text-xs text-destructive mt-1">{errors.categories.message}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -618,12 +642,13 @@ export function CourseForm({ course, onSave }: Props) {
                 <label className="text-sm font-medium">Giá bán (VND)</label>
                 <Input
                   type="number"
-                  {...register("price", {
-                    setValueAs: (value) => Number(value || 0),
-                  })}
+                  {...register("price", { valueAsNumber: true })}
                   min="0"
-                  className="h-11"
+                  className={cn("h-11", errors.price && "border-destructive focus-visible:ring-destructive")}
                 />
+                {errors.price && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.price.message}</p>
+                )}
               </div>
             </CardContent>
           </Card>

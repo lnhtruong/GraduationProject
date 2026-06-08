@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { NotebookText, Clapperboard } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { lessonFormSchema } from "../schemas";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ import {
 } from "../utils/activity-creation.utils";
 import { resolveActiveVideoSource } from "../utils/draft-video.utils";
 import type { LessonFormVideoContext } from "../utils/draft-video.utils";
+import { cn } from "@/lib/utils";
 import { ActivitiesDisplay } from "./LessonForm/ActivitiesDisplay";
 import { LessonMetadataForm } from "./LessonForm/LessonMetadataForm";
 import { VideoPreview } from "./LessonForm/VideoPreview";
@@ -114,6 +117,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
   const { register, control, handleSubmit, reset, setValue, formState } =
     useForm<LessonFormValues>({
+      resolver: zodResolver(lessonFormSchema),
       defaultValues: initialValues,
     });
 
@@ -423,10 +427,9 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
             <div className="pt-2">
               <LessonMetadataForm
-                titleRegister={register("title", { required: true })}
-                descriptionRegister={register("description", {
-                  required: true,
-                })}
+                titleRegister={register("title")}
+                descriptionRegister={register("description")}
+                errors={formState.errors}
               />
 
               <input
@@ -439,60 +442,79 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Clapperboard className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-base font-semibold">Video bài học</p>
-                <p className="text-xs text-muted-foreground">
-                  Tải lên hoặc chọn video gắn cho bài học này.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              {!isEdit && (
-                <VideoSelectionSection
-                  isEdit={false}
-                  videosLoading={videosLoading}
-                  userVideos={userVideos}
-                  selectedVideoId={selectedVideoId}
-                  onRefreshVideos={async () => {
-                    await refetchUserVideos();
-                  }}
-                  onVideoSelect={(videoId) =>
-                    setValue("videoId", videoId, { shouldDirty: true })
-                  }
-                  onDraftVideoChange={handleDraftVideoChange}
-                  onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
-                  onUploadStateChange={setIsUploadingVideo}
-                />
+        <Controller
+          name="videoId"
+          control={control}
+          render={({ field }) => (
+            <Card
+              ref={field.ref}
+              tabIndex={-1}
+              className={cn(
+                "border-border/60 shadow-sm transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-destructive/30",
+                formState.errors.videoId && "border-destructive bg-destructive/[0.01]"
               )}
+            >
+              <CardContent className="space-y-4 p-6">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Clapperboard className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold">
+                      Video bài học <span className="text-destructive">*</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Tải lên hoặc chọn video gắn cho bài học này.
+                    </p>
+                  </div>
+                </div>
 
-              {isEdit && (
-                <VideoSelectionSection
-                  isEdit={true}
-                  videosLoading={videosLoading}
-                  userVideos={userVideos}
-                  selectedVideoId={selectedVideoId}
-                  onRefreshVideos={async () => {
-                    await refetchUserVideos();
-                  }}
-                  onVideoSelect={(videoId) =>
-                    setValue("videoId", videoId, { shouldDirty: true })
-                  }
-                  onDraftVideoChange={handleDraftVideoChange}
-                  lessonId={lessonId}
-                  onOpenCreateQuizModal={() => setShowQuizEditorModal(true)}
-                  onUploadStateChange={setIsUploadingVideo}
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {formState.errors.videoId && (
+                  <p className="text-sm font-medium text-destructive mt-1">{formState.errors.videoId.message}</p>
+                )}
+
+                <div className="pt-2">
+                  {!isEdit && (
+                    <VideoSelectionSection
+                      isEdit={false}
+                      videosLoading={videosLoading}
+                      userVideos={userVideos}
+                      selectedVideoId={field.value ?? null}
+                      onRefreshVideos={async () => {
+                        await refetchUserVideos();
+                      }}
+                      onVideoSelect={(videoId) =>
+                        field.onChange(videoId)
+                      }
+                      onDraftVideoChange={handleDraftVideoChange}
+                      onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
+                      onUploadStateChange={setIsUploadingVideo}
+                    />
+                  )}
+
+                  {isEdit && (
+                    <VideoSelectionSection
+                      isEdit={true}
+                      videosLoading={videosLoading}
+                      userVideos={userVideos}
+                      selectedVideoId={field.value ?? null}
+                      onRefreshVideos={async () => {
+                        await refetchUserVideos();
+                      }}
+                      onVideoSelect={(videoId) =>
+                        field.onChange(videoId)
+                      }
+                      onDraftVideoChange={handleDraftVideoChange}
+                      lessonId={lessonId}
+                      onOpenCreateQuizModal={() => setShowQuizEditorModal(true)}
+                      onUploadStateChange={setIsUploadingVideo}
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        />
       </form>
 
       {!isEdit && pendingQuizStates.length > 0 ? (
