@@ -119,7 +119,9 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
           <CardContent className="space-y-4 pt-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-2 md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Tiêu đề Quiz</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                  Tiêu đề Quiz <span className="text-destructive">*</span>
+                </label>
                 <Input
                   className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
                   placeholder="Nhập tiêu đề cho bài kiểm tra này..."
@@ -128,7 +130,9 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Điểm đạt (%)</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                  Điểm đạt (%) <span className="text-destructive">*</span>
+                </label>
                 <Input
                   type="number"
                   className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
@@ -206,7 +210,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
                 <div className="grid gap-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-                    Nội dung câu hỏi
+                    Nội dung câu hỏi <span className="text-destructive">*</span>
                   </label>
                   <Textarea
                     className="min-h-20 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
@@ -223,7 +227,9 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Lựa chọn câu trả lời</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                      Lựa chọn câu trả lời <span className="text-destructive">*</span>
+                    </p>
                     <Button
                       type="button"
                       size="sm"
