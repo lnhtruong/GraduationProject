@@ -14,6 +14,7 @@ import { QuizQuestion } from '../models/quiz-question.model';
 import { QuizOption } from '../models/quiz-option.model';
 import { Enroll } from '../models/enroll.model';
 import { Feedback } from '../models/feedback.model';
+import { InstructorFollow } from '../models/instructor-follow.model';
 import { Video } from '../models/video.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
 
@@ -64,6 +65,7 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         { provide: getModelToken(Lesson), useValue: lessonModel },
         { provide: getModelToken(Enroll), useValue: enrollModel },
         { provide: getModelToken(Feedback), useValue: feedbackModel },
+        { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
         { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],
     }).compile();
@@ -381,5 +383,74 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         },
       }),
     );
+  });
+
+  it('searchPublishedCourses returns categories from search rows', async () => {
+    const makeSearchRow = (plain: Record<string, unknown>) => ({
+      get: jest.fn().mockReturnValue(plain),
+    });
+    const rows = [
+      makeSearchRow({
+        id: 1,
+        name: 'React Basics',
+        thumbnailUrl: null,
+        price: 0,
+        level: 'Beginner',
+        language: 'vi',
+        duration: '01:00:00.000',
+        categories: ['Frontend', 'React', 'React'],
+        status: CourseStatus.PUBLISH,
+        avgRating: '4.5',
+        reviewCount: '10',
+        enrollCount: '20',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        instructor: {
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          avatarUrl: 'avatar.png',
+        },
+      }),
+      makeSearchRow({
+        id: 2,
+        name: 'TypeScript Basics',
+        thumbnailUrl: 'thumb.png',
+        price: 100,
+        level: 'Intermediate',
+        language: 'en',
+        duration: '02:00:00.000',
+        categories: JSON.stringify(['Frontend', 'TypeScript']),
+        status: CourseStatus.PUBLISH,
+        avgRating: '5',
+        reviewCount: '5',
+        enrollCount: '15',
+        createdAt: new Date('2026-01-02T00:00:00.000Z'),
+        instructor: {
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          avatarUrl: null,
+        },
+      }),
+    ];
+
+    courseModel.findAll
+      .mockResolvedValueOnce(rows)
+      .mockResolvedValueOnce([{ id: 1 }, { id: 2 }])
+      .mockResolvedValueOnce([
+        { categories: ['Backend'] },
+        { categories: ['Frontend', 'React'] },
+        { categories: ['TypeScript'] },
+      ]);
+
+    const result: any = await service.searchPublishedCourses({});
+
+    expect(courseModel.findAll.mock.calls[0][0].attributes).toEqual(
+      expect.arrayContaining(['categories']),
+    );
+    expect(result.data).toHaveLength(2);
+    expect(result.categories).toEqual([
+      { id: 2, name: 'Frontend', courseCount: 2 },
+      { id: 3, name: 'React', courseCount: 1 },
+      { id: 4, name: 'TypeScript', courseCount: 1 },
+    ]);
   });
 });
