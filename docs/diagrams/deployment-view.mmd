@@ -1,0 +1,83 @@
+flowchart TB
+    %% ---------- Clients ----------
+    subgraph Client["End-user device"]
+        BROWSER["Web browser<br/>Next.js SPA (frontend-nextjs)"]
+    end
+
+    %% ---------- Edge ----------
+    NGROK{{"ngrok tunnel<br/>https://*.ngrok-free.app to :8000"}}
+
+    %% ---------- App VPS ----------
+    subgraph VPS["Application VPS - Ubuntu + PM2 process manager"]
+        GW["api_gateway (Express)<br/>:8000 - public entrypoint<br/>CORS - rate-limit - JWT - RBAC - HTTP+WS proxy"]
+
+        subgraph NestActive["Active PM2 apps (NestJS)"]
+            AUTH["auth_service<br/>:8001"]
+            MEDIA["media_service<br/>:8003 (HTTP + WS/SSE)"]
+            COURSE["course_service<br/>:8008"]
+            INF["inference_service<br/>:8007 (mascot_colab route)"]
+        end
+
+        subgraph NestIdle["Defined but disabled in ecosystem.config.js"]
+            USER["user_service<br/>:8002"]
+            PAY["payment_service (Express)<br/>:8006"]
+            MAIL["mail_service<br/>:8009"]
+        end
+
+        REDIS[("Redis 7<br/>:6379 - local only, not public<br/>cache - OTP - pub/sub - feed reco")]
+    end
+
+    %% ---------- GPU host ----------
+    subgraph GPUVPS["GPU VPS - n2.ckey.vn (Supervisor)"]
+        JOY["highlight-api (FastAPI)<br/>:1434 - JoyVASA talking-head<br/>PyTorch + CUDA"]
+    end
+
+    %% ---------- Managed data ----------
+    subgraph Managed["Managed / external data"]
+        MYSQL[("MySQL 8<br/>graduation_db<br/>(docker-compose local / Railway prod)")]
+    end
+
+    %% ---------- Third-party SaaS ----------
+    subgraph SaaS["Third-party SaaS"]
+        BUNNY{{"Bunny Stream<br/>(video CDN)"}}
+        CLOUD{{"Cloudinary<br/>(image CDN)"}}
+        PAYOS{{"PayOS<br/>(payment gateway)"}}
+        OPENAI{{"OpenAI API<br/>(quiz generation)"}}
+        SMTP{{"Gmail SMTP"}}
+    end
+
+    %% ---------- Edges ----------
+    BROWSER -->|"HTTPS - REST + Socket.IO + SSE"| NGROK
+    NGROK -->|"http :8000"| GW
+
+    GW -->|REST| AUTH
+    GW -->|REST| COURSE
+    GW -->|"REST + WS/SSE"| MEDIA
+    GW -->|"mascot_colab"| INF
+    GW -.->|REST| USER
+    GW -.->|REST| PAY
+    GW -.->|REST| MAIL
+
+    AUTH -->|"refresh-token / blacklist"| REDIS
+    MEDIA -->|"feed reco cache"| REDIS
+    MAIL -.->|"OTP store"| REDIS
+    PAY  -.->|"publish payment:*"| REDIS
+    REDIS -.->|"subscribe payment events"| COURSE
+
+    AUTH --> MYSQL
+    USER -.-> MYSQL
+    COURSE --> MYSQL
+    MEDIA --> MYSQL
+    PAY -.-> MYSQL
+
+    INF -->|"job submit + poll"| JOY
+
+    AUTH -.->|"HTTP send OTP"| MAIL
+    COURSE -->|"quiz gen"| OPENAI
+    MEDIA -->|"TUS upload + webhook"| BUNNY
+    MEDIA -->|"signed upload"| CLOUD
+    PAY -.->|"create link + webhook"| PAYOS
+    MAIL -.->|"nodemailer"| SMTP
+
+    classDef idle stroke-dasharray:4 3,opacity:0.7;
+    class USER,PAY,MAIL,NestIdle idle;
