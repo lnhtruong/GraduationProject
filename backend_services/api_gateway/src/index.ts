@@ -91,8 +91,15 @@ app.use(cors({
     'ngrok-skip-browser-warning'
   ],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Skip body parsing for webhook endpoints — preserves raw bytes for HMAC verification downstream
+app.use((req, res, next) => {
+  if (req.path.includes('/webhooks/')) return next();
+  express.json()(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path.includes('/webhooks/')) return next();
+  express.urlencoded({ extended: true })(req, res, next);
+});
 app.use(loggingMiddleware);
 app.use(requestLogger);
 
