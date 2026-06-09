@@ -1,6 +1,14 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+    Injectable,
+    Logger,
+    BadRequestException,
+    UnauthorizedException,
+    InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { HttpService } from '@nestjs/axios';
+import { createHmac, timingSafeEqual } from 'crypto';
+import type { IncomingHttpHeaders } from 'http';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { Video, VideoType } from 'src/videos/video.model';
@@ -532,6 +540,45 @@ export class WebhookService {
         return { success: true, id: row.id };
     }
 
+    private getHeader(headers: IncomingHttpHeaders, name: string): string | undefined {
+        const value = headers[name.toLowerCase()];
+        if (Array.isArray(value)) return value[0];
+        return value;
+    }
+
+    /**
+     * Verify the AI-model webhook (QStash/inference) with HMAC-SHA256 over the
+     * exact raw request body, mirroring BunnyService.verifyBunnyStreamWebhook.
+     * Secret: INFERENCE_WEBHOOK_SECRET. Signature header: x-inference-signature
+     * (preferred) or upstash-signature.
+     */
+    verifyAiWebhook(rawBody: Buffer | undefined, headers: IncomingHttpHeaders): void {
+        const secret = process.env.INFERENCE_WEBHOOK_SECRET;
+        if (!secret) {
+            throw new InternalServerErrorException('INFERENCE_WEBHOOK_SECRET not configured');
+        }
+
+        if (!rawBody || rawBody.length === 0) {
+            throw new BadRequestException('Missing raw body for AI webhook verification');
+        }
+
+        const signature =
+            this.getHeader(headers, 'x-inference-signature') ??
+            this.getHeader(headers, 'upstash-signature');
+
+        if (!signature) {
+            throw new UnauthorizedException('Missing signature');
+        }
+
+        const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+
+        const sigBuf = Buffer.from(signature, 'utf8');
+        const expBuf = Buffer.from(expected, 'utf8');
+        if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+            throw new UnauthorizedException('Invalid signature');
+        }
+
+        this.logger.log('[ai-webhook] verified');
     private parsePositiveInt(value: unknown): number | undefined {
         if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
             return value;

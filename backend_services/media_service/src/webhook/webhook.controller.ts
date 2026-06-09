@@ -4,6 +4,7 @@ import {
     Controller,
     HttpCode,
     Post,
+    BadRequestException,
     Req,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
@@ -26,10 +27,20 @@ export class WebhookController {
 
     @Post('ai-model/result')
     @HttpCode(200)
-    async handleAiResult(@Body() body: any) {
-        if (!body) throw new BadRequestException('Empty body');
-        console.log('Received AI Result:', body);
-        return this.cloudinaryWebhookService.handleAIResult(body);
+    async handleAiResult(@Req() req: RawBodyRequest<Request>) {
+        const rawBody = req.rawBody;
+
+        // Verify HMAC-SHA256 signature (throws 401 on missing/invalid).
+        this.cloudinaryWebhookService.verifyAiWebhook(rawBody, req.headers);
+
+        let payload: Record<string, unknown>;
+        try {
+            payload = JSON.parse(rawBody!.toString('utf8')) as Record<string, unknown>;
+        } catch {
+            throw new BadRequestException('Invalid JSON body');
+        }
+
+        return this.cloudinaryWebhookService.handleAIResult(payload as any);
     }
 
     @Post('bunny-stream')
