@@ -15,6 +15,7 @@ import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { User } from 'src/users/user.model';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
+import { EnrollsModule } from 'src/enrolls/enrolls.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { InstructorFollow } from 'src/models/instructor-follow.model';
       User,
       InstructorFollow,
     ]),
+    EnrollsModule,
   ],
   controllers: [CoursesController, CategoriesController],
   providers: [CoursesService],

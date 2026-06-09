@@ -7,12 +7,10 @@ Hướng dẫn cho Claude Code khi làm việc trong repo này.
 ## Phân công trách nhiệm
 
 - **Người phụ trách:** ThuyUyen — chịu trách nhiệm toàn bộ frontend (`frontend-nextjs/`).
-- **Có thể sửa trực tiếp:** `frontend-nextjs/` và `backend_services/api_gateway/src/middleware/access-policy.ts`.
-- **Không sửa trực tiếp** các service backend khác (`auth_service`, `course_service`, v.v.). Thay vào đó:
-  - Đọc code backend để hiểu API contract.
-  - Ưu tiên điều chỉnh frontend cho phù hợp với API hiện có.
-  - Nếu phát hiện bug hoặc điểm bất hợp lý ở backend → **đề xuất rõ ràng trước**, không tự ý sửa.
-- **Bổ sung yêu cầu API mới** → ghi vào `README.md` ở thư mục gốc (section `## API Requirements`), không tự gọi API chưa tồn tại.
+- **Được sửa trực tiếp:** cả `frontend-nextjs/` lẫn các service backend (`api_gateway`, `auth_service`, `course_service`, v.v.) khi task yêu cầu.
+  - Vẫn đọc kỹ code backend để hiểu API contract trước khi đổi.
+  - Khi sửa backend ảnh hưởng tới contract FE đang dùng → ghi lại thay đổi vào `README.md` (section `## API Requirements`) để FE nắm.
+- Thêm route backend mới → nhớ bổ sung rule tương ứng vào `access-policy.ts` (xem mục Access policy).
 
 ---
 

@@ -1,4 +1,13 @@
-import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from 'sequelize-typescript';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  DeletedAt,
+  ForeignKey,
+  HasMany,
+  Model,
+  Table,
+} from 'sequelize-typescript';
 import { Video } from './video.model';
 import { Lesson } from './lesson.model';
 import { User } from 'src/users/user.model';
@@ -24,8 +33,10 @@ export enum CourseStatus {
 @Table({
   tableName: 'courses',
   timestamps: true,
+  paranoid: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  deletedAt: 'deleted_at',
 })
 export class Course extends Model {
   @Column({
@@ -122,15 +133,37 @@ export class Course extends Model {
   })
   declare status: CourseStatus;
 
-  @HasMany(() => Lesson, { foreignKey: 'course_id', sourceKey: 'id', as: 'lessons' })
+  @HasMany(() => Lesson, {
+    foreignKey: 'course_id',
+    sourceKey: 'id',
+    as: 'lessons',
+  })
   declare lessons?: Lesson[];
 
-  @HasMany(() => Feedback, { foreignKey: 'course_id', sourceKey: 'id', as: 'feedbacks' })
+  @HasMany(() => Feedback, {
+    foreignKey: 'course_id',
+    sourceKey: 'id',
+    as: 'feedbacks',
+  })
   declare feedbacks?: Feedback[];
 
-  @HasMany(() => Enroll, { foreignKey: 'course_id', sourceKey: 'id', as: 'enrolls' })
+  @HasMany(() => Enroll, {
+    foreignKey: 'course_id',
+    sourceKey: 'id',
+    as: 'enrolls',
+  })
   declare enrolls?: Enroll[];
 
-  @HasMany(() => HighlightFeed, { foreignKey: 'course_id', sourceKey: 'id', as: 'highlightFeeds' })
+  @HasMany(() => HighlightFeed, {
+    foreignKey: 'course_id',
+    sourceKey: 'id',
+    as: 'highlightFeeds',
+  })
   declare highlightFeeds?: HighlightFeed[];
+
+  // Soft delete (paranoid): `destroy()` set cột này thay vì xoá cứng; mọi query
+  // course tự loại trừ row đã xoá.
+  @DeletedAt
+  @Column({ type: DataType.DATE, allowNull: true, field: 'deleted_at' })
+  declare deletedAt: Date | null;
 }

@@ -9,12 +9,18 @@ import { Op, Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
-import { LessonProgress, LessonProgressStatus } from 'src/models/lesson-progress.model';
+import {
+  LessonProgress,
+  LessonProgressStatus,
+} from 'src/models/lesson-progress.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import { CreateEnrollDto } from './dto/create-enroll.dto';
 import { UpdateEnrollDto } from './dto/update-enroll.dto';
 import { GetEnrollsQueryDto } from './dto/get-enrolls-query.dto';
-import { PaginationMetaDto, PaginatedResponseDto } from 'src/models/pagination.dto';
+import {
+  PaginationMetaDto,
+  PaginatedResponseDto,
+} from 'src/models/pagination.dto';
 import { CheckEnrollExistsDto } from './dto/check-enroll-exists.dto';
 
 @Injectable()
@@ -30,33 +36,67 @@ export class EnrollsService {
     private readonly lessonProgressModel: typeof LessonProgress,
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
-  ) { }
+  ) {}
 
   /**
-   * Percent complete from LessonProgress rows for this user + course:
-   * (completed count) / (total rows) × 100. If there are no rows, returns 0.
+   * Percent complete for this user + course.
+   *
+   * Mẫu số = số lesson HIỆN TẠI (chưa bị xoá mềm) của course — KHÔNG dựa vào
+   * số LessonProgress row đã seed. Nhờ vậy progress luôn đúng kể cả khi lesson
+   * set thay đổi: lesson mới thêm vào (chưa có progress row) tự động kéo % xuống,
+   * lesson đã xoá mềm không còn được tính vào tử/mẫu số. Trả 0 nếu course chưa
+   * có lesson nào.
    */
   async computeLessonProgressPercent(
     userId: number,
     courseId: number,
     transaction?: Transaction,
   ): Promise<number> {
-    const total = await this.lessonProgressModel.count({
-      where: { userId, courseId },
+    const activeLessons = await this.lessonModel.findAll({
+      where: { courseId, status: { [Op.ne]: LessonStatus.REMOVED } },
+      attributes: ['id'],
       transaction,
     });
+    const total = activeLessons.length;
     if (total === 0) {
       return 0;
     }
+
+    const activeLessonIds = activeLessons.map((lesson) => lesson.id);
     const completed = await this.lessonProgressModel.count({
       where: {
         userId,
         courseId,
+        lessonId: { [Op.in]: activeLessonIds },
         progress: LessonProgressStatus.COMPLETED,
       },
       transaction,
     });
     return (completed / total) * 100;
+  }
+
+  /**
+   * Đồng bộ lại progress của TẤT CẢ enroll trong một course sau khi lesson set
+   * thay đổi (thêm/xoá lesson): seed các LessonProgress còn thiếu cho lesson mới
+   * rồi tính lại enroll.progress. No-op nếu course chưa có ai enroll, nên gọi an
+   * toàn từ luồng sửa lesson (kể cả course chưa publish).
+   */
+  async reconcileCourseEnrollProgress(courseId: number): Promise<void> {
+    const enrolls = await this.enrollModel.findAll({ where: { courseId } });
+    if (enrolls.length === 0) {
+      return;
+    }
+
+    for (const enroll of enrolls) {
+      await this.sequelize.transaction(async (transaction) => {
+        await this.seedLessonProgressForCourse(
+          enroll.userId,
+          courseId,
+          transaction,
+        );
+        await this.syncEnrollProgress(enroll.userId, courseId, transaction);
+      });
+    }
   }
 
   /**
@@ -84,18 +124,25 @@ export class EnrollsService {
 
     const updates: Partial<Enroll> = { progress: percent };
 
-    if (
-      enroll.status === EnrollStatus.ACTIVE &&
-      percent >= 100
-    ) {
-      updates.status = EnrollStatus.COMPLETED;
-      updates.completedAt = enroll.completedAt ?? new Date();
+    if (percent >= 100) {
+      if (enroll.status === EnrollStatus.ACTIVE) {
+        updates.status = EnrollStatus.COMPLETED;
+        updates.completedAt = enroll.completedAt ?? new Date();
+      }
+    } else if (enroll.status === EnrollStatus.COMPLETED) {
+      // Tập lesson lớn lên (thêm lesson mới sau khi approve change request) →
+      // enroll không còn đạt 100% → hạ về active và xoá mốc hoàn thành.
+      updates.status = EnrollStatus.ACTIVE;
+      updates.completedAt = null;
     }
 
     await enroll.update(updates, { transaction });
   }
 
-  async create(dto: CreateEnrollDto, userId: number | undefined): Promise<Enroll> {
+  async create(
+    dto: CreateEnrollDto,
+    userId: number | undefined,
+  ): Promise<Enroll> {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
@@ -131,11 +178,7 @@ export class EnrollsService {
         { transaction },
       );
 
-      await this.seedLessonProgressForCourse(
-        userId,
-        dto.courseId,
-        transaction,
-      );
+      await this.seedLessonProgressForCourse(userId, dto.courseId, transaction);
       // await this.syncEnrollProgress(userId, dto.courseId, transaction);
 
       // const fresh = await this.enrollModel.findByPk(enroll.id, { transaction });
