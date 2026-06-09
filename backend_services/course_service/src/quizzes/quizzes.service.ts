@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
@@ -16,12 +22,36 @@ import {
 } from './dto/create-quiz-from-ai.dto';
 import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
 import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
-import { generateQuizPayload } from './helper/index.quiz_gen';
-import { toPersistableQuestionRow } from './quiz-payload.mapper';
-import { resolveSrtRawForQuiz } from './resolve-srt';
 import { QuestionType } from 'src/models/quiz-question.model';
 
 const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
+const ADMIN_ROLE = 1;
+
+type AiQuizJobResponse = {
+  jobId: string;
+  status: string;
+  type: 'quiz';
+  lessonActivityId: number;
+  videoId: number;
+  quizName: string;
+};
+
+type RequesterContext = {
+  requesterUserId: number;
+  requesterRole: number;
+};
+
+type ColabJobResponse = {
+  job_id?: string;
+  jobId?: string;
+  status?: string;
+  type?: string;
+};
+
+type AiQuizTimeRange = {
+  startTime: number;
+  endTime: number;
+};
 
 @Injectable()
 export class QuizzesService {
@@ -126,98 +156,194 @@ export class QuizzesService {
     });
   }
 
-  async createOneByAI(payload: CreateQuizAIDto): Promise<Quiz> {
-    const isInVideo = payload.isInVideo ?? false;
-    const video = await this.videoModel.findByPk(payload.videoId, {
-      attributes: ['id', 'srt_raw_url'],
-    });
+  private getAiServiceBaseUrl(): string {
+    const baseUrl = process.env.AI_SERVICE_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!baseUrl) {
+      throw new BadRequestException('AI_SERVICE_BASE_URL is not configured');
+    }
+    return baseUrl;
+  }
+
+  private async fetchJsonWithTimeout<T>(
+    url: string,
+    init: RequestInit,
+    timeoutMs: number,
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          ...(init.headers ?? {}),
+        },
+      });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+
+      if (!response.ok) {
+        throw new BadRequestException(data);
+      }
+
+      return data as T;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new InternalServerErrorException(`AI service request failed: ${message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async assertCanUseVideoForAi(
+    video: Video,
+    requester: RequesterContext,
+  ): Promise<void> {
+    if (requester.requesterRole === ADMIN_ROLE) return;
+    if (video.user_id !== requester.requesterUserId) {
+      throw new ForbiddenException('You can only generate quizzes from your own videos.');
+    }
+  }
+
+  private resolveQuizSource(video: Video): { field: 'srt_url' | 'long_video_url'; value: string } {
+    const srtUrl = video.srt_raw_url?.trim();
+    if (srtUrl) return { field: 'srt_url', value: srtUrl };
+
+    const longVideoUrl = video.url?.trim();
+    if (longVideoUrl) return { field: 'long_video_url', value: longVideoUrl };
+
+    throw new BadRequestException(
+      'Video has neither srt_raw_url nor url. Upload or transcribe the video before generating an AI quiz.',
+    );
+  }
+
+  private parseOptionalAiQuizTime(value: unknown, fieldName: string): number | undefined {
+    if (value === undefined || value === null) return undefined;
+
+    if (typeof value !== 'number' && typeof value !== 'string') {
+      throw new BadRequestException(`${fieldName} must be a non-negative number.`);
+    }
+
+    const normalized = typeof value === 'string' ? value.trim() : value;
+    if (normalized === '') return undefined;
+
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new BadRequestException(`${fieldName} must be a non-negative number.`);
+    }
+
+    return parsed;
+  }
+
+  private resolveAiQuizTimeRange(payload: CreateQuizAIDto): AiQuizTimeRange | null {
+    const startTime = this.parseOptionalAiQuizTime(
+      payload.startTime ?? payload.start_time,
+      'start_time',
+    );
+    const endTime = this.parseOptionalAiQuizTime(
+      payload.endTime ?? payload.end_time,
+      'end_time',
+    );
+    const hasStartTime = startTime !== undefined && startTime !== null;
+    const hasEndTime = endTime !== undefined && endTime !== null;
+
+    if (hasStartTime !== hasEndTime) {
+      throw new BadRequestException('start_time and end_time must be provided together.');
+    }
+
+    if (!hasStartTime || !hasEndTime) {
+      return null;
+    }
+
+    if (startTime >= endTime) {
+      throw new BadRequestException('start_time must be less than end_time.');
+    }
+
+    return { startTime, endTime };
+  }
+
+  async createOneByAI(
+    payload: CreateQuizAIDto,
+    requester: RequesterContext,
+  ): Promise<AiQuizJobResponse> {
+    const video = await this.videoModel.findByPk(payload.videoId);
     if (!video) {
       throw new NotFoundException(`Video with ID ${payload.videoId} not found`);
     }
-    const srtRawStored = video.srt_raw_url?.trim();
-    if (!srtRawStored) {
-      throw new BadRequestException(
-        'Video has no srt_raw_url. Upload the SRT to Cloudinary (raw) and wait for the webhook, or set srt_raw_url via API.',
-      );
+
+    await this.assertCanUseVideoForAi(video, requester);
+
+    const lessonActivity = await this.lessonActivityModel.findByPk(
+      payload.lessonActivityId,
+      { attributes: ['id'] },
+    );
+    if (!lessonActivity) {
+      throw new NotFoundException(`LessonActivity ${payload.lessonActivityId} not found`);
     }
 
-    let srtText: string;
-    try {
-      srtText = await resolveSrtRawForQuiz(srtRawStored);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      throw new BadRequestException(`Could not load SRT content: ${msg}`);
+    const baseUrl = this.getAiServiceBaseUrl();
+    const source = this.resolveQuizSource(video);
+    const timeRange = this.resolveAiQuizTimeRange(payload);
+    const quizName = payload.name?.trim() || `AI Quiz - Video ${video.id}`;
+    const numQuestions = payload.numQuestions ?? 10;
+    const difficulty = payload.difficulty ?? 'mixed';
+    const sourceOriginalFilename =
+      payload.sourceOriginalFilename?.trim() || payload.name?.trim() ||
+      video.name?.trim() ||
+      `video-${video.id}`;
+
+    const formData = new FormData();
+    formData.append('user_id', String(requester.requesterUserId));
+    formData.append(source.field, source.value);
+    formData.append('source_original_filename', sourceOriginalFilename);
+    formData.append('num_questions', String(numQuestions));
+    formData.append('difficulty', difficulty);
+    if (payload.language?.trim()) {
+      formData.append('language', payload.language.trim());
+    }
+    formData.append('lesson_activity_id', String(payload.lessonActivityId));
+    formData.append('video_id', String(payload.videoId));
+    formData.append('quiz_name', quizName);
+    formData.append('shuffleQuestion', String(payload.shuffleQuestion ?? false));
+    formData.append('shuffleOption', String(payload.shuffleOption ?? false));
+    formData.append('passingScore', String(payload.passingScore ?? 0));
+    formData.append('timeLimitMinutes', String(payload.timeLimitMinutes ?? 0));
+    formData.append('isInVideo', String(payload.isInVideo ?? true));
+    if (timeRange) {
+      formData.append('start_time', String(timeRange.startTime));
+      formData.append('end_time', String(timeRange.endTime));
     }
 
-    const generated = await generateQuizPayload(
-      srtText,
-      payload.name,
-      payload.shuffleQuestion ?? false,
-      payload.shuffleOption ?? false,
-      payload.passingScore ?? 0,
-      payload.timeLimitMinutes ?? 0,
+    const response = await this.fetchJsonWithTimeout<ColabJobResponse>(
+      `${baseUrl}/generate-quiz`,
+      { method: 'POST', body: formData },
+      60_000,
     );
 
-    const generatedRows = generated.questions.map((q) => {
-      const row = toPersistableQuestionRow(q);
-      return {
-        ...row,
-        videoTimestamp: this.normalizeVideoTimestamp(row.videoTimestamp),
-      };
-    });
-    this.assertQuizVideoTimestampConsistency(isInVideo, generatedRows);
+    const jobId = response.job_id ?? response.jobId;
+    if (!jobId) {
+      throw new InternalServerErrorException('AI service did not return job_id');
+    }
 
-    // console.log('check generated: ', generated);
-
-    return await this.sequelize.transaction(async (transaction) => {
-      const quiz = await this.quizModel.create(
-        {
-          lessonActivityId: payload.lessonActivityId,
-          name: generated.name,
-          shuffleQuestion: generated.shuffleQuestion,
-          shuffleOption: generated.shuffleOption,
-          passingScore: generated.passingScore,
-          timeLimitMinutes: generated.timeLimitMinutes,
-          isInVideo: isInVideo,
-        },
-        { transaction },
-      );
-
-      for (const row of generatedRows) {
-        const question = await this.quizQuestionModel.create(
-          {
-            quizId: quiz.id,
-            quesType: row.quesType,
-            quesText: row.quesText,
-            point: row.point,
-            correctAns: row.correctAns,
-            orderIndex: row.orderIndex,
-            videoTimestamp: row.videoTimestamp,
-          },
-          { transaction },
-        );
-        if (row.options?.length) {
-          // console.log('check options: ', row.options);
-          await this.quizOptionModel.bulkCreate(
-            row.options.map((o) => ({
-              questionId: question.id,
-              optionText: o.optionText,
-              isCorrect: o.isCorrect ?? false,
-              orderIndex: o.orderIndex,
-            })),
-            { transaction },
-          );
-        }
-      }
-
-      return await this.findOne(quiz.id, { transaction });
-    });
+    return {
+      jobId,
+      status: response.status ?? 'pending',
+      type: 'quiz',
+      lessonActivityId: payload.lessonActivityId,
+      videoId: payload.videoId,
+      quizName,
+    };
   }
 
-  async createManyByAI(payloads: CreateQuizAIDto[]): Promise<Quiz[]> {
-    const out: Quiz[] = [];
+  async createManyByAI(
+    payloads: CreateQuizAIDto[],
+    requester: RequesterContext,
+  ): Promise<AiQuizJobResponse[]> {
+    const out: AiQuizJobResponse[] = [];
     for (const p of payloads) {
-      out.push(await this.createOneByAI(p));
+      out.push(await this.createOneByAI(p, requester));
     }
     return out;
   }
@@ -236,23 +362,32 @@ export class QuizzesService {
     if (!payload.questions?.length) {
       throw new BadRequestException('questions[] is required and non-empty');
     }
-    const isInVideo = payload.isInVideo ?? true; // Colab evidence có timestamp → default in_video
 
-    const video = await this.videoModel.findByPk(payload.videoId, {
+    const lessonActivityId = payload.lessonActivityId;
+    const videoId = payload.videoId;
+    const quizName = payload.name?.trim() || 'AI Quiz';
+
+    if (!lessonActivityId) {
+      throw new BadRequestException('lessonActivityId is required');
+    }
+    if (!videoId) {
+      throw new BadRequestException('videoId is required');
+    }
+    const isInVideo = payload.isInVideo ?? true;
+
+    const video = await this.videoModel.findByPk(videoId, {
       attributes: ['id'],
     });
     if (!video) {
-      throw new NotFoundException(`Video ${payload.videoId} not found`);
+      throw new NotFoundException(`Video ${videoId} not found`);
     }
 
     const lessonActivity = await this.lessonActivityModel.findByPk(
-      payload.lessonActivityId,
+      lessonActivityId,
       { attributes: ['id'] },
     );
     if (!lessonActivity) {
-      throw new NotFoundException(
-        `LessonActivity ${payload.lessonActivityId} not found`,
-      );
+      throw new NotFoundException(`LessonActivity ${lessonActivityId} not found`);
     }
 
     const rows = payload.questions.map((q, idx) => this.toRowFromAI(q, idx + 1));
@@ -261,8 +396,8 @@ export class QuizzesService {
     return await this.sequelize.transaction(async (transaction) => {
       const quiz = await this.quizModel.create(
         {
-          lessonActivityId: payload.lessonActivityId,
-          name: payload.name,
+          lessonActivityId,
+          name: quizName,
           shuffleQuestion: payload.shuffleQuestion ?? false,
           shuffleOption: payload.shuffleOption ?? false,
           passingScore: payload.passingScore ?? 0,
@@ -297,16 +432,90 @@ export class QuizzesService {
           );
         }
       }
+
       return await this.findOne(quiz.id, { transaction });
     });
   }
 
+  private isNewColabQuestionFormat(q: QuizQuestionFromAIDto): boolean {
+    return Array.isArray(q.options) || q.type != null;
+  }
+
+  private resolveEvidenceTimestamp(q: QuizQuestionFromAIDto): string | null {
+    if (typeof q.evidenceTimestamp === 'string' && q.evidenceTimestamp.trim()) {
+      return this.normalizeVideoTimestamp(q.evidenceTimestamp);
+    }
+    // Colab gửi `evidence: "HH:MM:SS,mmm"`. DTO @Transform gán evidenceTimestamp
+    // nhưng class-transformer có thể overwrite lại undefined sau — đọc thẳng string.
+    const rawEvidence = q.evidence as string | QuizQuestionFromAIDto['evidence'];
+    if (typeof rawEvidence === 'string' && rawEvidence.trim()) {
+      return this.normalizeVideoTimestamp(rawEvidence);
+    }
+    if (
+      rawEvidence &&
+      typeof rawEvidence === 'object' &&
+      rawEvidence.start_ms != null
+    ) {
+      return this.msToTimestamp(rawEvidence.start_ms);
+    }
+    return null;
+  }
+
+  private pointFromDifficulty(difficulty?: string): number {
+    if (difficulty === 'hard') return 2;
+    if (difficulty === 'medium') return 1.5;
+    return 1;
+  }
+
   /**
-   * Convert 1 câu hỏi shape Colab (`{question, options:{a,b,c,d}, correct, evidence}`)
-   * sang shape DB (`quesText, correctAns, options[].isCorrect`).
+   * Colab prompt mới: `{ type, options: [{optionText,isCorrect,orderIndex}], evidence: "HH:MM:SS,mmm" }`.
    */
-  private toRowFromAI(q: QuizQuestionFromAIDto, orderIndex: number) {
-    const optMap = q.options ?? {};
+  private toRowFromNewColabFormat(q: QuizQuestionFromAIDto, orderIndex: number) {
+    const rawOptions = Array.isArray(q.options) ? q.options : [];
+    if (!rawOptions.length) {
+      throw new BadRequestException(
+        `Question "${q.question.slice(0, 80)}" must include at least one option.`,
+      );
+    }
+
+    const options = rawOptions.map((o, i) => ({
+      optionText: String(o.optionText),
+      isCorrect: Boolean(o.isCorrect),
+      orderIndex: o.orderIndex ?? i + 1,
+    }));
+
+    const correctCount = options.filter((o) => o.isCorrect).length;
+    if (correctCount !== 1) {
+      throw new BadRequestException(
+        `Question "${q.question.slice(0, 80)}" must have exactly one correct option (got ${correctCount}).`,
+      );
+    }
+
+    const quesType =
+      q.type === 'true_false' ? QuestionType.TF : QuestionType.MULTIPLE_CHOICE;
+
+    return {
+      quesType,
+      quesText: q.question,
+      point: this.pointFromDifficulty(q.difficulty),
+      correctAns: q.explanation ?? null,
+      orderIndex,
+      videoTimestamp: this.resolveEvidenceTimestamp(q),
+      options,
+    };
+  }
+
+  /**
+   * Legacy Colab: `{ question, options:{a,b,c,d}, correct, evidence:{start_ms} }`.
+   */
+  private toRowFromLegacyColabFormat(q: QuizQuestionFromAIDto, orderIndex: number) {
+    if (!q.correct) {
+      throw new BadRequestException(
+        `Legacy-format question "${q.question.slice(0, 80)}" is missing "correct".`,
+      );
+    }
+
+    const optMap = (q.options ?? {}) as Record<string, string>;
     const orderedKeys: Array<'a' | 'b' | 'c' | 'd'> = ['a', 'b', 'c', 'd'];
     const options = orderedKeys
       .filter((k) => typeof optMap[k] === 'string')
@@ -316,19 +525,32 @@ export class QuizzesService {
         orderIndex: i + 1,
       }));
 
-    const videoTimestamp = q.evidence
-      ? this.msToTimestamp(q.evidence.start_ms)
-      : null;
+    if (!options.length) {
+      throw new BadRequestException(
+        `Legacy-format question "${q.question.slice(0, 80)}" has no options.`,
+      );
+    }
 
     return {
       quesType: QuestionType.MULTIPLE_CHOICE,
       quesText: q.question,
-      point: 1,
+      point: this.pointFromDifficulty(q.difficulty),
       correctAns: q.explanation ?? null,
       orderIndex,
-      videoTimestamp,
+      videoTimestamp: this.resolveEvidenceTimestamp(q),
       options,
     };
+  }
+
+  /**
+   * Convert 1 câu hỏi Colab → shape DB (`quesText`, `correctAns`, `options[].isCorrect`).
+   * Hỗ trợ cả prompt mới (array options + evidence string) lẫn legacy map `{a,b,c,d}`.
+   */
+  private toRowFromAI(q: QuizQuestionFromAIDto, orderIndex: number) {
+    if (this.isNewColabQuestionFormat(q)) {
+      return this.toRowFromNewColabFormat(q, orderIndex);
+    }
+    return this.toRowFromLegacyColabFormat(q, orderIndex);
   }
 
   /** ms → "HH:MM:SS.mmm" (khớp VIDEO_TIMESTAMP_REGEX có dấu chấm). */

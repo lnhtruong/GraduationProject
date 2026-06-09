@@ -15,11 +15,53 @@ function isNewsfeedPlaybackRate(value: string): value is NewsfeedPlaybackRate {
   return NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(value as NewsfeedPlaybackRate);
 }
 
+const NEWSFEED_WHEEL_THRESHOLD = 30;
+const NEWSFEED_WHEEL_THROTTLE_MS = 620;
+const NEWSFEED_SWIPE_THRESHOLD = 40;
+// Thời gian animation chuyển video (ms).
+const NEWSFEED_SCROLL_DURATION_MS = 520;
+
+function easeOutQuint(t: number): number {
+  return 1 - Math.pow(1 - t, 5);
+}
+
+function animateScrollTo(
+  container: HTMLElement,
+  targetScrollTop: number,
+  duration: number,
+  onCancel?: () => void,
+): () => void {
+  const startScrollTop = container.scrollTop;
+  const distance = targetScrollTop - startScrollTop;
+  const startTime = performance.now();
+  let rafId = 0;
+  let cancelled = false;
+
+  function step(now: number) {
+    if (cancelled) return;
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    container.scrollTop = startScrollTop + distance * easeOutQuint(progress);
+    if (progress < 1) {
+      rafId = requestAnimationFrame(step);
+    }
+  }
+
+  rafId = requestAnimationFrame(step);
+
+  return () => {
+    cancelled = true;
+    cancelAnimationFrame(rafId);
+    onCancel?.();
+  };
+}
+
 interface NewsfeedVideoFeedProps {
   videos: NewsfeedItem[];
   activeIndex: number;
   scrollToIndex?: number | null;
-  onActiveIndexChange: (index: number) => void;
+  onNext: () => void;
+  onPrev: () => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
   onOpenShare: (url: string) => void;
@@ -30,7 +72,8 @@ export function NewsfeedVideoFeed({
   videos,
   activeIndex,
   scrollToIndex,
-  onActiveIndexChange,
+  onNext,
+  onPrev,
   onOpenCourse,
   onOpenComments,
   onOpenShare,
@@ -38,8 +81,18 @@ export function NewsfeedVideoFeed({
 }: NewsfeedVideoFeedProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const ignoreObserverRef = useRef(false);
+  const touchStartYRef = useRef<number | null>(null);
+  const wheelLockedRef = useRef(false);
+  const wheelCooldownTimeoutRef = useRef<number | null>(null);
+  const cancelScrollRef = useRef<(() => void) | null>(null);
+  const onNextRef = useRef(onNext);
+  const onPrevRef = useRef(onPrev);
   const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>("1");
+
+  useEffect(() => {
+    onNextRef.current = onNext;
+    onPrevRef.current = onPrev;
+  }, [onNext, onPrev]);
 
   useEffect(() => {
     const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
@@ -61,55 +114,80 @@ export function NewsfeedVideoFeed({
   }, []);
 
   useEffect(() => {
+    if (scrollToIndex == null) return;
+
     const container = containerRef.current;
-    if (!container) {
-      return;
-    }
+    const target = itemRefs.current.get(scrollToIndex);
+    if (!container || !target) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (ignoreObserverRef.current) {
-            return;
-          }
-          if (!entry.isIntersecting || entry.intersectionRatio < 0.6) {
-            return;
-          }
-          const indexValue = entry.target.getAttribute("data-index");
-          const index = indexValue ? Number(indexValue) : NaN;
-          if (Number.isNaN(index)) {
-            return;
-          }
-          onActiveIndexChange(index);
-        });
-      },
-      {
-        root: container,
-        threshold: [0.4, 0.6, 0.8],
-      },
-    );
+    // Cancel animation đang chạy trước khi bắt animation mới.
+    cancelScrollRef.current?.();
 
-    itemRefs.current.forEach((node) => observer.observe(node));
-
-    return () => observer.disconnect();
-  }, [onActiveIndexChange, videos.length]);
+    const targetScrollTop = target.offsetTop;
+    cancelScrollRef.current = animateScrollTo(container, targetScrollTop, NEWSFEED_SCROLL_DURATION_MS, () => {
+      cancelScrollRef.current = null;
+    });
+  }, [scrollToIndex]);
 
   useEffect(() => {
-    if (scrollToIndex == null) {
-      return;
-    }
+    const container = containerRef.current;
+    if (!container) return;
 
-    const target = itemRefs.current.get(scrollToIndex);
-    if (!target) {
-      return;
-    }
-    ignoreObserverRef.current = true;
-    target.scrollIntoView({ behavior: "auto", block: "start" });
-    const timeout = window.setTimeout(() => {
-      ignoreObserverRef.current = false;
-    }, 120);
-    return () => window.clearTimeout(timeout);
-  }, [scrollToIndex]);
+    const triggerMove = (direction: "next" | "prev") => {
+      if (direction === "next") {
+        onNextRef.current();
+      } else {
+        onPrevRef.current();
+      }
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (Math.abs(event.deltaY) < NEWSFEED_WHEEL_THRESHOLD) return;
+      if (wheelLockedRef.current) return;
+      wheelLockedRef.current = true;
+      triggerMove(event.deltaY > 0 ? "next" : "prev");
+      wheelCooldownTimeoutRef.current = window.setTimeout(() => {
+        wheelLockedRef.current = false;
+        wheelCooldownTimeoutRef.current = null;
+      }, NEWSFEED_WHEEL_THROTTLE_MS);
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      event.preventDefault();
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      const startY = touchStartYRef.current;
+      touchStartYRef.current = null;
+      if (startY == null) return;
+      const endY = event.changedTouches[0]?.clientY ?? startY;
+      const deltaY = startY - endY;
+      if (Math.abs(deltaY) < NEWSFEED_SWIPE_THRESHOLD) return;
+      triggerMove(deltaY > 0 ? "next" : "prev");
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      if (wheelCooldownTimeoutRef.current != null) {
+        window.clearTimeout(wheelCooldownTimeoutRef.current);
+        wheelCooldownTimeoutRef.current = null;
+      }
+      wheelLockedRef.current = false;
+    };
+  }, []);
 
   const nextIndex = useMemo(() => activeIndex + 1, [activeIndex]);
 
@@ -117,7 +195,7 @@ export function NewsfeedVideoFeed({
     <div
       ref={containerRef}
       className={cn(
-        "h-[calc(100vh-64px)] w-full overflow-y-auto scroll-smooth snap-y snap-mandatory",
+        "h-[calc(100vh-64px)] w-full overflow-y-hidden",
         "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']",
         className,
       )}
@@ -127,7 +205,6 @@ export function NewsfeedVideoFeed({
           key={video.feedId}
           ref={(node) => setItemRef(index, node)}
           data-index={index}
-          className="snap-start"
         >
           <NewsfeedVideoCard
             video={video}

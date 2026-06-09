@@ -45,10 +45,47 @@ interface CloudinaryPayload {
     original_filename?: string;
 }
 
+type ColabQuizOption = {
+    optionText: string;
+    isCorrect: boolean;
+    orderIndex: number;
+};
+
+type ColabQuizEvidenceLegacy = {
+    text?: string;
+    text_from_srt?: string;
+    srt_indices?: number[];
+    start_ms: number;
+    end_ms: number;
+};
+
+/** Colab prompt mới + legacy map `{a,b,c,d}` — course_service `/quizzes/from-ai` nhận cả hai. */
+type QuizQuestionPayload = {
+    id?: number;
+    type?: 'mcq' | 'true_false';
+    question: string;
+    options?: ColabQuizOption[] | Record<string, string>;
+    correct?: 'a' | 'b' | 'c' | 'd';
+    correct_index?: number;
+    explanation?: string;
+    evidence?: string | ColabQuizEvidenceLegacy;
+    evidenceTimestamp?: string;
+    videoTimestamp?: string | null;
+    difficulty?: 'easy' | 'medium' | 'hard';
+};
+
+type QuizPayload = {
+    questions: QuizQuestionPayload[];
+    total?: number;
+    model?: string;
+};
+
 export interface ai_model_result {
     event?: 'stage_update' | 'completed' | 'job_failed'; // Thêm field này
     job_id?: string;
-    user_id: string | number;
+    jobId?: string;
+    user_id?: string | number;
+    userId?: string | number;
     type?: string;
 
     // Dành cho completed
@@ -61,34 +98,38 @@ export interface ai_model_result {
 
     // Dành cho quiz type=quiz
     quiz?: {
-        questions: Array<{
-            question: string;
-            options?: Record<string, string>;
-            correct: 'a' | 'b' | 'c' | 'd';
-            explanation?: string;
-            evidence?: {
-                text?: string;
-                text_from_srt?: string;
-                srt_indices?: number[];
-                start_ms: number;
-                end_ms: number;
-            };
-            difficulty?: 'easy' | 'medium' | 'hard';
-        }>;
+        questions: QuizQuestionPayload[];
         total?: number;
         model?: string;
+    };
+    questions?: QuizQuestionPayload[];
+    result?: {
+        quiz?: QuizPayload;
+        questions?: QuizQuestionPayload[];
+        model?: string;
+        total?: number;
     };
     // Shared giữa subtitle + quiz:
     //   - subtitle: update `videos.srt_raw_url WHERE id=<video_id>`
     //   - quiz:     link quiz vào video + lesson_activity (course_service /quizzes/from-ai)
-    video_id?: number;
-    lesson_activity_id?: number;
+    video_id?: number | string;
+    videoId?: number | string;
+    lesson_activity_id?: number | string;
+    lessonActivityId?: number | string;
     quiz_name?: string;
+    quizName?: string;
+
+    shuffleQuestion?: boolean;
+    shuffleOption?: boolean;
+    passingScore?: number;
+    timeLimitMinutes?: number;
+    isInVideo?: boolean;
 
     // Dành cho progress / failed
     stage?: string;
     status?: string;
     error_message?: string;
+    errorMessage?: string;
 }
 
 @Injectable()
@@ -538,11 +579,99 @@ export class WebhookService {
         }
 
         this.logger.log('[ai-webhook] verified');
+    private parsePositiveInt(value: unknown): number | undefined {
+        if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+            return value;
+        }
+        if (typeof value === 'string' && value.trim().length > 0) {
+            const parsed = Number(value);
+            if (Number.isInteger(parsed) && parsed > 0) return parsed;
+        }
+        return undefined;
+    }
+
+    private parseJobId(payload: ai_model_result): string | undefined {
+        const raw = payload.job_id ?? payload.jobId;
+        return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined;
+    }
+
+    private normalizeQuizQuestions(
+        questions: QuizQuestionPayload[],
+        isInVideo: boolean,
+    ): QuizQuestionPayload[] {
+        return questions.map((q) => {
+            const normalized: QuizQuestionPayload = {
+                id: q.id,
+                type: q.type,
+                question: q.question,
+                explanation: q.explanation,
+                difficulty: q.difficulty,
+                correct_index: q.correct_index,
+            };
+
+            if (Array.isArray(q.options)) {
+                normalized.options = q.options.map((opt, idx) => ({
+                    optionText: String(opt.optionText ?? ''),
+                    isCorrect: Boolean(opt.isCorrect),
+                    orderIndex:
+                        typeof opt.orderIndex === 'number' && opt.orderIndex > 0
+                            ? opt.orderIndex
+                            : idx + 1,
+                }));
+            } else if (q.options && typeof q.options === 'object') {
+                normalized.options = q.options;
+                normalized.correct = q.correct;
+            }
+
+            if (isInVideo) {
+                if (typeof q.evidenceTimestamp === 'string') {
+                    normalized.evidenceTimestamp = q.evidenceTimestamp.trim();
+                } else if (typeof q.videoTimestamp === 'string') {
+                    normalized.evidenceTimestamp = q.videoTimestamp.trim();
+                }
+
+                if (typeof q.evidence === 'string') {
+                    normalized.evidence = q.evidence.trim();
+                } else if (q.evidence && typeof q.evidence === 'object') {
+                    normalized.evidence = q.evidence;
+                }
+            }
+
+            return normalized;
+        });
+    }
+
+    private extractQuizPayload(payload: ai_model_result): QuizPayload | undefined {
+        if (payload.quiz?.questions?.length) {
+            return payload.quiz;
+        }
+
+        if (payload.questions?.length) {
+            return {
+                questions: payload.questions,
+                model: payload.result?.model,
+                total: payload.result?.total,
+            };
+        }
+
+        if (payload.result?.quiz?.questions?.length) {
+            return payload.result.quiz;
+        }
+
+        if (payload.result?.questions?.length) {
+            return {
+                questions: payload.result.questions,
+                model: payload.result.model,
+                total: payload.result.total,
+            };
+        }
+
+        return undefined;
     }
 
     async handleAIResult(payload: ai_model_result) {
         // 1. Xử lý User ID trước (logic cũ của bạn)
-        const userIdRaw = payload.user_id;
+        const userIdRaw = payload.user_id ?? payload.userId;
         const userIdStr = typeof userIdRaw === 'number' ? String(userIdRaw) : userIdRaw;
         const userId = typeof userIdStr === 'string' && userIdStr.trim().length > 0
             ? Number(userIdStr)
@@ -555,11 +684,11 @@ export class WebhookService {
 
         // 2. Map Video Type (accept unknown string for progress/error relay)
         const rawType = payload.type?.toString().toLowerCase();
-        const type: VideoType | undefined =
+        const type: VideoType | 'quiz' | undefined =
             rawType === VideoType.MASCOT ? VideoType.MASCOT
                 : rawType === VideoType.HIGHLIGHT ? VideoType.HIGHLIGHT
                     : rawType === VideoType.LONG ? VideoType.LONG
-                        : undefined;
+                        : rawType === 'quiz' ? 'quiz' : undefined;
         const typeForSse = type ?? rawType ?? 'unknown';
 
         let completedVideoId: number | undefined;
@@ -567,8 +696,6 @@ export class WebhookService {
         // 3. Phân luồng xử lý theo EVENT
         // Mặc định là 'completed' nếu Python chưa kịp update code cũ
         const eventType = payload.event || 'completed';
-
-        // console.log('check BE: ', payload);
 
         switch (eventType) {
             case 'stage_update':
@@ -583,7 +710,7 @@ export class WebhookService {
                         : 'Your video is being processed',
                     sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
-                        jobId: payload.job_id,
+                        jobId: this.parseJobId(payload),
                         type: typeForSse,
                         stage: payload.stage,
                         status: 'processing',
@@ -598,23 +725,20 @@ export class WebhookService {
                     eventType: NotificationEventType.VIDEO_JOB_FAILED,
                     sseEventType: NotificationSseEventType.VIDEO_ERROR,
                     title: 'Video processing failed',
-                    message: payload.error_message ?? 'Unexpected error while processing video',
+                    message: payload.error_message ?? payload.errorMessage ?? 'Unexpected error while processing video',
                     sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         success: false,
-                        jobId: payload.job_id,
+                        jobId: this.parseJobId(payload),
                         type: typeForSse,
                         status: 'failed',
-                        error: payload.error_message,
+                        error: payload.error_message ?? payload.errorMessage,
                     },
                 });
                 break;
 
             case 'completed': {
-                const jobId =
-                    typeof payload.job_id === 'string' && payload.job_id.trim().length > 0
-                        ? payload.job_id.trim()
-                        : undefined;
+                const jobId = this.parseJobId(payload);
 
                 // ---- TYPE = subtitle (transcribe job) -----------------------
                 if (rawType === 'subtitle') {
@@ -629,7 +753,7 @@ export class WebhookService {
                     //      → update đúng row đó, không tạo orphan
                     //   2. `payload.job_id` → findOrCreate by job_id (legacy / standalone transcribe)
                     let row: Video | null = null;
-                    const videoIdFromPayload = payload.video_id;
+                    const videoIdFromPayload = this.parsePositiveInt(payload.video_id ?? payload.videoId);
 
                     if (typeof videoIdFromPayload === 'number' && videoIdFromPayload > 0) {
                         row = await this.videoModel.findByPk(videoIdFromPayload);
@@ -694,42 +818,50 @@ export class WebhookService {
 
                 // ---- TYPE = quiz (quiz generation job) ----------------------
                 if (rawType === 'quiz') {
-                    const quiz = payload.quiz;
+                    const quiz = this.extractQuizPayload(payload);
                     if (!quiz?.questions?.length) {
                         this.logger.warn('quiz completed missing questions[]');
                         return { ignored: true, reason: 'missing_quiz_questions' };
                     }
-                    const lessonActivityId = payload.lesson_activity_id;
-                    const videoIdFromPayload = payload.video_id;
+                    const lessonActivityId = this.parsePositiveInt(
+                        payload.lesson_activity_id ?? payload.lessonActivityId,
+                    );
+                    const videoIdFromPayload = this.parsePositiveInt(payload.video_id ?? payload.videoId);
                     if (!lessonActivityId || !videoIdFromPayload) {
-                        this.logger.warn(
-                            'quiz completed missing lesson_activity_id/video_id — FE phải gửi 2 field này khi submit /generate-quiz',
-                        );
-                        // Vẫn bắn SSE để FE biết quiz đã sinh xong (FE có thể tự gọi /quizzes/from-ai)
-                        await this.notificationService.createAndEmit({
-                            userId,
-                            eventType: NotificationEventType.QUIZ_GENERATED,
-                            sseEventType: NotificationSseEventType.QUIZ_GENERATED,
-                            title: 'Quiz generated',
-                            message: `${quiz.questions.length} questions ready — pending FE submit`,
-                            sourceType: NotificationSourceType.VIDEO_JOB,
-                            payload: {
-                                jobId, type: 'quiz', status: 'pending_insert',
-                                quiz, // FE đọc và call /quizzes/from-ai
-                                sourceOriginalFilename: payload.source_original_filename,
-                            },
-                        });
-                        return { ok: true, pending_insert: true };
+                        this.logger.warn('quiz completed missing lesson_activity_id/video_id');
+                        return { ignored: true, reason: 'missing_quiz_metadata' };
+                    }
+
+                    if (payload.srt_url) {
+                        const videoRow = await this.videoModel.findByPk(videoIdFromPayload);
+                        if (!videoRow) {
+                            this.logger.warn(`quiz webhook: video_id=${videoIdFromPayload} not found`);
+                            return { ignored: true, reason: 'video_not_found' };
+                        }
+                        if (videoRow.user_id !== userId) {
+                            this.logger.warn(
+                                `quiz webhook: video_id=${videoIdFromPayload} user mismatch (${videoRow.user_id} vs ${userId})`,
+                            );
+                            return { ignored: true, reason: 'video_id_user_mismatch' };
+                        }
+                        if (videoRow.srt_raw_url !== payload.srt_url) {
+                            await videoRow.update({ srt_raw_url: payload.srt_url });
+                        }
                     }
 
                     // Forward quiz → course_service POST /quizzes/from-ai
-                    const courseUrl = process.env.COURSE_SERVICE_URL ?? 'http://localhost:8008';
+                    const courseUrl = (process.env.COURSE_SERVICE_URL ?? 'http://localhost:8008')
+                        .trim()
+                        .replace(/\/+$/, '');
                     const quizName =
-                        payload.quiz_name ??
-                        `AI Quiz — ${payload.source_original_filename ?? jobId ?? 'unnamed'}`;
+                        payload.quiz_name?.trim() ||
+                        payload.quizName?.trim() ||
+                        `AI Quiz - ${payload.source_original_filename ?? jobId ?? 'unnamed'}`;
+                    const isInVideo = payload.isInVideo ?? true;
+                    const normalizedQuestions = this.normalizeQuizQuestions(quiz.questions, isInVideo);
                     try {
                         const resp = await firstValueFrom(
-                            this.httpService.post<{ id?: number }>(
+                            this.httpService.post<{ id?: number; lessonActivityId?: number }>(
                                 `${courseUrl}/quizzes/from-ai`,
                                 {
                                     lessonActivityId,
@@ -737,8 +869,12 @@ export class WebhookService {
                                     name: quizName,
                                     jobId,
                                     model: quiz.model,
-                                    questions: quiz.questions,
-                                    isInVideo: true,
+                                    questions: normalizedQuestions,
+                                    isInVideo,
+                                    shuffleQuestion: payload.shuffleQuestion ?? false,
+                                    shuffleOption: payload.shuffleOption ?? false,
+                                    passingScore: payload.passingScore ?? 0,
+                                    timeLimitMinutes: payload.timeLimitMinutes ?? 0,
                                 },
                                 {
                                     headers: { 'x-user-id': String(userId) },
@@ -746,7 +882,7 @@ export class WebhookService {
                                 },
                             ),
                         );
-                        const createdQuiz = resp.data;
+                        const createdQuiz = (resp as { data: { id?: number; lessonActivityId?: number } }).data;
                         await this.notificationService.createAndEmit({
                             userId,
                             eventType: NotificationEventType.QUIZ_GENERATED,
@@ -757,7 +893,7 @@ export class WebhookService {
                             payload: {
                                 jobId,
                                 quizId: createdQuiz.id,
-                                lessonActivityId,
+                                lessonActivityId: createdQuiz.lessonActivityId ?? lessonActivityId,
                                 videoId: videoIdFromPayload,
                                 questionCount: quiz.questions.length,
                                 type: 'quiz',
@@ -783,7 +919,7 @@ export class WebhookService {
                                 error: typeof detail === 'string' ? detail : JSON.stringify(detail),
                             },
                         });
-                        return { ok: false, error: 'forward_failed' };
+                        throw new InternalServerErrorException('forward_quiz_failed');
                     }
                 }
 

@@ -46,8 +46,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		recordHistoryItem(activeVideo);
 	}, [activeVideo, recordHistoryItem]);
 
-	const { goNext, goPrev, jumpTo } = feed;
-	const { setObservedActiveIndex } = feed;
+	const { goNext, goPrev, goNextImmediate, goPrevImmediate } = feed;
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -116,13 +115,6 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		setShareOpen(true);
 	}, []);
 
-	const onActiveIndexChange = useCallback(
-		(index: number) => {
-			setObservedActiveIndex(index);
-		},
-		[setObservedActiveIndex],
-	);
-
 	if (feed.isLoading) {
 		return (
 			<div className="min-h-[calc(100vh-64px)] bg-background">
@@ -187,7 +179,8 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 						videos={feed.videos}
 						activeIndex={feed.activeIndex}
 						scrollToIndex={feed.scrollToIndex}
-						onActiveIndexChange={onActiveIndexChange}
+						onNext={goNextImmediate}
+						onPrev={goPrevImmediate}
 						onOpenCourse={onOpenCourse}
 						onOpenComments={onOpenComments}
 						onOpenShare={onOpenShare}

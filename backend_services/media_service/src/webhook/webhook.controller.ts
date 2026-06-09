@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     HttpCode,
@@ -18,7 +19,6 @@ export class WebhookController {
         private readonly bunnyService: BunnyService,
     ) { }
 
-    // Webhook cho Cloudinary (Giữ nguyên của bạn)
     @Post('cloudinary/upload')
     @HttpCode(200)
     async handleCloudinary(@Body() body: any) {

@@ -1,4 +1,17 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { QuizzesService } from './quizzes.service';
@@ -10,6 +23,14 @@ import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
 @Controller('quizzes')
 export class QuizzesController {
   constructor(private readonly quizzesService: QuizzesService) {}
+
+  private parseRequiredHeaderInt(value: string | undefined, label: string): number {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new UnauthorizedException(`${label} is required`);
+    }
+    return parsed;
+  }
 
   private parseQuizTypeFilter(value?: string): 'in_video' | 'after_video' | undefined {
     if (typeof value !== 'string' || value.trim().length === 0) {
@@ -31,9 +52,25 @@ export class QuizzesController {
     return await this.quizzesService.createOne(body);
   }
   @Post('ai')
-  async createAI(@Body() body: CreateQuizAIDto | CreateQuizAIDto[]) {
-    if (Array.isArray(body)) return await this.quizzesService.createManyByAI(body);
-    return await this.quizzesService.createOneByAI(body);
+  @HttpCode(202)
+  async createAI(
+    @Body() body: CreateQuizAIDto | CreateQuizAIDto[],
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const requesterUserId = this.parseRequiredHeaderInt(userIdHeader, 'x-user-id');
+    const requesterRole = this.parseRequiredHeaderInt(roleHeader, 'x-user-role');
+
+    if (Array.isArray(body)) {
+      return await this.quizzesService.createManyByAI(body, {
+        requesterUserId,
+        requesterRole,
+      });
+    }
+    return await this.quizzesService.createOneByAI(body, {
+      requesterUserId,
+      requesterRole,
+    });
   }
 
   /**

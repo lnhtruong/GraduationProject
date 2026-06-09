@@ -1,5 +1,6 @@
 "use client";
 
+import React, { forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ interface RichTextBoxProps {
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
+  error?: boolean;
 }
 
 const RichTextEditorInner = dynamic(
@@ -22,20 +24,36 @@ const RichTextEditorInner = dynamic(
   }
 );
 
-export function RichTextBoxCKE({
-  value,
-  onChange,
-  placeholder = "Nhập mô tả...",
-  className,
-}: RichTextBoxProps) {
-  return (
-    <div className={cn("system-ckeditor overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm", className)}>
-      <RichTextEditorInner
-        content={value}
-        onChange={onChange}
-        placeholder={placeholder}
-      />
-    </div>
-  );
-}
-
+export const RichTextBoxCKE = forwardRef<HTMLDivElement, RichTextBoxProps>(
+  function RichTextBoxCKE(
+    {
+      value,
+      onChange,
+      placeholder = "Nhập mô tả...",
+      className,
+      error = false,
+    },
+    ref
+  ) {
+    return (
+      <div
+        ref={ref}
+        tabIndex={-1}
+        className={cn(
+          "system-ckeditor overflow-hidden rounded-xl border bg-card shadow-sm focus:outline-none focus:ring-1",
+          error
+            ? "border-destructive focus:ring-destructive"
+            : "border-border/70 focus:ring-primary/30",
+          className
+        )}
+      >
+        <RichTextEditorInner
+          content={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          error={error ? "Lỗi" : undefined}
+        />
+      </div>
+    );
+  }
+);
