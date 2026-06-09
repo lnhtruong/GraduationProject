@@ -109,7 +109,7 @@ src/
 | Method | Path | Verify | Mô tả |
 |---|---|---|---|
 | POST | `/webhooks/cloudinary/upload` | (không HMAC — chỉ thêm IP allowlist nếu cần) | Cloudinary gửi sau upload; service ghi `srt_raw_url` / `image_url` vào DB |
-| POST | `/webhooks/ai-model/result` | header `upstash-signature` (chưa enforce trong code) | QStash callback từ `inference_service` sau khi Colab xong job (highlight/mascot) |
+| POST | `/webhooks/ai-model/result` | HMAC `upstash-signature` (hoặc `x-inference-signature`) sha256 timingSafeEqual over rawBody, secret `INFERENCE_WEBHOOK_SECRET` — thiếu/sai → 401; log `[ai-webhook] verified` khi pass | QStash callback từ `inference_service` sau khi Colab xong job (highlight/mascot) |
 | POST | `/webhooks/bunny-stream` | HMAC `x-bunnystream-signature` (sha256 timingSafeEqual) | Bunny Stream callback transcode-done; cập nhật `videos.bunny_video_guid`, status |
 
 ### Mascot Images (`@Controller('mascot_images')`)
@@ -285,6 +285,7 @@ export enum FeedInteractionType { LIKE='like', SAVE='save' /* ... */ }
 | `BUNNY_STREAM_API_KEY` | Read-write key (init upload, get status) |
 | `BUNNY_STREAM_READ_ONLY_API_KEY` | Cho play-data signed URL |
 | `BUNNY_STREAM_WEBHOOK_SECRET` | HMAC key verify webhook |
+| `INFERENCE_WEBHOOK_SECRET` | HMAC-SHA256 secret verify webhook AI model (`POST /webhooks/ai-model/result`) |
 | `CLOUD_NAME` / `API_KEY` / `API_SECRET` | Cloudinary credentials (đặt tên không có prefix) |
 | `NODE_ENV` | `development` → bật Sequelize log |
 

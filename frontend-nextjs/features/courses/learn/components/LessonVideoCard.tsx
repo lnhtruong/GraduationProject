@@ -1,47 +1,12 @@
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  CheckCircle2,
-  CircleHelp,
-  Loader2,
-  Maximize,
-  Minimize,
-  Pause,
-  Play,
-  PlayCircle,
-  Volume2,
-  VolumeX,
-  Sparkles,
-  XCircle,
-} from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-  type RefObject,
-  type SyntheticEvent,
-} from "react";
-import {
-  formatTime,
-  InVideoQuizPoint,
-  type AfterLessonQuizQuestion,
-} from "../utils";
+import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { InVideoQuizPoint, type AfterLessonQuizQuestion } from "../utils";
 
-const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+import { LessonVideoPlayer } from "./LessonVideoCard/LessonVideoPlayer";
+import { LessonVideoTimeline } from "./LessonVideoCard/LessonVideoTimeline";
+import { LessonVideoControls } from "./LessonVideoCard/LessonVideoControls";
+import { LessonVideoQuizOverlay } from "./LessonVideoCard/LessonVideoQuizOverlay";
+import { LessonVideoUpNextOverlay } from "./LessonVideoCard/LessonVideoUpNextOverlay";
 
 interface Props {
   lessonTitle?: string;
@@ -99,7 +64,6 @@ interface Props {
 }
 
 export function LessonVideoCard({
-  lessonTitle,
   selectedLessonVideoUrl,
   currentLessonDurationLabel,
   selectedLessonDuration,
@@ -152,11 +116,6 @@ export function LessonVideoCard({
   const [controlsVisible, setControlsVisible] = useState(true);
   const autoHideTimeoutRef = useRef<number | null>(null);
 
-  const [hoverPreviewTime, setHoverPreviewTime] = useState<number | null>(null);
-  const [hoverPreviewPercent, setHoverPreviewPercent] = useState<number>(0);
-
-  // derive Up Next overlay visibility from current playback state to avoid effect-driven state updates
-
   const clearAutoHide = () => {
     if (autoHideTimeoutRef.current) {
       window.clearTimeout(autoHideTimeoutRef.current as number);
@@ -167,7 +126,6 @@ export function LessonVideoCard({
   const scheduleAutoHide = () => {
     clearAutoHide();
     autoHideTimeoutRef.current = window.setTimeout(() => {
-      // only hide when video is playing
       if (videoRef?.current && !videoRef.current.paused) {
         setControlsVisible(false);
       }
@@ -189,693 +147,106 @@ export function LessonVideoCard({
   return (
     <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
       <CardContent className="space-y-4 p-3 sm:p-4 lg:p-5">
-        {/* header removed: showing only the player for a cleaner layout */}
-
         <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black p-2 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
           <div
             className="relative aspect-video overflow-hidden rounded-[1.35rem] border border-white/5 bg-black"
-            onMouseMove={(e) => {
+            onMouseMove={() => {
               setControlsVisible(true);
               scheduleAutoHide();
-              // hover preview on progress bar calculation relative to container
-              const target = e.currentTarget as HTMLDivElement;
-              const rect = target.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const pct = Math.max(0, Math.min(1, x / rect.width));
-              setHoverPreviewPercent(pct);
-              setHoverPreviewTime(pct * selectedLessonDuration);
             }}
             onMouseEnter={() => {
               setControlsVisible(true);
               scheduleAutoHide();
             }}
             onMouseLeave={() => {
-              setHoverPreviewTime(null);
               scheduleAutoHide();
             }}
           >
-            {selectedLessonVideoUrl ? (
-              <video
-                ref={videoRef}
-                className={`h-full w-full cursor-pointer object-contain transition duration-300 ${activeQuizPoint ? "blur-[1.5px] brightness-75" : ""}`}
-                src={selectedLessonVideoUrl}
-                playsInline
-                preload="metadata"
-                onClick={onTogglePlayback}
-                tabIndex={0}
-                onKeyDown={onVideoKeyDown}
-                onPlay={(event) => {
-                  if (activeQuizPoint) {
-                    event.currentTarget.pause();
-                    return;
-                  }
-                  setIsPlaying(true);
-                }}
-                onPause={() => setIsPlaying(false)}
-                onTimeUpdate={onTimeUpdate}
-                onEnded={onVideoEnded}
-                onLoadedMetadata={(event) => {
-                  onVideoMetadataLoaded(event.currentTarget.duration);
-                  setCurrentTime(event.currentTarget.currentTime);
-                  setLastVideoTime(event.currentTarget.currentTime);
-                }}
-              >
-                Your browser does not support the video tag.
-              </video>
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_65%)] text-center text-white">
-                <div className="mb-3 rounded-full border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-                  <PlayCircle className="h-12 w-12 text-white" />
-                </div>
-                <p className="text-base font-medium">
-                  Bài học chưa có video gắn kèm
-                </p>
-                <p className="mt-1 text-xs text-white/80">
-                  Thời lượng bài: {currentLessonDurationLabel}
-                </p>
-              </div>
-            )}
+            {/* Core Video Player */}
+            <LessonVideoPlayer
+              ref={videoRef}
+              selectedLessonVideoUrl={selectedLessonVideoUrl}
+              activeQuizPoint={activeQuizPoint}
+              isPlaying={isPlaying}
+              playerBlocked={playerBlocked}
+              currentLessonDurationLabel={currentLessonDurationLabel}
+              onTogglePlayback={onTogglePlayback}
+              onVideoKeyDown={onVideoKeyDown}
+              onTimeUpdate={onTimeUpdate}
+              onVideoEnded={onVideoEnded}
+              onVideoMetadataLoaded={onVideoMetadataLoaded}
+              setIsPlaying={setIsPlaying}
+              setCurrentTime={setCurrentTime}
+              setLastVideoTime={setLastVideoTime}
+            />
 
-            {!playerBlocked ? (
-              <button
-                type="button"
-                onClick={onTogglePlayback}
-                className={`absolute inset-0 z-15 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? "opacity-0" : "opacity-100"}`}
-                aria-label={isPlaying ? "Tạm dừng video" : "Phát video"}
-              >
-                <span className="flex h-20 w-20 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-md transition-transform hover:scale-105">
-                  {isPlaying ? (
-                    <Pause className="h-9 w-9" />
-                  ) : (
-                    <Play className="ml-1 h-9 w-9" />
-                  )}
-                </span>
-              </button>
-            ) : null}
+            {/* Quiz overlays (in-video and after-lesson) */}
+            <LessonVideoQuizOverlay
+              activeQuizPoint={activeQuizPoint}
+              inVideoAnswers={inVideoAnswers}
+              inVideoSubmitted={inVideoSubmitted}
+              inVideoScore={inVideoScore}
+              onSelectInVideoAnswer={onSelectInVideoAnswer}
+              onSubmitInVideoQuiz={onSubmitInVideoQuiz}
+              showAfterLessonOverlay={showAfterLessonOverlay}
+              afterLessonQuiz={afterLessonQuiz}
+              afterLessonAnswers={afterLessonAnswers}
+              afterLessonSubmitted={afterLessonSubmitted}
+              afterLessonScore={afterLessonScore}
+              afterLessonPassed={afterLessonPassed}
+              hasNextLesson={hasNextLesson}
+              nextLessonCountdown={nextLessonCountdown}
+              nextLessonTitle={nextLessonTitle}
+              onSelectAfterLessonAnswer={onSelectAfterLessonAnswer}
+              onSubmitAfterLessonQuiz={onSubmitAfterLessonQuiz}
+              onAdvanceToNextLesson={onAdvanceToNextLesson}
+            />
 
-            {/* top-left status badge removed - using per-control tooltips only */}
+            {/* Transition & Up Next Overlays */}
+            <LessonVideoUpNextOverlay
+              showUpNextOverlay={showUpNextOverlay}
+              nextLessonTitle={nextLessonTitle}
+              selectedLessonDuration={selectedLessonDuration}
+              currentTime={currentTime}
+              onAdvanceToNextLesson={onAdvanceToNextLesson}
+              isTransitioningNext={isTransitioningNext}
+            />
 
-            <AnimatePresence>
-              {activeQuizPoint ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                  className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
-                >
-                  <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
-                    <div className="text-center">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                        Kiem tra nhanh
-                      </p>
-                      <h3 className="mt-3 text-lg font-semibold leading-snug text-white sm:text-xl whitespace-pre-wrap break-words">
-                        {activeQuizPoint.question}
-                      </h3>
-                    </div>
-
-                    <div className="mt-5 space-y-3">
-                      {activeQuizPoint.options.map((option, optionIndex) => {
-                        const isSelected =
-                          inVideoAnswers[activeQuizPoint.id] === optionIndex;
-                        const submitted = Boolean(
-                          inVideoSubmitted[activeQuizPoint.id],
-                        );
-                        const isCorrectAnswer =
-                          submitted &&
-                          activeQuizPoint.answerIndex === optionIndex;
-                        const isWrongSelection =
-                          submitted &&
-                          isSelected &&
-                          activeQuizPoint.answerIndex !== optionIndex;
-
-                        let cardClasses =
-                          "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
-                        let indicatorClasses =
-                          "border-white/25 bg-white/[0.02] text-white/75";
-
-                        if (isCorrectAnswer) {
-                          cardClasses =
-                            "border-emerald-400/80 bg-emerald-500/16 text-emerald-100 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]";
-                          indicatorClasses =
-                            "border-emerald-400 bg-emerald-400 text-black";
-                        } else if (isWrongSelection) {
-                          cardClasses =
-                            "border-rose-400/80 bg-rose-500/16 text-rose-100 shadow-[0_0_0_1px_rgba(251,113,133,0.2)]";
-                          indicatorClasses =
-                            "border-rose-400 bg-rose-400 text-black";
-                        } else if (isSelected && !submitted) {
-                          cardClasses =
-                            "border-amber-300 bg-amber-300/18 text-amber-50 shadow-[0_0_18px_rgba(252,211,77,0.16)]";
-                          indicatorClasses =
-                            "border-amber-300 bg-amber-300 text-black font-bold";
-                        }
-
-                        return (
-                          <button
-                            key={`${activeQuizPoint.id}-${optionIndex}`}
-                            type="button"
-                            disabled={submitted}
-                            className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
-                            onClick={() =>
-                              onSelectInVideoAnswer(
-                                activeQuizPoint.id,
-                                optionIndex,
-                              )
-                            }
-                          >
-                            <div
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm transition-colors ${indicatorClasses}`}
-                            >
-                              {String.fromCharCode(65 + optionIndex)}
-                            </div>
-                            <span className="flex-1 min-w-0 break-words text-sm font-medium sm:text-base">
-                              {option}
-                            </span>
-                            {isCorrectAnswer ? (
-                              <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                            ) : null}
-                            {isWrongSelection ? (
-                              <XCircle className="h-5 w-5 text-rose-400" />
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {inVideoSubmitted[activeQuizPoint.id] ? (
-                      <div
-                        className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-                          inVideoScore
-                            ? "border-emerald-400/40 bg-emerald-500/12 text-emerald-100"
-                            : "border-rose-400/40 bg-rose-500/12 text-rose-100"
-                        }`}
-                      >
-                        {inVideoScore ? (
-                          <p className="font-medium">Bạn làm đúng.</p>
-                        ) : (
-                          <p className="font-medium">
-                            Sai rồi. Đáp án đúng là:{" "}
-                            {activeQuizPoint.answerIndex !== null
-                              ? activeQuizPoint.options[
-                                  activeQuizPoint.answerIndex
-                                ]
-                              : "chưa có đáp án đúng"}
-                          </p>
-                        )}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
-                      <div className="flex items-center gap-2 text-xs text-white/75">
-                        <CircleHelp className="h-3.5 w-3.5 text-white/70" />
-                        Chon dap an de tiep tuc video
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
-                          disabled={
-                            inVideoAnswers[activeQuizPoint.id] === undefined ||
-                            Boolean(inVideoSubmitted[activeQuizPoint.id])
-                          }
-                          onClick={onSubmitInVideoQuiz}
-                        >
-                          {inVideoSubmitted[activeQuizPoint.id]
-                            ? "Đã ghi nhận"
-                            : "Kiểm tra đáp án"}
-                        </Button>
-                        {inVideoScore !== null ? (
-                          <span
-                            className={`flex items-center gap-1 text-xs ${inVideoScore ? "text-emerald-300" : "text-rose-300"}`}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {inVideoScore ? "Đúng" : "Sai, thử lại nhé"}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {showAfterLessonOverlay ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                  className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
-                >
-                  <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
-                    <div className="text-center">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                        Kiem tra nhanh
-                      </p>
-                      <h3 className="mt-3 text-lg font-semibold leading-snug text-white sm:text-xl">
-                        Quiz sau bài học
-                      </h3>
-                    </div>
-
-                    <div className="mt-5 max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-                      {afterLessonQuiz.length ? (
-                        <>
-                          {afterLessonQuiz.map((question, questionIndex) => (
-                            <div
-                              key={question.id}
-                              className="rounded-2xl border border-white/12 bg-white/5 p-3 text-white"
-                            >
-                              <p className="mb-2 text-sm font-medium text-white whitespace-pre-wrap break-words">
-                                Câu {questionIndex + 1}: {question.question}
-                              </p>
-                              <div className="mt-4 space-y-3">
-                                {question.options.map((option, optionIndex) => {
-                                  const isSelected =
-                                    afterLessonAnswers[question.id] ===
-                                    optionIndex;
-                                  const isCorrectAnswer =
-                                    afterLessonSubmitted &&
-                                    question.answerIndex === optionIndex;
-                                  const isWrongSelection =
-                                    afterLessonSubmitted &&
-                                    isSelected &&
-                                    question.answerIndex !== optionIndex;
-
-                                  let cardClasses =
-                                    "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
-                                  let indicatorClasses =
-                                    "border-white/25 bg-white/[0.02] text-white/75";
-
-                                  if (isCorrectAnswer) {
-                                    cardClasses =
-                                      "border-emerald-400/80 bg-emerald-500/16 text-emerald-100 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]";
-                                    indicatorClasses =
-                                      "border-emerald-400 bg-emerald-400 text-black";
-                                  } else if (isWrongSelection) {
-                                    cardClasses =
-                                      "border-rose-400/80 bg-rose-500/16 text-rose-100 shadow-[0_0_0_1px_rgba(251,113,133,0.2)]";
-                                    indicatorClasses =
-                                      "border-rose-400 bg-rose-400 text-black";
-                                  } else if (
-                                    isSelected &&
-                                    !afterLessonSubmitted
-                                  ) {
-                                    cardClasses =
-                                      "border-amber-300 bg-amber-300/18 text-amber-50 shadow-[0_0_18px_rgba(252,211,77,0.16)]";
-                                    indicatorClasses =
-                                      "border-amber-300 bg-amber-300 text-black font-bold";
-                                  }
-
-                                  return (
-                                    <button
-                                      key={`${question.id}-${optionIndex}`}
-                                      type="button"
-                                      disabled={afterLessonSubmitted}
-                                      className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${cardClasses}`}
-                                      onClick={() =>
-                                        onSelectAfterLessonAnswer(
-                                          question.id,
-                                          optionIndex,
-                                        )
-                                      }
-                                    >
-                                      <div
-                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm transition-colors ${indicatorClasses}`}
-                                      >
-                                        {String.fromCharCode(65 + optionIndex)}
-                                      </div>
-                                      <span className="flex-1 min-w-0 break-words text-base font-medium">
-                                        {option}
-                                      </span>
-                                      {isCorrectAnswer ? (
-                                        <CheckCircle2 className="h-6 w-6 text-green-500" />
-                                      ) : null}
-                                      {isWrongSelection ? (
-                                        <XCircle className="h-6 w-6 text-red-500" />
-                                      ) : null}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
-
-                          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
-                            <div className="flex items-center gap-2 text-xs text-white/75">
-                              <CircleHelp className="h-3.5 w-3.5 text-white/70" />
-                              Chon dap an de tiep tuc
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Button
-                                size="sm"
-                                className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
-                                onClick={onSubmitAfterLessonQuiz}
-                              >
-                                Kiểm tra đáp án
-                              </Button>
-                              {afterLessonScore ? (
-                                <span
-                                  className={`flex items-center gap-1 text-xs ${afterLessonScore.percent >= 70 ? "text-emerald-300" : "text-rose-300"}`}
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  {afterLessonScore.correct}/
-                                  {afterLessonScore.total} câu đúng (
-                                  {afterLessonScore.percent}%)
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          {afterLessonScore && afterLessonPassed ? (
-                            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-white">
-                              <p className="font-semibold text-emerald-300">
-                                Hoàn thành rất tốt
-                              </p>
-                              <p className="mt-1 text-xs text-emerald-200/90">
-                                {hasNextLesson
-                                  ? `Tự chuyển sang bài tiếp theo sau ${nextLessonCountdown ?? 5}s.`
-                                  : "Bạn đã hoàn thành bài cuối của khóa."}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  className="bg-emerald-400 text-black hover:bg-emerald-300"
-                                  onClick={onAdvanceToNextLesson}
-                                >
-                                  {hasNextLesson
-                                    ? "Học bài tiếp theo ngay"
-                                    : "Ôn lại bài đầu tiên"}
-                                </Button>
-                                <span className="text-xs text-emerald-200/80">
-                                  {nextLessonTitle ??
-                                    "Đây là bài cuối của khóa học"}
-                                </span>
-                              </div>
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/3 p-3 text-sm text-white/70">
-                          Bài học này chưa có quiz sau bài học từ API.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {isTransitioningNext && nextLessonTitle ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 text-white backdrop-blur-sm"
-                >
-                  <Sparkles className="mb-4 h-12 w-12 animate-pulse text-primary" />
-                  <h3 className="mb-1 text-xl font-semibold">Đã hoàn thành!</h3>
-                  <p className="flex items-center gap-2 text-sm text-white/85">
-                    Đang chuyển sang:
-                    <span className="font-medium text-white">
-                      {nextLessonTitle}
-                    </span>
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  </p>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {showUpNextOverlay && nextLessonTitle ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                  className="absolute bottom-16 right-6 z-50 w-65 rounded-xl border border-white/10 bg-black/70 p-3 text-white backdrop-blur-md"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-20 shrink-0 rounded-md bg-white/6" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        Tiếp theo: {nextLessonTitle}
-                      </p>
-                      <p className="mt-1 text-xs text-white/70">
-                        Bắt đầu sau{" "}
-                        {Math.max(
-                          0,
-                          Math.ceil(selectedLessonDuration - currentTime),
-                        )}
-                        s
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-end">
-                    <Button
-                      size="sm"
-                      onClick={onAdvanceToNextLesson}
-                      className="bg-white/10 text-white"
-                    >
-                      Chuyển ngay
-                    </Button>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            {/* Top-left help removed: prefer per-control tooltips that appear on hover like Windows Media Player */}
-
+            {/* Bottom Controls Bar */}
             <div
-              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${playerBlocked ? "pointer-events-none opacity-40" : controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${
+                playerBlocked
+                  ? "pointer-events-none opacity-40"
+                  : controlsVisible
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none"
+              }`}
             >
-              {/* Skip buttons removed: using per-control tooltips only */}
+              <LessonVideoTimeline
+                currentTime={currentTime}
+                selectedLessonDuration={selectedLessonDuration}
+                progressPercent={progressPercent}
+                inVideoQuizPoints={inVideoQuizPoints}
+                isQuizSolved={isQuizSolved}
+                onSeekChange={onSeekChange}
+                onJumpToQuizPoint={onJumpToQuizPoint}
+                onOverlayScrubClick={onOverlayScrubClick}
+              />
 
-              <div
-                className="group relative mb-3 flex h-4 w-full cursor-pointer items-center"
-                onClick={onOverlayScrubClick}
-                onMouseMove={(e) => {
-                  // position preview relative to progress bar specifically
-                  const target = e.currentTarget as HTMLDivElement;
-                  const rect = target.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  const pct = Math.max(0, Math.min(1, x / rect.width));
-                  setHoverPreviewPercent(pct);
-                  setHoverPreviewTime(pct * selectedLessonDuration);
-                }}
-                onMouseLeave={() => setHoverPreviewTime(null)}
-              >
-                <div className="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-white/25">
-                  <div
-                    className="h-full bg-primary transition-[width] duration-200 ease-out"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-
-                <input
-                  type="range"
-                  min={0}
-                  max={selectedLessonDuration}
-                  step={0.01}
-                  value={Math.min(
-                    selectedLessonDuration,
-                    Math.max(0, currentTime),
-                  )}
-                  onChange={(event) => {
-                    event.stopPropagation();
-                    onSeekChange(Number(event.target.value));
-                  }}
-                  className="relative z-10 h-4 w-full cursor-pointer appearance-none bg-transparent opacity-0"
-                />
-
-                {inVideoQuizPoints.map((point) => {
-                  const left = `${(point.timestamp / Math.max(1, selectedLessonDuration)) * 100}%`;
-                  const solved = isQuizSolved(point);
-
-                  return (
-                    <Tooltip key={`overlay-${point.id}`}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-black/80 transition-transform hover:scale-150 ${solved ? "bg-primary" : "bg-amber-400"}`}
-                          style={{ left }}
-                          onClick={(clickEvent) => {
-                            clickEvent.stopPropagation();
-                            onJumpToQuizPoint(point);
-                          }}
-                          aria-label={`Đi tới quiz tại ${formatTime(point.timestamp)}`}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {solved ? "Đã trả lời" : "Câu hỏi tương tác"}
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-
-                {/* Hover preview tooltip (time only / placeholder) */}
-                {hoverPreviewTime !== null ? (
-                  <div
-                    className="absolute z-30 -top-7 w-max -translate-x-1/2 rounded-xs bg-black/85 px-2 py-1 text-xs text-white shadow-lg"
-                    style={{ left: `${hoverPreviewPercent * 100}%` }}
-                  >
-                    {formatTime(
-                      Math.max(
-                        0,
-                        Math.min(selectedLessonDuration, hoverPreviewTime),
-                      ),
-                    )}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={onTogglePlayback}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
-                        aria-label={isPlaying ? "Pause video" : "Play video"}
-                      >
-                        {isPlaying ? (
-                          <Pause className="h-5 w-5" />
-                        ) : (
-                          <Play className="ml-0.5 h-5 w-5" />
-                        )}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
-                    >
-                      <span className="sr-only">Phát/Tạm dừng</span>
-                      {isPlaying ? "Tạm dừng (Space)" : "Phát (Space)"}
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <div className="group flex items-center">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={onToggleMute}
-                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
-                          aria-label={
-                            isMuted || volume === 0
-                              ? "Bật âm lượng"
-                              : "Tắt âm lượng"
-                          }
-                        >
-                          {isMuted || volume === 0 ? (
-                            <VolumeX className="h-4.5 w-4.5" />
-                          ) : (
-                            <Volume2 className="h-4.5 w-4.5" />
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="top"
-                        className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
-                      >
-                        {isMuted || volume === 0
-                          ? "Bật âm lượng (M)"
-                          : "Tắt âm lượng (M)"}
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <div className="w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:w-18 group-hover:opacity-100 sm:group-hover:w-24">
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={isMuted ? 0 : volume}
-                        onChange={(event) =>
-                          onVolumeChange(Number(event.target.value))
-                        }
-                        className="h-1 w-full cursor-pointer accent-primary"
-                        aria-label="Âm lượng"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-md">
-                    {formatTime(currentTime)}
-                    <span className="mx-1.5 text-white/40">/</span>
-                    {formatTime(selectedLessonDuration)}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <Select
-                          value={String(playbackRate)}
-                          onValueChange={(value) =>
-                            onSetPlaybackRate(Number(value))
-                          }
-                        >
-                          <SelectTrigger
-                            className="h-8 w-17 border border-white/20 bg-black/45 px-2 text-[13px] font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.25)] transition-all hover:border-white/35 hover:bg-black/60 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_10px_24px_rgba(0,0,0,0.32)] focus:border-white/40 focus:ring-0 focus:ring-offset-0"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <SelectValue placeholder="1x" />
-                          </SelectTrigger>
-                          <SelectContent
-                            align="end"
-                            side="top"
-                            sideOffset={12}
-                            className="border-white/10 bg-black/90 text-white backdrop-blur-md"
-                          >
-                            {PLAYBACK_RATES.map((rate) => (
-                              <SelectItem
-                                key={rate}
-                                value={String(rate)}
-                                className="focus:bg-white/20 focus:text-white"
-                              >
-                                {rate}x
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
-                    >
-                      Tốc độ phát: {playbackRate}x
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={onToggleFullscreen}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
-                        aria-label="Toàn màn hình"
-                      >
-                        {isFullscreen ? (
-                          <Minimize className="h-4.5 w-4.5" />
-                        ) : (
-                          <Maximize className="h-4.5 w-4.5" />
-                        )}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="rounded-full bg-black/85 px-3 py-1.5 text-white text-xs shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-2"
-                    >
-                      {isFullscreen
-                        ? "Thoát toàn màn hình (F)"
-                        : "Toàn màn hình (F)"}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
+              <LessonVideoControls
+                isPlaying={isPlaying}
+                isMuted={isMuted}
+                volume={volume}
+                currentTime={currentTime}
+                selectedLessonDuration={selectedLessonDuration}
+                playbackRate={playbackRate}
+                isFullscreen={isFullscreen}
+                onTogglePlayback={onTogglePlayback}
+                onToggleMute={onToggleMute}
+                onVolumeChange={onVolumeChange}
+                onSetPlaybackRate={onSetPlaybackRate}
+                onToggleFullscreen={onToggleFullscreen}
+              />
             </div>
           </div>
         </div>

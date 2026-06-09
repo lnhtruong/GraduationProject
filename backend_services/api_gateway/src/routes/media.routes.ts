@@ -41,7 +41,9 @@ router.use(
                 }
             }
 
-            if (req.body && req.method !== 'GET' && req.method !== 'HEAD') {
+            // Webhook paths: body was never parsed, proxy streams raw bytes as-is.
+            const isWebhook = req.path.startsWith('/webhooks/');
+            if (!isWebhook && req.body && req.method !== 'GET' && req.method !== 'HEAD') {
                 const bodyData = JSON.stringify(req.body);
                 proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
                 proxyReq.write(bodyData);

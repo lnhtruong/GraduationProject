@@ -1,9 +1,9 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     HttpCode,
     Post,
-    Headers,
     BadRequestException,
     Req,
 } from '@nestjs/common';
@@ -19,7 +19,6 @@ export class WebhookController {
         private readonly bunnyService: BunnyService,
     ) { }
 
-    // Webhook cho Cloudinary (Giữ nguyên của bạn)
     @Post('cloudinary/upload')
     @HttpCode(200)
     async handleCloudinary(@Body() body: any) {
@@ -28,17 +27,20 @@ export class WebhookController {
 
     @Post('ai-model/result')
     @HttpCode(200)
-    async handleAiResult(
-        @Body() body: any,
-        @Headers('upstash-signature') signature: string, // Header dùng để verify từ QStash
-    ) {
-        // 1. (Optional) Verify signature ở đây để đảm bảo đúng là từ QStash
-        if (!body) throw new BadRequestException('Empty body');
+    async handleAiResult(@Req() req: RawBodyRequest<Request>) {
+        const rawBody = req.rawBody;
 
-        console.log('Received AI Result:', body);
+        // Verify HMAC-SHA256 signature (throws 401 on missing/invalid).
+        this.cloudinaryWebhookService.verifyAiWebhook(rawBody, req.headers);
 
-        // 2. Xử lý logic (ví dụ: cập nhật DB, bắn Socket.io cho Client)
-        return this.cloudinaryWebhookService.handleAIResult(body);
+        let payload: Record<string, unknown>;
+        try {
+            payload = JSON.parse(rawBody!.toString('utf8')) as Record<string, unknown>;
+        } catch {
+            throw new BadRequestException('Invalid JSON body');
+        }
+
+        return this.cloudinaryWebhookService.handleAIResult(payload as any);
     }
 
     @Post('bunny-stream')

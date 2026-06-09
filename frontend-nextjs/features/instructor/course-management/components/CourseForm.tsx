@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { courseFormSchema } from "../schemas";
 import { toast } from "sonner";
 import {
   BarChart2,
@@ -16,6 +19,8 @@ import {
   RefreshCw,
   Plus,
   X,
+  GraduationCap,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,11 +34,30 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RichTextBoxTiptap } from "@/components/RichTextBoxTiptap";
-import { RichTextBoxCKE } from "@/components/RichTextBoxCKE";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { CourseFormValues, InstructorCourse } from "../types";
 import { formatMonthYear } from "@/features/courses/utils";
+import { useCloudinaryDirectUpload } from "@/features/cloudinary";
+
+const RichTextBoxCKE = dynamic(
+  () => import("@/components/RichTextBoxCKE").then((mod) => mod.RichTextBoxCKE),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-40 rounded-xl border border-border/70 bg-card px-3 py-2 text-sm text-muted-foreground animate-pulse flex items-center justify-center">
+        Đang tải trình soạn thảo...
+      </div>
+    ),
+  }
+);
 
 interface Props {
   course?: InstructorCourse | null;
@@ -62,11 +86,17 @@ const DEFAULT_DURATION = "00:00:00";
 export function CourseForm({ course, onSave }: Props) {
   const { user } = useAuth();
   const [categoryInput, setCategoryInput] = useState("");
-  const [editorMode, setEditorMode] = useState<"tiptap" | "ckeditor">(
-    "tiptap",
-  );
   const [filledAt, setFilledAt] = useState<string | null>(null);
   const formOpenedAt = useMemo(() => new Date().toISOString(), []);
+
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalTarget(document.getElementById("course-form-actions-portal"));
+  }, []);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { mutateAsync: uploadImage, isPending: isUploading } =
+    useCloudinaryDirectUpload();
 
   const normalizeLanguageValue = (value?: string | null): string => {
     if (!value) return "vi";
@@ -89,6 +119,7 @@ export function CourseForm({ course, onSave }: Props) {
     () => ({
       name: course?.name ?? "",
       description: course?.description ?? "",
+      thumbnailUrl: course?.thumbnailUrl ?? "",
       categories: course?.categories ?? [],
       level: course?.level ?? "Beginner",
       duration: course?.duration ?? DEFAULT_DURATION,
@@ -99,9 +130,34 @@ export function CourseForm({ course, onSave }: Props) {
     [course],
   );
 
-  const { register, control, handleSubmit, reset } = useForm<CourseFormValues>({
+  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<CourseFormValues>({
+    resolver: zodResolver(courseFormSchema),
     defaultValues: initialValues,
   });
+
+  const handleThumbnailUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await uploadImage({
+        file,
+        folderName: "course-thumbnails",
+        resourceType: "image",
+      });
+      if (result?.secure_url) {
+        setValue("thumbnailUrl", result.secure_url);
+        toast.success("Tải ảnh lên thành công!");
+      } else {
+        toast.error("Không nhận được URL ảnh từ máy chủ.");
+      }
+    } catch (error: any) {
+      const errMsg = error?.message || String(error) || "Lỗi không xác định";
+      toast.error(`Tải ảnh lên thất bại: ${errMsg}`);
+    }
+  };
 
   useEffect(() => {
     reset(initialValues);
@@ -111,6 +167,7 @@ export function CourseForm({ course, onSave }: Props) {
 
   const nameValue = useWatch({ control, name: "name" });
   const descriptionValue = useWatch({ control, name: "description" });
+  const thumbnailUrlValue = useWatch({ control, name: "thumbnailUrl" });
   const categoriesValue = useWatch({ control, name: "categories" }) ?? [];
   const levelValue = useWatch({ control, name: "level" });
   const languageValue = useWatch({ control, name: "language" });
@@ -190,6 +247,7 @@ export function CourseForm({ course, onSave }: Props) {
     await onSave?.({
       name: values.name.trim(),
       description: values.description.trim(),
+      thumbnailUrl: values.thumbnailUrl?.trim() || null,
       categories: values.categories.map((item) => item.trim()).filter(Boolean),
       level: values.level,
       duration: values.duration.trim(),
@@ -200,146 +258,292 @@ export function CourseForm({ course, onSave }: Props) {
     toast.success(isEdit ? "Đã cập nhật khóa học" : "Đã tạo khóa học mới");
   };
 
+  /* ─── Preview Panel (rendered inside Sheet) ─── */
+  const previewContent = (
+    <div className="space-y-5">
+      {/* Course Image Preview */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-muted/30 flex items-center justify-center">
+        {thumbnailUrlValue ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailUrlValue}
+            alt={nameValue || "Thumbnail Preview"}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = "none";
+              const fallback = (e.target as HTMLElement).nextElementSibling;
+              if (fallback) fallback.classList.remove("hidden");
+            }}
+          />
+        ) : null}
+        <div className={cn(
+          "absolute inset-0 flex flex-col items-center justify-center text-muted-foreground",
+          thumbnailUrlValue ? "hidden" : ""
+        )}>
+          <GraduationCap className="h-10 w-10 stroke-1 mb-1" />
+          <span className="text-xs">Chưa có ảnh đại diện</span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
+          {nameValue || "Khóa học mới"}
+        </h3>
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 max-h-48 overflow-y-auto">
+          <div
+            className="course-preview-html text-sm text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: previewDescriptionHtml }}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-bold text-primary">5.0</span>
+          <div className="flex items-center gap-0.5">
+            {stars.map((star) => (
+              <Star
+                key={star}
+                className="h-3.5 w-3.5 fill-amber-500 text-amber-500"
+              />
+            ))}
+          </div>
+          <span>(1.234 đánh giá)</span>
+          <span className="text-border">•</span>
+          <span className="inline-flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            1.234 học viên
+          </span>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Tạo bởi <span className="font-medium text-primary">{instructorName}</span>
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5" />
+          {getLanguageLabel(languageValue)}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <BarChart2 className="h-3.5 w-3.5" />
+          <span
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[11px]",
+              levelValue === "Beginner" &&
+                "border-primary/30 bg-primary/10 text-primary",
+              levelValue === "Intermediate" &&
+                "border-orange-400/30 bg-orange-400/10 text-orange-500",
+              levelValue === "Advanced" &&
+                "border-destructive/30 bg-destructive/10 text-destructive",
+            )}
+          >
+            {getLevelLabel(levelValue)}
+          </span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5" />
+          12h 30p
+        </span>
+        <span className="flex items-center gap-1.5">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Cập nhật {formatMonthYear(previewUpdatedAt)}
+        </span>
+      </div>
+
+      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          Giá dự kiến hiển thị
+        </p>
+        <div className="mt-1 flex items-end justify-between gap-2">
+          <p className="text-xl font-bold text-primary">
+            {Number(priceValue ?? 0).toLocaleString("vi-VN")}đ
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {categoriesValue.length ? (
+          categoriesValue.map((category) => (
+            <Badge
+              key={category}
+              variant="secondary"
+              className="border-border/60 bg-muted text-foreground"
+            >
+              <Tag className="mr-1 h-3 w-3" />
+              {category}
+            </Badge>
+          ))
+        ) : (
+          <Badge variant="outline" className="border-border/60 text-muted-foreground">
+            Chưa có danh mục
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <form
+      id="course-form"
       onSubmit={handleSubmit(onSubmit)}
-      className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]"
+      className="w-full space-y-6"
     >
-      <div className="space-y-4">
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <NotebookText className="h-4 w-4" />
+      {portalTarget && createPortal(
+        <>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button type="button" variant="outline" className="gap-2">
+                <Eye className="h-4 w-4" />
+                Xem trước
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Xem trước khóa học</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                {previewContent}
               </div>
-              <div>
-                <p className="text-base font-semibold">Thông tin chính</p>
-                <p className="text-xs text-muted-foreground">
-                  Đặt tên và mô tả để learner hiểu khóa học trong 10 giây đầu.
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Tên khóa học</label>
-              <Input
-                {...register("name", { required: true })}
-                placeholder="VD: React từ đầu"
-                className="h-11"
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-sm font-medium">Mô tả</label>
-                <div className="inline-flex items-center rounded-lg border border-border/70 bg-muted/40 p-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={editorMode === "tiptap" ? "default" : "ghost"}
-                    className="h-7 px-3 text-xs"
-                    onClick={() => setEditorMode("tiptap")}
-                  >
-                    Tiptap
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={editorMode === "ckeditor" ? "default" : "ghost"}
-                    className="h-7 px-3 text-xs"
-                    onClick={() => setEditorMode("ckeditor")}
-                  >
-                    CKEditor
-                  </Button>
+            </SheetContent>
+          </Sheet>
+
+          <Button type="submit" form="course-form" className="min-w-[120px]">
+            {isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
+          </Button>
+        </>,
+        portalTarget
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* ─── Cột trái: Thông tin & Phân loại (8/12) ─── */}
+        <div className="space-y-6 lg:col-span-8">
+          {/* Card 1: Thông tin chính */}
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <NotebookText className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold">Thông tin chính</p>
+                  <p className="text-xs text-muted-foreground">
+                    Đặt tên và mô tả để học viên hiểu khóa học trong 10 giây đầu.
+                  </p>
                 </div>
               </div>
-              <Controller
-                name="description"
-                control={control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  editorMode === "tiptap" ? (
-                    <RichTextBoxTiptap
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      placeholder="Mô tả khóa học, bạn có thể copy paste từ các nền tảng khác..."
-                    />
-                  ) : (
-                    <RichTextBoxCKE
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      placeholder="Mô tả khóa học, bạn có thể copy paste từ các nền tảng khác..."
-                    />
-                  )
-                )}
-              />
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Target className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-base font-semibold">Định vị khóa học</p>
-                <p className="text-xs text-muted-foreground">
-                  Chọn audience và trình độ phù hợp cho khóa học.
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Trình độ</label>
+                <label className="text-sm font-medium">
+                  Tên khóa học <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  {...register("name")}
+                  placeholder="VD: React từ đầu"
+                  className={cn("h-11", errors.name && "border-destructive focus-visible:ring-destructive")}
+                />
+                {errors.name && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Mô tả <span className="text-destructive">*</span>
+                </label>
                 <Controller
-                  name="level"
+                  name="description"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="h-11 w-full">
-                        <SelectValue placeholder="Chọn trình độ" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LEVEL_OPTIONS.map((level) => (
-                          <SelectItem key={level} value={level}>
-                            {getLevelLabel(level)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <RichTextBoxCKE
+                      ref={field.ref}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      placeholder="Mô tả khóa học, bạn có thể copy paste từ các nền tảng khác..."
+                      error={Boolean(errors.description)}
+                    />
                   )}
                 />
+                {errors.description && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.description.message}</p>
+                )}
               </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Ngôn ngữ</label>
-                <Controller
-                  name="language"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="h-11 w-full">
-                        <SelectValue placeholder="Chọn ngôn ngữ" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LANGUAGE_OPTIONS.map((language) => (
-                          <SelectItem key={language.value} value={language.value}>
-                            {language.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Phân loại học tập */}
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <Target className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold">Phân loại học tập</p>
+                  <p className="text-xs text-muted-foreground">
+                    Chọn trình độ, ngôn ngữ và danh mục của khóa học.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Trình độ</label>
+                  <Controller
+                    name="level"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger ref={field.ref} className="h-11 w-full">
+                          <SelectValue placeholder="Chọn trình độ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LEVEL_OPTIONS.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {getLevelLabel(level)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">
+                    Ngôn ngữ <span className="text-destructive">*</span>
+                  </label>
+                  <Controller
+                    name="language"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger ref={field.ref} className={cn("h-11 w-full", errors.language && "border-destructive focus:ring-destructive")}>
+                          <SelectValue placeholder="Chọn ngôn ngữ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LANGUAGE_OPTIONS.map((language) => (
+                            <SelectItem key={language.value} value={language.value}>
+                              {language.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.language && (
+                    <p className="text-xs text-destructive mt-0.5">{errors.language.message}</p>
                   )}
-                />
+                </div>
               </div>
-            </div>
-            <div className="grid gap-4">
+
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Danh mục</label>
+                <label className="text-sm font-medium">
+                  Danh mục <span className="text-destructive">*</span>
+                </label>
                 <Controller
                   name="categories"
                   control={control}
                   render={({ field }) => (
-                    <div className="space-y-2 rounded-lg border border-input bg-background p-2.5">
+                    <div ref={field.ref} tabIndex={-1} className={cn("space-y-2 rounded-lg border bg-background p-2.5 focus:outline-none focus:ring-1", errors.categories ? "border-destructive focus:ring-destructive" : "border-input focus:ring-primary/30")}>
                       <div className="flex flex-wrap gap-1.5">
                         {(field.value ?? []).length ? (
                           (field.value ?? []).map((category) => (
@@ -408,235 +612,214 @@ export function CourseForm({ course, onSave }: Props) {
                     </div>
                   )}
                 />
+                {errors.categories && (
+                  <p className="text-xs text-destructive mt-1">{errors.categories.message}</p>
+                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <ShoppingBag className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-base font-semibold">Thiết lập thương mại</p>
-                <p className="text-xs text-muted-foreground">
-                  Đặt giá bán và chiến lược phát hành.
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Giá bán (VND)</label>
-              <Input
-                type="number"
-                {...register("price", {
-                  setValueAs: (value) => Number(value || 0),
-                })}
-                min="0"
-                className="h-11"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-        <Card className="overflow-hidden border-border/70 bg-card text-card-foreground shadow-sm">
-          <CardContent className="space-y-4 p-5">
-            <div className="rounded-xl bg-linear-to-br from-primary/20 via-primary/5 to-transparent p-4">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Live Preview
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
-                {nameValue || "Khóa học mới"}
-              </h3>
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                <div
-                  className="course-preview-html text-sm text-muted-foreground"
-                  dangerouslySetInnerHTML={{ __html: previewDescriptionHtml }}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-bold text-primary">5.0</span>
-                <div className="flex items-center gap-0.5">
-                  {stars.map((star) => (
-                    <Star
-                      key={star}
-                      className="h-3.5 w-3.5 fill-amber-500 text-amber-500"
-                    />
-                  ))}
-                </div>
-                <span>(1.234 đánh giá)</span>
-                <span className="text-border">•</span>
-                <span className="inline-flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />
-                  1.234 học viên
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Tạo bởi <span className="font-medium text-primary">{instructorName}</span>
-            </p>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Globe className="h-3.5 w-3.5" />
-                {getLanguageLabel(languageValue)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <BarChart2 className="h-3.5 w-3.5" />
-                <span
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-[11px]",
-                    levelValue === "Beginner" &&
-                      "border-primary/30 bg-primary/10 text-primary",
-                    levelValue === "Intermediate" &&
-                      "border-orange-400/30 bg-orange-400/10 text-orange-500",
-                    levelValue === "Advanced" &&
-                      "border-destructive/30 bg-destructive/10 text-destructive",
-                  )}
-                >
-                  {getLevelLabel(levelValue)}
-                </span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                12h 30p
-              </span>
-              <span className="flex items-center gap-1.5">
-                <RefreshCw className="h-3.5 w-3.5" />
-                Cập nhật {formatMonthYear(previewUpdatedAt)}
-              </span>
-            </div>
-
-            <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Giá dự kiến hiển thị
-              </p>
-              <div className="mt-1 flex items-end justify-between gap-2">
-                <p className="text-xl font-bold text-primary">
-                  {Number(priceValue ?? 0).toLocaleString("vi-VN")}đ
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {categoriesValue.length ? (
-                categoriesValue.map((category) => (
-                  <Badge
-                    key={category}
-                    variant="secondary"
-                    className="border-border/60 bg-muted text-foreground"
-                  >
-                    <Tag className="mr-1 h-3 w-3" />
-                    {category}
-                  </Badge>
-                ))
-              ) : (
-                <Badge variant="outline" className="border-border/60 text-muted-foreground">
-                  Chưa có danh mục
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Button type="submit" className="w-full">
-          {isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
-        </Button>
-
-        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground">
-          Sau khi tạo khóa học, bạn có thể thêm lesson và quiz ở các trang quản
-          lý chi tiết. Thời lượng và trạng thái sẽ được hệ thống xử lý mặc định.
+            </CardContent>
+          </Card>
         </div>
 
-        <style jsx global>{`
-          .course-preview-html :where(h1, h2, h3, h4, h5, h6) {
-            margin: 0.5rem 0;
-            font-weight: 600;
-            color: hsl(var(--foreground));
-          }
+        {/* ─── Cột phải: Thao tác & Thumbnail (4/12) ─── */}
+        <div className="space-y-6 lg:col-span-4 lg:sticky lg:top-52 lg:h-fit">
+          {/* Card 3: Giá bán & Thao tác */}
+          {/* Card 3: Giá bán */}
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <ShoppingBag className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold">Giá bán khóa học</p>
+                  <p className="text-xs text-muted-foreground">
+                    Cấu hình giá bán dự kiến cho học viên.
+                  </p>
+                </div>
+              </div>
 
-          .course-preview-html :where(p, ul, ol, blockquote) {
-            margin: 0.45rem 0;
-          }
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Giá bán (VND)</label>
+                <Input
+                  type="number"
+                  {...register("price", { valueAsNumber: true })}
+                  min="0"
+                  className={cn("h-11", errors.price && "border-destructive focus-visible:ring-destructive")}
+                />
+                {errors.price && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.price.message}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          .course-preview-html blockquote {
-            margin: 0.6rem 0;
-            border-left: 3px solid hsl(var(--primary));
-            padding: 0.35rem 0 0.35rem 0.75rem;
-            color: hsl(var(--foreground));
-            background: hsl(var(--muted) / 0.28);
-            border-radius: 0.25rem;
-            font-style: italic;
-          }
+          {/* Card 4: Ảnh đại diện (Thumbnail) */}
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold">Ảnh đại diện</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tải lên hình ảnh đại diện cho khóa học.
+                  </p>
+                </div>
+              </div>
 
-          .course-preview-html :where(ul, ol) {
-            padding-left: 1rem;
-          }
+              <div className="grid gap-2">
+                {thumbnailUrlValue ? (
+                  <div className="space-y-3">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border shadow-xs">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={thumbnailUrlValue}
+                        alt="Ảnh đại diện khóa học"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="flex-1 h-9 text-xs gap-1.5"
+                      >
+                        <RefreshCw className={cn("h-3.5 w-3.5", isUploading ? "animate-spin" : "")} />
+                        {isUploading ? "Đang tải..." : "Thay đổi ảnh"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setValue("thumbnailUrl", "")}
+                        disabled={isUploading}
+                        className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Xóa
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                    className={cn(
+                      "flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors text-muted-foreground text-center",
+                      isUploading ? "pointer-events-none opacity-60" : ""
+                    )}
+                  >
+                    {isUploading ? (
+                      <RefreshCw className="h-8 w-8 stroke-1 animate-spin mb-2 text-primary" />
+                    ) : (
+                      <Plus className="h-8 w-8 stroke-1 mb-2" />
+                    )}
+                    <p className="text-xs font-semibold">
+                      {isUploading ? "Đang tải ảnh..." : "Chọn ảnh từ thiết bị"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Hỗ trợ PNG, JPG, JPEG (tỷ lệ 16:9)
+                    </p>
+                  </div>
+                )}
 
-          .course-preview-html ul {
-            list-style: disc;
-          }
-
-          .course-preview-html ol {
-            list-style: decimal;
-          }
-
-          .course-preview-html :where(ul, ol) li::marker {
-            color: hsl(var(--foreground));
-          }
-
-          .course-preview-html ul[data-type="taskList"] {
-            list-style: none;
-            padding-left: 0;
-          }
-
-          .course-preview-html ul[data-type="taskList"] li::marker {
-            content: "";
-          }
-
-          .course-preview-html table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0.5rem 0;
-          }
-
-          .course-preview-html figure.table {
-            margin: 0.55rem 0;
-            overflow-x: auto;
-          }
-
-          .course-preview-html figure.table table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-
-          .course-preview-html table td,
-          .course-preview-html table th {
-            border: 1px solid hsl(var(--foreground) / 0.35) !important;
-            padding: 0.35rem 0.5rem;
-            min-height: 36px;
-            min-width: 96px;
-            vertical-align: top;
-          }
-
-          .course-preview-html table th {
-            background: hsl(var(--muted) / 0.45);
-          }
-
-          .course-preview-html a {
-            color: hsl(var(--primary));
-            text-decoration: underline;
-          }
-        `}</style>
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      <style jsx global>{`
+        .course-preview-html :where(h1, h2, h3, h4, h5, h6) {
+          margin: 0.5rem 0;
+          font-weight: 600;
+          color: hsl(var(--foreground));
+        }
+
+        .course-preview-html :where(p, ul, ol, blockquote) {
+          margin: 0.45rem 0;
+        }
+
+        .course-preview-html blockquote {
+          margin: 0.6rem 0;
+          border-left: 3px solid hsl(var(--primary));
+          padding: 0.35rem 0 0.35rem 0.75rem;
+          color: hsl(var(--foreground));
+          background: hsl(var(--muted) / 0.28);
+          border-radius: 0.25rem;
+          font-style: italic;
+        }
+
+        .course-preview-html :where(ul, ol) {
+          padding-left: 1rem;
+        }
+
+        .course-preview-html ul {
+          list-style: disc;
+        }
+
+        .course-preview-html ol {
+          list-style: decimal;
+        }
+
+        .course-preview-html :where(ul, ol) li::marker {
+          color: hsl(var(--foreground));
+        }
+
+        .course-preview-html ul[data-type="taskList"] {
+          list-style: none;
+          padding-left: 0;
+        }
+
+        .course-preview-html ul[data-type="taskList"] li::marker {
+          content: "";
+        }
+
+        .course-preview-html table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 0.5rem 0;
+        }
+
+        .course-preview-html figure.table {
+          margin: 0.55rem 0;
+          overflow-x: auto;
+        }
+
+        .course-preview-html figure.table table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        .course-preview-html table td,
+        .course-preview-html table th {
+          border: 1px solid hsl(var(--foreground) / 0.35) !important;
+          padding: 0.35rem 0.5rem;
+          min-height: 36px;
+          min-width: 96px;
+          vertical-align: top;
+        }
+
+        .course-preview-html table th {
+          background: hsl(var(--muted) / 0.45);
+        }
+
+        .course-preview-html a {
+          color: hsl(var(--primary));
+          text-decoration: underline;
+        }
+      `}</style>
     </form>
   );
 }

@@ -9,12 +9,13 @@ import {
   IsIn,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
- * Evidence kèm theo mỗi câu hỏi — đến từ Colab notebook `unified_main.py validate_questions()`.
- * `start_ms`/`end_ms` đã được tự-re-compute từ srt_indices thật (không tin LLM hallucinate).
+ * Legacy evidence object — Colab `validate_questions()` cũ.
+ * `start_ms`/`end_ms` đã được tự-re-compute từ srt_indices thật.
  */
 export class QuizQuestionEvidenceDto {
   @IsOptional()
@@ -39,27 +40,65 @@ export class QuizQuestionEvidenceDto {
   end_ms: number;
 }
 
+/** Option object từ prompt Colab mới (`optionText`, `isCorrect`, `orderIndex`). */
+export class QuizOptionFromAIDto {
+  @IsString()
+  optionText: string;
+
+  @IsBoolean()
+  isCorrect: boolean;
+
+  @IsInt()
+  @Min(1)
+  orderIndex: number;
+}
+
 export class QuizQuestionFromAIDto {
+  @IsOptional()
+  @IsInt()
+  id?: number;
+
   @IsString()
   question: string;
 
-  /** `{a: "...", b: "...", c: "...", d: "..."}` */
+  /**
+   * Colab mới: array of option objects. Legacy: `{a, b, c, d}` map.
+   * Shape được validate trong `QuizzesService.toRowFromAI`.
+   */
   @IsOptional()
-  options?: Record<string, string>;
+  options?: QuizOptionFromAIDto[] | Record<string, string>;
 
-  /** `"a" | "b" | "c" | "d"` */
+  /** Legacy: `"a" | "b" | "c" | "d"` — chỉ dùng khi `options` là map. */
+  @IsOptional()
   @IsString()
   @IsIn(['a', 'b', 'c', 'd'])
-  correct: 'a' | 'b' | 'c' | 'd';
+  correct?: 'a' | 'b' | 'c' | 'd';
+
+  /** Colab mới: `mcq` | `true_false`. */
+  @IsOptional()
+  @IsString()
+  @IsIn(['mcq', 'true_false'])
+  type?: 'mcq' | 'true_false';
+
+  /** Colab mới: 0-based index — metadata, DB dùng `options[].isCorrect`. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  correct_index?: number;
 
   @IsOptional()
   @IsString()
   explanation?: string;
 
+  /** Colab mới: `"HH:MM:SS,mmm"` string. Legacy: `{ start_ms, end_ms, ... }`. */
   @IsOptional()
-  @ValidateNested()
-  @Type(() => QuizQuestionEvidenceDto)
-  evidence?: QuizQuestionEvidenceDto;
+  evidence?: string | QuizQuestionEvidenceDto;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}:\d{2}:\d{2}[,.]\d{3}$/)
+  evidenceTimestamp?: string;
 
   @IsOptional()
   @IsString()
@@ -70,9 +109,7 @@ export class QuizQuestionFromAIDto {
 /**
  * Body cho `POST /quizzes/from-ai` — endpoint nhận quiz pre-generated từ Colab.
  *
- * Khác với `/quizzes/ai` (sync gen từ srt_raw_url qua OpenAI), endpoint này
- * KHÔNG gọi LLM — chỉ insert quiz đã có sẵn (LLM-side đã sinh ở Colab) vào DB
- * trong 1 transaction. Dùng cho async flow:
+ * Async flow:
  *   Colab → QStash → media_service webhook → course_service /quizzes/from-ai
  */
 export class CreateQuizFromAIDto {
@@ -83,7 +120,8 @@ export class CreateQuizFromAIDto {
   videoId: number;
 
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -108,17 +146,15 @@ export class CreateQuizFromAIDto {
   @IsOptional()
   timeLimitMinutes?: number;
 
-  /** `true` → quiz hiển thị inline trong video tại đúng `evidence.start_ms`. */
+  /** `true` → quiz hiển thị inline trong video tại `evidence` / `evidenceTimestamp`. */
   @IsBoolean()
   @IsOptional()
   isInVideo?: boolean;
 
-  /** Optional, để trace từ Colab job nào tạo ra. */
   @IsOptional()
   @IsString()
   jobId?: string;
 
-  /** Optional, lưu metadata model sinh quiz. */
   @IsOptional()
   @IsString()
   model?: string;

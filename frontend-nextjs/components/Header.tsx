@@ -34,6 +34,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SearchBar } from "@/components/SearchBar";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
@@ -65,7 +66,8 @@ export function Header() {
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
-  const { data: cartSummary } = useCartSummary();
+  const shouldFetchCartSummary = pathname === "/cart";
+  const { data: cartSummary } = useCartSummary(shouldFetchCartSummary);
   const cartCount = isAuthenticated ? (cartSummary?.itemCount ?? 0) : 0;
 
   useEffect(() => {
@@ -201,24 +203,8 @@ export function Header() {
         <div className={cn("flex items-center justify-end gap-2")}>
           {/* Desktop Search Form */}
           {isDesktopSearchVisible && (
-            <form className="ml-auto hidden items-center gap-1 md:flex md:w-72 lg:w-96">
-              <Input
-                ref={desktopSearchInputRef}
-                type="search"
-                placeholder="Tìm kiếm mọi thứ..."
-                className="h-9 flex-1 rounded-full bg-background"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Tìm kiếm"
-              />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                aria-label="Submit search"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
+            <div className="ml-auto hidden items-center gap-1 md:flex md:w-72 lg:w-96">
+              <SearchBar className="flex-1" />
               <Button
                 type="button"
                 variant="ghost"
@@ -228,7 +214,7 @@ export function Header() {
               >
                 <X className="h-5 w-5" />
               </Button>
-            </form>
+            </div>
           )}
 
           {!isDesktopSearchVisible && (

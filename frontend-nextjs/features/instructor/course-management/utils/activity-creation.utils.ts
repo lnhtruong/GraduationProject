@@ -37,15 +37,15 @@ export function generateTimestampOptions(
 
 /**
  * Check if in-video quiz can be created
- * @param hasVideoId Whether lesson has a video ID
+ * @param hasVideoSource Whether a video is available (uploaded id or local blob preview)
  * @param timestampOptionsLength Number of available timestamps
  * @returns Whether in-video quiz creation is possible
  */
 export function canCreateInVideoQuiz(
-  hasVideoId: boolean,
+  hasVideoSource: boolean,
   timestampOptionsLength: number,
 ): boolean {
-  return hasVideoId && timestampOptionsLength > 0;
+  return hasVideoSource && timestampOptionsLength > 0;
 }
 
 /**

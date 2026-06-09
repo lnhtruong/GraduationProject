@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   useUpdateLesson,
 } from "./api/course-management.hooks";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import type { LessonFormVideoContext } from "./utils/draft-video.utils";
 
 interface Props {
   courseId: number;
@@ -26,12 +27,27 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
   const { user } = useAuth();
 
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
+  const [videoContext, setVideoContext] = useState<LessonFormVideoContext>({
+    selectedVideoId: null,
+    draftVideoBlobUrl: null,
+    draftVideoDurationSeconds: 0,
+  });
+
+  const handleVideoContextChange = useCallback(
+    (context: LessonFormVideoContext) => {
+      setVideoContext(context);
+    },
+    [],
+  );
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: lesson, isLoading: lessonLoading } = useLessonById(
     isEdit ? lessonId : null,
   );
+
+  const activeLessonVideoId =
+    videoContext.selectedVideoId ?? lesson?.videoId ?? null;
 
   const createLessonMutation = useCreateLesson();
   const updateLessonMutation = useUpdateLesson();
@@ -87,6 +103,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
   return (
     <ManagementPageShell
       title={isEdit ? "Chỉnh sửa bài học" : "Tạo bài học mới"}
+      noCard
       description="Thiết lập nội dung bài học theo đúng thứ tự của khóa học."
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
@@ -94,11 +111,13 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         { label: isEdit ? "Chỉnh sửa bài học" : "Tạo mới bài học" },
       ]}
       action={
-        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
+          <div id="lesson-form-actions-portal" className="flex items-center gap-2" />
+
           {isEdit ? (
             <Button
               onClick={() => setActivityDialogOpen(true)}
-              className="w-full sm:w-auto"
+              className="h-10 text-xs"
             >
               <Sparkles className="mr-2 h-4 w-4" />
               Tạo hoạt động
@@ -107,7 +126,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           <Button
             variant="outline"
             onClick={() => router.back()}
-            className="w-full sm:w-auto"
+            className="h-10 text-xs"
           >
             Quay lại
           </Button>
@@ -118,21 +137,23 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         lesson={lesson}
         courseId={course.id}
         course={course}
+        onVideoContextChange={handleVideoContextChange}
         onSave={async (payload) => {
           if (isEdit && lesson) {
             await updateLessonMutation.mutateAsync({
               id: lesson.id,
               data: payload,
             });
-            router.push(`/instructor/courses/${course.id}`);
-            router.refresh();
-            return;
+            return lesson.id;
           }
 
-          await createLessonMutation.mutateAsync({
+          const created = await createLessonMutation.mutateAsync({
             ...payload,
             courseId,
           });
+          return created.id;
+        }}
+        onSaved={() => {
           router.push(`/instructor/courses/${course.id}`);
           router.refresh();
         }}
@@ -144,7 +165,9 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           onOpenChange={setActivityDialogOpen}
           lessonId={lesson.id}
           lessonTitle={lesson.title}
-          lessonVideoId={lesson.videoId}
+          lessonVideoId={activeLessonVideoId}
+          draftVideoBlobUrl={videoContext.draftVideoBlobUrl}
+          draftVideoDurationSeconds={videoContext.draftVideoDurationSeconds}
           userId={user?.id}
         />
       ) : null}

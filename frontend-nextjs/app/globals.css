@@ -243,50 +243,50 @@
 
 /* CKEditor theme mapped to system tokens */
 .system-ckeditor {
-  --ck-color-base-background: hsl(var(--card));
-  --ck-color-base-foreground: hsl(var(--foreground));
-  --ck-color-base-text: hsl(var(--foreground));
-  --ck-color-text: hsl(var(--foreground));
-  --ck-color-toolbar-background: hsl(var(--muted) / 0.35);
-  --ck-color-toolbar-border: hsl(var(--border));
-  --ck-color-base-border: hsl(var(--border));
-  --ck-color-focus-border: hsl(var(--ring));
-  --ck-color-focus-outer-shadow: 0 0 0 2px hsl(var(--ring) / 0.18);
-  --ck-color-button-default-hover-background: hsl(var(--muted) / 0.65);
-  --ck-color-button-default-active-background: hsl(var(--muted) / 0.8);
+  --ck-color-base-background: var(--card);
+  --ck-color-base-foreground: var(--foreground);
+  --ck-color-base-text: var(--foreground);
+  --ck-color-text: var(--foreground);
+  --ck-color-toolbar-background: oklch(from var(--muted) l c h / 0.35);
+  --ck-color-toolbar-border: var(--border);
+  --ck-color-base-border: var(--border);
+  --ck-color-focus-border: var(--ring);
+  --ck-color-focus-outer-shadow: 0 0 0 2px oklch(from var(--ring) l c h / 0.18);
+  --ck-color-button-default-hover-background: oklch(from var(--muted) l c h / 0.65);
+  --ck-color-button-default-active-background: oklch(from var(--muted) l c h / 0.8);
   --ck-color-button-default-active-shadow: none;
-  --ck-color-button-on-background: hsl(var(--primary) / 0.16);
-  --ck-color-button-on-hover-background: hsl(var(--primary) / 0.24);
-  --ck-color-button-on-active-background: hsl(var(--primary) / 0.28);
-  --ck-color-button-on-color: hsl(var(--foreground));
-  --ck-color-button-default-color: hsl(var(--foreground));
-  --ck-color-button-action-background: hsl(var(--primary));
-  --ck-color-button-action-hover-background: hsl(var(--primary));
-  --ck-color-button-action-text: hsl(var(--primary-foreground));
-  --ck-color-button-action-disabled-background: hsl(var(--muted));
-  --ck-color-button-action-disabled-text: hsl(var(--muted-foreground));
-  --ck-color-list-button-hover-background: hsl(var(--muted) / 0.7);
-  --ck-color-list-button-on-background: hsl(var(--primary) / 0.2);
-  --ck-color-panel-background: hsl(var(--popover));
-  --ck-color-panel-border: hsl(var(--border));
-  --ck-color-dropdown-panel-background: hsl(var(--popover));
-  --ck-color-dropdown-panel-border: hsl(var(--border));
-  --ck-color-dropdown-panel-text: hsl(var(--popover-foreground));
-  --ck-color-input-background: hsl(var(--background));
-  --ck-color-input-border: hsl(var(--border));
-  --ck-color-input-text: hsl(var(--foreground));
-  --ck-color-labeled-field-label-background: hsl(var(--card));
-  --ck-color-labeled-field-label-text: hsl(var(--muted-foreground));
-  --ck-color-icon-normal: hsl(var(--foreground));
-  --ck-color-icon-disabled: hsl(var(--muted-foreground));
+  --ck-color-button-on-background: oklch(from var(--primary) l c h / 0.16);
+  --ck-color-button-on-hover-background: oklch(from var(--primary) l c h / 0.24);
+  --ck-color-button-on-active-background: oklch(from var(--primary) l c h / 0.28);
+  --ck-color-button-on-color: var(--foreground);
+  --ck-color-button-default-color: var(--foreground);
+  --ck-color-button-action-background: var(--primary);
+  --ck-color-button-action-hover-background: var(--primary);
+  --ck-color-button-action-text: var(--primary-foreground);
+  --ck-color-button-action-disabled-background: var(--muted);
+  --ck-color-button-action-disabled-text: var(--muted-foreground);
+  --ck-color-list-button-hover-background: oklch(from var(--muted) l c h / 0.7);
+  --ck-color-list-button-on-background: oklch(from var(--primary) l c h / 0.2);
+  --ck-color-panel-background: var(--popover);
+  --ck-color-panel-border: var(--border);
+  --ck-color-dropdown-panel-background: var(--popover);
+  --ck-color-dropdown-panel-border: var(--border);
+  --ck-color-dropdown-panel-text: var(--popover-foreground);
+  --ck-color-input-background: var(--background);
+  --ck-color-input-border: var(--border);
+  --ck-color-input-text: var(--foreground);
+  --ck-color-labeled-field-label-background: var(--card);
+  --ck-color-labeled-field-label-text: var(--muted-foreground);
+  --ck-color-icon-normal: var(--foreground);
+  --ck-color-icon-disabled: var(--muted-foreground);
   --ck-border-radius: 0;
 }
 
 .system-ckeditor .ck.ck-editor__main > .ck-editor__editable {
   min-height: 220px;
   border: 0;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
+  background: var(--card);
+  color: var(--foreground);
   box-shadow: none;
 }
 
@@ -295,7 +295,7 @@
 }
 
 .system-ckeditor .ck.ck-editor__main > .ck-editor__editable.ck-focused {
-  outline: 2px solid hsl(var(--ring) / 0.35);
+  outline: 2px solid oklch(from var(--ring) l c h / 0.35);
   outline-offset: -2px;
 }
 
@@ -304,7 +304,7 @@
 .system-ckeditor .ck.ck-content blockquote,
 .system-ckeditor .ck.ck-content td,
 .system-ckeditor .ck.ck-content th {
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 }
 
 .system-ckeditor .ck.ck-content ul {
@@ -321,7 +321,7 @@
 }
 
 .system-ckeditor .ck.ck-content li::marker {
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 }
 
 .system-ckeditor .ck.ck-content .todo-list {
@@ -341,65 +341,65 @@
 
 .system-ckeditor .ck.ck-content table td,
 .system-ckeditor .ck.ck-content table th {
-  border: 1px solid hsl(var(--foreground) / 0.35);
+  border: 1px solid oklch(from var(--foreground) l c h / 0.35);
   min-height: 36px;
   min-width: 96px;
 }
 
 .system-ckeditor .ck.ck-content table th {
-  background: hsl(var(--muted) / 0.45);
+  background: oklch(from var(--muted) l c h / 0.45);
 }
 
 .system-ckeditor .ck.ck-toolbar {
   border: 0;
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.35);
+  border-bottom: 1px solid var(--border);
+  background: oklch(from var(--muted) l c h / 0.35);
 }
 
 .system-ckeditor .ck.ck-toolbar .ck.ck-toolbar__separator {
-  background: hsl(var(--border));
+  background: var(--border);
 }
 
 .system-ckeditor .ck.ck-button,
 .system-ckeditor .ck.ck-button .ck-button__label,
 .system-ckeditor .ck.ck-icon {
-  color: hsl(var(--foreground)) !important;
-  fill: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
+  fill: var(--foreground) !important;
 }
 
 .system-ckeditor .ck.ck-toolbar .ck.ck-button,
 .system-ckeditor .ck.ck-toolbar .ck.ck-button .ck-button__label,
 .system-ckeditor .ck.ck-toolbar .ck.ck-dropdown__button .ck-button__label,
 .system-ckeditor .ck.ck-dropdown .ck-button .ck-button__label {
-  color: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
 }
 
 .system-ckeditor .ck.ck-button.ck-disabled,
 .system-ckeditor .ck.ck-button.ck-disabled .ck-button__label,
 .system-ckeditor .ck.ck-button.ck-disabled .ck-icon {
-  color: hsl(var(--muted-foreground)) !important;
-  fill: hsl(var(--muted-foreground)) !important;
+  color: var(--muted-foreground) !important;
+  fill: var(--muted-foreground) !important;
   opacity: 0.6;
 }
 
 .system-ckeditor .ck.ck-button.ck-on {
-  background: hsl(var(--primary) / 0.16);
+  background: oklch(from var(--primary) l c h / 0.16);
 }
 
 .system-ckeditor .ck.ck-button:not(.ck-disabled):hover,
 .system-ckeditor .ck.ck-button:not(.ck-disabled):focus-visible {
-  background: hsl(var(--muted) / 0.65);
+  background: oklch(from var(--muted) l c h / 0.65);
 }
 
 .system-ckeditor .ck.ck-list,
 .system-ckeditor .ck.ck-dropdown__panel,
 .system-ckeditor .ck.ck-balloon-panel {
-  background: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
-  border-color: hsl(var(--border));
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-color: var(--border);
 }
 
 .system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button,
 .system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button .ck-button__label {
-  color: hsl(var(--popover-foreground)) !important;
+  color: var(--popover-foreground) !important;
 }

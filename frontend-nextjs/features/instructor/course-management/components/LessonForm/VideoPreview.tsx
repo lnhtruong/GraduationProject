@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Flag, Pause, Play } from "lucide-react";
+import { Flag, Pause, Play, Clapperboard } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -188,41 +188,54 @@ export function VideoPreview({
   }, [hoveredMarker, safeDuration]);
 
   return (
-    <Card className="overflow-hidden border-0 bg-background shadow-md">
-      <CardContent className="space-y-3 p-0">
-        <div className="relative flex aspect-video w-full items-center justify-center bg-black">
-          {videoLoading ? (
-            <div className="text-xs text-muted-foreground">
-              Đang tải video...
-            </div>
-          ) : videoUrl ? (
-            <video
-              ref={videoRef}
-              className="h-full w-full cursor-pointer"
-              src={videoUrl}
-              onClick={handleTogglePlayback}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onTimeUpdate={(event) =>
-                setCurrentTime(event.currentTarget.currentTime)
-              }
-              onLoadedMetadata={(event) =>
-                setCurrentTime(event.currentTarget.currentTime)
-              }
-            >
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <div className="text-center text-muted-foreground">
-              <p className="mb-2 text-sm">Chưa chọn video cho bài học này.</p>
-              <Link
-                href="/upload"
-                className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+    <Card className="border-border/60 shadow-sm">
+      <CardContent className="space-y-4 p-6">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <Clapperboard className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-base font-semibold">Trình phát video & timeline Quiz</p>
+            <p className="text-xs text-muted-foreground">
+              Phát video bài học và quản lý các mốc câu hỏi trắc nghiệm (Quiz) tích hợp trực tiếp trên timeline.
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl bg-black">
+            {videoLoading ? (
+              <div className="text-xs text-muted-foreground">
+                Đang tải video...
+              </div>
+            ) : videoUrl ? (
+              <video
+                ref={videoRef}
+                className="h-full w-full cursor-pointer"
+                src={videoUrl}
+                onClick={handleTogglePlayback}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onTimeUpdate={(event) =>
+                  setCurrentTime(event.currentTarget.currentTime)
+                }
+                onLoadedMetadata={(event) =>
+                  setCurrentTime(event.currentTarget.currentTime)
+                }
               >
-                Hãy upload video trước
-              </Link>
-            </div>
-          )}
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="text-center text-muted-foreground">
+                <p className="mb-2 text-sm">Chưa chọn video cho bài học này.</p>
+                <Link
+                  href="/upload"
+                  className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Hãy upload video trước
+                </Link>
+              </div>
+            )}
 
           {videoUrl && safeDuration > 0 ? (
             <div className="absolute inset-x-2 bottom-2 z-20 rounded-lg border border-white/20 bg-black/60 px-2 py-2 backdrop-blur-sm sm:inset-x-3 sm:bottom-3 sm:px-2.5">
@@ -347,9 +360,9 @@ export function VideoPreview({
             </div>
           ) : null}
         </div>
-
+      </div>
         {videoUrl ? (
-          <div className="px-4 pb-4">
+          <div>
             {timelineMarkers.length ? null : (
               <div className="rounded-lg border border-dashed border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
                 Chưa có quiz gắn mốc trong video. Tạo quiz với mode "Trong

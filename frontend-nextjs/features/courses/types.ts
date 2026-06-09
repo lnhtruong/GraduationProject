@@ -150,6 +150,7 @@ export interface Course {
   id: number;
   name: string;
   description: string;
+  thumbnailUrl?: string | null;
   categories: string[];
   level: CourseLevel;
   duration?: string;
@@ -164,6 +165,7 @@ export interface Course {
 export interface CreateCoursePayload {
   name: string;
   description?: string;
+  thumbnailUrl?: string | null;
   categories: string[];
   level?: CourseLevel;
   language: string;
