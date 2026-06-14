@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, AlertTriangle, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, AlertTriangle, RefreshCw, DollarSign, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
@@ -30,45 +36,196 @@ import {
   useRejectCourse,
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
-import { useDebounce } from "@/hooks/useDebounce";
 
 type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
-type PriceFilter = "all" | "free" | "under200" | "200to500" | "over500";
 
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 400;
+const PRICE_DEBOUNCE_MS = 600;
+const PRICE_MIN = 0;
+const PRICE_MAX = 2_000_000;
+const PRICE_STEP = 10_000;
 
-const PRICE_RANGES: Record<PriceFilter, { label: string; test: (p: number) => boolean }> = {
-  all:       { label: "Tất cả giá",    test: () => true },
-  free:      { label: "Miễn phí",      test: (p) => p === 0 },
-  under200:  { label: "Dưới 200k",     test: (p) => p > 0 && p < 200_000 },
-  "200to500":{ label: "200k – 500k",   test: (p) => p >= 200_000 && p <= 500_000 },
-  over500:   { label: "Trên 500k",     test: (p) => p > 500_000 },
-};
+function formatPriceShort(value: number): string {
+  if (value === 0) return "0đ";
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000;
+    return `${m % 1 === 0 ? m : m.toFixed(1)}tr`;
+  }
+  return `${Math.round(value / 1_000)}k`;
+}
 
 type ConfirmAction = { type: "approve"; course: Course } | { type: "reject"; course: Course };
 
+// ── Price range filter component ─────────────────────────────────────────────
+
+interface PriceRangeFilterProps {
+  value: [number, number];
+  onChange: (range: [number, number]) => void;
+}
+
+function PriceRangeFilter({ value, onChange }: PriceRangeFilterProps) {
+  const isActive = value[0] !== PRICE_MIN || value[1] !== PRICE_MAX;
+
+  // Draft strings only live while the input is focused — no useEffect needed.
+  // When blurred, the input renders directly from the committed `value` prop.
+  const [draftMin, setDraftMin] = useState<string | null>(null);
+  const [draftMax, setDraftMax] = useState<string | null>(null);
+
+  const displayMin = draftMin ?? String(value[0]);
+  const displayMax = draftMax ?? String(value[1]);
+
+  function clamp(n: number) {
+    return Math.min(PRICE_MAX, Math.max(PRICE_MIN, Math.round(n / PRICE_STEP) * PRICE_STEP));
+  }
+
+  function commitMin(raw: string) {
+    setDraftMin(null);
+    const n = parseInt(raw.replace(/\D/g, ""), 10);
+    const next = isNaN(n) ? PRICE_MIN : clamp(n);
+    const nextMax = next > value[1] ? Math.min(next + PRICE_STEP, PRICE_MAX) : value[1];
+    onChange([next, nextMax]);
+  }
+
+  function commitMax(raw: string) {
+    setDraftMax(null);
+    const n = parseInt(raw.replace(/\D/g, ""), 10);
+    const next = isNaN(n) ? PRICE_MAX : clamp(n);
+    const nextMin = next < value[0] ? Math.max(next - PRICE_STEP, PRICE_MIN) : value[0];
+    onChange([nextMin, next]);
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={`h-8 gap-1.5 px-3 text-xs ${isActive ? "border-primary/50 bg-primary/5 text-primary" : "text-muted-foreground"}`}
+        >
+          <DollarSign className="h-3 w-3" />
+          {isActive
+            ? `${formatPriceShort(value[0])} – ${formatPriceShort(value[1])}`
+            : "Lọc giá"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-4" align="start">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">Khoảng giá</p>
+            {isActive && (
+              <button
+                type="button"
+                onClick={() => onChange([PRICE_MIN, PRICE_MAX])}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Đặt lại
+              </button>
+            )}
+          </div>
+
+          <Slider
+            min={PRICE_MIN}
+            max={PRICE_MAX}
+            step={PRICE_STEP}
+            value={value}
+            onValueChange={(v) => onChange(v as [number, number])}
+            className="mt-2"
+          />
+
+          {/* Manual input row */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <p className="mb-1 text-[10px] text-muted-foreground">Từ (đ)</p>
+              <Input
+                value={displayMin}
+                onChange={(e) => setDraftMin(e.target.value.replace(/\D/g, ""))}
+                onBlur={(e) => commitMin(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && commitMin(displayMin)}
+                inputMode="numeric"
+                className="h-7 text-xs"
+                placeholder="0"
+              />
+            </div>
+            <span className="mt-4 text-muted-foreground">–</span>
+            <div className="flex-1">
+              <p className="mb-1 text-[10px] text-muted-foreground">Đến (đ)</p>
+              <Input
+                value={displayMax}
+                onChange={(e) => setDraftMax(e.target.value.replace(/\D/g, ""))}
+                onBlur={(e) => commitMax(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && commitMax(displayMax)}
+                inputMode="numeric"
+                className="h-7 text-xs"
+                placeholder={String(PRICE_MAX)}
+              />
+            </div>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground">
+            Bước nhảy {formatPriceShort(PRICE_STEP)} · Tối đa {formatPriceShort(PRICE_MAX)}
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
 export default function AdminCoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
-  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  // slider state (immediate) vs committed state (debounced → API)
+  const [priceSlider, setPriceSlider] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
+  const [priceCommitted, setPriceCommitted] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
   const [pendingPage, setPendingPage] = useState(1);
   const [allPage, setAllPage] = useState(1);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => { setSearch(searchInput); resetPages(); }, SEARCH_DEBOUNCE_MS);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  const handlePriceChange = (range: [number, number]) => {
+    setPriceSlider(range);
+    if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+    priceDebounceRef.current = setTimeout(() => {
+      setPriceCommitted(range);
+      resetPages();
+    }, PRICE_DEBOUNCE_MS);
+  };
+
+  const isPriceFiltered = priceCommitted[0] !== PRICE_MIN || priceCommitted[1] !== PRICE_MAX;
+
+  const serverFilters = {
+    search: search || undefined,
+    level: levelFilter !== "all" ? levelFilter : undefined,
+    minPrice: isPriceFiltered ? priceCommitted[0] : undefined,
+    maxPrice: isPriceFiltered && priceCommitted[1] < PRICE_MAX ? priceCommitted[1] : undefined,
+  };
 
   const { data: pendingData, isLoading: isPendingLoading, isError: isPendingError, refetch: refetchPending } = useAdminCoursesPaginated({
     status: "pending",
     page: pendingPage,
     limit: PAGE_SIZE,
+    ...serverFilters,
   });
   const { data: allData, isLoading: isAllLoading, isError: isAllError, refetch: refetchAll } = useAdminCoursesPaginated({
     page: allPage,
     limit: PAGE_SIZE,
+    ...serverFilters,
   });
-
-  const debouncedSearch = useDebounce(search, 300);
 
   const { data: pendingStats } = useAdminCourseStats("pending");
   const { data: approvedStats } = useAdminCourseStats("approved");
@@ -83,29 +240,12 @@ export default function AdminCoursesPage() {
   const pendingTotalPages = pendingData?.pagination.totalPages ?? 1;
   const allTotalPages     = allData?.pagination.totalPages     ?? 1;
 
-  // Client-side filters: search + level + price (applied on current page)
-  function applyClientFilters(courses: Course[]) {
-    const keyword = debouncedSearch.trim().toLowerCase();
-    return courses.filter((c) => {
-      const bySearch =
-        !keyword ||
-        c.name.toLowerCase().includes(keyword) ||
-        (c.description ?? "").toLowerCase().includes(keyword) ||
-        c.categories.some((cat) => cat.toLowerCase().includes(keyword));
-      const byLevel = levelFilter === "all" || c.level === levelFilter;
-      const byPrice = PRICE_RANGES[priceFilter].test(c.price);
-      return bySearch && byLevel && byPrice;
-    });
-  }
-
   function resetPages() {
     setPendingPage(1);
     setAllPage(1);
   }
 
-  const filteredPending = applyClientFilters(pendingData?.data ?? []);
-  const filteredAll     = applyClientFilters(allData?.data     ?? []);
-  const isFiltering = debouncedSearch.trim() !== "" || levelFilter !== "all" || priceFilter !== "all";
+  const isFiltering = search.trim() !== "" || levelFilter !== "all" || isPriceFiltered;
 
   const approve = useApproveCourse();
   const reject  = useRejectCourse();
@@ -139,6 +279,15 @@ export default function AdminCoursesPage() {
 
   const handleInlineApprove = (course: Course) => setConfirmAction({ type: "approve", course });
   const handleInlineReject  = (course: Course) => setConfirmAction({ type: "reject",  course });
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setLevelFilter("all");
+    setPriceSlider([PRICE_MIN, PRICE_MAX]);
+    setPriceCommitted([PRICE_MIN, PRICE_MAX]);
+    resetPages();
+  };
 
   return (
     <div className="space-y-6">
@@ -196,9 +345,9 @@ export default function AdminCoursesPage() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); resetPages(); }}
-                placeholder="Tìm theo tên, mô tả, danh mục..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Tìm theo tên khoá học..."
                 className="h-9 w-64 pl-8 text-sm"
               />
             </div>
@@ -221,30 +370,16 @@ export default function AdminCoursesPage() {
               </SelectContent>
             </Select>
 
-            {/* Price filter */}
-            <Select value={priceFilter} onValueChange={(v) => { setPriceFilter(v as PriceFilter); resetPages(); }}>
-              <SelectTrigger size="sm" className="h-8 w-[140px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.entries(PRICE_RANGES) as [PriceFilter, { label: string }][]).map(([key, { label }]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Price range filter */}
+            <PriceRangeFilter value={priceSlider} onChange={handlePriceChange} />
 
             {/* Clear filters */}
-            {(search || levelFilter !== "all" || priceFilter !== "all") && (
+            {isFiltering && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setSearch("");
-                  setLevelFilter("all");
-                  setPriceFilter("all");
-                  resetPages();
-                }}
+                onClick={handleClearFilters}
               >
                 Xóa filter
               </Button>
@@ -264,7 +399,7 @@ export default function AdminCoursesPage() {
             ) : (
               <>
                 <AdminCourseTable
-                  courses={filteredPending}
+                  courses={pendingData?.data ?? []}
                   isLoading={isPendingLoading}
                   isFiltering={isFiltering}
                   showActions
@@ -300,7 +435,7 @@ export default function AdminCoursesPage() {
             ) : (
               <>
                 <AdminCourseTable
-                  courses={filteredAll}
+                  courses={allData?.data ?? []}
                   isLoading={isAllLoading}
                   isFiltering={isFiltering}
                   showActions

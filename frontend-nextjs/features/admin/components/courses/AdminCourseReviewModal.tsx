@@ -34,6 +34,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogHeader,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -168,19 +169,21 @@ function VideoPreviewInline({
       {/* Dialog player — chỉ mount khi mở */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
-          <DialogTitle className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 text-sm font-medium">
-            <span className="line-clamp-1">{title}</span>
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Mở video gốc"
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0 text-muted-foreground/60 hover:text-primary transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </DialogTitle>
+          <DialogHeader className="border-b border-border/60 px-4 py-3 pr-12">
+            <DialogTitle className="flex items-center gap-2 text-sm font-medium">
+              <span className="line-clamp-1 flex-1">{title}</span>
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Mở video gốc"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 text-muted-foreground/60 hover:text-primary transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </DialogTitle>
+          </DialogHeader>
           <div className="aspect-video w-full bg-black">
             {open && (
               <video

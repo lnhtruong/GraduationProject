@@ -14,13 +14,13 @@ module.exports = {
       interpreter: "node",
       env_file: "./backend_services/auth_service/.env",
     },
-    // {
-    //   name: "user_service",
-    //   cwd: "./backend_services/user_service",
-    //   script: "dist/main.js",
-    //   interpreter: "node",
-    //   env_file: "./backend_services/user_service/.env",
-    // },
+    {
+      name: "user_service",
+      cwd: "./backend_services/user_service",
+      script: "dist/main.js",
+      interpreter: "node",
+      env_file: "./backend_services/user_service/.env",
+    },
     {
       name: "media_service",
       cwd: "./backend_services/media_service",

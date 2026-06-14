@@ -2,6 +2,7 @@ import {
   createQueryHooks,
   createMutationHooks,
 } from "@/features/_shared/react-query-factories";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { cartApi } from "./cart.api";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -11,7 +12,11 @@ const cartItemsHooks = createQueryHooks("cart", ["items"], cartApi.getCart, {
 });
 
 export const cartKeys = cartItemsHooks.keys;
-export const useCartQuery = cartItemsHooks.useQuery;
+
+export function useCartQuery() {
+  const { isAuthenticated } = useAuthState();
+  return cartItemsHooks.useQuery(isAuthenticated);
+}
 
 // Derive từ useCartQuery — không gọi API thêm
 export function useCartSummary(enabled = true) {
@@ -36,6 +41,20 @@ export const useRemoveFromCart = createMutationHooks<void, number>(
   "cart",
   "remove",
   cartApi.removeFromCart,
+  {
+    onSuccess: (_data, _vars, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: cartKeys.root });
+    },
+  },
+);
+
+export const useSaveForLater = createMutationHooks<
+  void,
+  { courseId: number; saved: boolean }
+>(
+  "cart",
+  "saveForLater",
+  ({ courseId, saved }) => cartApi.saveForLater(courseId, saved),
   {
     onSuccess: (_data, _vars, queryClient) => {
       queryClient.invalidateQueries({ queryKey: cartKeys.root });

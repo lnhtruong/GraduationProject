@@ -1,7 +1,7 @@
 import type { Image } from "@/features/image";
 import type { Video } from "@/features/video";
 
-export type LibraryTabValue = "video" | "mascot" | "image";
+export type LibraryTabValue = "video" | "mascot" | "image" | "following";
 
 export interface DeleteDialogState {
 	tab: LibraryTabValue;
@@ -27,4 +27,5 @@ export const TAB_LABEL: Record<LibraryTabValue, string> = {
 	video: "Video",
 	mascot: "Mascot",
 	image: "Hình ảnh",
+	following: "Đang theo dõi",
 };

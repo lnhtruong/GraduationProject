@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Users,
   Search,
@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   AlertTriangle,
   RefreshCw,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminUsers, useAdminUpdateUser, useAdminResetPassword } from "../../api/admin-users.hooks";
-import type { AdminUser } from "../../api/admin-users.api";
+import type { AdminUser, UserSortBy, SortOrder } from "../../api/admin-users.api";
 import { ROLES, getRoleName } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -53,6 +54,7 @@ type RoleFilter = "all" | "1" | "2" | "3";
 type BanFilter = "all" | "active" | "banned";
 
 const PAGE_SIZE = 15;
+const SEARCH_DEBOUNCE_MS = 400;
 
 type ConfirmAction =
   | { type: "ban"; user: AdminUser }
@@ -96,50 +98,51 @@ function getFullName(user: AdminUser): string {
 }
 
 export default function AdminUsersPage() {
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [banFilter, setBanFilter] = useState<BanFilter>("all");
+  const [sortBy, setSortBy] = useState<UserSortBy>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [page, setPage] = useState(1);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user: currentUser } = useAuth();
-  const { data: users = [], isLoading, isError, refetch } = useAdminUsers();
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchInput]);
+
+  const queryParams = {
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+    role: roleFilter !== "all" ? Number(roleFilter) : undefined,
+    isBanned: banFilter === "banned" ? true : banFilter === "active" ? false : undefined,
+    sortBy,
+    sortOrder,
+  };
+
+  const { data, isLoading, isError, refetch } = useAdminUsers(queryParams);
+
+  const users = data?.data ?? [];
+  const pagination = data?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+  const totalItems = pagination?.totalItems ?? 0;
+
   const updateUser = useAdminUpdateUser();
   const resetPassword = useAdminResetPassword();
 
-  const filtered = useMemo(() => {
-    return users.filter((u) => {
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        u.email.toLowerCase().includes(q) ||
-        (u.firstName ?? "").toLowerCase().includes(q) ||
-        (u.lastName ?? "").toLowerCase().includes(q);
-
-      const matchesRole =
-        roleFilter === "all" || String(u.role) === roleFilter;
-
-      const matchesBan =
-        banFilter === "all" ||
-        (banFilter === "banned" && u.isBanned) ||
-        (banFilter === "active" && !u.isBanned);
-
-      return matchesSearch && matchesRole && matchesBan;
-    });
-  }, [users, search, roleFilter, banFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const handleSearchChange = (v: string) => {
-    setSearch(v);
-    setPage(1);
-  };
+  const resetPage = () => setPage(1);
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
-
     try {
       switch (confirmAction.type) {
         case "ban":
@@ -164,13 +167,6 @@ export default function AdminUsersPage() {
     } finally {
       setConfirmAction(null);
     }
-  };
-
-  const stats = {
-    total: users.length,
-    admins: users.filter((u) => u.role === ROLES.ADMIN).length,
-    lecturers: users.filter((u) => u.role === ROLES.LECTURER).length,
-    banned: users.filter((u) => u.isBanned).length,
   };
 
   if (isError) {
@@ -208,19 +204,10 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Tổng người dùng", value: stats.total, color: "text-foreground" },
-          { label: "Quản trị viên", value: stats.admins, color: "text-primary" },
-          { label: "Giảng viên", value: stats.lecturers, color: "text-blue-600" },
-          { label: "Đã bị khoá", value: stats.banned, color: "text-destructive" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-border/60 bg-card px-4 py-3">
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className={cn("mt-1 text-2xl font-bold", s.color)}>{isLoading ? "—" : s.value}</p>
-          </div>
-        ))}
+      {/* Stats — từ pagination của trang hiện tại, chỉ hiển thị total */}
+      <div className="rounded-xl border border-border/60 bg-card px-4 py-3 sm:w-fit">
+        <p className="text-xs text-muted-foreground">Tổng người dùng (theo filter)</p>
+        <p className="mt-1 text-2xl font-bold text-foreground">{isLoading ? "—" : totalItems}</p>
       </div>
 
       {/* Filters */}
@@ -229,12 +216,12 @@ export default function AdminUsersPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Tìm theo email hoặc tên..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9 h-9 text-sm"
           />
         </div>
-        <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as RoleFilter); setPage(1); }}>
+        <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as RoleFilter); resetPage(); }}>
           <SelectTrigger className="h-9 w-36 text-sm">
             <SelectValue placeholder="Vai trò" />
           </SelectTrigger>
@@ -245,7 +232,7 @@ export default function AdminUsersPage() {
             <SelectItem value="2">Học viên</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={banFilter} onValueChange={(v) => { setBanFilter(v as BanFilter); setPage(1); }}>
+        <Select value={banFilter} onValueChange={(v) => { setBanFilter(v as BanFilter); resetPage(); }}>
           <SelectTrigger className="h-9 w-36 text-sm">
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
@@ -253,6 +240,23 @@ export default function AdminUsersPage() {
             <SelectItem value="all">Tất cả</SelectItem>
             <SelectItem value="active">Đang hoạt động</SelectItem>
             <SelectItem value="banned">Đã bị khoá</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => {
+          const [by, ord] = v.split(":") as [UserSortBy, SortOrder];
+          setSortBy(by); setSortOrder(ord); resetPage();
+        }}>
+          <SelectTrigger className="h-9 w-44 text-sm">
+            <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="createdAt:desc">Mới nhất</SelectItem>
+            <SelectItem value="createdAt:asc">Cũ nhất</SelectItem>
+            <SelectItem value="email:asc">Email A→Z</SelectItem>
+            <SelectItem value="email:desc">Email Z→A</SelectItem>
+            <SelectItem value="firstName:asc">Tên A→Z</SelectItem>
+            <SelectItem value="firstName:desc">Tên Z→A</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -281,7 +285,7 @@ export default function AdminUsersPage() {
                     ))}
                   </tr>
                 ))
-              ) : paged.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center text-muted-foreground">
                     <Users className="mx-auto mb-3 h-8 w-8 opacity-30" />
@@ -290,7 +294,7 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ) : (
-                paged.map((user) => (
+                users.map((user) => (
                   <tr
                     key={user.id}
                     className="border-b border-border/40 transition-colors hover:bg-muted/30"
@@ -329,9 +333,7 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("vi-VN")
-                        : "—"}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <DropdownMenu>
@@ -341,7 +343,6 @@ export default function AdminUsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52">
-                          {/* Đổi vai trò */}
                           <DropdownMenuLabel className="text-xs text-muted-foreground">Vai trò</DropdownMenuLabel>
                           {([
                             { role: ROLES.STUDENT, label: "Học viên" },
@@ -356,10 +357,7 @@ export default function AdminUsersPage() {
                                   key={r.role}
                                   disabled={isSelf}
                                   title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                  onClick={() =>
-                                    !isSelf &&
-                                    setConfirmAction({ type: "change-role", user, newRole: r.role })
-                                  }
+                                  onClick={() => !isSelf && setConfirmAction({ type: "change-role", user, newRole: r.role })}
                                 >
                                   Đổi thành {r.label}
                                 </DropdownMenuItem>
@@ -367,9 +365,7 @@ export default function AdminUsersPage() {
                             })}
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel className="text-xs text-muted-foreground">Tài khoản</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => setConfirmAction({ type: "reset-password", user })}
-                          >
+                          <DropdownMenuItem onClick={() => setConfirmAction({ type: "reset-password", user })}>
                             <KeyRound className="mr-2 h-3.5 w-3.5" />
                             Đặt lại mật khẩu
                           </DropdownMenuItem>
@@ -380,9 +376,7 @@ export default function AdminUsersPage() {
                                 disabled={isSelf}
                                 className="text-emerald-600 focus:text-emerald-600"
                                 title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                onClick={() =>
-                                  !isSelf && setConfirmAction({ type: "unban", user })
-                                }
+                                onClick={() => !isSelf && setConfirmAction({ type: "unban", user })}
                               >
                                 <Ban className="mr-2 h-3.5 w-3.5" />
                                 Mở khoá tài khoản
@@ -392,9 +386,7 @@ export default function AdminUsersPage() {
                                 disabled={isSelf}
                                 className="text-destructive focus:text-destructive"
                                 title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                onClick={() =>
-                                  !isSelf && setConfirmAction({ type: "ban", user })
-                                }
+                                onClick={() => !isSelf && setConfirmAction({ type: "ban", user })}
                               >
                                 <Ban className="mr-2 h-3.5 w-3.5" />
                                 Khoá tài khoản
@@ -412,31 +404,17 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Pagination */}
-        {!isLoading && filtered.length > PAGE_SIZE && (
+        {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border/60 px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} / {filtered.length} người dùng
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} người dùng
             </p>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                disabled={currentPage <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
+              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="min-w-[4rem] text-center text-xs">
-                Trang {currentPage}/{totalPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
+              <span className="min-w-[4rem] text-center text-xs">Trang {page}/{totalPages}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -471,9 +449,7 @@ export default function AdminUsersPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Huỷ
-            </Button>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>Huỷ</Button>
             <Button
               variant={confirmAction?.type === "ban" ? "destructive" : "default"}
               onClick={handleConfirm}

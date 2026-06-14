@@ -20,10 +20,42 @@ export interface UpdateUserDto {
   isBanned?: boolean;
 }
 
+export type UserSortBy = "createdAt" | "email" | "firstName" | "lastName" | "id";
+export type SortOrder = "asc" | "desc";
+
+export interface AdminUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: number;
+  isBanned?: boolean;
+  sortBy?: UserSortBy;
+  sortOrder?: SortOrder;
+}
+
+export interface AdminUsersResponse {
+  data: AdminUser[];
+  pagination: { page: number; limit: number; totalItems: number; totalPages: number };
+}
+
 export const adminUsersApi = {
-  listAll: async (): Promise<AdminUser[]> => {
-    const { data } = await apiHttpClient.get<AdminUser[]>("/users");
-    return Array.isArray(data) ? data : [];
+  listAll: async (params?: AdminUsersParams): Promise<AdminUsersResponse> => {
+    const query: Record<string, string | number | boolean> = {
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 15,
+    };
+    if (params?.search?.trim()) query.search = params.search.trim();
+    if (params?.role !== undefined) query.role = params.role;
+    if (params?.isBanned !== undefined) query.isBanned = params.isBanned;
+    if (params?.sortBy) query.sortBy = params.sortBy;
+    if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+    const { data } = await apiHttpClient.get<AdminUsersResponse | AdminUser[]>("/users", { params: query });
+    // Normalize: BE có thể trả array hoặc { data, pagination }
+    if (Array.isArray(data)) {
+      return { data, pagination: { page: 1, limit: data.length, totalItems: data.length, totalPages: 1 } };
+    }
+    return data as AdminUsersResponse;
   },
 
   getById: async (id: number): Promise<AdminUser> => {
