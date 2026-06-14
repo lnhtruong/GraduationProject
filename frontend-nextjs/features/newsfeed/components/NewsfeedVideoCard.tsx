@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   Bookmark,
   Ellipsis,
+  Eye,
+  EyeOff,
   Flag,
   Gauge,
   Heart,
@@ -39,8 +41,9 @@ import type { NewsfeedItem } from "../types";
 import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
 import { getInitials } from "./newsfeed-ui";
-
-export const NEWSFEED_PLAYBACK_RATE_OPTIONS = ["0.5", "0.75", "1", "1.25", "1.5", "2"] as const;
+import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
+import { NEWSFEED_PLAYBACK_RATE_OPTIONS } from "../constants";
+import { NewsfeedTimeline } from "./NewsfeedTimeline";
 
 export type NewsfeedPlaybackRate = (typeof NEWSFEED_PLAYBACK_RATE_OPTIONS)[number];
 
@@ -102,26 +105,31 @@ export function NewsfeedVideoCard({
   const longPressTimer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
 
+  const isGlobalPaused = useNewsfeedUiStore((state) => state.isGlobalPaused);
+  const setGlobalPaused = useNewsfeedUiStore((state) => state.setGlobalPaused);
+
   const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSeeking, setIsSeeking] = useState(false);
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [isSaved, setIsSaved] = useState(video.isSaved);
+  const [localLikeCount, setLocalLikeCount] = useState(video.stats.likes);
+  const [localSaveCount, setLocalSaveCount] = useState(video.stats.saves);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
-  const timelineRef = useRef<HTMLDivElement | null>(null);
-  const interactMutation = useNewsfeedInteractMutation();
+  const [isOverlayHidden, setIsOverlayHidden] = useState(false);
+  const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
+  const clickTimeoutRef = useRef<number | null>(null);
+  const likeMutation = useNewsfeedInteractMutation();
+  const saveMutation = useNewsfeedInteractMutation();
   useNewsfeedViewTracker({
     feedId: video.feedId,
     isActive,
-    currentTime,
-    duration,
+    videoRef,
   });
 
   useEffect(() => {
@@ -133,7 +141,16 @@ export function NewsfeedVideoCard({
   }, [video.feedId, video.isSaved]);
 
   useEffect(() => {
+    setLocalLikeCount(video.stats.likes);
+  }, [video.feedId, video.stats.likes]);
+
+  useEffect(() => {
+    setLocalSaveCount(video.stats.saves);
+  }, [video.feedId, video.stats.saves]);
+
+  useEffect(() => {
     setIsCaptionExpanded(false);
+    setIsOverlayHidden(false);
   }, [video.feedId]);
 
   useEffect(() => {
@@ -216,8 +233,6 @@ export function NewsfeedVideoCard({
   const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
 
   const displayStats = video.stats;
-  const progressPercent =
-    duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const volumePercent = isMuted ? 0 : volume * 100;
 
   const handleHashtagClick = useCallback(
@@ -233,64 +248,54 @@ export function NewsfeedVideoCard({
 
   const toggleInteraction = useCallback(
     async (type: "like" | "save") => {
+      const isCurrentlyActive = type === "like" ? isLiked : isSaved;
+      const nextActiveState = !isCurrentlyActive;
+
+      // Optimistic Update
+      if (type === "like") {
+        setIsLiked(nextActiveState);
+        setLocalLikeCount((prev) => prev + (nextActiveState ? 1 : -1));
+      } else {
+        setIsSaved(nextActiveState);
+        setLocalSaveCount((prev) => prev + (nextActiveState ? 1 : -1));
+      }
+
       try {
-        const result = await interactMutation.mutateAsync({
+        const mutation = type === "like" ? likeMutation : saveMutation;
+        const result = await mutation.mutateAsync({
           feedId: video.feedId,
           type,
         });
 
+        // Sync with actual server response
         if (type === "like") {
           setIsLiked(result.active);
-          return;
+          if (result.active !== nextActiveState) {
+            setLocalLikeCount((prev) => prev + (result.active ? 1 : -1));
+          }
+        } else {
+          setIsSaved(result.active);
+          if (result.active !== nextActiveState) {
+            setLocalSaveCount((prev) => prev + (result.active ? 1 : -1));
+          }
         }
-
-        setIsSaved(result.active);
       } catch {
-        // Keep the current UI state if the toggle fails.
+        // Rollback on failure
+        if (type === "like") {
+          setIsLiked(isCurrentlyActive);
+          setLocalLikeCount((prev) => prev + (isCurrentlyActive ? 1 : -1));
+        } else {
+          setIsSaved(isCurrentlyActive);
+          setLocalSaveCount((prev) => prev + (isCurrentlyActive ? 1 : -1));
+        }
       }
     },
-    [interactMutation, video.feedId],
+    [isLiked, isSaved, likeMutation, saveMutation, video.feedId],
   );
 
-  const handleTogglePlay = useCallback(async () => {
-    const element = videoRef.current;
-    if (!element) {
-      return;
-    }
-
-    const tryPlay = async () => {
-      await element.play();
-      setIsPaused(false);
-    };
-
-    if (element.paused) {
-      try {
-        await tryPlay();
-      } catch (error) {
-        if (isAbortError(error)) {
-          return;
-        }
-        const shouldRestoreAudio = !element.muted;
-        element.muted = true;
-        try {
-          await tryPlay();
-          if (shouldRestoreAudio) {
-            window.setTimeout(() => {
-              const currentElement = videoRef.current;
-              if (currentElement) {
-                currentElement.muted = false;
-              }
-            }, 0);
-          }
-        } catch {
-          setIsPaused(true);
-        }
-      }
-      return;
-    }
-
-    element.pause();
-    setIsPaused(true);
+  const handleTogglePlay = useCallback(() => {
+    const { toggleGlobalPaused } = useNewsfeedUiStore.getState();
+    toggleGlobalPaused();
   }, []);
 
   const handleToggleMute = useCallback(() => {
@@ -327,46 +332,68 @@ export function NewsfeedVideoCard({
       return;
     }
 
-    if (isActive) {
-      element.currentTime = 0;
-      void element.play()
-        .then(() => {
-          setIsPaused(false);
-        })
-        .catch((error) => {
-          if (isAbortError(error)) {
-            return;
-          }
-
-          const shouldRestoreAudio = !element.muted;
-          element.muted = true;
-          void element.play()
-            .then(() => {
-              setIsPaused(false);
-              if (shouldRestoreAudio) {
-                window.setTimeout(() => {
-                  const currentElement = videoRef.current;
-                  if (currentElement) {
-                    currentElement.muted = false;
-                  }
-                }, 0);
-              }
-            })
-            .catch(() => {
-              setIsPaused(true);
-            });
-        });
+    if (!isActive) {
+      element.pause();
+      setIsPaused(true);
       return;
     }
 
-    element.pause();
-    setIsPaused(true);
-  }, [isActive]);
+    if (isGlobalPaused) {
+      element.pause();
+      setIsPaused(true);
+    } else {
+      const tryPlay = async () => {
+        await element.play();
+        setIsPaused(false);
+      };
+
+      void tryPlay().catch((error) => {
+        if (isAbortError(error)) {
+          return;
+        }
+
+        const shouldRestoreAudio = !element.muted;
+        element.muted = true;
+        void tryPlay()
+          .then(() => {
+            if (shouldRestoreAudio) {
+              window.setTimeout(() => {
+                if (videoRef.current) {
+                  videoRef.current.muted = false;
+                }
+              }, 0);
+            }
+          })
+          .catch(() => {
+            setIsPaused(true);
+            setGlobalPaused(true);
+          });
+      });
+    }
+  }, [isActive, isGlobalPaused, setGlobalPaused]);
 
   useEffect(() => {
     return () => {
       if (longPressTimer.current) {
         window.clearTimeout(longPressTimer.current);
+      }
+      if (clickTimeoutRef.current) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+
+      const element = videoRef.current;
+      if (element) {
+        try {
+          element.pause();
+          element.src = "";
+          element.removeAttribute("src");
+          while (element.firstChild) {
+            element.removeChild(element.firstChild);
+          }
+          element.load();
+        } catch {
+          // ignore errors during unmount cleanup
+        }
       }
     };
   }, []);
@@ -389,41 +416,7 @@ export function NewsfeedVideoCard({
     }
   };
 
-  const seekFromClientX = useCallback(
-    (clientX: number) => {
-      const track = timelineRef.current;
-      if (!track || duration <= 0) {
-        return;
-      }
-      const rect = track.getBoundingClientRect();
-      const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
-      const ratio = rect.width > 0 ? x / rect.width : 0;
-      const nextTime = ratio * duration;
-      if (videoRef.current) {
-        videoRef.current.currentTime = nextTime;
-      }
-      setCurrentTime(nextTime);
-    },
-    [duration],
-  );
 
-  useEffect(() => {
-    if (!isSeeking) {
-      return;
-    }
-    const onMove = (event: MouseEvent) => {
-      seekFromClientX(event.clientX);
-    };
-    const onUp = () => {
-      setIsSeeking(false);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isSeeking, seekFromClientX]);
 
   const handleFullscreen = () => {
     const container = containerRef.current;
@@ -438,27 +431,104 @@ export function NewsfeedVideoCard({
     }
   };
 
-  const handleVideoClick = () => {
-    if (isCaptionExpanded) {
-      setIsCaptionExpanded(false);
-      return;
-    }
+  const handleDoubleClick = useCallback(
+    (clientX: number, clientY: number, currentTarget: HTMLDivElement) => {
+      // Trigger like if not liked
+      if (!isLiked) {
+        void toggleInteraction("like");
+      }
 
-    void handleTogglePlay();
-  };
+      // Add a heart animation
+      const rect = currentTarget.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const newHeart = {
+        id: Date.now() + Math.random(),
+        x,
+        y,
+      };
+
+      setHearts((prev) => [...prev, newHeart]);
+
+      // Remove after animation completes
+      window.setTimeout(() => {
+        setHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
+      }, 800);
+    },
+    [isLiked, toggleInteraction],
+  );
+
+  const handleVideoClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isCaptionExpanded) {
+        setIsCaptionExpanded(false);
+        return;
+      }
+
+      if (clickTimeoutRef.current) {
+        // Double click detected!
+        window.clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+        
+        handleDoubleClick(event.clientX, event.clientY, event.currentTarget);
+      } else {
+        // Set timeout to wait for possible double click
+        const clientX = event.clientX;
+        const clientY = event.clientY;
+        const currentTarget = event.currentTarget;
+        
+        clickTimeoutRef.current = window.setTimeout(() => {
+          clickTimeoutRef.current = null;
+          void handleTogglePlay();
+        }, 220);
+      }
+    },
+    [isCaptionExpanded, handleTogglePlay, handleDoubleClick],
+  );
 
   return (
     <article
       ref={containerRef}
       className="relative flex h-[calc(100vh-64px)] w-full snap-start items-center justify-center"
     >
-      <div className="relative flex h-full w-full items-center justify-center gap-4 px-2 md:px-6">
+      <div className="relative flex h-full w-full items-center justify-center gap-4 p-0 md:px-6">
+        {/* Style block for floating heart animation */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes heartPopFade {
+            0% {
+              opacity: 0;
+              transform: scale(0.3) rotate(-15deg);
+            }
+            15% {
+              opacity: 0.95;
+              transform: scale(1.3) rotate(15deg);
+            }
+            30% {
+              transform: scale(0.95) rotate(-10deg);
+            }
+            80% {
+              opacity: 0.95;
+              transform: scale(1.05) translateY(-40px) rotate(0deg);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(0.8) translateY(-85px) rotate(0deg);
+            }
+          }
+          .animate-heart-pop-fade {
+            animation: heartPopFade 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
+        `}} />
+
         <div
           className={cn(
-            "relative overflow-hidden rounded-2xl border border-border/60 bg-black shadow-xl",
+            "relative overflow-hidden bg-background dark:bg-black md:bg-black shadow-xl",
+            "w-full h-full rounded-none border-0",
+            "md:rounded-2xl md:border md:border-border/60",
             isPortraitVideo
-              ? "h-[calc(100vh-96px)] max-h-full aspect-[9/16] max-w-full"
-              : "w-full max-w-[min(78vw,1100px)] aspect-video max-h-[calc(100vh-120px)] max-w-full",
+              ? "md:h-[calc(100vh-96px)] md:max-h-full md:aspect-[9/16] md:max-w-full"
+              : "md:w-full md:max-w-[min(78vw,1100px)] md:aspect-video md:max-h-[calc(100vh-120px)]",
           )}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => {
@@ -490,12 +560,23 @@ export function NewsfeedVideoCard({
               }
               setDuration(event.currentTarget.duration || 0);
             }}
-            onTimeUpdate={(event) => {
-              setCurrentTime(event.currentTarget.currentTime || 0);
-            }}
           >
             <source src={video.videoUrl} type="video/mp4" />
           </video>
+
+          {/* Floating Hearts for Double-tap to Like */}
+          {hearts.map((heart) => (
+            <div
+              key={heart.id}
+              className="absolute pointer-events-none select-none z-30 animate-heart-pop-fade text-red-500"
+              style={{
+                left: heart.x - 24,
+                top: heart.y - 24,
+              }}
+            >
+              <Heart className="h-12 w-12 fill-red-500 stroke-white stroke-2 drop-shadow-lg" />
+            </div>
+          ))}
 
           <div
             className={cn(
@@ -510,7 +591,7 @@ export function NewsfeedVideoCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full border border-white/20 bg-black/70 text-white hover:bg-white/15"
+              className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
               onClick={(event) => {
                 event.stopPropagation();
                 void handleTogglePlay();
@@ -525,7 +606,7 @@ export function NewsfeedVideoCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full border border-white/20 bg-black/70 text-white hover:bg-white/15"
+              className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
               onClick={(event) => {
                 event.stopPropagation();
                 handleToggleMute();
@@ -539,13 +620,13 @@ export function NewsfeedVideoCard({
             </Button>
             <div
               className={cn(
-                "relative h-9 overflow-hidden rounded-full border border-white/10 bg-black/65 px-3 shadow-lg backdrop-blur-sm transition-all duration-200",
+                "relative h-9 overflow-hidden rounded-full border border-border/40 bg-background/80 px-3 shadow-lg backdrop-blur-sm transition-all duration-200 dark:border-white/10 dark:bg-black/65 md:border-white/10 md:bg-black/65",
                 isVolumeHovered
                   ? "w-28 opacity-100"
                   : "w-0 opacity-0 pointer-events-none",
               )}
             >
-              <div className="absolute inset-x-3 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/15">
+              <div className="absolute inset-x-3 top-1/2 h-1 -translate-y-1/2 rounded-full bg-muted dark:bg-white/15 md:bg-white/15">
                 <div
                   className="h-full rounded-full bg-primary transition-[width] duration-150"
                   style={{ width: `${volumePercent}%` }}
@@ -571,7 +652,7 @@ export function NewsfeedVideoCard({
 
           <div
             className={cn(
-              "absolute right-4 top-4 flex items-center gap-2 transition-opacity",
+              "absolute right-4 top-4 flex items-center gap-2 transition-opacity z-30",
               isHovered ? "opacity-100" : "opacity-0",
             )}
             onClick={(event) => event.stopPropagation()}
@@ -590,7 +671,7 @@ export function NewsfeedVideoCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-full border border-white/15 bg-black/60 text-white hover:bg-white/10"
+                  className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/15 dark:bg-black/60 dark:text-white dark:hover:bg-white/10 md:border-white/15 md:bg-black/60 md:text-white md:hover:bg-white/10"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Ellipsis className="h-4 w-4" />
@@ -650,7 +731,23 @@ export function NewsfeedVideoCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full border border-white/20 bg-black/70 text-white hover:bg-white/15"
+              className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsOverlayHidden((prev) => !prev);
+              }}
+              title={isOverlayHidden ? "Hiện giao diện chữ" : "Ẩn giao diện chữ (Clear Display)"}
+            >
+              {isOverlayHidden ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
               onClick={(event) => {
                 event.stopPropagation();
                 handleFullscreen();
@@ -660,25 +757,70 @@ export function NewsfeedVideoCard({
             </Button>
           </div>
 
-          <div
-            className="absolute bottom-5 left-5 right-5 z-10 text-white"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <p className="text-lg font-semibold leading-tight">
-              {video.title}
-            </p>
+          {/* Nút Toggle Clear Display độc lập cho Mobile khi đang ẩn overlay */}
+          {isOverlayHidden && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/70 hover:bg-black/60 hover:text-white z-30 md:hidden"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsOverlayHidden(false);
+              }}
+              title="Hiện giao diện chữ"
+            >
+              <EyeOff className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Subtle gradient overlay at the bottom to ensure text readability */}
+          <div className={cn(
+            "absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background via-background/60 to-transparent dark:from-black/85 dark:via-black/25 dark:to-transparent md:from-black/85 md:via-black/25 md:to-transparent pointer-events-none z-10 transition-opacity duration-300 hidden md:block",
+            isOverlayHidden && "opacity-0"
+          )} />
+
+          {!isCaptionExpanded ? (
             <div
               className={cn(
-                "mt-1 rounded-2xl px-3 py-2 text-sm leading-6 text-white/90 transition-all duration-200",
-                isCaptionExpanded
-                  ? "bg-black/35 backdrop-blur-sm"
-                  : "bg-black/20 backdrop-blur-[1px]",
+                "absolute bottom-5 left-5 right-16 md:right-5 z-20 text-foreground md:text-white transition-all duration-300",
+                isOverlayHidden && "opacity-0 pointer-events-none"
               )}
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
             >
-              <div className="whitespace-normal break-words">
-                {(isCaptionExpanded ? fullCaptionSegments : collapsedCaptionSegments).map(
-                  (segment, index) => {
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-base font-semibold leading-tight line-clamp-1 max-w-[75%] drop-shadow-md select-none">
+                  {video.title}
+                </p>
+                {(captionText.length > 0 || hashtagItems.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsCaptionExpanded(true);
+                    }}
+                    className="rounded-full bg-black/40 hover:bg-black/60 border border-white/20 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 active:scale-95 flex items-center shadow-sm"
+                  >
+                    Xem thêm
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "absolute bottom-0 left-0 right-0 z-20 text-white transition-all duration-300",
+                "bg-black/50 backdrop-blur-xl border-t border-white/10 px-6 pt-2.5 pb-3.5",
+                "rounded-b-none md:rounded-b-2xl", // Khớp bo góc dưới của video container ở desktop
+                isOverlayHidden && "opacity-0 pointer-events-none"
+              )}
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="max-h-[140px] overflow-y-auto pr-8 md:pr-0">
+                <p className="text-sm font-bold mb-0.5 leading-tight text-white">{video.title}</p>
+                <div className="whitespace-normal break-words opacity-90 text-[13px] leading-normal">
+                  {fullCaptionSegments.map((segment, index) => {
                     const content =
                       segment.kind === "hashtag" && segment.tag ? (
                         <button
@@ -688,7 +830,7 @@ export function NewsfeedVideoCard({
                             event.stopPropagation();
                             handleHashtagClick(segment.tag ?? segment.text);
                           }}
-                          className="font-bold text-white underline-offset-2 transition-opacity hover:underline hover:opacity-90"
+                          className="font-bold text-primary underline-offset-2 transition-opacity hover:underline hover:opacity-90"
                         >
                           {segment.text}
                         </button>
@@ -702,58 +844,35 @@ export function NewsfeedVideoCard({
                         {content}
                       </span>
                     );
-                  },
-                )}
-                {!isCaptionExpanded && captionHasOverflow ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setIsCaptionExpanded(true);
-                    }}
-                    className="ml-1 font-bold text-primary underline-offset-2 hover:underline"
-                  >
-                    ...xem thêm
-                  </button>
-                ) : null}
-              </div>
-              {isCaptionExpanded ? (
+                  })}
+                </div>
                 <button
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
                     setIsCaptionExpanded(false);
                   }}
-                  className="mt-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                  className="mt-1 text-[11px] font-semibold text-primary dark:text-white/80 md:text-white/80 hover:text-primary dark:hover:text-primary underline underline-offset-2 hover:opacity-95 block"
                 >
-                  ẩn bớt
+                  Ẩn bớt
                 </button>
-              ) : null}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div
-            ref={timelineRef}
-            className={cn(
-              "absolute bottom-0 left-0 right-0 h-1 cursor-pointer bg-white/10 transition-opacity",
-              isHovered ? "opacity-100" : "opacity-35",
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              seekFromClientX(event.clientX);
-            }}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-              setIsSeeking(true);
-              seekFromClientX(event.clientX);
-            }}
-          >
-            <div className="h-full bg-primary" style={{ width: `${progressPercent}%` }} />
-          </div>
+          <NewsfeedTimeline
+            videoRef={videoRef}
+            duration={duration}
+            isHovered={isHovered}
+            isOverlayHidden={isOverlayHidden}
+          />
         </div>
 
         <div
-          className="absolute right-2 bottom-20 md:static flex flex-col items-center gap-3 pb-6 z-20"
+          className={cn(
+            "absolute right-2 bottom-20 md:static flex flex-col items-center gap-3 pb-6 z-20 transition-all duration-300",
+            isOverlayHidden && "opacity-0 pointer-events-none"
+          )}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <Button
@@ -761,7 +880,7 @@ export function NewsfeedVideoCard({
               event.stopPropagation();
               onOpenCourse();
             }}
-            className="h-12 w-12 rounded-full border border-border/60 bg-background hover:bg-accent"
+            className="h-12 w-12 rounded-full border border-border bg-background shadow-sm hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card flex items-center justify-center p-0 cursor-pointer"
           >
             <Avatar className="h-10 w-10">
               <AvatarImage src={video.course.thumbnail ?? undefined} />
@@ -773,8 +892,8 @@ export function NewsfeedVideoCard({
 
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
-            disabled={interactMutation.isPending}
+            className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
+            disabled={likeMutation.isPending}
             onClick={(event) => {
               event.stopPropagation();
               void toggleInteraction("like");
@@ -782,13 +901,13 @@ export function NewsfeedVideoCard({
           >
             <Heart className={cn("h-5 w-5", isLiked && "fill-red-500 text-red-500")} />
           </Button>
-          <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {displayStats.likes.toLocaleString("vi-VN")}
+          <span className="-mt-2 text-xs font-semibold text-muted-foreground select-none">
+            {localLikeCount.toLocaleString("vi-VN")}
           </span>
 
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
+            className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             onClick={(event) => {
               event.stopPropagation();
               onOpenComments();
@@ -796,14 +915,14 @@ export function NewsfeedVideoCard({
           >
             <MessageCircle className="h-5 w-5" />
           </Button>
-          <span className="-mt-2 text-xs font-semibold text-muted-foreground">
+          <span className="-mt-2 text-xs font-semibold text-muted-foreground select-none">
             {displayStats.comments.toLocaleString("vi-VN")}
           </span>
 
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
-            disabled={interactMutation.isPending}
+            className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
+            disabled={saveMutation.isPending}
             onClick={async (event) => {
               event.stopPropagation();
               void toggleInteraction("save");
@@ -811,21 +930,21 @@ export function NewsfeedVideoCard({
           >
             <Bookmark className={cn("h-5 w-5", isSaved && "fill-foreground")} />
           </Button>
-          <span className="-mt-2 text-xs font-semibold text-muted-foreground">
-            {displayStats.saves.toLocaleString("vi-VN")}
+          <span className="-mt-2 text-xs font-semibold text-muted-foreground select-none">
+            {localSaveCount.toLocaleString("vi-VN")}
           </span>
 
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-full border border-border/60 bg-background text-foreground hover:bg-accent"
+            className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             onClick={(event) => {
               event.stopPropagation();
-              onOpenShare(video.videoUrl);
+              onOpenShare(`${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`);
             }}
           >
             <Share2 className="h-5 w-5" />
           </Button>
-          <span className="-mt-2 text-xs font-semibold text-muted-foreground">
+          <span className="-mt-2 text-xs font-semibold text-muted-foreground select-none">
             {displayStats.shares.toLocaleString("vi-VN")}
           </span>
         </div>

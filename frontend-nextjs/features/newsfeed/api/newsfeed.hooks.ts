@@ -182,8 +182,96 @@ export function useNewsfeedInteractMutation() {
   return useMutation({
     mutationKey: newsfeedKeys.custom("interact"),
     mutationFn: newsfeedApi.interactFeed,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+    onSuccess: (data, variables) => {
+      // 1. Update infinite feed caches
+      queryClient.setQueriesData<any>(
+        { queryKey: ["newsfeed", "feed"] },
+        (oldData: any) => {
+          if (!oldData || !oldData.pages) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((item: any) => {
+                if (item.feedId === variables.feedId) {
+                  const updatedItem = { ...item };
+                  if (variables.type === "like") {
+                    const wasLiked = item.isLiked;
+                    updatedItem.isLiked = data.active;
+                    if (wasLiked !== data.active) {
+                      updatedItem.stats = {
+                        ...item.stats,
+                        likes: data.active
+                          ? item.stats.likes + 1
+                          : Math.max(0, item.stats.likes - 1),
+                      };
+                    }
+                  } else if (variables.type === "save") {
+                    const wasSaved = item.isSaved;
+                    updatedItem.isSaved = data.active;
+                    if (wasSaved !== data.active) {
+                      updatedItem.stats = {
+                        ...item.stats,
+                        saves: data.active
+                          ? item.stats.saves + 1
+                          : Math.max(0, item.stats.saves - 1),
+                      };
+                    }
+                  }
+                  return updatedItem;
+                }
+                return item;
+              }),
+            })),
+          };
+        }
+      );
+
+      // 2. Update regular feed caches (saved / viewed)
+      const updateRegularFeedQuery = (key: string) => {
+        queryClient.setQueriesData<any>(
+          { queryKey: ["newsfeed", key] },
+          (oldData: any) => {
+            if (!oldData || !Array.isArray(oldData.items)) return oldData;
+            return {
+              ...oldData,
+              items: oldData.items.map((item: any) => {
+                if (item.feedId === variables.feedId) {
+                  const updatedItem = { ...item };
+                  if (variables.type === "like") {
+                    const wasLiked = item.isLiked;
+                    updatedItem.isLiked = data.active;
+                    if (wasLiked !== data.active) {
+                      updatedItem.stats = {
+                        ...item.stats,
+                        likes: data.active
+                          ? item.stats.likes + 1
+                          : Math.max(0, item.stats.likes - 1),
+                      };
+                    }
+                  } else if (variables.type === "save") {
+                    const wasSaved = item.isSaved;
+                    updatedItem.isSaved = data.active;
+                    if (wasSaved !== data.active) {
+                      updatedItem.stats = {
+                        ...item.stats,
+                        saves: data.active
+                          ? item.stats.saves + 1
+                          : Math.max(0, item.stats.saves - 1),
+                      };
+                    }
+                  }
+                  return updatedItem;
+                }
+                return item;
+              }),
+            };
+          }
+        );
+      };
+
+      updateRegularFeedQuery("saved");
+      updateRegularFeedQuery("viewed");
     },
   });
 }
@@ -231,7 +319,14 @@ export function useCreateNewsfeedComment() {
     mutationKey: newsfeedKeys.custom("create-comment"),
     mutationFn: newsfeedApi.createComment,
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+      void queryClient.invalidateQueries({
+        queryKey: newsfeedKeys.custom("comments", variables.feedId),
+      });
+      if (variables.originCmt) {
+        void queryClient.invalidateQueries({
+          queryKey: newsfeedKeys.custom("comment-detail", variables.feedId, variables.originCmt),
+        });
+      }
     },
   });
 }
@@ -242,8 +337,13 @@ export function useUpdateNewsfeedCommentMutation() {
   return useMutation({
     mutationKey: newsfeedKeys.custom("update-comment"),
     mutationFn: newsfeedApi.updateComment,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: newsfeedKeys.custom("comments", variables.feedId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: newsfeedKeys.custom("comment-detail", variables.feedId),
+      });
     },
   });
 }
@@ -254,8 +354,13 @@ export function useDeleteNewsfeedCommentMutation() {
   return useMutation({
     mutationKey: newsfeedKeys.custom("delete-comment"),
     mutationFn: newsfeedApi.deleteComment,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: newsfeedKeys.custom("comments", variables.feedId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: newsfeedKeys.custom("comment-detail", variables.feedId),
+      });
     },
   });
 }

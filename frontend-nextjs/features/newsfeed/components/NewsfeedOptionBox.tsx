@@ -34,7 +34,7 @@ export function NewsfeedOptionBox({
     <aside
       className={cn(
         "fixed top-16 z-40 h-[calc(100vh-64px)] w-full border-l border-border/70 bg-background/95 backdrop-blur transition-transform duration-300",
-        "right-0 md:right-[72px] md:w-[520px] lg:w-[560px]",
+        "right-0 md:right-[72px] md:w-[380px] lg:w-[450px] xl:w-[520px]",
         isOpen ? "translate-x-0" : "translate-x-full",
       )}
     >
