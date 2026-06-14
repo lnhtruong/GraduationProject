@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { HttpService } from '@nestjs/axios';
-import { createHmac, timingSafeEqual } from 'crypto';
 import type { IncomingHttpHeaders } from 'http';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
@@ -547,38 +546,74 @@ export class WebhookService {
     }
 
     /**
-     * Verify the AI-model webhook (QStash/inference) with HMAC-SHA256 over the
-     * exact raw request body, mirroring BunnyService.verifyBunnyStreamWebhook.
-     * Secret: INFERENCE_WEBHOOK_SECRET. Signature header: x-inference-signature
-     * (preferred) or upstash-signature.
+     * Verify the AI-model webhook bằng QStash native signature.
+     *
+     * QStash tự sign mọi message qua `Receiver.verify()` — chỉ cần:
+     *   - rawBody (Buffer raw không qua JSON.parse)
+     *   - signature header `upstash-signature` (JWT QStash tạo)
+     *   - full URL của endpoint (QStash sign cả URL → chống replay sang URL khác)
+     *
+     * Env cần set:
+     *   QSTASH_CURRENT_SIGNING_KEY=sig_xxx   (lấy từ Upstash console)
+     *   QSTASH_NEXT_SIGNING_KEY=sig_yyy     (cho key rotation, optional)
+     *   PUBLIC_WEBHOOK_URL=https://api.your-domain.com/api/media/webhooks/ai-model/result
      */
-    verifyAiWebhook(rawBody: Buffer | undefined, headers: IncomingHttpHeaders): void {
-        const secret = process.env.INFERENCE_WEBHOOK_SECRET;
-        if (!secret) {
-            throw new InternalServerErrorException('INFERENCE_WEBHOOK_SECRET not configured');
+    async verifyAiWebhook(
+        rawBody: Buffer | undefined,
+        headers: IncomingHttpHeaders,
+    ): Promise<void> {
+        // Dev escape hatch — đặt QSTASH_SKIP_VERIFY=true để test qua Postman/curl.
+        // KHÔNG bật ở production.
+        if (process.env.QSTASH_SKIP_VERIFY === 'true') {
+            this.logger.warn(
+                '[ai-webhook] ⚠️  signature verification SKIPPED — only safe in dev',
+            );
+            return;
+        }
+
+        const currentKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
+        const nextKey = process.env.QSTASH_NEXT_SIGNING_KEY ?? '';
+        if (!currentKey) {
+            throw new InternalServerErrorException(
+                'QSTASH_CURRENT_SIGNING_KEY not configured',
+            );
         }
 
         if (!rawBody || rawBody.length === 0) {
             throw new BadRequestException('Missing raw body for AI webhook verification');
         }
 
-        const signature =
-            this.getHeader(headers, 'x-inference-signature') ??
-            this.getHeader(headers, 'upstash-signature');
-
+        const signature = this.getHeader(headers, 'upstash-signature');
         if (!signature) {
-            throw new UnauthorizedException('Missing signature');
+            throw new UnauthorizedException('Missing upstash-signature header');
         }
 
-        const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+        const url =
+            process.env.PUBLIC_WEBHOOK_URL ??
+            'http://localhost:8003/webhooks/ai-model/result';
 
-        const sigBuf = Buffer.from(signature, 'utf8');
-        const expBuf = Buffer.from(expected, 'utf8');
-        if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-            throw new UnauthorizedException('Invalid signature');
+        // Lazy import để Jest test không cần load lib này
+        const { Receiver } = await import('@upstash/qstash');
+        const receiver = new Receiver({
+            currentSigningKey: currentKey,
+            nextSigningKey: nextKey,
+        });
+
+        try {
+            await receiver.verify({
+                signature,
+                body: rawBody.toString('utf8'),
+                url,
+            });
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            this.logger.warn(`[ai-webhook] QStash verify failed: ${msg}`);
+            throw new UnauthorizedException('Invalid QStash signature');
         }
 
-        this.logger.log('[ai-webhook] verified');
+        this.logger.log('[ai-webhook] verified via QStash signature');
+    }
+
     private parsePositiveInt(value: unknown): number | undefined {
         if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
             return value;

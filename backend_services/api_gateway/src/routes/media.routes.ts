@@ -41,9 +41,46 @@ router.use(
                 }
             }
 
-            // Webhook paths: body was never parsed, proxy streams raw bytes as-is.
             const isWebhook = req.path.startsWith('/webhooks/');
-            if (!isWebhook && req.body && req.method !== 'GET' && req.method !== 'HEAD') {
+
+            if (isWebhook) {
+                // Webhook body đã được `express.raw()` capture thành Buffer ở index.ts.
+                // Quan trọng: phải clear Transfer-Encoding (Node đôi khi auto-chunk khi write)
+                // và set Content-Length đúng, không để HPM ghi đè + ép body length.
+                if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+                    proxyReq.removeHeader('transfer-encoding');
+                    proxyReq.setHeader('Content-Length', req.body.length);
+                    if (req.headers['content-type']) {
+                        proxyReq.setHeader('Content-Type', req.headers['content-type']);
+                    }
+                    // Forward QStash signature header explicitly để chắc chắn không bị strip
+                    if (req.headers['upstash-signature']) {
+                        proxyReq.setHeader(
+                            'upstash-signature',
+                            req.headers['upstash-signature'] as string,
+                        );
+                    }
+                    proxyReq.write(req.body);
+                    console.log(
+                        '[Mascot Proxy] webhook raw body forwarded',
+                        'bytes=', req.body.length,
+                        'first10Hex=', req.body.slice(0, 10).toString('hex'),
+                        'last5Hex=', req.body.slice(-5).toString('hex'),
+                        'firstUtf8=', JSON.stringify(req.body.toString('utf8').slice(0, 100)),
+                        'sig=', req.headers['upstash-signature'] ? 'present' : 'missing',
+                        'ct=', req.headers['content-type'],
+                    );
+                } else {
+                    console.warn(
+                        '[Mascot Proxy] webhook expected raw Buffer body but got',
+                        typeof req.body, 'contentLength=', req.headers['content-length'],
+                    );
+                }
+                return;
+            }
+
+            // Non-webhook: re-stringify đã parsed body
+            if (req.body && req.method !== 'GET' && req.method !== 'HEAD') {
                 const bodyData = JSON.stringify(req.body);
                 proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
                 proxyReq.write(bodyData);

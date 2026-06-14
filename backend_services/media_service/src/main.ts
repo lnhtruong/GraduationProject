@@ -1,11 +1,56 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  ValidationPipe,
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
+
+// Global exception filter để CATCH mọi error (kể cả body-parser 400)
+// và log ra console với chi tiết URL + headers + error message.
+@Catch()
+class GlobalErrorLogger implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const req = ctx.getRequest<Request>();
+    const res = ctx.getResponse<Response>();
+
+    const status =
+      exception instanceof HttpException ? exception.getStatus() : 500;
+    const message =
+      exception instanceof HttpException
+        ? exception.getResponse()
+        : exception instanceof Error
+          ? exception.message
+          : String(exception);
+
+    if (req.url?.includes('/webhooks/') || status >= 400) {
+      console.error(
+        '[media-service ERR]',
+        req.method, req.url,
+        'status=', status,
+        'CL=', req.headers['content-length'],
+        'ct=', req.headers['content-type'],
+        'sig=', req.headers['upstash-signature'] ? 'present' : 'missing',
+        'msg=', message,
+      );
+    }
+
+    res.status(status).json(
+      typeof message === 'object' ? message : { statusCode: status, message },
+    );
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
+
+  app.useGlobalFilters(new GlobalErrorLogger());
 
   // Enable CORS
   app.enableCors({
