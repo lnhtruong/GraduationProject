@@ -8,11 +8,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLessonDiscussions } from "../hooks/useLessonDiscussions.hooks";
+import {
+  useLessonDiscussionsQuery,
+  useCreateDiscussionMutation,
+  useToggleUpvoteMutation,
+} from "../api/discussions.hooks";
 import { QuestionForm } from "./QuestionForm";
 import { ReplyBox } from "./ReplyBox";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
 import type { DiscussionPostRecord } from "../types";
+import { useMemo } from "react";
 
 interface Props {
   lessonId: number;
@@ -65,15 +70,16 @@ function DiscussionItem({
   onReplyClick,
   onUpvote,
   canInteract,
-  voted,
+  isVoted,
 }: {
   post: DiscussionPostRecord;
   isReply?: boolean;
   onReplyClick?: (postId: number) => void;
   onUpvote?: (postId: number) => void;
   canInteract?: boolean;
-  voted?: boolean;
+  isVoted: (postId: number) => boolean;
 }) {
+  const voted = isVoted(post.id);
   return (
     <div
       className={
@@ -148,7 +154,7 @@ function DiscussionItem({
         </div>
       </div>
 
-      {post.replies.length ? (
+      {post.replies && post.replies.length > 0 ? (
         <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 pl-4 sm:pl-5">
           {post.replies.map((reply) => (
             <DiscussionItem
@@ -158,7 +164,7 @@ function DiscussionItem({
               onReplyClick={onReplyClick}
               onUpvote={onUpvote}
               canInteract={canInteract}
-              voted={voted}
+              isVoted={isVoted}
             />
           ))}
         </div>
@@ -169,20 +175,55 @@ function DiscussionItem({
 
 export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const {
-    threads,
-    total,
-    isInitialLoading,
-    isLoadingMore,
-    error,
-    hasMore,
-    loadMore,
-    createPost,
-    toggleUpvote,
-    isVoted,
-  } = useLessonDiscussions(lessonId as number) as any;
   const { isAuthenticated } = useAuthState();
   const [openReplyFor, setOpenReplyFor] = useState<number | null>(null);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error: queryError,
+  } = useLessonDiscussionsQuery(lessonId as number);
+
+  const createMutation = useCreateDiscussionMutation(lessonId as number);
+  const toggleUpvoteMutation = useToggleUpvoteMutation(lessonId as number);
+
+  const threads = useMemo(() => {
+    return data?.pages.flatMap((page) => page.data) ?? [];
+  }, [data]);
+
+  const total = data?.pages[0]?.total ?? 0;
+  const isInitialLoading = isLoading || (isFetching && !isFetchingNextPage && threads.length === 0);
+  const isLoadingMore = isFetchingNextPage;
+  const hasMore = Boolean(hasNextPage);
+  const loadMore = fetchNextPage;
+  const error = queryError ? "Không tải được danh sách câu hỏi. Vui lòng thử lại." : null;
+
+  const createPost = async (content: string, parentId?: number | null) => {
+    return createMutation.mutateAsync({ content, parentId });
+  };
+
+  const toggleUpvote = async (postId: number) => {
+    return toggleUpvoteMutation.mutateAsync(postId);
+  };
+
+  const isVoted = (postId: number) => {
+    const findPost = (posts: DiscussionPostRecord[]): DiscussionPostRecord | undefined => {
+      for (const p of posts) {
+        if (p.id === postId) return p;
+        if (p.replies && p.replies.length > 0) {
+          const found = findPost(p.replies);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const post = findPost(threads);
+    return Boolean(post?.voted);
+  };
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -270,7 +311,7 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
                     }
                     onUpvote={handleToggleUpvote}
                     canInteract={isAuthenticated}
-                    voted={isVoted(post.id)}
+                    isVoted={isVoted}
                   />
 
                   {openReplyFor === post.id ? (

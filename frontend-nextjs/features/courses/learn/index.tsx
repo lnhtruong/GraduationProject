@@ -178,6 +178,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               lessonProgressRecords={state.lessonProgressRecords ?? []}
               completedLessonCount={state.completedLessonCount}
               onSelectLesson={state.handleSelectLesson}
+              currentLessonProgressPercent={state.progressPercent}
             />
           </div>
         </div>

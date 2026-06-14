@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Flag } from "lucide-react";
+import { Flag, FileText, ExternalLink } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,33 +91,73 @@ export function LessonInfoPanel({
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/70 p-1">
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="resources">Tài liệu</TabsTrigger>
-            <TabsTrigger value="qa">Hỏi đáp</TabsTrigger>
-          </TabsList>
-          <TabsContent
-            value="overview"
-            className="pt-3 text-sm leading-6 text-muted-foreground"
-          >
-            {lessonDescription?.trim()
-              ? lessonDescription
-              : "Bài học này chưa có mô tả chi tiết. Bạn có thể xem video và làm quiz để tiếp tục lộ trình."}
-          </TabsContent>
-          <TabsContent
-            value="resources"
-            className="pt-3 text-sm leading-6 text-muted-foreground"
-          >
-            Tài liệu của bài học sẽ được cập nhật trong mục này.
-          </TabsContent>
-          <TabsContent
-            value="qa"
-            className="pt-3 text-sm leading-6 text-muted-foreground"
-          >
-            Phần hỏi đáp của bài học nằm bên dưới khối thông tin này.
-          </TabsContent>
-        </Tabs>
+        {/* Tabs */}
+        {(() => {
+          // Trích xuất các liên kết tải tài liệu học tập từ mô tả bài học
+          const extractLinks = (text?: string) => {
+            if (!text) return [];
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const matches = text.match(urlRegex);
+            return matches ? Array.from(new Set(matches)) : [];
+          };
+          const links = extractLinks(lessonDescription);
+
+          return (
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted/70 p-1">
+                <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+                <TabsTrigger value="resources">Tài liệu học tập</TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="overview"
+                className="pt-3 text-sm leading-6 text-muted-foreground whitespace-pre-wrap"
+              >
+                {lessonDescription?.trim()
+                  ? lessonDescription
+                  : "Bài học này chưa có mô tả chi tiết. Bạn có thể xem video và làm quiz để tiếp tục lộ trình."}
+              </TabsContent>
+              <TabsContent value="resources" className="pt-3">
+                {links.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Tìm thấy {links.length} tài liệu/liên kết đính kèm trong bài học này:
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {links.map((link, idx) => {
+                        let linkLabel = "Liên kết tài liệu " + (idx + 1);
+                        if (link.includes("drive.google.com")) linkLabel = "Google Drive Folder/File";
+                        else if (link.includes("github.com")) linkLabel = "GitHub Repository";
+                        else if (link.includes("youtube.com") || link.includes("youtu.be")) linkLabel = "Video tham khảo thêm";
+                        else if (link.endsWith(".pdf")) linkLabel = "Tài liệu PDF đính kèm";
+                        
+                        return (
+                          <a
+                            key={idx}
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/50 hover:bg-muted/80 p-3 text-xs font-medium text-foreground transition"
+                          >
+                            <span className="flex items-center gap-2 truncate">
+                              <FileText className="h-4 w-4 shrink-0 text-primary" />
+                              <span className="truncate">{linkLabel}</span>
+                            </span>
+                            <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-7 text-center text-muted-foreground">
+                    <FileText className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <p className="text-xs">Bài học này chưa đính kèm tài liệu tham khảo nào.</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          );
+        })()}
       </CardContent>
 
       <ReportDialog
