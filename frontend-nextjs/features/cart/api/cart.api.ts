@@ -1,11 +1,28 @@
 import { createApi, apiHttpClient } from "@/features/_shared/api-factories";
 import type { CartItem } from "../types";
 
-// Raw item returned by GET /course/carts
+// Raw shape BE trả về từ GET /course/carts (sau khi BE include Course + instructor)
 type CartItemRaw = {
   id: number;
   courseId: number;
+  savedForLater: boolean;
   created_at: string;
+  course?: {
+    id: number;
+    name: string;
+    price: number;
+    level?: "Beginner" | "Intermediate" | "Advanced";
+    duration?: string; // HH:MM:SS
+    video?: { thumbnail?: string; url?: string } | null;
+    instructor?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      first_name?: string | null;
+      last_name?: string | null;
+      avatarUrl?: string | null;
+      avatar_url?: string | null;
+    } | null;
+  } | null;
 };
 
 type CartApiResponse = {
@@ -22,23 +39,6 @@ type AddToCartResponse = {
   courseId: number;
 };
 
-// Shape of GET /course/courses/:id we care about
-type CourseBasic = {
-  id: number;
-  name: string;
-  price: number;
-  level?: "Beginner" | "Intermediate" | "Advanced";
-  duration?: string; // HH:MM:SS
-  userId?: number;
-  video?: { thumbnail?: string; url?: string } | null;
-};
-
-type UserBasic = {
-  id?: number;
-  firstName?: string;
-  lastName?: string;
-};
-
 function parseHHMMSS(d?: string): number {
   if (!d) return 0;
   const parts = d.split(":").map(Number);
@@ -47,45 +47,26 @@ function parseHHMMSS(d?: string): number {
   return 0;
 }
 
-async function fetchCourse(courseId: number): Promise<CourseBasic | null> {
-  try {
-    const { data } = await apiHttpClient.get<CourseBasic>(`/course/courses/${courseId}`);
-    return data;
-  } catch {
-    return null;
-  }
-}
+function buildCartItems(raw: CartItemRaw[]): CartItem[] {
+  return raw.map((item) => {
+    const c = item.course;
+    const inst = c?.instructor;
+    const instructorName = inst
+      ? `${inst.first_name ?? inst.firstName ?? ""} ${inst.last_name ?? inst.lastName ?? ""}`.trim() || "Giảng viên"
+      : "Giảng viên";
 
-async function fetchInstructorName(userId: number): Promise<string> {
-  try {
-    const { data } = await apiHttpClient.get<UserBasic>(`/course/users/${userId}`);
-    return [data.firstName, data.lastName].filter(Boolean).join(" ") || "Giảng viên";
-  } catch {
-    return "Giảng viên";
-  }
-}
-
-async function buildCartItems(raw: CartItemRaw[]): Promise<CartItem[]> {
-  const courses = await Promise.all(raw.map((item) => fetchCourse(item.courseId)));
-
-  const instructorNames = await Promise.all(
-    courses.map((c) => (c?.userId ? fetchInstructorName(c.userId) : Promise.resolve(""))),
-  );
-
-  return raw.map((item, i) => {
-    const c = courses[i];
     return {
       id: item.id,
       courseId: item.courseId,
       title: c?.name ?? `Khoá học #${item.courseId}`,
-      instructorName: instructorNames[i],
+      instructorName,
       thumbnailUrl: c?.video?.thumbnail,
       level: c?.level ?? "Beginner",
       durationSeconds: parseHHMMSS(c?.duration),
       price: c?.price ?? 0,
       avgRating: undefined,
       reviewCount: undefined,
-      savedForLater: false,
+      savedForLater: item.savedForLater ?? false,
     };
   });
 }
@@ -110,7 +91,6 @@ export const cartApi = createApi({
   },
 
   saveForLater: async (courseId: number, saved: boolean): Promise<void> => {
-    void courseId;
-    void saved;
+    await apiHttpClient.patch(`/course/carts/items/${courseId}/save`, { saved });
   },
 });

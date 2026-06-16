@@ -1,22 +1,31 @@
 "use client";
 
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 import { QuickActions } from "./QuickActions";
 import { RecentCourses } from "./RecentCourses";
 import { RecentQA } from "./RecentQA";
-import {
-  MOCK_INSTRUCTOR_COURSES,
-  MOCK_DASHBOARD_STATS,
-  MOCK_RECENT_QA,
-} from "../../mock-data";
+import { useInstructorCourses, usePendingPublishCount } from "../../api/dashboard.hooks";
+import type { InstructorCourse } from "../../types";
+import type { Course } from "@/features/courses/types";
 
-// TODO: Swap với real API hooks khi backend sẵn sàng:
-//   const { data: courses } = useInstructorCourses();
-//   const { data: stats } = useDashboardStats();
-//   const { data: qa } = useRecentQA();
+function mapCourseToInstructor(c: Course): InstructorCourse {
+  return {
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    thumbnailUrl: (c as unknown as { thumbnailUrl?: string }).thumbnailUrl,
+    status: c.status as InstructorCourse["status"],
+    lessonCount: 0,
+    studentCount: 0,
+    updatedAt: c.updated_at ?? c.created_at ?? new Date().toISOString(),
+  };
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { data: rawCourses = [], isLoading } = useInstructorCourses();
+  const pendingPublish = usePendingPublishCount();
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -24,9 +33,10 @@ export default function DashboardPage() {
     day: "numeric",
   });
 
-  const stats = MOCK_DASHBOARD_STATS;
-  const courses = MOCK_INSTRUCTOR_COURSES;
-  const qaItems = MOCK_RECENT_QA;
+  const courses: InstructorCourse[] = rawCourses.map(mapCourseToInstructor);
+
+  // unansweredQA: backend chưa có endpoint tổng hợp — hiển thị 0 cho đến khi có API
+  const unansweredQA = 0;
 
   return (
     <div className="space-y-8">
@@ -42,26 +52,26 @@ export default function DashboardPage() {
           </span>{" "}
           👋
         </h1>
-        {(stats.unansweredQA > 0 || stats.pendingPublish > 0) && (
+        {(unansweredQA > 0 || pendingPublish > 0) && (
           <p className="mt-1 text-sm text-muted-foreground">
             You have{" "}
-            {stats.unansweredQA > 0 && (
+            {unansweredQA > 0 && (
               <a
                 href="/instructor/qa"
                 className="font-medium text-primary underline"
               >
-                {stats.unansweredQA} unanswered question
-                {stats.unansweredQA > 1 ? "s" : ""}
+                {unansweredQA} unanswered question
+                {unansweredQA > 1 ? "s" : ""}
               </a>
             )}
-            {stats.unansweredQA > 0 && stats.pendingPublish > 0 && " and "}
-            {stats.pendingPublish > 0 && (
+            {unansweredQA > 0 && pendingPublish > 0 && " and "}
+            {pendingPublish > 0 && (
               <a
                 href="/instructor/courses"
                 className="font-medium text-primary underline"
               >
-                {stats.pendingPublish} course
-                {stats.pendingPublish > 1 ? "s" : ""} ready to publish
+                {pendingPublish} course
+                {pendingPublish > 1 ? "s" : ""} ready to publish
               </a>
             )}
             .
@@ -73,10 +83,18 @@ export default function DashboardPage() {
       <QuickActions />
 
       {/* Recent grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <RecentCourses courses={courses} />
-        <RecentQA items={qaItems} />
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Skeleton className="h-56 rounded-xl" />
+          <Skeleton className="h-56 rounded-xl" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <RecentCourses courses={courses} />
+          {/* RecentQA: dữ liệu thật chờ API tổng hợp unanswered discussions từ backend */}
+          <RecentQA items={[]} />
+        </div>
+      )}
     </div>
   );
 }

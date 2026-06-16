@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Film, ImageIcon, VideoIcon } from "lucide-react";
+import { Film, ImageIcon, Users, VideoIcon } from "lucide-react";
 import type { Image } from "@/features/image";
 import type { Video } from "@/features/video";
+import { FollowingInstructorsGrid } from "./components/FollowingInstructorsGrid";
 import { ImageGrid } from "./components/ImageGrid";
 import { LibraryHeader } from "./components/LibraryHeader";
 import { MediaPreviewDialog } from "./components/MediaPreviewDialog";
@@ -106,6 +107,10 @@ export default function LibraryFeature() {
 								{TAB_LABEL.image}
 								<Badge variant="secondary">{tabStats.image}</Badge>
 							</TabsTrigger>
+							<TabsTrigger value="following">
+								<Users className="h-4 w-4" />
+								{TAB_LABEL.following}
+							</TabsTrigger>
 						</TabsList>
 
 						<TabsContent value="video" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
@@ -159,6 +164,10 @@ export default function LibraryFeature() {
 									});
 								}}
 							/>
+						</TabsContent>
+
+						<TabsContent value="following" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
+							<FollowingInstructorsGrid />
 						</TabsContent>
 					</Tabs>
 				</div>

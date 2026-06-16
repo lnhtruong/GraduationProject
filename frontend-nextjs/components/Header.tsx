@@ -17,6 +17,7 @@ import {
   BookOpen,
   GraduationCap,
   ShieldCheck,
+  Heart,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -314,6 +315,12 @@ export function Header() {
                     <Link href="/library" className="cursor-pointer">
                       <BookOpen className="mr-2 h-4 w-4" />
                       <span>Thư viện video & ảnh</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/library/wishlist" className="cursor-pointer">
+                      <Heart className="mr-2 h-4 w-4" />
+                      <span>Khóa học đã lưu</span>
                     </Link>
                   </DropdownMenuItem>
                   {/* Admin Panel — chỉ hiện với ADMIN */}

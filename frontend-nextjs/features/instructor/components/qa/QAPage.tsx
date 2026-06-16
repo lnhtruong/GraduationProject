@@ -1,55 +1,76 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, HelpCircle, CheckCircle, BarChart2, Plus } from "lucide-react";
+import { BookOpen, HelpCircle, CheckCircle, BarChart2, Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { StatsCard } from "../analytics/StatsCard";
 import { QuizRow } from "./QuizRow";
-import { MOCK_QA_STATS, MOCK_QUIZZES } from "../../mock-data";
+import { useInstructorQuizzes, useDeleteQuiz } from "../../api/quiz.hooks";
+import type { QuizApiItem } from "../../api/quiz.api";
 import type { QuizSummary } from "../../types";
 
-// TODO: Swap sang real API khi backend sẵn sàng:
-//   const { data: stats } = useQAStats();
-//   const { data: quizzes } = useQuizzes();
-//   const deleteQuiz = useDeleteQuiz();
+function mapQuizApiToSummary(q: QuizApiItem): QuizSummary {
+  return {
+    id: q.id,
+    name: q.name,
+    // courseName và completions/avgScore chưa có trong API — backend cần bổ sung
+    courseName: "—",
+    questionCount: q.questions?.length ?? 0,
+    completions: 0,
+    avgScore: 0,
+  };
+}
+
+function QuizListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-[76px] rounded-xl" />
+      ))}
+    </div>
+  );
+}
 
 export default function QAPage() {
-  const stats = MOCK_QA_STATS;
-  // TODO: replace useState + MOCK với useQuery khi có API
-  const [quizzes, setQuizzes] = useState<QuizSummary[]>(MOCK_QUIZZES);
+  const { data: rawQuizzes = [], isLoading, isError } = useInstructorQuizzes();
+  const { mutate: deleteQuiz, isPending: isDeleting } = useDeleteQuiz();
+
+  const quizzes: QuizSummary[] = rawQuizzes.map(mapQuizApiToSummary);
 
   const statsCards = [
     {
       label: "Tổng quiz",
-      value: String(stats.totalQuizzes),
+      value: String(quizzes.length),
       changePercent: 0,
       icon: BookOpen,
     },
     {
       label: "Tổng câu hỏi",
-      value: String(stats.totalQuestions),
+      value: String(quizzes.reduce((sum, q) => sum + q.questionCount, 0)),
       changePercent: 0,
       icon: HelpCircle,
     },
     {
+      // completions/avgScore chờ API aggregate từ backend
       label: "Lượt hoàn thành",
-      value: String(stats.totalCompletions),
+      value: "—",
       changePercent: 0,
       icon: CheckCircle,
     },
     {
       label: "Điểm trung bình",
-      value: `${stats.avgScore}%`,
+      value: "—",
       changePercent: 0,
       icon: BarChart2,
     },
   ];
 
   function handleDelete(id: number) {
-    setQuizzes((prev) => prev.filter((q) => q.id !== id));
-    toast.success("Đã xóa quiz");
-    // TODO: gọi DELETE /quizzes/:id khi có API
+    deleteQuiz(id, {
+      onSuccess: () => toast.success("Đã xóa quiz"),
+      onError: () => toast.error("Xóa quiz thất bại"),
+    });
   }
 
   return (
@@ -62,7 +83,6 @@ export default function QAPage() {
             Tạo và quản lý bài kiểm tra cho học viên của bạn
           </p>
         </div>
-        {/* TODO: Link to quiz creation page when available */}
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
           Tạo quiz mới
@@ -77,7 +97,17 @@ export default function QAPage() {
       </div>
 
       {/* Quiz list */}
-      {quizzes.length === 0 ? (
+      {isLoading ? (
+        <QuizListSkeleton />
+      ) : isError ? (
+        <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-destructive/40 bg-destructive/5">
+          <AlertCircle className="h-8 w-8 text-destructive/60" />
+          <p className="text-sm text-muted-foreground">Không thể tải danh sách quiz</p>
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+            Thử lại
+          </Button>
+        </div>
+      ) : quizzes.length === 0 ? (
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 bg-card">
           <BookOpen className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">Chưa có quiz nào</p>
@@ -89,7 +119,11 @@ export default function QAPage() {
       ) : (
         <div className="space-y-3">
           {quizzes.map((quiz) => (
-            <QuizRow key={quiz.id} quiz={quiz} onDelete={handleDelete} />
+            <QuizRow
+              key={quiz.id}
+              quiz={quiz}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}

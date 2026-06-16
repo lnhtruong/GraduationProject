@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import { FollowButton } from "@/features/instructor/FollowButton";
 import { getInitials } from "../../utils";
 import type { CourseInstructor } from "../../types";
 
@@ -25,7 +26,10 @@ type ReportTarget = "course" | "teacher" | null;
 export function InstructorSection({ instructor, courseId }: Props) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget>(null);
-  const { isAuthenticated } = useAuthState();
+  const { user, isAuthenticated } = useAuthState();
+
+  // Ẩn nút report nếu người xem chính là instructor của khoá này
+  const isOwnContent = isAuthenticated && user?.id === instructor.id;
 
   const initials = getInitials(instructor.firstName, instructor.lastName);
   const fullName = `${instructor.firstName} ${instructor.lastName}`;
@@ -34,7 +38,7 @@ export function InstructorSection({ instructor, courseId }: Props) {
     <section id="instructor" className="rounded-xl border border-border/60 bg-card p-6">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-xl font-bold">Giảng viên</h2>
-        {isAuthenticated && (
+        {isAuthenticated && !isOwnContent && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -76,6 +80,11 @@ export function InstructorSection({ instructor, courseId }: Props) {
           {instructor.title && (
             <p className="text-sm text-muted-foreground">{instructor.title}</p>
           )}
+
+          {/* Follow button */}
+          <div className="pt-1">
+            <FollowButton instructorId={instructor.id} />
+          </div>
 
           {/* Stats row */}
           <div className="flex flex-wrap items-center gap-4 pt-1 text-sm">

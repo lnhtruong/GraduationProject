@@ -9,6 +9,7 @@ import {
   Smartphone,
   CheckCircle,
   ShoppingCart,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,9 @@ interface Props {
   isEnrolling?: boolean;
   isAddingToCart?: boolean;
   isInCart?: boolean;
+  isInWishlist?: boolean;
+  onToggleWishlist?: () => void;
+  isTogglingWishlist?: boolean;
 }
 
 const INCLUDES = [
@@ -35,7 +39,7 @@ const INCLUDES = [
   { icon: Smartphone, label: () => "Học trên di động & desktop" },
 ];
 
-export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart, isInCart }: Props) {
+export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart, isInCart, isInWishlist, onToggleWishlist, isTogglingWishlist }: Props) {
   const isFree = course.price === 0;
   const isEnrolled = enrollment !== null;
   const isCompleted = enrollment?.status === "completed";
@@ -89,6 +93,9 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
           isEnrolling={isEnrolling}
           isAddingToCart={isAddingToCart}
           isInCart={isInCart}
+          isInWishlist={isInWishlist}
+          onToggleWishlist={onToggleWishlist}
+          isTogglingWishlist={isTogglingWishlist}
         />
 
         {/* Guarantee */}
@@ -143,6 +150,9 @@ function EnrollButton({
   isEnrolling,
   isAddingToCart,
   isInCart,
+  isInWishlist,
+  onToggleWishlist,
+  isTogglingWishlist,
 }: {
   course: CourseDetail;
   enrollment: Enrollment | null;
@@ -152,6 +162,9 @@ function EnrollButton({
   isEnrolling?: boolean;
   isAddingToCart?: boolean;
   isInCart?: boolean;
+  isInWishlist?: boolean;
+  onToggleWishlist?: () => void;
+  isTogglingWishlist?: boolean;
 }) {
   if (!isAuthenticated) {
     return (
@@ -166,14 +179,23 @@ function EnrollButton({
   if (!enrollment) {
     if (course.price === 0) {
       return (
-        <Button
-          size="lg"
-          className="w-full shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30"
-          onClick={onEnroll}
-          disabled={isEnrolling}
-        >
-          {isEnrolling ? "Đang đăng ký..." : "Đăng ký miễn phí"}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            size="lg"
+            className="w-full shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30"
+            onClick={onEnroll}
+            disabled={isEnrolling}
+          >
+            {isEnrolling ? "Đang đăng ký..." : "Đăng ký miễn phí"}
+          </Button>
+          {onToggleWishlist && (
+            <WishlistToggleButton
+              isInWishlist={!!isInWishlist}
+              onToggle={onToggleWishlist}
+              isPending={!!isTogglingWishlist}
+            />
+          )}
+        </div>
       );
     }
     return (
@@ -211,6 +233,13 @@ function EnrollButton({
             </Button>
           )
         )}
+        {onToggleWishlist && (
+          <WishlistToggleButton
+            isInWishlist={!!isInWishlist}
+            onToggle={onToggleWishlist}
+            isPending={!!isTogglingWishlist}
+          />
+        )}
       </div>
     );
   }
@@ -235,6 +264,42 @@ function EnrollButton({
       >
         Tiếp tục học
       </Link>
+    </Button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WishlistToggleButton — full-width, dùng trong sidebar
+// ---------------------------------------------------------------------------
+function WishlistToggleButton({
+  isInWishlist,
+  onToggle,
+  isPending,
+}: {
+  isInWishlist: boolean;
+  onToggle: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <Button
+      size="lg"
+      variant="ghost"
+      className="w-full gap-2 border border-border/60 hover:border-border"
+      onClick={onToggle}
+      disabled={isPending}
+    >
+      <Heart
+        className={
+          isInWishlist
+            ? "h-4 w-4 fill-red-500 text-red-500"
+            : "h-4 w-4 fill-none text-muted-foreground"
+        }
+      />
+      {isPending
+        ? "Đang cập nhật..."
+        : isInWishlist
+          ? "Đã lưu khóa học"
+          : "Lưu khóa học"}
     </Button>
   );
 }

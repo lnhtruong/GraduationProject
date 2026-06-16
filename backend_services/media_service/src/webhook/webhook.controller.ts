@@ -4,7 +4,6 @@ import {
     Controller,
     HttpCode,
     Post,
-    BadRequestException,
     Req,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
@@ -30,14 +29,23 @@ export class WebhookController {
     async handleAiResult(@Req() req: RawBodyRequest<Request>) {
         const rawBody = req.rawBody;
 
-        // Verify HMAC-SHA256 signature (throws 401 on missing/invalid).
-        this.cloudinaryWebhookService.verifyAiWebhook(rawBody, req.headers);
+        // Debug log để chẩn đoán 400 (đa số do gateway proxy chưa forward raw bytes)
+        console.log(
+            '[webhooks/ai-model/result] incoming',
+            'rawBodyBytes=', rawBody?.length ?? 'undefined',
+            'contentType=', req.headers['content-type'],
+            'sig=', req.headers['upstash-signature'] ? 'present' : 'missing',
+        );
+
+        // Verify QStash native signature (Receiver.verify). Throws 401 on missing/invalid.
+        await this.cloudinaryWebhookService.verifyAiWebhook(rawBody, req.headers);
 
         let payload: Record<string, unknown>;
         try {
             payload = JSON.parse(rawBody!.toString('utf8')) as Record<string, unknown>;
-        } catch {
-            throw new BadRequestException('Invalid JSON body');
+        } catch (e) {
+            const preview = rawBody ? rawBody.toString('utf8').slice(0, 200) : '<empty>';
+            throw new BadRequestException(`Invalid JSON body — first 200 chars: ${preview}`);
         }
 
         return this.cloudinaryWebhookService.handleAIResult(payload as any);

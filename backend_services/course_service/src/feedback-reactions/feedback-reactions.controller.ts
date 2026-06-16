@@ -46,7 +46,7 @@ export class FeedbackReactionsController {
   ) {
     const userId = this.parseRequiredUserId(userIdHeader);
     console.log('check 1: ', userId);
-    // return await this.feedbackReactionsService.createOrUpdate(userId, payload);
+    return await this.feedbackReactionsService.createOrUpdate(userId, payload);
   }
 
   @Delete('feedback/:feedbackId')

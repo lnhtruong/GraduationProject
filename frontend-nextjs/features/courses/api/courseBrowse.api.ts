@@ -6,9 +6,13 @@ import {
 } from "@/features/_shared/course-mapper";
 import type { CourseCardData } from "@/features/_shared/course-card.types";
 
+export type CourseSort = "newest" | "popular" | "rating";
+
 export interface BrowseCoursesParams {
   page?: number;
   limit?: number;
+  search?: string;
+  sort?: CourseSort;
 }
 
 export interface BrowseCoursesResult {
@@ -19,12 +23,16 @@ export interface BrowseCoursesResult {
 
 export const courseBrowseApi = createApi({
   getCourses: async (params: BrowseCoursesParams = {}): Promise<BrowseCoursesResult> => {
+    const query: Record<string, string | number> = {
+      page: params.page ?? 1,
+      limit: params.limit ?? 12,
+      status: "publish",
+    };
+    if (params.search?.trim()) query.search = params.search.trim();
+    if (params.sort) query.sort = params.sort;
+
     const { data } = await apiHttpClient.get<CoursesRawResponse>("/course/courses", {
-      params: {
-        page: params.page ?? 1,
-        limit: params.limit ?? 12,
-        status: "publish",
-      },
+      params: query,
     });
 
     // Khi BE trả về paginated object (có pagination field)

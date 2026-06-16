@@ -15,6 +15,7 @@ import { useEnrollmentCheck } from "../api/enrollment.api";
 import { useCourseDetail } from "../api/courseDetail.api";
 import { useBuyNow } from "@/features/payment/api/payment.hooks";
 import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
+import { useIsInWishlist, useToggleWishlistMutation } from "@/features/wishlist/api/wishlist.hooks";
 
 // ---------------------------------------------------------------------------
 // Inline minor sections
@@ -87,6 +88,8 @@ export default function CourseDetail({ courseId }: Props) {
   const buyNow = useBuyNow(courseId);
   const addToCart = useAddToCart();
   const isInCart = useIsInCart(courseId);
+  const isInWishlist = useIsInWishlist(courseId);
+  const toggleWishlist = useToggleWishlistMutation();
 
   if (isLoading) return <LoadingSkeleton />;
 
@@ -126,6 +129,32 @@ export default function CourseDetail({ courseId }: Props) {
     });
   };
 
+  const handleToggleWishlist = () => {
+    if (!isAuthenticated) {
+      router.push(`/signin?returnUrl=/courses/${courseId}`);
+      return;
+    }
+    toggleWishlist.mutate(
+      { courseId, currentlyInWishlist: isInWishlist },
+      {
+        onSuccess: () => {
+          if (isInWishlist) {
+            toast.success("Đã xóa khỏi danh sách lưu");
+          } else {
+            toast.success("Đã lưu khóa học", {
+              description: "Xem tại Khóa học đã lưu",
+              action: {
+                label: "Xem ngay",
+                onClick: () => router.push("/library/wishlist"),
+              },
+            });
+          }
+        },
+        onError: () => toast.error("Không thể cập nhật danh sách lưu."),
+      },
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* ── Hero ────────────────────────────────────────── */}
@@ -149,6 +178,9 @@ export default function CourseDetail({ courseId }: Props) {
                 isEnrolling={buyNow.isPending}
                 isAddingToCart={addToCart.isPending}
                 isInCart={isInCart}
+                isInWishlist={isInWishlist}
+                onToggleWishlist={handleToggleWishlist}
+                isTogglingWishlist={toggleWishlist.isPending}
               />
             </div>
 
@@ -180,6 +212,9 @@ export default function CourseDetail({ courseId }: Props) {
                 isEnrolling={buyNow.isPending}
                 isAddingToCart={addToCart.isPending}
                 isInCart={isInCart}
+                isInWishlist={isInWishlist}
+                onToggleWishlist={handleToggleWishlist}
+                isTogglingWishlist={toggleWishlist.isPending}
               />
             </div>
           </div>

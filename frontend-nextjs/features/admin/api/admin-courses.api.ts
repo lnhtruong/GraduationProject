@@ -1,7 +1,4 @@
-import {
-  courseApi,
-  courseWorkflowApi,
-} from "@/features/courses/api/course.api";
+import { courseWorkflowApi } from "@/features/courses/api/course.api";
 import { apiHttpClient } from "@/features/_shared/api-factories";
 import type { Course, CourseListParams, CourseStatus } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
@@ -35,8 +32,6 @@ type RawCourseListResponse = {
 };
 
 export const adminCourseApi = {
-  listPending: () => courseApi.getAll({ status: "pending" } as CourseListParams),
-  listAll: (params?: CourseListParams) => courseApi.getAll(params),
   approveCourse: (id: number) => courseWorkflowApi.review(id, "accepted"),
   rejectCourse: (id: number) => courseWorkflowApi.review(id, "rejected"),
 
