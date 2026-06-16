@@ -1755,10 +1755,14 @@ export class CoursesService {
 
   /**
    * Cập nhật course.
-   * - Course CHƯA publish → sửa trực tiếp, đưa về `DRAFT` (hành vi cũ).
-   * - Course ĐÃ `PUBLISH` → KHÔNG sửa trực tiếp. Tự động tạo (hoặc ghi đè)
-   *   một change request `pending` để admin duyệt; course giữ nguyên `PUBLISH`
-   *   và nội dung live. Trả về change request thay vì course.
+   * - Course ở `PUBLISH` hoặc `APPROVED` (non-admin) → KHÔNG sửa trực tiếp. Tự
+   *   động tạo (hoặc ghi đè) một change request `pending` để admin duyệt; course
+   *   giữ nguyên trạng thái và nội dung live. Trả về change request thay vì course.
+   *   (`approved` = admin đã duyệt nội dung, sửa thì phải duyệt lại — đồng bộ với
+   *   lesson/quiz.)
+   * - Các trạng thái khác (draft/pending/rejected/banned) → sửa trực tiếp, đưa
+   *   về `DRAFT` (hành vi cũ).
+   * - Admin: toàn quyền, sửa trực tiếp mọi trạng thái.
    * Tối đa 1 request `pending` / course: gọi lại sẽ ghi đè payload pending.
    */
   async update(
@@ -1787,12 +1791,13 @@ export class CoursesService {
       updateCourseDto,
     ) as CourseUpdatePayload;
 
-    // Admin có toàn quyền: sửa trực tiếp kể cả khi đã publish, GIỮ NGUYÊN trạng
-    // thái publish (không ép về DRAFT, không cần change request).
-    if (
-      course.status === CourseStatus.PUBLISH &&
-      requester.role !== this.ADMIN_ROLE
-    ) {
+    // Non-admin sửa course ở publish (đang live) hoặc approved (đã duyệt nội
+    // dung) → tạo change request chờ duyệt lại, course giữ nguyên trạng thái.
+    // Admin có toàn quyền: sửa trực tiếp mọi trạng thái (không cần change request).
+    const requiresChangeRequest =
+      course.status === CourseStatus.PUBLISH ||
+      course.status === CourseStatus.APPROVED;
+    if (requiresChangeRequest && !isAdmin) {
       const prevData = this.snapshotPreviousData(course, payload);
       // Overwrite chỉ áp dụng cho request course.update (tối đa 1 pending/course).
       // Lesson change requests stack riêng theo từng thao tác nên không đụng vào.

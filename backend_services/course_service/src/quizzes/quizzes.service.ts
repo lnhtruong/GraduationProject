@@ -899,7 +899,11 @@ export class QuizzesService {
     }
     return {
       courseId: course.id,
-      needsChangeRequest: course.status === CourseStatus.PUBLISH,
+      // publish (đang live) + approved (admin đã duyệt nội dung) → sửa quiz phải
+      // qua change request chờ duyệt lại. draft/pending/rejected/banned sửa trực tiếp.
+      needsChangeRequest:
+        course.status === CourseStatus.PUBLISH ||
+        course.status === CourseStatus.APPROVED,
     };
   }
 

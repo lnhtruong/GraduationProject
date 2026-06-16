@@ -68,7 +68,16 @@ export class LessonsService {
     if (ownerId !== requester?.userId) {
       throw new ForbiddenException('You are not the owner of this course');
     }
-    return course.status === CourseStatus.PUBLISH;
+    return this.requiresChangeRequest(course.status);
+  }
+
+  /**
+   * Course ở các trạng thái này thì giảng viên sửa lesson phải đi qua change
+   * request chờ admin duyệt: `publish` (đang live) và `approved` (admin đã duyệt
+   * nội dung, sửa thì phải duyệt lại). draft/pending/rejected/banned sửa trực tiếp.
+   */
+  private requiresChangeRequest(status: CourseStatus): boolean {
+    return status === CourseStatus.PUBLISH || status === CourseStatus.APPROVED;
   }
 
   /**
@@ -107,7 +116,7 @@ export class LessonsService {
     }
     return {
       lesson: lesson as Lesson,
-      needsChangeRequest: course.status === CourseStatus.PUBLISH,
+      needsChangeRequest: this.requiresChangeRequest(course.status),
     };
   }
 
