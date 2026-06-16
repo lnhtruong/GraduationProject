@@ -100,3 +100,29 @@ export interface UpsertLessonProgressPayload {
   progress: LessonProgressStatus;
   lessonProgressId?: number | null;
 }
+
+export interface DiscussionAuthorSnapshot {
+  id: number;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export interface DiscussionPostRecord {
+  id: number;
+  lessonId: number;
+  parentId: number | null;
+  content: string;
+  isBestAnswer: boolean;
+  upvotes: number;
+  createdAt: string;
+  updatedAt: string;
+  author: DiscussionAuthorSnapshot;
+  replies: DiscussionPostRecord[];
+}
+
+export interface DiscussionListResponse {
+  data: DiscussionPostRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}

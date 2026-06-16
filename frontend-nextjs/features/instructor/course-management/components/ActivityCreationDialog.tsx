@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -26,8 +26,8 @@ import {
   canCreateInVideoQuiz,
   createAssignmentPayload,
   createQuizPayload,
-  generateTimestampOptions,
 } from "../utils/activity-creation.utils";
+import { resolveActiveVideoSource } from "../utils/draft-video.utils";
 import { ActivityDialogFooter } from "./ActivityCreationDialog/ActivityDialogFooter";
 import { AssignmentForm } from "./ActivityCreationDialog/AssignmentForm";
 import { InvalidVideoWarning } from "./ActivityCreationDialog/InvalidVideoWarning";
@@ -39,6 +39,8 @@ interface Props {
   lessonId: number;
   lessonTitle: string;
   lessonVideoId?: number | null;
+  draftVideoBlobUrl?: string | null;
+  draftVideoDurationSeconds?: number;
   userId?: number;
 }
 
@@ -48,6 +50,8 @@ export function ActivityCreationDialog({
   lessonId,
   lessonTitle,
   lessonVideoId,
+  draftVideoBlobUrl,
+  draftVideoDurationSeconds = 0,
   userId,
 }: Props) {
   const router = useRouter();
@@ -65,14 +69,18 @@ export function ActivityCreationDialog({
   const createLessonActivityMutation = useCreateLessonActivity();
   const createQuizMutation = useCreateQuiz();
 
-  const timestampOptions = useMemo(
-    () => generateTimestampOptions(Number(lessonVideo?.duration ?? 0)),
-    [lessonVideo?.duration],
-  );
+  const { url: activeVideoUrl, durationSeconds: activeVideoDurationSeconds, hasVideoSource } =
+    resolveActiveVideoSource({
+      serverUrl: lessonVideo?.url,
+      serverDuration: lessonVideo?.duration,
+      draftBlobUrl: draftVideoBlobUrl,
+      draftDurationSeconds: draftVideoDurationSeconds,
+      hasVideoId: Boolean(lessonVideoId),
+    });
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
-    Boolean(lessonVideoId),
-    timestampOptions.length,
+    hasVideoSource,
+    activeVideoDurationSeconds > 0 ? 1 : 0,
   );
 
   const handleCreateAssignment = async () => {
@@ -126,10 +134,9 @@ export function ActivityCreationDialog({
       <DialogContent className="h-[90vh] w-[96vw] max-w-none overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl sm:w-[94vw] lg:w-7xl">
         <div className="flex h-full min-h-0 flex-col">
           <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
-            <DialogTitle className="text-xl">Tạo hoạt động mới</DialogTitle>
-            <DialogDescription>
-              Tạo quiz đầy đủ ngay trong popup hoặc tạo activity bài tập. Quiz
-              ngoài video có thể tạo ngay khi bài học đã có `videoId`.
+            <DialogTitle className="text-xl font-bold">Tạo hoạt động mới</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
+              Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học.
             </DialogDescription>
           </DialogHeader>
 
@@ -157,15 +164,15 @@ export function ActivityCreationDialog({
                   quizTimestamp={quizTimestamp}
                   onTimestampChange={setQuizTimestamp}
                   canUseInVideoQuiz={canUseInVideoQuiz}
-                  lessonVideoUrl={lessonVideo?.url}
-                  lessonVideoDuration={Number(lessonVideo?.duration ?? 0)}
+                  lessonVideoUrl={activeVideoUrl}
+                  lessonVideoDuration={activeVideoDurationSeconds}
                 />
 
                 <InvalidVideoWarning
                   show={!canUseInVideoQuiz && quizMode === "in_video"}
                 />
 
-                <div className="rounded-2xl border border-border/60 bg-background p-3">
+                <div className="pt-2">
                   <ActivityQuizForm
                     ref={quizFormRef}
                     initialInVideo={quizMode === "in_video"}

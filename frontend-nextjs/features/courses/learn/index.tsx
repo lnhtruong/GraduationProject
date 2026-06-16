@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LessonVideoCard } from "./components/LessonVideoCard";
 import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
+import { DiscussionPanel } from "./components/DiscussionPanel";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
 
 interface Props {
@@ -162,6 +163,11 @@ export default function CourseLearnPage({ courseId }: Props) {
               instructorLabel="Giảng viên"
               lessonId={state.selectedLesson.id}
               isAuthenticated={isAuthenticated}
+            />
+
+            <DiscussionPanel
+              lessonId={state.selectedLesson.id}
+              lessonTitle={state.selectedLesson.title}
             />
           </div>
 

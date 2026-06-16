@@ -46,8 +46,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		recordHistoryItem(activeVideo);
 	}, [activeVideo, recordHistoryItem]);
 
-	const { goNext, goPrev, jumpTo } = feed;
-	const { setObservedActiveIndex } = feed;
+	const { goNext, goPrev, goNextImmediate, goPrevImmediate } = feed;
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -116,13 +115,6 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		setShareOpen(true);
 	}, []);
 
-	const onActiveIndexChange = useCallback(
-		(index: number) => {
-			setObservedActiveIndex(index);
-		},
-		[setObservedActiveIndex],
-	);
-
 	if (feed.isLoading) {
 		return (
 			<div className="min-h-[calc(100vh-64px)] bg-background">
@@ -179,7 +171,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				className={cn(
 					"h-[calc(100vh-64px)] pt-0 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
-					isOptionBoxOpen ? "md:pr-[592px] lg:pr-[632px] pr-[72px]" : "pr-[72px]",
+					isOptionBoxOpen ? "md:pr-[592px] lg:pr-[632px] pr-0" : "pr-0 md:pr-[72px]",
 				)}
 			>
 				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">
@@ -187,7 +179,8 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 						videos={feed.videos}
 						activeIndex={feed.activeIndex}
 						scrollToIndex={feed.scrollToIndex}
-						onActiveIndexChange={onActiveIndexChange}
+						onNext={goNextImmediate}
+						onPrev={goPrevImmediate}
 						onOpenCourse={onOpenCourse}
 						onOpenComments={onOpenComments}
 						onOpenShare={onOpenShare}
@@ -210,7 +203,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				url={shareUrl}
 			/>
 
-			<div className="fixed right-0 top-16 z-40 flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">
+			<div className="fixed right-0 top-16 z-40 hidden md:flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">
 				<Button
 					size="icon"
 					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"

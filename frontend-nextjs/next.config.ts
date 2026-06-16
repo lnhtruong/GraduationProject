@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "vz-e17ee266-cac.b-cdn.net",
+        hostname: "**.b-cdn.net",
       },
       {
         protocol: "https",

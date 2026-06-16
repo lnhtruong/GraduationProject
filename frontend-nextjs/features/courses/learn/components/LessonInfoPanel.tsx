@@ -115,7 +115,7 @@ export function LessonInfoPanel({
             value="qa"
             className="pt-3 text-sm leading-6 text-muted-foreground"
           >
-            Mục hỏi đáp đang chờ tích hợp API thảo luận theo bài học.
+            Phần hỏi đáp của bài học nằm bên dưới khối thông tin này.
           </TabsContent>
         </Tabs>
       </CardContent>

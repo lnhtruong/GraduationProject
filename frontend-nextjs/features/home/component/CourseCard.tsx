@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -17,6 +18,8 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course }: CourseCardProps) {
+  const [imageError, setImageError] = useState(false);
+
   const avgRating =
     typeof course.avgRating === "number"
       ? course.avgRating
@@ -42,18 +45,18 @@ export function CourseCard({ course }: CourseCardProps) {
       <Card className="h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-muted">
-          {course.thumbnailUrl ? (
+          {course.thumbnailUrl && !imageError ? (
             <Image
               src={course.thumbnailUrl}
               alt={course.title}
               fill
-              unoptimized
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary/10">
-              <GraduationCap className="h-12 w-12 text-primary/40" />
+            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/10 to-accent/5">
+              <GraduationCap className="h-10 w-10 text-primary/45" />
             </div>
           )}
           {course.category && (
@@ -63,9 +66,9 @@ export function CourseCard({ course }: CourseCardProps) {
           )}
         </div>
 
-        <CardContent className="flex flex-col gap-2 p-4">
+        <CardContent className="flex flex-col gap-2 p-3.5 pt-2.5">
           {/* Title */}
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground/90 transition-colors group-hover:text-primary">
             {course.title}
           </h3>
 
@@ -96,8 +99,8 @@ export function CourseCard({ course }: CourseCardProps) {
               {/* Rating — chỉ hiện khi có data thật */}
               {Number.isFinite(avgRating) && avgRating > 0 && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-medium text-foreground">
+                  <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                  <span className="font-semibold text-foreground">
                     {avgRating.toFixed(1)}
                   </span>
                   {Number.isFinite(reviewCount) && reviewCount > 0 && (
@@ -117,11 +120,11 @@ export function CourseCard({ course }: CourseCardProps) {
 
             {/* Price */}
             {course.price !== null ? (
-              <span className="text-sm font-bold text-foreground">
+              <span className="text-base font-extrabold text-foreground">
                 {course.price.toLocaleString()}đ
               </span>
             ) : (
-              <span className="text-sm font-bold text-primary">Miễn phí</span>
+              <span className="text-base font-extrabold text-primary">Miễn phí</span>
             )}
           </div>
         </CardContent>

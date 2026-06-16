@@ -32,6 +32,7 @@ type CourseSearchCard = {
   name: string;
   thumbnailUrl: string | null;
   price: number;
+  categories: string[];
   level: string;
   language: string;
   duration: string | null;
@@ -46,6 +47,7 @@ type CourseSearchCard = {
 
 type CourseSearchResponse = {
   data: CourseSearchCard[];
+  categories: CategorySummary[];
   total: number;
   page: number;
   totalPages: number;
@@ -55,6 +57,11 @@ type CategorySummary = {
   id: number;
   name: string;
   courseCount: number;
+};
+
+type CourseCategorySource = {
+  categories?: unknown;
+  get?: (options?: { plain?: boolean }) => Record<string, unknown>;
 };
 
 export type CoursePublicSort = 'newest' | 'popular' | 'rating';
@@ -169,7 +176,7 @@ export class CoursesService {
         }
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
+
       console.warn('[courses] failed to notify followers of publish', err);
     }
   }
@@ -346,6 +353,43 @@ export class CoursesService {
       .filter((item) => item.length > 0);
   }
 
+  private readCourseCategories(course: CourseCategorySource): unknown {
+    if (typeof course.get === 'function') {
+      return course.get({ plain: true }).categories;
+    }
+
+    return course.categories;
+  }
+
+  private countCategoriesFromCourses(
+    courses: CourseCategorySource[],
+  ): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const course of courses) {
+      const uniqueCategories = new Set(
+        this.normalizeCategories(this.readCourseCategories(course)),
+      );
+      for (const category of uniqueCategories) {
+        counts.set(category, (counts.get(category) ?? 0) + 1);
+      }
+    }
+
+    return counts;
+  }
+
+  private mapCategoryCountsToSummaries(
+    counts: Map<string, number>,
+    categoryIdByName?: Map<string, number>,
+  ): CategorySummary[] {
+    return [...counts.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, courseCount], index) => ({
+        id: categoryIdByName?.get(name) ?? index + 1,
+        name,
+        courseCount,
+      }));
+  }
+
   private async getCategorySummaries(): Promise<CategorySummary[]> {
     const courses = await this.courseModel.findAll({
       where: { status: CourseStatus.PUBLISH },
@@ -353,23 +397,9 @@ export class CoursesService {
       raw: true,
     });
 
-    const counts = new Map<string, number>();
-    for (const course of courses as Array<{ categories?: unknown }>) {
-      const uniqueCategories = new Set(
-        this.normalizeCategories(course.categories),
-      );
-      for (const category of uniqueCategories) {
-        counts.set(category, (counts.get(category) ?? 0) + 1);
-      }
-    }
-
-    return [...counts.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([name, courseCount], index) => ({
-        id: index + 1,
-        name,
-        courseCount,
-      }));
+    return this.mapCategoryCountsToSummaries(
+      this.countCategoriesFromCourses(courses as CourseCategorySource[]),
+    );
   }
 
   async findCategories(): Promise<CategorySummary[]> {
@@ -469,6 +499,7 @@ export class CoursesService {
         plain.video?.thumbnail ??
         null,
       price: this.parseSearchNumber(plain.price),
+      categories: plain.categories ?? [],
       level: String(plain.level ?? ''),
       language: String(plain.language ?? ''),
       duration: plain.duration ?? null,
@@ -496,6 +527,11 @@ export class CoursesService {
     const andConditions: Array<WhereOptions | ReturnType<typeof literal>> = [
       { status: CourseStatus.PUBLISH },
     ];
+    let categorySummaries: CategorySummary[] | undefined;
+    const getPublishedCategorySummaries = async () => {
+      categorySummaries ??= await this.getCategorySummaries();
+      return categorySummaries;
+    };
 
     if (
       query.minPrice !== undefined &&
@@ -541,7 +577,7 @@ export class CoursesService {
     }
 
     if (query.categoryIds?.length) {
-      const categorySummaries = await this.getCategorySummaries();
+      const categorySummaries = await getPublishedCategorySummaries();
       const categoryNameById = new Map(
         categorySummaries.map((category) => [category.id, category.name]),
       );
@@ -576,6 +612,7 @@ export class CoursesService {
         'level',
         'language',
         'duration',
+        'categories',
         'status',
         [col('Course.created_at'), 'createdAt'],
         [literal(avgRatingSql), 'avgRating'],
@@ -611,8 +648,23 @@ export class CoursesService {
     });
 
     const pagination = new PaginationMetaDto(page, limit, countRows.length);
+    const categoryCounts = this.countCategoriesFromCourses(rows);
+    const categoryIdByName =
+      categoryCounts.size > 0
+        ? new Map(
+          (await getPublishedCategorySummaries()).map((category) => [
+            category.name,
+            category.id,
+          ]),
+        )
+        : undefined;
+
     return {
       data: rows.map((course) => this.mapCourseSearchCard(course)),
+      categories: this.mapCategoryCountsToSummaries(
+        categoryCounts,
+        categoryIdByName,
+      ),
       total: pagination.totalItems,
       page: pagination.page,
       totalPages: pagination.totalPages,

@@ -7,12 +7,9 @@ import { cartApi } from "./cart.api";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-const cartItemsHooks = createQueryHooks(
-  "cart",
-  ["items"],
-  cartApi.getCart,
-  { staleTime: 30_000 },
-);
+const cartItemsHooks = createQueryHooks("cart", ["items"], cartApi.getCart, {
+  staleTime: 30_000,
+});
 
 export const cartKeys = cartItemsHooks.keys;
 
@@ -22,8 +19,8 @@ export function useCartQuery() {
 }
 
 // Derive từ useCartQuery — không gọi API thêm
-export function useCartSummary() {
-  const { data: items, ...rest } = useCartQuery();
+export function useCartSummary(enabled = true) {
+  const { data: items, ...rest } = useCartQuery(enabled);
   const itemCount = items?.length ?? 0;
   const subtotal = items?.reduce((sum, i) => sum + i.price, 0) ?? 0;
   return { data: { itemCount, subtotal }, ...rest };
@@ -34,16 +31,11 @@ export function useCartSummary() {
 export const useAddToCart = createMutationHooks<
   Awaited<ReturnType<typeof cartApi.addToCart>>,
   number
->(
-  "cart",
-  "add",
-  cartApi.addToCart,
-  {
-    onSuccess: (_data, _vars, queryClient) => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.root });
-    },
+>("cart", "add", cartApi.addToCart, {
+  onSuccess: (_data, _vars, queryClient) => {
+    queryClient.invalidateQueries({ queryKey: cartKeys.root });
   },
-);
+});
 
 export const useRemoveFromCart = createMutationHooks<void, number>(
   "cart",

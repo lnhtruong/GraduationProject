@@ -91,8 +91,23 @@ app.use(cors({
     'ngrok-skip-browser-warning'
   ],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Webhook paths: capture raw bytes as Buffer vào req.body để proxy có thể
+// write trực tiếp vào proxyReq (HPM v3 không tự stream khi có onProxyReq).
+// Đặt TRƯỚC express.json() để stream chưa bị consume.
+app.use((req, res, next) => {
+  if (!req.path.includes('/webhooks/')) return next();
+  express.raw({ type: '*/*', limit: '10mb' })(req, res, next);
+});
+
+// Non-webhook: parse JSON / urlencoded như cũ
+app.use((req, res, next) => {
+  if (req.path.includes('/webhooks/')) return next();
+  express.json()(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path.includes('/webhooks/')) return next();
+  express.urlencoded({ extended: true })(req, res, next);
+});
 app.use(loggingMiddleware);
 app.use(requestLogger);
 

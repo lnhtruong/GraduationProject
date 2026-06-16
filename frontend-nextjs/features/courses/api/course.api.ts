@@ -21,6 +21,7 @@ type CourseApiResponse = {
 	id?: number;
 	name?: string;
 	description?: string;
+	thumbnailUrl?: string | null;
 	categories?: string[];
 	level?: CourseLevel;
 	duration?: string;
@@ -37,6 +38,7 @@ function mapCourse(raw: CourseApiResponse): Course {
 		id: raw.id ?? 0,
 		name: raw.name ?? "",
 		description: raw.description ?? "",
+		thumbnailUrl: raw.thumbnailUrl,
 		categories: Array.isArray(raw.categories) ? raw.categories : [],
 		level: raw.level ?? "Beginner",
 		duration: raw.duration,

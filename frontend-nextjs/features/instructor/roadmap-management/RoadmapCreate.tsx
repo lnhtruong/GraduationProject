@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layers3 } from "lucide-react";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,38 +15,38 @@ import { ManagementPageShell } from "@/features/instructor/course-management/com
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCreateRoadmap } from "./api/roadmap-management.hooks";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+const roadmapFormSchema = z.object({
+  name: z.string().trim().min(1, "Tên lộ trình không được để trống"),
+  description: z.string().trim().optional(),
+});
+
+type RoadmapFormValues = z.infer<typeof roadmapFormSchema>;
 
 export default function RoadmapCreate() {
   const router = useRouter();
   const { user } = useAuth();
   const createRoadmapMutation = useCreateRoadmap();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const { register, handleSubmit, formState: { errors } } = useForm<RoadmapFormValues>({
+    resolver: zodResolver(roadmapFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      toast.error("Vui lòng nhập tên lộ trình");
-      return;
-    }
-
+  const onSubmit = async (values: RoadmapFormValues) => {
     const created = await createRoadmapMutation.mutateAsync({
       userId: user?.id,
-      name: name.trim(),
-      description: description.trim() || undefined,
+      name: values.name.trim(),
+      description: values.description?.trim() || undefined,
     });
 
     toast.success("Đã tạo lộ trình");
-
     router.push(`/instructor/roadmaps/${created.id}`);
     router.refresh();
-  };
-
-  const handleSubmitCreateRoadmap = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-    await handleCreate();
   };
 
   return (
@@ -88,24 +90,28 @@ export default function RoadmapCreate() {
         <form
           id="create-roadmap-form"
           className="space-y-6"
-          onSubmit={(event) => void handleSubmitCreateRoadmap(event)}
+          onSubmit={(event) => void handleSubmit(onSubmit)(event)}
         >
           <Card className="border-border/40 shadow-sm">
             <CardContent className="space-y-5 p-4 sm:p-5">
               <div className="grid gap-2">
-                <Label className="text-sm font-medium">Tên lộ trình</Label>
+                <Label className="text-sm font-medium">
+                  Tên lộ trình <span className="text-destructive">*</span>
+                </Label>
                 <Input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  {...register("name")}
                   placeholder="VD: Backend JavaScript cho người mới"
+                  className={cn(errors.name && "border-destructive focus-visible:ring-destructive")}
                 />
+                {errors.name && (
+                  <p className="text-xs text-destructive mt-0.5">{errors.name.message}</p>
+                )}
               </div>
 
               <div className="grid gap-2">
                 <Label className="text-sm font-medium">Mô tả</Label>
                 <Textarea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
+                  {...register("description")}
                   placeholder="Mục tiêu, level, nội dung trọng tâm..."
                   className="min-h-28"
                 />

@@ -100,6 +100,7 @@ export default function CourseFormPage({ courseId }: Props) {
   return (
     <ManagementPageShell
       title={isEdit ? "Chỉnh sửa khóa học" : "Tạo khóa học mới"}
+      noCard
       description={
         isEdit
           ? "Cập nhật thông tin khóa học, danh mục, giá bán và mô tả."
@@ -120,36 +121,40 @@ export default function CourseFormPage({ courseId }: Props) {
         </Button>
       }
       action={
-        isEdit && course ? (
-          <Button
-            type="button"
-            disabled={
-              (course.status === "draft" &&
-                submitForReviewMutation.isPending) ||
-              (course.status === "approved" &&
-                (!isAdmin || publishCourseMutation.isPending)) ||
-              (course.status !== "draft" && course.status !== "approved")
-            }
-            onClick={() => {
-              void handleCourseStatusAction();
-            }}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {course.status === "draft"
-              ? submitForReviewMutation.isPending
-                ? "Đang gửi duyệt..."
-                : "Gửi duyệt khóa học"
-              : course.status === "pending"
-                ? "Đang chờ admin duyệt"
-                : course.status === "approved"
-                  ? publishCourseMutation.isPending
-                    ? "Đang publish..."
-                    : isAdmin
-                      ? "Publish khóa học"
-                      : "Đã duyệt, chờ publish"
-                  : "Đã publish"}
-          </Button>
-        ) : null
+        <div className="flex items-center gap-3">
+          <div id="course-form-actions-portal" className="flex items-center gap-2" />
+
+          {isEdit && course ? (
+            <Button
+              type="button"
+              disabled={
+                (course.status === "draft" &&
+                  submitForReviewMutation.isPending) ||
+                (course.status === "approved" &&
+                  (!isAdmin || publishCourseMutation.isPending)) ||
+                (course.status !== "draft" && course.status !== "approved")
+              }
+              onClick={() => {
+                void handleCourseStatusAction();
+              }}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {course.status === "draft"
+                ? submitForReviewMutation.isPending
+                  ? "Đang gửi duyệt..."
+                  : "Gửi duyệt khóa học"
+                : course.status === "pending"
+                  ? "Đang chờ admin duyệt"
+                  : course.status === "approved"
+                    ? publishCourseMutation.isPending
+                      ? "Đang publish..."
+                      : isAdmin
+                        ? "Publish khóa học"
+                        : "Đã duyệt, chờ publish"
+                    : "Đã publish"}
+            </Button>
+          ) : null}
+        </div>
       }
     >
       <CourseForm

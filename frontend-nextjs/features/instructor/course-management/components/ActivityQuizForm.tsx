@@ -111,24 +111,32 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
     }));
 
     return (
-      <div className="space-y-4">
-        <Card className="border-border/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Thông tin quiz</CardTitle>
+      <div className="space-y-6">
+        <Card className="border-border bg-card shadow-sm border-t-2 border-t-primary/30">
+          <CardHeader className="pb-3 border-b border-border/40">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Thông tin chung về Quiz</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Tiêu đề quiz</label>
+          <CardContent className="space-y-4 pt-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2 md:col-span-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                  Tiêu đề Quiz <span className="text-destructive">*</span>
+                </label>
                 <Input
+                  className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                  placeholder="Nhập tiêu đề cho bài kiểm tra này..."
                   value={state.title}
                   onChange={(event) => updateTitle(event.target.value)}
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Điểm đạt</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                  Điểm đạt (%) <span className="text-destructive">*</span>
+                </label>
                 <Input
                   type="number"
+                  className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                  placeholder="80"
                   value={state.passingScore}
                   onChange={(event) =>
                     updatePassingScore(Number(event.target.value || 0))
@@ -137,58 +145,76 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Mô tả</label>
-                <Textarea
-                  className="min-h-20"
-                  value={state.description}
-                  onChange={(event) => updateDescription(event.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Mô tả chi tiết</label>
+              <Textarea
+                className="min-h-24 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                placeholder="Nhập hướng dẫn làm bài hoặc thông tin tổng quan..."
+                value={state.description}
+                onChange={(event) => updateDescription(event.target.value)}
+              />
             </div>
 
             {state.isInVideo && defaultTimestamp ? (
-              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                Quiz trong video: mốc mặc định đang dùng là {defaultTimestamp}.
+              <div className="flex items-center gap-1.5 text-xs text-primary font-medium mt-1.5 pl-1 select-none">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span>Quiz này được cấu hình xuất hiện ở mốc {defaultTimestamp} trong video.</span>
               </div>
             ) : null}
           </CardContent>
         </Card>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-base font-semibold">
-            Bộ câu hỏi ({state.questions.length})
-          </h3>
-          <Button type="button" variant="outline" onClick={addQuestion}>
-            <CirclePlus className="mr-2 h-4 w-4" />
-            Thêm câu hỏi
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-2.5 pt-2">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
+              Bộ câu hỏi cho Quiz
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Đã thêm {state.questions.length} câu hỏi.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="h-9 px-4 text-xs font-semibold shadow-sm"
+            onClick={addQuestion}
+          >
+            <CirclePlus className="mr-1.5 h-4 w-4" />
+            Thêm câu hỏi mới
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {state.questions.map((question, index) => (
-            <Card key={question.id} className="border-border/60">
-              <CardContent className="space-y-4 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">Câu {index + 1}</p>
+            <Card key={question.id} className="relative overflow-hidden border-border bg-card shadow-sm transition-all duration-200 border-t-2 border-t-primary/30">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary shadow-inner">
+                      {index + 1}
+                    </span>
+                    <p className="text-sm font-bold text-foreground/90">Câu hỏi {index + 1}</p>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     onClick={() => removeQuestion(question.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    Xóa câu hỏi
                   </Button>
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium">
-                    Nội dung câu hỏi
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    Nội dung câu hỏi <span className="text-destructive">*</span>
                   </label>
                   <Textarea
-                    className="min-h-20"
+                    className="min-h-20 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                    placeholder="Nhập câu hỏi ví dụ: Khái niệm X nghĩa là gì?"
                     value={question.prompt}
                     onChange={(event) =>
                       updateQuestion(question.id, (current) => ({
@@ -199,41 +225,49 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Lựa chọn</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                      Lựa chọn câu trả lời <span className="text-destructive">*</span>
+                    </p>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      className="h-7 px-2.5 text-xs font-medium bg-background hover:bg-muted/40 border-border/80"
                       onClick={() => addOption(question.id)}
                     >
+                      <CirclePlus className="mr-1.5 h-3.5 w-3.5 text-primary" />
                       Thêm lựa chọn
                     </Button>
                   </div>
 
-                  {question.options.map((option) => (
-                    <div
-                      key={option.id}
-                      className="grid gap-2 rounded-xl border border-border/60 bg-muted/15 p-3 md:grid-cols-[1fr_auto_auto] md:items-center"
-                    >
-                      <Input
-                        value={option.label}
-                        onChange={(event) =>
-                          updateOption(question.id, option.id, (current) => ({
-                            ...current,
-                            label: event.target.value,
-                          }))
-                        }
-                        placeholder="Nội dung lựa chọn"
-                      />
+                  <div className="grid gap-2.5">
+                    {question.options.map((option) => (
+                      <div
+                        key={option.id}
+                        className={`flex items-center gap-3 rounded-xl border p-2.5 transition-all duration-200 bg-background/60 focus-within:bg-background ${
+                          option.isCorrect
+                            ? "border-green-500/30 bg-green-500/[0.02] focus-within:border-green-500/50"
+                            : "border-border/60 focus-within:border-primary/50"
+                        }`}
+                      >
+                        <Input
+                          value={option.label}
+                          onChange={(event) =>
+                            updateOption(question.id, option.id, (current) => ({
+                              ...current,
+                              label: event.target.value,
+                            }))
+                          }
+                          className="h-9 border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 placeholder:text-muted-foreground/50"
+                          placeholder="Nhập nội dung câu trả lời..."
+                        />
 
-                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <input
-                          type="radio"
-                          name={`correct-${question.id}`}
-                          checked={option.isCorrect}
-                          onChange={() =>
+                        {/* Styled Radio button */}
+                        <button
+                          type="button"
+                          onClick={() =>
                             updateQuestion(question.id, (current) => ({
                               ...current,
                               options: current.options.map((item) => ({
@@ -242,29 +276,44 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                               })),
                             }))
                           }
-                        />
-                        Đúng
-                      </label>
+                          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 ${
+                            option.isCorrect
+                              ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-sm"
+                              : "bg-background border-border hover:bg-muted/40 text-muted-foreground"
+                          }`}
+                        >
+                          <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-all ${
+                            option.isCorrect
+                              ? "border-green-500 bg-green-500 text-white"
+                              : "border-muted-foreground/40"
+                          }`}>
+                            {option.isCorrect && <span className="h-1 w-1 rounded-full bg-white" />}
+                          </span>
+                          Đúng
+                        </button>
 
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 justify-self-start text-destructive md:justify-self-auto"
-                        onClick={() => removeOption(question.id, option.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                        {/* Delete option */}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          onClick={() => removeOption(question.id, option.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">
-                    Giải thích đáp án
+                <div className="grid gap-2 pt-2 border-t border-border/40">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    Giải thích đáp án (Tùy chọn)
                   </label>
                   <Textarea
-                    className="min-h-16"
+                    className="min-h-16 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                    placeholder="Giải thích tại sao đáp án trên lại đúng..."
                     value={question.explanation}
                     onChange={(event) =>
                       updateQuestion(question.id, (current) => ({

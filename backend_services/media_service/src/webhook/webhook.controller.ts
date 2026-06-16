@@ -1,10 +1,9 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     HttpCode,
     Post,
-    Headers,
-    BadRequestException,
     Req,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
@@ -19,7 +18,6 @@ export class WebhookController {
         private readonly bunnyService: BunnyService,
     ) { }
 
-    // Webhook cho Cloudinary (Giữ nguyên của bạn)
     @Post('cloudinary/upload')
     @HttpCode(200)
     async handleCloudinary(@Body() body: any) {
@@ -28,17 +26,29 @@ export class WebhookController {
 
     @Post('ai-model/result')
     @HttpCode(200)
-    async handleAiResult(
-        @Body() body: any,
-        @Headers('upstash-signature') signature: string, // Header dùng để verify từ QStash
-    ) {
-        // 1. (Optional) Verify signature ở đây để đảm bảo đúng là từ QStash
-        if (!body) throw new BadRequestException('Empty body');
+    async handleAiResult(@Req() req: RawBodyRequest<Request>) {
+        const rawBody = req.rawBody;
 
-        console.log('Received AI Result:', body);
+        // Debug log để chẩn đoán 400 (đa số do gateway proxy chưa forward raw bytes)
+        console.log(
+            '[webhooks/ai-model/result] incoming',
+            'rawBodyBytes=', rawBody?.length ?? 'undefined',
+            'contentType=', req.headers['content-type'],
+            'sig=', req.headers['upstash-signature'] ? 'present' : 'missing',
+        );
 
-        // 2. Xử lý logic (ví dụ: cập nhật DB, bắn Socket.io cho Client)
-        return this.cloudinaryWebhookService.handleAIResult(body);
+        // Verify QStash native signature (Receiver.verify). Throws 401 on missing/invalid.
+        await this.cloudinaryWebhookService.verifyAiWebhook(rawBody, req.headers);
+
+        let payload: Record<string, unknown>;
+        try {
+            payload = JSON.parse(rawBody!.toString('utf8')) as Record<string, unknown>;
+        } catch (e) {
+            const preview = rawBody ? rawBody.toString('utf8').slice(0, 200) : '<empty>';
+            throw new BadRequestException(`Invalid JSON body — first 200 chars: ${preview}`);
+        }
+
+        return this.cloudinaryWebhookService.handleAIResult(payload as any);
     }
 
     @Post('bunny-stream')

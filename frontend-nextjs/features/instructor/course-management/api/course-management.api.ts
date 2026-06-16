@@ -93,6 +93,7 @@ function toCoursePayload(payload: CourseFormValues) {
   return {
     name: payload.name,
     description: payload.description,
+    thumbnailUrl: payload.thumbnailUrl ?? undefined,
     categories: payload.categories,
     level: payload.level,
     language: payload.language,
