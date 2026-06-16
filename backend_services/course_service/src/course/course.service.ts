@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -29,8 +31,10 @@ import {
   CourseUpdatePayload,
   ChangeRequestPayload,
   LessonChangePayload,
+  QuizChangePayload,
 } from 'src/models/course-change-request.model';
 import { EnrollsService } from 'src/enrolls/enrolls.service';
+import { QuizzesService } from 'src/quizzes/quizzes.service';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
@@ -135,10 +139,14 @@ export class CoursesService {
     private readonly feedbackModel: typeof Feedback,
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
+    @InjectModel(LessonActivity)
+    private readonly lessonActivityModel: typeof LessonActivity,
     @InjectConnection()
     private readonly sequelize: Sequelize,
     private readonly auditLogsService: AuditLogsService,
     private readonly enrollsService: EnrollsService,
+    @Inject(forwardRef(() => QuizzesService))
+    private readonly quizzesService: QuizzesService,
   ) {}
 
   /**
@@ -268,6 +276,21 @@ export class CoursesService {
           title: 'Một bài học trong khóa của bạn bị gỡ',
           message: `Quản trị viên vừa gỡ một bài học khỏi khóa học "${courseName}" của bạn.`,
         };
+      case CourseChangeRequestKind.QUIZ_CREATE:
+        return {
+          title: 'Khóa học của bạn có bài kiểm tra mới',
+          message: `Quản trị viên vừa thêm một bài kiểm tra vào khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.QUIZ_UPDATE:
+        return {
+          title: 'Bài kiểm tra trong khóa của bạn được cập nhật',
+          message: `Quản trị viên vừa cập nhật một bài kiểm tra trong khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.QUIZ_DELETE:
+        return {
+          title: 'Một bài kiểm tra trong khóa của bạn bị gỡ',
+          message: `Quản trị viên vừa gỡ một bài kiểm tra khỏi khóa học "${courseName}" của bạn.`,
+        };
       case CourseChangeRequestKind.COURSE_UPDATE:
       default:
         return {
@@ -297,6 +320,21 @@ export class CoursesService {
         return {
           title: 'Nội dung khóa học thay đổi',
           message: `Một bài học trong khóa "${courseName}" vừa được gỡ bỏ.`,
+        };
+      case CourseChangeRequestKind.QUIZ_CREATE:
+        return {
+          title: 'Khóa học có bài kiểm tra mới',
+          message: `Khóa học "${courseName}" bạn đã đăng ký vừa có bài kiểm tra mới.`,
+        };
+      case CourseChangeRequestKind.QUIZ_UPDATE:
+        return {
+          title: 'Bài kiểm tra được cập nhật',
+          message: `Một bài kiểm tra trong khóa "${courseName}" vừa được cập nhật.`,
+        };
+      case CourseChangeRequestKind.QUIZ_DELETE:
+        return {
+          title: 'Nội dung khóa học thay đổi',
+          message: `Một bài kiểm tra trong khóa "${courseName}" vừa được gỡ bỏ.`,
         };
       case CourseChangeRequestKind.COURSE_UPDATE:
       default:
@@ -381,7 +419,6 @@ export class CoursesService {
 
       await this.dispatchInternalNotifications(items);
     } catch (err) {
-
       console.warn('[courses] failed to notify change-request approval', err);
     }
   }
@@ -993,11 +1030,11 @@ export class CoursesService {
     const categoryIdByName =
       categoryCounts.size > 0
         ? new Map(
-          (await getPublishedCategorySummaries()).map((category) => [
-            category.name,
-            category.id,
-          ]),
-        )
+            (await getPublishedCategorySummaries()).map((category) => [
+              category.name,
+              category.id,
+            ]),
+          )
         : undefined;
 
     return {
@@ -1945,6 +1982,117 @@ export class CoursesService {
     });
   }
 
+  /**
+   * Resolve khóa học chứa một lessonActivity: quiz → lessonActivity → lesson →
+   * course. Trả `null` nếu bất kỳ mắt xích nào không tồn tại. Dùng cho
+   * QuizzesService quyết định một thao tác quiz có cần đi qua change request hay
+   * không (course đã publish?) và ai là chủ khóa.
+   */
+  async findCourseByLessonActivityId(
+    lessonActivityId: number,
+  ): Promise<Course | null> {
+    const activity = await this.lessonActivityModel.findByPk(lessonActivityId, {
+      attributes: ['id', 'lessonId'],
+    });
+    if (!activity?.lessonId) return null;
+    const lesson = await this.lessonModel.findByPk(activity.lessonId, {
+      attributes: ['id', 'courseId'],
+    });
+    if (!lesson?.courseId) return null;
+    return await this.courseModel.findByPk(lesson.courseId);
+  }
+
+  /**
+   * Tạo (hoặc ghi đè) một quiz change request `pending` — gọi từ QuizzesService
+   * khi course đã publish. Cùng quy ước với lesson:
+   * - `quiz.create`: luôn tạo mới (chưa có quiz đích để gom nhóm).
+   * - `quiz.update` / `quiz.delete`: ghi đè request pending cùng (kind, targetId)
+   *   nếu có — tối đa 1 pending mỗi (kind, quiz).
+   */
+  async createQuizChangeRequest(params: {
+    kind: CourseChangeRequestKind;
+    courseId: number;
+    targetId: number | null;
+    payload: QuizChangePayload;
+    prevData: QuizChangePayload | null;
+    requestedBy: number;
+  }): Promise<CourseChangeRequest> {
+    if (params.targetId !== null) {
+      const existing = await this.courseChangeRequestModel.findOne({
+        where: {
+          courseId: params.courseId,
+          kind: params.kind,
+          targetId: params.targetId,
+          status: CourseChangeRequestStatus.PENDING,
+        },
+      });
+      if (existing) {
+        return await existing.update({
+          payload: params.payload,
+          prevData: params.prevData,
+          requestedBy: params.requestedBy,
+        });
+      }
+    }
+
+    return await this.courseChangeRequestModel.create({
+      courseId: params.courseId,
+      requestedBy: params.requestedBy,
+      payload: params.payload,
+      prevData: params.prevData,
+      kind: params.kind,
+      targetId: params.targetId,
+      status: CourseChangeRequestStatus.PENDING,
+    });
+  }
+
+  /**
+   * Public: gọi từ QuizzesService khi admin sửa/thêm/xóa quiz TRỰC TIẾP (bypass
+   * change request) trên một khóa đã publish. No-op nếu course không tồn tại
+   * hoặc chưa publish. Best-effort.
+   */
+  async notifyQuizChangeDirect(
+    courseId: number,
+    kind: CourseChangeRequestKind,
+    editorUserId?: number,
+  ): Promise<void> {
+    const course = await this.courseModel.findByPk(courseId, {
+      attributes: ['id', 'name', 'userId', 'status'],
+    });
+    if (!course || course.status !== CourseStatus.PUBLISH) {
+      return;
+    }
+    await this.notifyDirectCourseChange(course, kind, editorUserId);
+  }
+
+  /**
+   * Dọn các pending request trỏ tới một quiz (quiz.update / quiz.delete) khi quiz
+   * đó bị xoá — tránh request mồ côi không áp dụng được. `exceptRequestId` chừa
+   * lại chính request đang duyệt.
+   */
+  private async purgeQuizChangeRequests(
+    quizId: number,
+    options: { exceptRequestId?: number; transaction?: Transaction } = {},
+  ): Promise<void> {
+    const where: WhereOptions = {
+      targetId: quizId,
+      status: CourseChangeRequestStatus.PENDING,
+      kind: {
+        [Op.in]: [
+          CourseChangeRequestKind.QUIZ_UPDATE,
+          CourseChangeRequestKind.QUIZ_DELETE,
+        ],
+      },
+    };
+    if (options.exceptRequestId) {
+      where.id = { [Op.ne]: options.exceptRequestId };
+    }
+    await this.courseChangeRequestModel.destroy({
+      where,
+      transaction: options.transaction,
+    });
+  }
+
   /** Danh sách change request (admin), filter theo status + phân trang server-side. */
   async listChangeRequests(params: {
     status?: string;
@@ -2034,6 +2182,11 @@ export class CoursesService {
         changeRequest: this.toChangeRequestView(rejected),
         course: null,
       };
+    }
+
+    // Quiz change requests đi theo nhánh riêng (replay qua QuizzesService).
+    if (this.isQuizKind(request.kind)) {
+      return await this.approveQuizChangeRequest(request, requester, note);
     }
 
     // Lesson change requests đi theo nhánh riêng (áp dụng lên bảng lessons +
@@ -2205,6 +2358,74 @@ export class CoursesService {
     return {
       changeRequest: this.toChangeRequestView(approved),
       // Trả về course đã refresh kèm danh sách lesson mới nhất cho FE.
+      course: await this.findOne(request.courseId),
+    };
+  }
+
+  /** true nếu `kind` là một thao tác quiz (quiz.create / update / delete). */
+  private isQuizKind(kind?: CourseChangeRequestKind | null): boolean {
+    return (
+      kind === CourseChangeRequestKind.QUIZ_CREATE ||
+      kind === CourseChangeRequestKind.QUIZ_UPDATE ||
+      kind === CourseChangeRequestKind.QUIZ_DELETE
+    );
+  }
+
+  /**
+   * Duyệt một quiz change request: replay thao tác qua QuizzesService (create /
+   * update / remove primitives — không kèm permission/published check), đánh dấu
+   * approved, ghi audit + gửi noti. Với quiz.delete: dọn các pending request
+   * khác trỏ tới quiz vừa xoá.
+   */
+  private async approveQuizChangeRequest(
+    request: CourseChangeRequest,
+    requester: RequesterContext,
+    note?: string,
+  ): Promise<{
+    changeRequest: CourseChangeRequestView;
+    course: Course | null;
+  }> {
+    // Đảm bảo course tồn tại trước khi áp dụng.
+    const course = await this.findOne(request.courseId);
+
+    await this.quizzesService.applyApprovedQuizChange(request);
+
+    if (
+      request.kind === CourseChangeRequestKind.QUIZ_DELETE &&
+      request.targetId
+    ) {
+      await this.purgeQuizChangeRequests(request.targetId, {
+        exceptRequestId: request.id,
+      });
+    }
+
+    const approved = await request.update({
+      status: CourseChangeRequestStatus.APPROVED,
+      reviewedBy: requester.userId,
+      reviewNote: note ?? null,
+    });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.approve',
+      targetType: 'quiz',
+      targetId: request.targetId ?? course.id,
+      metadata: {
+        changeRequestId: request.id,
+        kind: request.kind,
+        courseId: course.id,
+      },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    // Lưu noti + bắn SSE cho giảng viên và học viên (best-effort). Dùng `course`
+    // đã load trước vì name/userId không bị quiz edit làm thay đổi.
+    await this.notifyChangeRequestApproved(course, approved);
+
+    return {
+      changeRequest: this.toChangeRequestView(approved),
       course: await this.findOne(request.courseId),
     };
   }

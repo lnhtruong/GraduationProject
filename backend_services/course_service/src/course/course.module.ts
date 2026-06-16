@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { CategoriesController } from './categories.controller';
 import { CoursesController } from './course.controller';
@@ -16,6 +16,7 @@ import { Video } from 'src/models/video.model';
 import { User } from 'src/users/user.model';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
 import { EnrollsModule } from 'src/enrolls/enrolls.module';
+import { QuizzesModule } from 'src/quizzes/quizzes.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { EnrollsModule } from 'src/enrolls/enrolls.module';
       InstructorFollow,
     ]),
     EnrollsModule,
+    forwardRef(() => QuizzesModule),
   ],
   controllers: [CoursesController, CategoriesController],
   providers: [CoursesService],

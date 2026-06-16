@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -23,6 +25,13 @@ import {
 import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
 import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
 import { QuestionType } from 'src/models/quiz-question.model';
+import { CoursesService } from 'src/course/course.service';
+import { CourseStatus } from 'src/models/course.model';
+import {
+  CourseChangeRequest,
+  CourseChangeRequestKind,
+  QuizChangePayload,
+} from 'src/models/course-change-request.model';
 
 const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
 const ADMIN_ROLE = 1;
@@ -41,6 +50,12 @@ type RequesterContext = {
   requesterRole: number;
 };
 
+/** Ngữ cảnh người gọi cho các thao tác sửa quiz (từ header x-user-id/role). */
+type QuizRequester = {
+  userId?: number;
+  role?: number;
+};
+
 type ColabJobResponse = {
   job_id?: string;
   jobId?: string;
@@ -57,12 +72,17 @@ type AiQuizTimeRange = {
 export class QuizzesService {
   constructor(
     @InjectModel(Quiz) private readonly quizModel: typeof Quiz,
-    @InjectModel(QuizQuestion) private readonly quizQuestionModel: typeof QuizQuestion,
-    @InjectModel(QuizOption) private readonly quizOptionModel: typeof QuizOption,
+    @InjectModel(QuizQuestion)
+    private readonly quizQuestionModel: typeof QuizQuestion,
+    @InjectModel(QuizOption)
+    private readonly quizOptionModel: typeof QuizOption,
     @InjectModel(Video) private readonly videoModel: typeof Video,
-    @InjectModel(LessonActivity) private readonly lessonActivityModel: typeof LessonActivity,
+    @InjectModel(LessonActivity)
+    private readonly lessonActivityModel: typeof LessonActivity,
     @InjectConnection() private readonly sequelize: Sequelize,
-  ) { }
+    @Inject(forwardRef(() => CoursesService))
+    private readonly coursesService: CoursesService,
+  ) {}
 
   private normalizeVideoTimestamp(value?: string | null): string | null {
     if (!value) return null;
@@ -191,7 +211,9 @@ export class QuizzesService {
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       const message = error instanceof Error ? error.message : String(error);
-      throw new InternalServerErrorException(`AI service request failed: ${message}`);
+      throw new InternalServerErrorException(
+        `AI service request failed: ${message}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -203,11 +225,16 @@ export class QuizzesService {
   ): Promise<void> {
     if (requester.requesterRole === ADMIN_ROLE) return;
     if (video.user_id !== requester.requesterUserId) {
-      throw new ForbiddenException('You can only generate quizzes from your own videos.');
+      throw new ForbiddenException(
+        'You can only generate quizzes from your own videos.',
+      );
     }
   }
 
-  private resolveQuizSource(video: Video): { field: 'srt_url' | 'long_video_url'; value: string } {
+  private resolveQuizSource(video: Video): {
+    field: 'srt_url' | 'long_video_url';
+    value: string;
+  } {
     const srtUrl = video.srt_raw_url?.trim();
     if (srtUrl) return { field: 'srt_url', value: srtUrl };
 
@@ -219,11 +246,16 @@ export class QuizzesService {
     );
   }
 
-  private parseOptionalAiQuizTime(value: unknown, fieldName: string): number | undefined {
+  private parseOptionalAiQuizTime(
+    value: unknown,
+    fieldName: string,
+  ): number | undefined {
     if (value === undefined || value === null) return undefined;
 
     if (typeof value !== 'number' && typeof value !== 'string') {
-      throw new BadRequestException(`${fieldName} must be a non-negative number.`);
+      throw new BadRequestException(
+        `${fieldName} must be a non-negative number.`,
+      );
     }
 
     const normalized = typeof value === 'string' ? value.trim() : value;
@@ -231,13 +263,17 @@ export class QuizzesService {
 
     const parsed = Number(normalized);
     if (!Number.isFinite(parsed) || parsed < 0) {
-      throw new BadRequestException(`${fieldName} must be a non-negative number.`);
+      throw new BadRequestException(
+        `${fieldName} must be a non-negative number.`,
+      );
     }
 
     return parsed;
   }
 
-  private resolveAiQuizTimeRange(payload: CreateQuizAIDto): AiQuizTimeRange | null {
+  private resolveAiQuizTimeRange(
+    payload: CreateQuizAIDto,
+  ): AiQuizTimeRange | null {
     const startTime = this.parseOptionalAiQuizTime(
       payload.startTime ?? payload.start_time,
       'start_time',
@@ -250,7 +286,9 @@ export class QuizzesService {
     const hasEndTime = endTime !== undefined && endTime !== null;
 
     if (hasStartTime !== hasEndTime) {
-      throw new BadRequestException('start_time and end_time must be provided together.');
+      throw new BadRequestException(
+        'start_time and end_time must be provided together.',
+      );
     }
 
     if (!hasStartTime || !hasEndTime) {
@@ -280,7 +318,9 @@ export class QuizzesService {
       { attributes: ['id'] },
     );
     if (!lessonActivity) {
-      throw new NotFoundException(`LessonActivity ${payload.lessonActivityId} not found`);
+      throw new NotFoundException(
+        `LessonActivity ${payload.lessonActivityId} not found`,
+      );
     }
 
     const baseUrl = this.getAiServiceBaseUrl();
@@ -290,7 +330,8 @@ export class QuizzesService {
     const numQuestions = payload.numQuestions ?? 10;
     const difficulty = payload.difficulty ?? 'mixed';
     const sourceOriginalFilename =
-      payload.sourceOriginalFilename?.trim() || payload.name?.trim() ||
+      payload.sourceOriginalFilename?.trim() ||
+      payload.name?.trim() ||
       video.name?.trim() ||
       `video-${video.id}`;
 
@@ -306,7 +347,10 @@ export class QuizzesService {
     formData.append('lesson_activity_id', String(payload.lessonActivityId));
     formData.append('video_id', String(payload.videoId));
     formData.append('quiz_name', quizName);
-    formData.append('shuffleQuestion', String(payload.shuffleQuestion ?? false));
+    formData.append(
+      'shuffleQuestion',
+      String(payload.shuffleQuestion ?? false),
+    );
     formData.append('shuffleOption', String(payload.shuffleOption ?? false));
     formData.append('passingScore', String(payload.passingScore ?? 0));
     formData.append('timeLimitMinutes', String(payload.timeLimitMinutes ?? 0));
@@ -324,7 +368,9 @@ export class QuizzesService {
 
     const jobId = response.job_id ?? response.jobId;
     if (!jobId) {
-      throw new InternalServerErrorException('AI service did not return job_id');
+      throw new InternalServerErrorException(
+        'AI service did not return job_id',
+      );
     }
 
     return {
@@ -387,10 +433,14 @@ export class QuizzesService {
       { attributes: ['id'] },
     );
     if (!lessonActivity) {
-      throw new NotFoundException(`LessonActivity ${lessonActivityId} not found`);
+      throw new NotFoundException(
+        `LessonActivity ${lessonActivityId} not found`,
+      );
     }
 
-    const rows = payload.questions.map((q, idx) => this.toRowFromAI(q, idx + 1));
+    const rows = payload.questions.map((q, idx) =>
+      this.toRowFromAI(q, idx + 1),
+    );
     this.assertQuizVideoTimestampConsistency(isInVideo, rows);
 
     return await this.sequelize.transaction(async (transaction) => {
@@ -447,7 +497,9 @@ export class QuizzesService {
     }
     // Colab gửi `evidence: "HH:MM:SS,mmm"`. DTO @Transform gán evidenceTimestamp
     // nhưng class-transformer có thể overwrite lại undefined sau — đọc thẳng string.
-    const rawEvidence = q.evidence as string | QuizQuestionFromAIDto['evidence'];
+    const rawEvidence = q.evidence as
+      | string
+      | QuizQuestionFromAIDto['evidence'];
     if (typeof rawEvidence === 'string' && rawEvidence.trim()) {
       return this.normalizeVideoTimestamp(rawEvidence);
     }
@@ -470,7 +522,10 @@ export class QuizzesService {
   /**
    * Colab prompt mới: `{ type, options: [{optionText,isCorrect,orderIndex}], evidence: "HH:MM:SS,mmm" }`.
    */
-  private toRowFromNewColabFormat(q: QuizQuestionFromAIDto, orderIndex: number) {
+  private toRowFromNewColabFormat(
+    q: QuizQuestionFromAIDto,
+    orderIndex: number,
+  ) {
     const rawOptions = Array.isArray(q.options) ? q.options : [];
     if (!rawOptions.length) {
       throw new BadRequestException(
@@ -508,7 +563,10 @@ export class QuizzesService {
   /**
    * Legacy Colab: `{ question, options:{a,b,c,d}, correct, evidence:{start_ms} }`.
    */
-  private toRowFromLegacyColabFormat(q: QuizQuestionFromAIDto, orderIndex: number) {
+  private toRowFromLegacyColabFormat(
+    q: QuizQuestionFromAIDto,
+    orderIndex: number,
+  ) {
     if (!q.correct) {
       throw new BadRequestException(
         `Legacy-format question "${q.question.slice(0, 80)}" is missing "correct".`,
@@ -582,7 +640,10 @@ export class QuizzesService {
     });
   }
 
-  private async createOneWithTransaction(payload: CreateQuizDto, transaction: any): Promise<Quiz> {
+  private async createOneWithTransaction(
+    payload: CreateQuizDto,
+    transaction: any,
+  ): Promise<Quiz> {
     const isInVideo = payload.isInVideo ?? false;
     const normalizedQuestions =
       payload.questions?.map((q) => ({
@@ -638,7 +699,8 @@ export class QuizzesService {
 
   async findAll(filter?: { lessonActivityId?: number }): Promise<Quiz[]> {
     const where: any = {};
-    if (filter?.lessonActivityId) where.lessonActivityId = filter.lessonActivityId;
+    if (filter?.lessonActivityId)
+      where.lessonActivityId = filter.lessonActivityId;
 
     return await this.quizModel.findAll({
       where,
@@ -707,7 +769,7 @@ export class QuizzesService {
           include: [{ model: QuizOption, as: 'options', required: false }],
         },
       ],
-      order: [[{ model: QuizQuestion, as: 'questions' }, 'orderIndex', 'ASC']]
+      order: [[{ model: QuizQuestion, as: 'questions' }, 'orderIndex', 'ASC']],
     });
 
     if (!quiz) throw new NotFoundException(`Quiz with ID ${id} not found`);
@@ -728,7 +790,8 @@ export class QuizzesService {
         videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
       }));
 
-      const consistencySource = normalizedPayloadQuestions ?? quiz.questions ?? [];
+      const consistencySource =
+        normalizedPayloadQuestions ?? quiz.questions ?? [];
       this.assertQuizVideoTimestampConsistency(isInVideo, consistencySource);
 
       await quiz.update(
@@ -746,7 +809,10 @@ export class QuizzesService {
 
       // If client sends questions, treat as "replace" (simple + predictable for maintainability).
       if (normalizedPayloadQuestions) {
-        await this.quizQuestionModel.destroy({ where: { quizId: id }, transaction });
+        await this.quizQuestionModel.destroy({
+          where: { quizId: id },
+          transaction,
+        });
 
         for (const q of normalizedPayloadQuestions) {
           const question = await this.quizQuestionModel.create(
@@ -786,6 +852,213 @@ export class QuizzesService {
     const quiz = await this.quizModel.findByPk(id);
     if (!quiz) throw new NotFoundException(`Quiz with ID ${id} not found`);
     await quiz.destroy();
+  }
+
+  // ───────────────────────── Change-request flow (quiz) ─────────────────────
+  //
+  // Khi course ĐÃ publish và người sửa KHÔNG phải admin: thao tác create/update/
+  // delete quiz không áp dụng trực tiếp mà tạo một change request chờ admin
+  // duyệt (giống lesson). Admin / course chưa publish → sửa trực tiếp như cũ.
+
+  /** requestedBy bắt buộc khi tạo change request (cột requested_by NOT NULL). */
+  private requireRequester(requester?: QuizRequester): number {
+    const userId = requester?.userId;
+    if (!userId || !Number.isInteger(userId) || userId <= 0) {
+      throw new BadRequestException(
+        'User ID is required to request changes on a published course',
+      );
+    }
+    return userId;
+  }
+
+  /**
+   * Xác thực quyền + quyết định cần change request hay không, theo nguyên tắc
+   * 403 TRƯỚC 404: non-admin không xác nhận được là chủ khóa (course/activity
+   * không tồn tại hoặc của người khác) → 403, không lộ tồn tại. Admin: full quyền.
+   * Trả về courseId + cờ needsChangeRequest (course đã publish && non-admin).
+   */
+  private async resolveQuizCourseContext(
+    lessonActivityId: number,
+    requester?: QuizRequester,
+  ): Promise<{ courseId: number; needsChangeRequest: boolean }> {
+    const course =
+      await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
+
+    if (requester?.role === ADMIN_ROLE) {
+      if (!course) {
+        throw new NotFoundException(
+          `Course for lesson activity ${lessonActivityId} not found`,
+        );
+      }
+      return { courseId: course.id, needsChangeRequest: false };
+    }
+
+    const ownerId = (course as { userId?: number } | null)?.userId;
+    if (!course || ownerId !== requester?.userId) {
+      throw new ForbiddenException('You are not the owner of this course');
+    }
+    return {
+      courseId: course.id,
+      needsChangeRequest: course.status === CourseStatus.PUBLISH,
+    };
+  }
+
+  /**
+   * Ảnh chụp giá trị quiz hiện tại cho đúng các field có trong `payload` (để
+   * hiển thị diff khi admin duyệt). `questions` được serialize gọn lại.
+   */
+  private snapshotQuiz(
+    quiz: Quiz,
+    payload: QuizChangePayload,
+  ): QuizChangePayload {
+    const snapshot: Record<string, unknown> = {};
+    for (const key of Object.keys(payload)) {
+      if (key === 'questions') {
+        snapshot.questions = (quiz.questions ?? []).map((q) => ({
+          quesType: q.quesType,
+          quesText: q.quesText,
+          point: q.point,
+          correctAns: q.correctAns,
+          orderIndex: q.orderIndex,
+          videoTimestamp: q.videoTimestamp,
+        }));
+      } else {
+        snapshot[key] = quiz.get(key as keyof Quiz) ?? null;
+      }
+    }
+    return snapshot as QuizChangePayload;
+  }
+
+  /**
+   * Entry point từ controller cho `POST /quizzes`. Course đã publish (non-admin)
+   * → tạo change request `quiz.create`; còn lại → createOne trực tiếp + báo học
+   * viên nếu admin sửa khóa đã publish.
+   */
+  async createOneWithReview(
+    payload: CreateQuizDto,
+    requester?: QuizRequester,
+  ): Promise<Quiz | CourseChangeRequest> {
+    const { courseId, needsChangeRequest } =
+      await this.resolveQuizCourseContext(payload.lessonActivityId, requester);
+
+    if (needsChangeRequest) {
+      return await this.coursesService.createQuizChangeRequest({
+        kind: CourseChangeRequestKind.QUIZ_CREATE,
+        courseId,
+        targetId: null,
+        payload: { ...payload } as QuizChangePayload,
+        prevData: null,
+        requestedBy: this.requireRequester(requester),
+      });
+    }
+
+    const quiz = await this.createOne(payload);
+    await this.coursesService.notifyQuizChangeDirect(
+      courseId,
+      CourseChangeRequestKind.QUIZ_CREATE,
+      requester?.userId,
+    );
+    return quiz;
+  }
+
+  /**
+   * Entry point từ controller cho `PATCH /quizzes/:id`. Course đã publish
+   * (non-admin) → tạo change request `quiz.update`; còn lại → update trực tiếp.
+   */
+  async updateWithReview(
+    id: number,
+    payload: UpdateQuizDto,
+    requester?: QuizRequester,
+  ): Promise<Quiz | CourseChangeRequest> {
+    const quiz = await this.findOne(id);
+    const { courseId, needsChangeRequest } =
+      await this.resolveQuizCourseContext(quiz.lessonActivityId, requester);
+
+    if (needsChangeRequest) {
+      const changePayload = { ...payload } as QuizChangePayload;
+      return await this.coursesService.createQuizChangeRequest({
+        kind: CourseChangeRequestKind.QUIZ_UPDATE,
+        courseId,
+        targetId: quiz.id,
+        payload: changePayload,
+        prevData: this.snapshotQuiz(quiz, changePayload),
+        requestedBy: this.requireRequester(requester),
+      });
+    }
+
+    const updated = await this.update(id, payload);
+    await this.coursesService.notifyQuizChangeDirect(
+      courseId,
+      CourseChangeRequestKind.QUIZ_UPDATE,
+      requester?.userId,
+    );
+    return updated;
+  }
+
+  /**
+   * Entry point từ controller cho `DELETE /quizzes/:id`. Course đã publish
+   * (non-admin) → tạo change request `quiz.delete`; còn lại → remove trực tiếp.
+   */
+  async removeWithReview(
+    id: number,
+    requester?: QuizRequester,
+  ): Promise<void | CourseChangeRequest> {
+    const quiz = await this.findOne(id);
+    const { courseId, needsChangeRequest } =
+      await this.resolveQuizCourseContext(quiz.lessonActivityId, requester);
+
+    if (needsChangeRequest) {
+      return await this.coursesService.createQuizChangeRequest({
+        kind: CourseChangeRequestKind.QUIZ_DELETE,
+        courseId,
+        targetId: quiz.id,
+        // payload rỗng (xoá không có state mới); prevData giữ tên quiz để admin
+        // biết đang xoá quiz nào.
+        payload: {},
+        prevData: { name: quiz.name },
+        requestedBy: this.requireRequester(requester),
+      });
+    }
+
+    await this.remove(id);
+    await this.coursesService.notifyQuizChangeDirect(
+      courseId,
+      CourseChangeRequestKind.QUIZ_DELETE,
+      requester?.userId,
+    );
+  }
+
+  /**
+   * Replay một quiz change request đã được admin duyệt vào DB. Gọi từ
+   * CoursesService.approveQuizChangeRequest. Dùng lại các primitive create/update/
+   * remove (không kèm permission/published check).
+   */
+  async applyApprovedQuizChange(request: CourseChangeRequest): Promise<void> {
+    switch (request.kind) {
+      case CourseChangeRequestKind.QUIZ_CREATE:
+        await this.createOne(request.payload as CreateQuizDto);
+        return;
+      case CourseChangeRequestKind.QUIZ_UPDATE:
+        if (!request.targetId) {
+          throw new BadRequestException(
+            'Quiz change request is missing the target quiz id',
+          );
+        }
+        await this.update(request.targetId, request.payload as UpdateQuizDto);
+        return;
+      case CourseChangeRequestKind.QUIZ_DELETE:
+        if (!request.targetId) {
+          throw new BadRequestException(
+            'Quiz change request is missing the target quiz id',
+          );
+        }
+        await this.remove(request.targetId);
+        return;
+      default:
+        throw new BadRequestException(
+          `Unsupported quiz change request kind: ${request.kind}`,
+        );
+    }
   }
 
   /**
@@ -852,7 +1125,9 @@ export class QuizzesService {
 
     const allIds = (quiz.questions ?? []).map((q) => q.id);
     const keepSet = new Set(payload.keepQuestionIds);
-    const invalidIds = payload.keepQuestionIds.filter((id) => !allIds.includes(id));
+    const invalidIds = payload.keepQuestionIds.filter(
+      (id) => !allIds.includes(id),
+    );
     if (invalidIds.length) {
       throw new BadRequestException(
         `Question IDs không thuộc quiz ${quizId}: ${invalidIds.join(', ')}`,
@@ -953,4 +1228,3 @@ export class QuizzesService {
     };
   }
 }
-

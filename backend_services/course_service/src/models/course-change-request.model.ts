@@ -26,6 +26,9 @@ export enum CourseChangeRequestKind {
   LESSON_CREATE = 'lesson.create',
   LESSON_UPDATE = 'lesson.update',
   LESSON_DELETE = 'lesson.delete',
+  QUIZ_CREATE = 'quiz.create',
+  QUIZ_UPDATE = 'quiz.update',
+  QUIZ_DELETE = 'quiz.delete',
 }
 
 /**
@@ -60,8 +63,28 @@ export type LessonChangePayload = Partial<{
   description: string;
 }>;
 
-/** Payload của một change request — course-level hoặc lesson-level. */
-export type ChangeRequestPayload = CourseUpdatePayload | LessonChangePayload;
+/**
+ * Tập field cấp quiz được phép gói trong một change request.
+ * Khớp Create/UpdateQuizDto (questions là mảng câu hỏi lồng options) nên admin
+ * approve có thể replay qua QuizzesService.createOne / update trực tiếp.
+ * `quiz.delete` không cần field nào (chỉ dùng targetId).
+ */
+export type QuizChangePayload = Partial<{
+  lessonActivityId: number;
+  name: string;
+  shuffleQuestion: boolean;
+  shuffleOption: boolean;
+  passingScore: number;
+  timeLimitMinutes: number;
+  isInVideo: boolean;
+  questions: unknown[];
+}>;
+
+/** Payload của một change request — course-level, lesson-level hoặc quiz-level. */
+export type ChangeRequestPayload =
+  | CourseUpdatePayload
+  | LessonChangePayload
+  | QuizChangePayload;
 
 @Table({
   tableName: 'course_change_requests',

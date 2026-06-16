@@ -17,11 +17,11 @@ import { Feedback } from '../models/feedback.model';
 import { InstructorFollow } from '../models/instructor-follow.model';
 import { Video } from '../models/video.model';
 import { CourseChangeRequest } from '../models/course-change-request.model';
-import { InstructorFollow } from '../models/instructor-follow.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
 import { EnrollsService } from '../enrolls/enrolls.service';
 
 import { CoursesService } from './course.service';
+import { QuizzesService } from '../quizzes/quizzes.service';
 
 type Mock<T = any> = jest.Mock<T>;
 
@@ -74,6 +74,7 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
           useValue: makeModelMock(),
         },
         { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
+        { provide: getModelToken(LessonActivity), useValue: makeModelMock() },
         {
           provide: getConnectionToken(),
           useValue: {
@@ -84,6 +85,10 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         {
           provide: EnrollsService,
           useValue: { reconcileCourseEnrollProgress: jest.fn() },
+        },
+        {
+          provide: QuizzesService,
+          useValue: { applyApprovedQuizChange: jest.fn() },
         },
       ],
     }).compile();
