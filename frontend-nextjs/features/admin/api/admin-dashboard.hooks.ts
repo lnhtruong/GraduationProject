@@ -21,10 +21,10 @@ export function useAdminDashboardStats() {
       const [overviewRes, pendingCoursesRes, publishedCoursesRes, usersRes, reportsRes] =
         await Promise.allSettled([
           apiHttpClient.get("/course/courses/stats/overview"),
-          adminCourseApi.listPaginated({ status: "pending", limit: 1 } as never),
-          adminCourseApi.listPaginated({ status: "publish", limit: 1 } as never),
+          adminCourseApi.listPaginated({ status: "pending", limit: 1 }),
+          adminCourseApi.listPaginated({ status: "publish", limit: 1 }),
           adminUsersApi.listAll().then((r) => r.data),
-          adminReportsApi.listAll({ status: "pending", limit: 1 } as never),
+          adminReportsApi.listAll({ status: "pending" }),
         ]);
 
       const totalCourses =

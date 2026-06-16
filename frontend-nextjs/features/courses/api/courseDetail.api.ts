@@ -37,6 +37,7 @@ interface RawCourse {
   updated_at?: string;
   thumbnailUrl?: string | null;
   video?: RawVideo | null;
+  lessons?: RawLesson[];
 }
 
 interface RawLesson {
@@ -52,11 +53,6 @@ interface RawUser {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string | null;
-}
-
-interface RawLessonListResponse {
-  data?: RawLesson[];
-  items?: RawLesson[];
 }
 
 // ---------------------------------------------------------------------------
@@ -95,18 +91,6 @@ async function fetchRawCourse(id: number): Promise<RawCourse> {
   return data;
 }
 
-async function fetchLessonsByCourse(courseId: number): Promise<Lesson[]> {
-  try {
-    const { data } = await apiHttpClient.get<RawLessonListResponse>(
-      `/course/lessons/course?courseId=${courseId}&limit=100`,
-    );
-    const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
-    return (items as RawLesson[]).map(mapLesson);
-  } catch {
-    return [];
-  }
-}
-
 async function fetchInstructor(userId: number): Promise<CourseInstructor> {
   try {
     const { data } = await apiHttpClient.get<RawUser>(`/course/users/${userId}`);
@@ -140,8 +124,7 @@ async function fetchFeedbackSummary(courseId: number): Promise<RatingSummary> {
 async function fetchCourseDetail(courseId: number): Promise<CourseDetail> {
   const raw = await fetchRawCourse(courseId);
 
-  const [lessons, instructor, ratingSummary] = await Promise.all([
-    fetchLessonsByCourse(courseId),
+  const [instructor, ratingSummary] = await Promise.all([
     raw.userId ? fetchInstructor(raw.userId) : Promise.resolve<CourseInstructor>({
       id: 0,
       firstName: "Giảng viên",
@@ -149,6 +132,8 @@ async function fetchCourseDetail(courseId: number): Promise<CourseDetail> {
     }),
     fetchFeedbackSummary(courseId),
   ]);
+
+  const lessons: Lesson[] = (raw.lessons ?? []).map(mapLesson);
 
   const description = raw.description ?? "";
   const shortDescription =
@@ -158,7 +143,7 @@ async function fetchCourseDetail(courseId: number): Promise<CourseDetail> {
   const categories = (raw.categories ?? []).map((name, i) => ({ id: i, name }));
 
   // Prefer summing lesson durations; fall back to course-level duration field
-  const lessonsDuration = lessons.reduce((acc, l) => acc + l.duration, 0);
+  const lessonsDuration = lessons.reduce((acc: number, l: Lesson) => acc + l.duration, 0);
   const duration = lessonsDuration > 0 ? lessonsDuration : parseHHMMSS(raw.duration);
 
   const video = raw.video ?? null;

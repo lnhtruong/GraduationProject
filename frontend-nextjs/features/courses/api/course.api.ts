@@ -49,7 +49,7 @@ function mapCourse(raw: CourseApiResponse): Course {
 	};
 }
 
-const courseCrudApi = createResourceApi<
+export const courseCrudApi = createResourceApi<
 	CourseApiResponse,
 	Course,
 	CreateCoursePayload,
