@@ -48,7 +48,7 @@ export function VoiceSearchDialog({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, isSupported, startListening]);
+  }, [isOpen, isSupported, startListening, isListening, error]);
 
   // Clean up on close
   useEffect(() => {
