@@ -22,7 +22,7 @@ export function LessonSidebar({
   lessonProgressRecords,
   completedLessonCount,
   onSelectLesson,
-  currentLessonProgressPercent = 0,
+  currentLessonProgressPercent,
 }: Props) {
   return (
     <Card className="h-fit overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.08)] xl:sticky xl:top-4">
@@ -49,27 +49,19 @@ export function LessonSidebar({
                   record.lessonId === lesson.id &&
                   record.progress === "completed",
               );
+              const progressRecord = lessonProgressRecords.find(
+                (record) => record.lessonId === lesson.id,
+              );
               const lessonDuration = parseDurationToSeconds(lesson.duration);
 
-              // Tính toán phần trăm tiến trình thực tế
               let progressPercent = 0;
               if (isSelected) {
-                progressPercent = currentLessonProgressPercent;
+                progressPercent = currentLessonProgressPercent ?? 0;
               } else if (isCompleted) {
                 progressPercent = 100;
-              } else {
-                const record = lessonProgressRecords.find((r) => r.lessonId === lesson.id);
-                if (
-                  record &&
-                  record.progress === "in_progress" &&
-                  record.lastVideoPositionMs &&
-                  lessonDuration > 0
-                ) {
-                  progressPercent = Math.min(
-                    100,
-                    Math.max(0, (record.lastVideoPositionMs / 1000 / lessonDuration) * 100),
-                  );
-                }
+              } else if (progressRecord?.lastVideoPositionMs && lessonDuration > 0) {
+                const lastPosSec = progressRecord.lastVideoPositionMs / 1000;
+                progressPercent = Math.min(100, Math.round((lastPosSec / lessonDuration) * 100));
               }
 
               return (
@@ -139,10 +131,10 @@ export function LessonSidebar({
                         <Clock3 className="h-3.5 w-3.5" />
                         <span>{formatTime(lessonDuration)}</span>
                       </div>
-                      {isSelected || progressPercent > 0 ? (
+                      {progressPercent > 0 && progressPercent < 100 ? (
                         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
                           <div
-                            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                            className="h-full rounded-full bg-primary transition-all duration-300"
                             style={{ width: `${progressPercent}%` }}
                           />
                         </div>

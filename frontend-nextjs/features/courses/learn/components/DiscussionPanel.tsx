@@ -8,16 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useLessonDiscussionsQuery,
-  useCreateDiscussionMutation,
-  useToggleUpvoteMutation,
-} from "../api/discussions.hooks";
+import { useLessonDiscussions } from "../hooks/useLessonDiscussions.hooks";
 import { QuestionForm } from "./QuestionForm";
 import { ReplyBox } from "./ReplyBox";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
 import type { DiscussionPostRecord } from "../types";
-import { useMemo } from "react";
 
 interface Props {
   lessonId: number;
@@ -70,21 +65,20 @@ function DiscussionItem({
   onReplyClick,
   onUpvote,
   canInteract,
-  isVoted,
+  voted,
 }: {
   post: DiscussionPostRecord;
   isReply?: boolean;
   onReplyClick?: (postId: number) => void;
   onUpvote?: (postId: number) => void;
   canInteract?: boolean;
-  isVoted: (postId: number) => boolean;
+  voted?: boolean;
 }) {
-  const voted = isVoted(post.id);
   return (
     <div
       className={
         isReply
-          ? "rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
+          ? "rounded-2xl border border-emerald-100 bg-emerald-50/60 dark:border-emerald-950/40 dark:bg-emerald-950/20 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
           : "rounded-3xl border border-border/60 bg-background/95 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
       }
     >
@@ -115,7 +109,7 @@ function DiscussionItem({
               aria-pressed={Boolean(voted)}
               className={`inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs transition-colors ${
                 voted
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
@@ -154,8 +148,8 @@ function DiscussionItem({
         </div>
       </div>
 
-      {post.replies && post.replies.length > 0 ? (
-        <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 pl-4 sm:pl-5">
+      {post.replies.length ? (
+        <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 dark:border-emerald-900/40 pl-4 sm:pl-5">
           {post.replies.map((reply) => (
             <DiscussionItem
               key={reply.id}
@@ -164,7 +158,7 @@ function DiscussionItem({
               onReplyClick={onReplyClick}
               onUpvote={onUpvote}
               canInteract={canInteract}
-              isVoted={isVoted}
+              voted={voted}
             />
           ))}
         </div>
@@ -175,55 +169,20 @@ function DiscussionItem({
 
 export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const {
+    threads,
+    total,
+    isInitialLoading,
+    isLoadingMore,
+    error,
+    hasMore,
+    loadMore,
+    createPost,
+    toggleUpvote,
+    isVoted,
+  } = useLessonDiscussions(lessonId as number) as any;
   const { isAuthenticated } = useAuthState();
   const [openReplyFor, setOpenReplyFor] = useState<number | null>(null);
-
-  const {
-    data,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    error: queryError,
-  } = useLessonDiscussionsQuery(lessonId as number);
-
-  const createMutation = useCreateDiscussionMutation(lessonId as number);
-  const toggleUpvoteMutation = useToggleUpvoteMutation(lessonId as number);
-
-  const threads = useMemo(() => {
-    return data?.pages.flatMap((page) => page.data) ?? [];
-  }, [data]);
-
-  const total = data?.pages[0]?.total ?? 0;
-  const isInitialLoading = isLoading || (isFetching && !isFetchingNextPage && threads.length === 0);
-  const isLoadingMore = isFetchingNextPage;
-  const hasMore = Boolean(hasNextPage);
-  const loadMore = fetchNextPage;
-  const error = queryError ? "Không tải được danh sách câu hỏi. Vui lòng thử lại." : null;
-
-  const createPost = async (content: string, parentId?: number | null) => {
-    return createMutation.mutateAsync({ content, parentId });
-  };
-
-  const toggleUpvote = async (postId: number) => {
-    return toggleUpvoteMutation.mutateAsync(postId);
-  };
-
-  const isVoted = (postId: number) => {
-    const findPost = (posts: DiscussionPostRecord[]): DiscussionPostRecord | undefined => {
-      for (const p of posts) {
-        if (p.id === postId) return p;
-        if (p.replies && p.replies.length > 0) {
-          const found = findPost(p.replies);
-          if (found) return found;
-        }
-      }
-      return undefined;
-    };
-    const post = findPost(threads);
-    return Boolean(post?.voted);
-  };
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -269,7 +228,7 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   };
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+    <Card id="discussion-panel-section" className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -311,7 +270,7 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
                     }
                     onUpvote={handleToggleUpvote}
                     canInteract={isAuthenticated}
-                    isVoted={isVoted}
+                    voted={isVoted(post.id)}
                   />
 
                   {openReplyFor === post.id ? (

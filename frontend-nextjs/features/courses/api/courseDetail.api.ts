@@ -95,11 +95,15 @@ async function fetchRawCourse(id: number): Promise<RawCourse> {
 }
 
 async function fetchLessonsByCourse(courseId: number): Promise<Lesson[]> {
-  const { data } = await apiHttpClient.get<RawLessonListResponse>(
-    `/course/lessons/course?courseId=${courseId}&limit=100`,
-  );
-  const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
-  return (items as RawLesson[]).map(mapLesson);
+  try {
+    const { data } = await apiHttpClient.get<RawLessonListResponse>(
+      `/course/lessons/course?courseId=${courseId}&limit=100`,
+    );
+    const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
+    return (items as RawLesson[]).map(mapLesson);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchInstructor(userId: number): Promise<CourseInstructor> {
@@ -195,3 +199,13 @@ export function useCourseDetail(courseId: number) {
     staleTime: 5 * 60_000,
   });
 }
+
+export function useCourseInstructor(userId?: number) {
+  return useQuery({
+    queryKey: ["courseInstructor", userId],
+    queryFn: () => fetchInstructor(userId!),
+    enabled: !!userId,
+    staleTime: 5 * 60_000,
+  });
+}
+

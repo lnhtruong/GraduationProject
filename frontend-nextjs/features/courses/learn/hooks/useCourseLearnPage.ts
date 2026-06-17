@@ -21,6 +21,7 @@ export function useCourseLearnPage(courseId: number) {
     persistedInVideoSubmitted: data.persistedInVideoState.submitted,
     persistedAfterLessonAnswers: data.persistedAfterLessonState.answers,
     persistedAfterLessonSubmitted: data.persistedAfterLessonState.submitted,
+    loadingQuizSubmissions: data.isQuizQueriesLoading,
   });
 
   return {

@@ -1532,6 +1532,14 @@ export class CoursesService {
       );
     }
 
+    // Check ownership for LECTURER
+    const isAdmin = requester?.role === 1;
+    if (requester && !isAdmin && course.userId !== requester.userId) {
+      throw new ForbiddenException(
+        'You do not have permission to publish this course',
+      );
+    }
+
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
 

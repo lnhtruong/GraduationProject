@@ -23,7 +23,7 @@ export function useAdminDashboardStats() {
           apiHttpClient.get("/course/courses/stats/overview"),
           adminCourseApi.listPaginated({ status: "pending", limit: 1 } as never),
           adminCourseApi.listPaginated({ status: "publish", limit: 1 } as never),
-          adminUsersApi.listAll(),
+          adminUsersApi.listAll().then((r) => r.data),
           adminReportsApi.listAll({ status: "pending", limit: 1 } as never),
         ]);
 
@@ -42,7 +42,7 @@ export function useAdminDashboardStats() {
           ? (publishedCoursesRes.value.pagination?.totalItems ?? null)
           : null;
 
-      const users =
+      const users: AdminUser[] =
         usersRes.status === "fulfilled" ? usersRes.value : [];
 
       const pendingReports =

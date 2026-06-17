@@ -82,4 +82,6 @@ export interface ReportListParams {
 	limit?: number;
 	status?: ReportStatus;
 	targetType?: ReportTargetType;
+	sortOrder?: "asc" | "desc";
+	search?: string;
 }

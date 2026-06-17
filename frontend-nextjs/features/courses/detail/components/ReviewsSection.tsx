@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, ThumbsDown } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,13 +58,13 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
   const hasMore = !!pagination && page < pagination.totalPages;
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
 
-  const checkedReview = !isCheckLoading;
+  const isCheckReady = !isCheckLoading;
 
   return (
     <section>
       <h2 className="mb-5 text-xl font-bold">Đánh giá học viên</h2>
 
-      {isEnrolled && checkedReview && !hasReviewed && (
+      {isEnrolled && isCheckReady && !hasReviewed && (
         <WriteReviewForm courseId={courseId} onSuccess={handleReviewSuccess} />
       )}
 
@@ -203,15 +204,28 @@ function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
   const dislikeCount =
     reaction?.byType.find((r) => r.reactionType === "dislike")?.count ?? 0;
 
+  // Optimistic state: undefined = follow server, otherwise override while pending
+  const [optimisticReaction, setOptimisticReaction] = useState<
+    FeedbackReactionType | null | undefined
+  >(undefined);
+
   const { mutate: toggleReaction, isPending } = useToggleReaction(courseId);
+
+  // While a mutation is in-flight, show optimistic state; fall back to server once settled
+  const displayReaction = isPending ? (optimisticReaction ?? currentReaction) : currentReaction;
 
   const handleReaction = (type: FeedbackReactionType) => {
     if (!currentUserId) return;
-    toggleReaction({
-      feedbackId: item.id,
-      reactionType: type,
-      currentReaction,
-    });
+    // Optimistic: same type = remove, different type = switch
+    setOptimisticReaction(currentReaction === type ? null : type);
+    toggleReaction(
+      { feedbackId: item.id, reactionType: type, currentReaction },
+      {
+        onError: () => {
+          toast.error("Không thể ghi nhận phản hồi. Vui lòng thử lại.");
+        },
+      },
+    );
   };
 
   return (
@@ -257,12 +271,18 @@ function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
               disabled={isPending || !currentUserId}
               className={cn(
                 "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                currentReaction === "help_ful"
+                displayReaction === "help_ful"
                   ? "border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
                   : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground",
                 (isPending || !currentUserId) && "cursor-default opacity-50",
               )}
-              title={!currentUserId ? "Đăng nhập để đánh giá" : (currentReaction === "help_ful" ? "Bỏ đánh giá" : "Đánh dấu hữu ích")}
+              title={
+                !currentUserId
+                  ? "Đăng nhập để đánh giá"
+                  : displayReaction === "help_ful"
+                    ? "Bỏ đánh giá"
+                    : "Đánh dấu hữu ích"
+              }
             >
               <ThumbsUp className="h-3 w-3" />
               {helpfulCount > 0 ? helpfulCount : "Có ích"}
@@ -272,12 +292,18 @@ function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
               disabled={isPending || !currentUserId}
               className={cn(
                 "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                currentReaction === "dislike"
+                displayReaction === "dislike"
                   ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-400"
                   : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground",
                 (isPending || !currentUserId) && "cursor-default opacity-50",
               )}
-              title={!currentUserId ? "Đăng nhập để đánh giá" : (currentReaction === "dislike" ? "Bỏ đánh giá" : "Không hữu ích")}
+              title={
+                !currentUserId
+                  ? "Đăng nhập để đánh giá"
+                  : displayReaction === "dislike"
+                    ? "Bỏ đánh giá"
+                    : "Không hữu ích"
+              }
             >
               <ThumbsDown className="h-3 w-3" />
               {dislikeCount > 0 ? dislikeCount : "Không"}

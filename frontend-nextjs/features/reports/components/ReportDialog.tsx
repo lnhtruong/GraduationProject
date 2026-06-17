@@ -31,9 +31,11 @@ const MIN_REASON = 5;
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
-    const message = error.response?.data?.message;
-    if (status === 409 && message) return message;
-    if (status === 403) return "Bạn không thể báo cáo nội dung của mình.";
+    const message: string | undefined = error.response?.data?.message;
+    if (status === 409) return message ?? "Báo cáo đã tồn tại hoặc nội dung không còn hợp lệ.";
+    if (status === 403) return message ?? "Bạn không thể báo cáo nội dung này.";
+    if (status === 404) return "Không tìm thấy nội dung cần báo cáo.";
+    if (status === 400) return message ?? "Dữ liệu báo cáo không hợp lệ.";
   }
   return "Gửi báo cáo thất bại. Vui lòng thử lại.";
 }

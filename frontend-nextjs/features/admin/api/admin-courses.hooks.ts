@@ -12,9 +12,6 @@ import type { Course, CourseListParams } from "@/features/courses/types";
 
 const ADMIN_COURSE_KEYS = {
   all: ["admin", "courses"] as const,
-  pending: ["admin", "courses", "pending"] as const,
-  list: (params?: CourseListParams) =>
-    ["admin", "courses", "list", params] as const,
   paginated: (params?: CourseListParams) =>
     ["admin", "courses", "paginated", params] as const,
   stats: (status: string) => ["admin", "courses", "stats", status] as const,
@@ -27,26 +24,6 @@ function makeMockPaginated(courses: Course[], params?: CourseListParams): Pagina
   const totalPages = Math.ceil(totalItems / limit) || 1;
   const start = (page - 1) * limit;
   return { data: courses.slice(start, start + limit), pagination: { page, limit, totalItems, totalPages } };
-}
-
-export function useAdminPendingCourses() {
-  return useQuery<Course[]>({
-    queryKey: ADMIN_COURSE_KEYS.pending,
-    queryFn: USE_MOCK
-      ? () => Promise.resolve(MOCK_PENDING_COURSES)
-      : () => adminCourseApi.listPending(),
-    staleTime: 30_000,
-  });
-}
-
-export function useAdminAllCourses(params?: CourseListParams) {
-  return useQuery<Course[]>({
-    queryKey: ADMIN_COURSE_KEYS.list(params),
-    queryFn: USE_MOCK
-      ? () => Promise.resolve(MOCK_ADMIN_COURSES)
-      : () => adminCourseApi.listAll(params),
-    staleTime: 30_000,
-  });
 }
 
 export function useAdminCoursesPaginated(params?: CourseListParams) {
