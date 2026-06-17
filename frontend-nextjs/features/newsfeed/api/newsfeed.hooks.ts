@@ -176,6 +176,34 @@ export function useNewsfeedCommentDetail(
   });
 }
 
+function applyInteraction(item: any, variables: any, data: any) {
+  const updatedItem = { ...item };
+  if (variables.type === "like") {
+    const wasLiked = item.isLiked;
+    updatedItem.isLiked = data.active;
+    if (wasLiked !== data.active) {
+      updatedItem.stats = {
+        ...item.stats,
+        likes: data.active
+          ? item.stats.likes + 1
+          : Math.max(0, item.stats.likes - 1),
+      };
+    }
+  } else if (variables.type === "save") {
+    const wasSaved = item.isSaved;
+    updatedItem.isSaved = data.active;
+    if (wasSaved !== data.active) {
+      updatedItem.stats = {
+        ...item.stats,
+        saves: data.active
+          ? item.stats.saves + 1
+          : Math.max(0, item.stats.saves - 1),
+      };
+    }
+  }
+  return updatedItem;
+}
+
 export function useNewsfeedInteractMutation() {
   const queryClient = useQueryClient();
 
@@ -194,31 +222,7 @@ export function useNewsfeedInteractMutation() {
               ...page,
               items: page.items.map((item: any) => {
                 if (item.feedId === variables.feedId) {
-                  const updatedItem = { ...item };
-                  if (variables.type === "like") {
-                    const wasLiked = item.isLiked;
-                    updatedItem.isLiked = data.active;
-                    if (wasLiked !== data.active) {
-                      updatedItem.stats = {
-                        ...item.stats,
-                        likes: data.active
-                          ? item.stats.likes + 1
-                          : Math.max(0, item.stats.likes - 1),
-                      };
-                    }
-                  } else if (variables.type === "save") {
-                    const wasSaved = item.isSaved;
-                    updatedItem.isSaved = data.active;
-                    if (wasSaved !== data.active) {
-                      updatedItem.stats = {
-                        ...item.stats,
-                        saves: data.active
-                          ? item.stats.saves + 1
-                          : Math.max(0, item.stats.saves - 1),
-                      };
-                    }
-                  }
-                  return updatedItem;
+                  return applyInteraction(item, variables, data);
                 }
                 return item;
               }),
@@ -237,31 +241,7 @@ export function useNewsfeedInteractMutation() {
               ...oldData,
               items: oldData.items.map((item: any) => {
                 if (item.feedId === variables.feedId) {
-                  const updatedItem = { ...item };
-                  if (variables.type === "like") {
-                    const wasLiked = item.isLiked;
-                    updatedItem.isLiked = data.active;
-                    if (wasLiked !== data.active) {
-                      updatedItem.stats = {
-                        ...item.stats,
-                        likes: data.active
-                          ? item.stats.likes + 1
-                          : Math.max(0, item.stats.likes - 1),
-                      };
-                    }
-                  } else if (variables.type === "save") {
-                    const wasSaved = item.isSaved;
-                    updatedItem.isSaved = data.active;
-                    if (wasSaved !== data.active) {
-                      updatedItem.stats = {
-                        ...item.stats,
-                        saves: data.active
-                          ? item.stats.saves + 1
-                          : Math.max(0, item.stats.saves - 1),
-                      };
-                    }
-                  }
-                  return updatedItem;
+                  return applyInteraction(item, variables, data);
                 }
                 return item;
               }),

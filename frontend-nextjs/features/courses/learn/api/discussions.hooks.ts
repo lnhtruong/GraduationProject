@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { discussionApi } from "./discussions.api";
 import { authStorageHelper } from "@/store/auth";
@@ -38,17 +38,17 @@ export function useCreateDiscussionMutation(lessonId: number) {
       await queryClient.cancelQueries({ queryKey });
 
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData<any>(queryKey);
+      const previousData = queryClient.getQueryData<InfiniteData<DiscussionListResponse>>(queryKey);
 
       // Construct the optimistic post
       const userSnapshot = (authStorageHelper as any).getUserSnapshot?.() ?? null;
       const author = userSnapshot
-        ? {
-            id: userSnapshot.id,
-            name: `${userSnapshot.firstName ?? ""} ${userSnapshot.lastName ?? ""}`.trim() || userSnapshot.email,
-            avatarUrl: userSnapshot.avatarUrl ?? null,
-          }
-        : { id: 0, name: "Bạn", avatarUrl: null };
+         ? {
+             id: userSnapshot.id,
+             name: `${userSnapshot.firstName ?? ""} ${userSnapshot.lastName ?? ""}`.trim() || userSnapshot.email,
+             avatarUrl: userSnapshot.avatarUrl ?? null,
+           }
+         : { id: 0, name: "Bạn", avatarUrl: null };
       const now = new Date().toISOString();
       const tempId = -Date.now();
 
@@ -67,7 +67,7 @@ export function useCreateDiscussionMutation(lessonId: number) {
       };
 
       // Optimistically update to the new value
-      queryClient.setQueryData<any>(queryKey, (old: any) => {
+      queryClient.setQueryData<InfiniteData<DiscussionListResponse>>(queryKey, (old) => {
         if (!old) return old;
 
         const pages = [...old.pages];
@@ -81,7 +81,9 @@ export function useCreateDiscussionMutation(lessonId: number) {
             total: pages[0].total + 1,
           };
         } else {
-          // If it's a reply, find the parent post and append to its replies
+          // If it's a reply, find the parent post and append to its replies.
+          // LIMITATION: For simplicity, the optimistic reply is only added to the first page (pages[0]).
+          // If the parent post is on page 2+, it won't show up immediately until refetched/invalidated.
           pages[0] = {
             ...pages[0],
             data: pages[0].data.map((root: DiscussionPostRecord) => {
@@ -116,10 +118,10 @@ export function useCreateDiscussionMutation(lessonId: number) {
     onSuccess: (savedPost, newPostPayload, context) => {
       const queryKey = discussionKeys.custom("lesson", lessonId);
       // Replace the optimistic tempPost with the actual post from server
-      queryClient.setQueryData<any>(queryKey, (old: any) => {
+      queryClient.setQueryData<InfiniteData<DiscussionListResponse>>(queryKey, (old) => {
         if (!old) return old;
 
-        const pages = old.pages.map((page: any) => {
+        const pages = old.pages.map((page) => {
           let updatedData = page.data;
           
           if (!newPostPayload.parentId) {
@@ -167,12 +169,12 @@ export function useToggleUpvoteMutation(lessonId: number) {
       const queryKey = discussionKeys.custom("lesson", lessonId);
       await queryClient.cancelQueries({ queryKey });
 
-      const previousData = queryClient.getQueryData<any>(queryKey);
+      const previousData = queryClient.getQueryData<InfiniteData<DiscussionListResponse>>(queryKey);
 
-      queryClient.setQueryData<any>(queryKey, (old: any) => {
+      queryClient.setQueryData<InfiniteData<DiscussionListResponse>>(queryKey, (old) => {
         if (!old) return old;
 
-        const pages = old.pages.map((page: any) => {
+        const pages = old.pages.map((page) => {
           const updatedData = page.data.map((root: DiscussionPostRecord) => {
             // Check if root post matches
             if (root.id === postId) {
@@ -224,10 +226,10 @@ export function useToggleUpvoteMutation(lessonId: number) {
     },
     onSuccess: (result, postId) => {
       const queryKey = discussionKeys.custom("lesson", lessonId);
-      queryClient.setQueryData<any>(queryKey, (old: any) => {
+      queryClient.setQueryData<InfiniteData<DiscussionListResponse>>(queryKey, (old) => {
         if (!old) return old;
 
-        const pages = old.pages.map((page: any) => {
+        const pages = old.pages.map((page) => {
           const updatedData = page.data.map((root: DiscussionPostRecord) => {
             if (root.id === postId) {
               return {
@@ -256,12 +258,6 @@ export function useToggleUpvoteMutation(lessonId: number) {
         });
 
         return { ...old, pages };
-      });
-    },
-    onSettled: () => {
-      // Invalidate query to reconcile with server in background
-      queryClient.invalidateQueries({
-        queryKey: discussionKeys.custom("lesson", lessonId),
       });
     },
   });
