@@ -8,7 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLessonDiscussions } from "../hooks/useLessonDiscussions.hooks";
+import {
+  useLessonDiscussionsQuery,
+  useCreateDiscussionMutation,
+  useToggleUpvoteMutation,
+} from "../api/discussions.hooks";
 import { QuestionForm } from "./QuestionForm";
 import { ReplyBox } from "./ReplyBox";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
@@ -158,7 +162,7 @@ function DiscussionItem({
               onReplyClick={onReplyClick}
               onUpvote={onUpvote}
               canInteract={canInteract}
-              voted={voted}
+              voted={reply.voted}
             />
           ))}
         </div>
@@ -169,18 +173,23 @@ function DiscussionItem({
 
 export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   const {
-    threads,
-    total,
-    isInitialLoading,
-    isLoadingMore,
-    error,
-    hasMore,
-    loadMore,
-    createPost,
-    toggleUpvote,
-    isVoted,
-  } = useLessonDiscussions(lessonId as number) as any;
+    data,
+    isLoading: isInitialLoading,
+    isFetchingNextPage: isLoadingMore,
+    error: queryError,
+    hasNextPage: hasMore,
+    fetchNextPage: loadMore,
+  } = useLessonDiscussionsQuery(lessonId);
+
+  const createPostMutation = useCreateDiscussionMutation(lessonId);
+  const toggleUpvoteMutation = useToggleUpvoteMutation(lessonId);
+
+  const threads = data?.pages.flatMap((page) => page.data) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
+  const error = queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null;
+
   const { isAuthenticated } = useAuthState();
   const [openReplyFor, setOpenReplyFor] = useState<number | null>(null);
 
@@ -211,19 +220,19 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   const showSkeleton = isInitialLoading && !threads.length;
 
   const handleCreateQuestion = async (content: string) => {
-    await createPost(content, undefined);
+    await createPostMutation.mutateAsync({ content });
   };
 
   const handleReply = async (parentId: number, content: string) => {
-    await createPost(content, parentId);
+    await createPostMutation.mutateAsync({ content, parentId });
     setOpenReplyFor(null);
   };
 
   const handleToggleUpvote = async (postId: number) => {
     try {
-      await toggleUpvote(postId);
-    } catch (err) {
-      // error already handled in hook
+      await toggleUpvoteMutation.mutateAsync(postId);
+    } catch {
+      // error handled optimistically/react-query
     }
   };
 
@@ -270,7 +279,7 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
                     }
                     onUpvote={handleToggleUpvote}
                     canInteract={isAuthenticated}
-                    voted={isVoted(post.id)}
+                    voted={post.voted}
                   />
 
                   {openReplyFor === post.id ? (

@@ -41,6 +41,7 @@ export interface PostSnapshot {
   content: string;
   isBestAnswer: boolean;
   upvotes: number;
+  voted?: boolean;
   createdAt: Date;
   updatedAt: Date;
   author: AuthorSnapshot;
@@ -273,7 +274,7 @@ export class DiscussionsService {
     };
   }
 
-  private serialise(post: DiscussionPost): PostSnapshot {
+  private serialise(post: DiscussionPost, userUpvotes?: Set<number>): PostSnapshot {
     return {
       id: post.id,
       lessonId: post.lessonId,
@@ -281,6 +282,7 @@ export class DiscussionsService {
       content: post.content,
       isBestAnswer: post.isBestAnswer,
       upvotes: post.upvotes,
+      voted: userUpvotes ? userUpvotes.has(post.id) : false,
       createdAt: (post as any).created_at ?? (post as any).createdAt,
       updatedAt: (post as any).updated_at ?? (post as any).updatedAt,
       author: this.serialiseAuthor(post.author ?? undefined),
@@ -401,6 +403,20 @@ export class DiscussionsService {
       });
     }
 
+    // Tải các bài viết đã upvote bởi user này
+    const allPostIds = [...rootIds, ...replies.map((r) => r.id)];
+    let userUpvotes = new Set<number>();
+    if (allPostIds.length && userId) {
+      const upvotes = await this.upvoteModel.findAll({
+        where: {
+          postId: { [Op.in]: allPostIds },
+          userId,
+        },
+        attributes: ['postId'],
+      });
+      userUpvotes = new Set(upvotes.map((u) => u.postId));
+    }
+
     const repliesByParent = new Map<number, DiscussionPost[]>();
     for (const r of replies) {
       const list = repliesByParent.get(r.parentId!) ?? [];
@@ -409,9 +425,9 @@ export class DiscussionsService {
     }
 
     const data: DiscussionRoot[] = rows.map((root) => ({
-      ...this.serialise(root),
+      ...this.serialise(root, userUpvotes),
       replies: (repliesByParent.get(root.id) ?? []).map((r) =>
-        this.serialise(r),
+        this.serialise(r, userUpvotes),
       ),
     }));
 

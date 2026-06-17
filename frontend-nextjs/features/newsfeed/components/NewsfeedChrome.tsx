@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { NewsfeedHeader } from "./NewsfeedHeader";
 import { NewsfeedSidebar } from "./NewsfeedSidebar";
@@ -55,7 +56,16 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 				onSearchSubmit={handleSearchSubmit}
 			/>
 
-			<NewsfeedSidebar isExpanded={isMenuOpen} onClose={closeMenu} />
+			{/* Translucent backdrop overlay for mobile/tablet when sidebar is open */}
+			<div
+				className={cn(
+					"fixed inset-0 z-20 bg-black/40 backdrop-blur-xs transition-all duration-300 lg:hidden cursor-pointer",
+					isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+				)}
+				onClick={closeMenu}
+			/>
+
+			<NewsfeedSidebar isExpanded={isMenuOpen} />
 
 			<div className="relative pt-16">{children}</div>
 		</div>

@@ -13,8 +13,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LearnHub - Video AI Platform",
-  description: "AI-powered video processing and editing platform",
+  title: {
+    template: "%s | LearnHub",
+    default: "LearnHub - Nền tảng học tập qua video ngắn thông minh",
+  },
+  description: "Nền tảng học tập qua video ngắn và công cụ AI biên tập video, dựng khóa học tối ưu.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

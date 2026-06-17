@@ -105,11 +105,13 @@ export function useBulkUpdateNotifications() {
 }
 
 export function useMarkAllNotificationsRead() {
-  const bulkMutation = useBulkUpdateNotifications();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: notificationKeys.custom("mark-all-read"),
-    mutationFn: async () =>
-      bulkMutation.mutateAsync({ is_read: true, all: true }),
+    mutationFn: () => notificationApi.bulkUpdateNotifications({ is_read: true, all: true }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.root });
+    },
   });
 }

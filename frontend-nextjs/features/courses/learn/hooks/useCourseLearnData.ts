@@ -226,7 +226,7 @@ export function useCourseLearnData(courseId: number) {
         // assumptions about player timing, but returning the result makes
         // the mutation-based cache updated and available synchronously.
         return saved;
-      } catch (e) {
+      } catch {
         // noop: leave reconciliation to react-query
       }
     })();

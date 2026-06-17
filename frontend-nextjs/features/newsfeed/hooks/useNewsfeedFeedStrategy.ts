@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useNewsfeedRecordViewMutation } from "../api/newsfeed.hooks";
 
-export const NEWSFEED_INITIAL_PAGE_LIMIT = 8;
-export const NEWSFEED_PREFETCH_REMAINING_THRESHOLD = 2;
-export const NEWSFEED_MIN_VIEW_SECONDS = 1;
-export const NEWSFEED_COMPLETION_RATIO = 0.9;
+import {
+  NEWSFEED_INITIAL_PAGE_LIMIT,
+  NEWSFEED_PREFETCH_REMAINING_THRESHOLD,
+  NEWSFEED_MIN_VIEW_SECONDS,
+  NEWSFEED_COMPLETION_RATIO,
+} from "../constants";
 
 export function shouldPrefetchNewsfeedPage(params: {
 	remainingItems: number;
@@ -26,16 +28,13 @@ function buildViewPayload(currentTime: number, duration: number) {
 export function useNewsfeedViewTracker(params: {
 	feedId: number | null;
 	isActive: boolean;
-	currentTime: number;
-	duration: number;
+	videoRef: React.RefObject<HTMLVideoElement | null>;
 }) {
 	const recordViewMutation = useNewsfeedRecordViewMutation();
 	const didRecordRef = useRef(false);
-	const latestSnapshotRef = useRef({ currentTime: 0, duration: 0 });
 
 	useEffect(() => {
 		didRecordRef.current = false;
-		latestSnapshotRef.current = { currentTime: 0, duration: 0 };
 	}, [params.feedId]);
 
 	useEffect(() => {
@@ -44,21 +43,15 @@ export function useNewsfeedViewTracker(params: {
 		}
 	}, [params.isActive]);
 
-	useEffect(() => {
-		latestSnapshotRef.current = {
-			currentTime: params.currentTime,
-			duration: params.duration,
-		};
-	}, [params.currentTime, params.duration]);
-
 	const flushView = useCallback(async () => {
-		if (!params.feedId || didRecordRef.current) {
+		const video = params.videoRef.current;
+		if (!video || !params.feedId || didRecordRef.current) {
 			return;
 		}
 
 		const { watchDuration, completed } = buildViewPayload(
-			latestSnapshotRef.current.currentTime,
-			latestSnapshotRef.current.duration,
+			video.currentTime || 0,
+			video.duration || 0,
 		);
 		if (watchDuration < NEWSFEED_MIN_VIEW_SECONDS) {
 			return;
@@ -70,7 +63,7 @@ export function useNewsfeedViewTracker(params: {
 			watchDuration,
 			completed,
 		});
-	}, [params.feedId, recordViewMutation]);
+	}, [params.feedId, params.videoRef, recordViewMutation]);
 
 	useEffect(() => {
 		if (params.isActive) {
