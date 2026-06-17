@@ -122,8 +122,6 @@ export function NewsfeedVideoCard({
   const [localSaveCount, setLocalSaveCount] = useState(video.stats.saves);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [isOverlayHidden, setIsOverlayHidden] = useState(false);
-  const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
-  const clickTimeoutRef = useRef<number | null>(null);
   const likeMutation = useNewsfeedInteractMutation();
   const saveMutation = useNewsfeedInteractMutation();
   useNewsfeedViewTracker({
@@ -377,9 +375,6 @@ export function NewsfeedVideoCard({
       if (longPressTimer.current) {
         window.clearTimeout(longPressTimer.current);
       }
-      if (clickTimeoutRef.current) {
-        window.clearTimeout(clickTimeoutRef.current);
-      }
 
       const element = videoRef.current;
       if (element) {
@@ -431,60 +426,15 @@ export function NewsfeedVideoCard({
     }
   };
 
-  const handleDoubleClick = useCallback(
-    (clientX: number, clientY: number, currentTarget: HTMLDivElement) => {
-      // Trigger like if not liked
-      if (!isLiked) {
-        void toggleInteraction("like");
-      }
-
-      // Add a heart animation
-      const rect = currentTarget.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-
-      const newHeart = {
-        id: Date.now() + Math.random(),
-        x,
-        y,
-      };
-
-      setHearts((prev) => [...prev, newHeart]);
-
-      // Remove after animation completes
-      window.setTimeout(() => {
-        setHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
-      }, 800);
-    },
-    [isLiked, toggleInteraction],
-  );
-
   const handleVideoClick = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
+    () => {
       if (isCaptionExpanded) {
         setIsCaptionExpanded(false);
         return;
       }
-
-      if (clickTimeoutRef.current) {
-        // Double click detected!
-        window.clearTimeout(clickTimeoutRef.current);
-        clickTimeoutRef.current = null;
-        
-        handleDoubleClick(event.clientX, event.clientY, event.currentTarget);
-      } else {
-        // Set timeout to wait for possible double click
-        const clientX = event.clientX;
-        const clientY = event.clientY;
-        const currentTarget = event.currentTarget;
-        
-        clickTimeoutRef.current = window.setTimeout(() => {
-          clickTimeoutRef.current = null;
-          void handleTogglePlay();
-        }, 220);
-      }
+      void handleTogglePlay();
     },
-    [isCaptionExpanded, handleTogglePlay, handleDoubleClick],
+    [isCaptionExpanded, handleTogglePlay],
   );
 
   return (
@@ -493,34 +443,6 @@ export function NewsfeedVideoCard({
       className="relative flex h-[calc(100vh-64px)] w-full snap-start items-center justify-center"
     >
       <div className="relative flex h-full w-full items-center justify-center gap-4 p-0 md:px-6">
-        {/* Style block for floating heart animation */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes heartPopFade {
-            0% {
-              opacity: 0;
-              transform: scale(0.3) rotate(-15deg);
-            }
-            15% {
-              opacity: 0.95;
-              transform: scale(1.3) rotate(15deg);
-            }
-            30% {
-              transform: scale(0.95) rotate(-10deg);
-            }
-            80% {
-              opacity: 0.95;
-              transform: scale(1.05) translateY(-40px) rotate(0deg);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(0.8) translateY(-85px) rotate(0deg);
-            }
-          }
-          .animate-heart-pop-fade {
-            animation: heartPopFade 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-          }
-        `}} />
-
         <div
           className={cn(
             "relative overflow-hidden bg-background dark:bg-black md:bg-black shadow-xl",
@@ -563,20 +485,6 @@ export function NewsfeedVideoCard({
           >
             <source src={video.videoUrl} type="video/mp4" />
           </video>
-
-          {/* Floating Hearts for Double-tap to Like */}
-          {hearts.map((heart) => (
-            <div
-              key={heart.id}
-              className="absolute pointer-events-none select-none z-30 animate-heart-pop-fade text-red-500"
-              style={{
-                left: heart.x - 24,
-                top: heart.y - 24,
-              }}
-            >
-              <Heart className="h-12 w-12 fill-red-500 stroke-white stroke-2 drop-shadow-lg" />
-            </div>
-          ))}
 
           <div
             className={cn(

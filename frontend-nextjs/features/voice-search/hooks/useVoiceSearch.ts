@@ -106,7 +106,7 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch (e) {
+        } catch {
           // Ignore errors during abort
         }
       }
