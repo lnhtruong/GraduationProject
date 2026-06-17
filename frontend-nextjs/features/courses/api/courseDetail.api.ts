@@ -199,3 +199,13 @@ export function useCourseDetail(courseId: number) {
     staleTime: 5 * 60_000,
   });
 }
+
+export function useCourseInstructor(userId?: number) {
+  return useQuery({
+    queryKey: ["courseInstructor", userId],
+    queryFn: () => fetchInstructor(userId!),
+    enabled: !!userId,
+    staleTime: 5 * 60_000,
+  });
+}
+
