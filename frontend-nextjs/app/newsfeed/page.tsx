@@ -1,5 +1,6 @@
 import NewsfeedPage from "@/features/newsfeed";
 import { API_URL } from "@/lib/env";
+import { buildCourseMetadata } from "@/lib/metadata";
 
 interface NewsfeedProps {
 	searchParams?: Promise<{ videoId?: string | string[]; courseId?: string | string[] }>;
@@ -19,41 +20,9 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 			});
 			if (res.ok) {
 				const course = await res.json();
-				const title = `${course.name} #shorts | LearnHub`;
-				const cleanDesc = course.description
-					? course.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) + "..."
-					: `Xem video ngắn bài học từ khóa học ${course.name} trên LearnHub.`;
-				const thumbnailUrl = course.video?.thumbnail || "/logo.png";
-				const videoUrl = course.video?.url || undefined;
-
-				return {
-					title,
-					description: cleanDesc,
-					openGraph: {
-						title,
-						description: cleanDesc,
-						images: [
-							{
-								url: thumbnailUrl,
-								width: 1200,
-								height: 630,
-								alt: course.name,
-							},
-						],
-						type: "video.episode",
-						...(videoUrl && {
-							videos: [
-								{
-									url: videoUrl,
-									width: 1200,
-									height: 675,
-								},
-							],
-						}),
-					},
-				};
+				return buildCourseMetadata(course, "#shorts", "video.episode");
 			}
-		} catch (err) {
+		} catch {
 			// Fall through
 		}
 	}
