@@ -127,13 +127,19 @@ export default function CourseLearnPage({ courseId }: Props) {
               volume={state.volume}
               isMuted={state.isMuted}
               isFullscreen={state.isFullscreen}
-              videoRef={state.videoRef}
+               videoRef={state.videoRef}
               isQuizSolved={state.isQuizSolved}
+              qualityLevels={state.qualityLevels}
+              currentQualityLevel={state.currentQualityLevel}
+              videoAspectRatio={state.videoAspectRatio}
+              onQualityLevelsLoaded={state.onQualityLevelsLoaded}
+              onSetQualityLevel={state.onSetQualityLevel}
               onTogglePlayback={state.handleTogglePlayback}
               onSetPlaybackRate={state.handleSetPlaybackRate}
               onToggleMute={state.handleToggleMute}
               onVolumeChange={state.handleVolumeChange}
               onToggleFullscreen={state.handleToggleFullscreen}
+              onTogglePictureInPicture={state.handleTogglePictureInPicture}
               onVideoKeyDown={state.handleVideoKeyDown}
               onTimeUpdate={state.handleTimeUpdate}
               onVideoEnded={state.handleVideoEnded}
@@ -155,12 +161,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               lessonTitle={state.selectedLesson.title}
               lessonDescription={state.selectedLesson.description}
               courseName={state.course.name}
-              currentLessonDurationLabel={state.currentLessonDurationLabel}
-              selectedLessonIndex={state.selectedLessonIndex}
-              lessonsLength={state.lessons.length}
-              completedLessonCount={state.completedLessonCount}
-              courseProgressPercent={state.courseProgressPercent}
-              instructorLabel="Giảng viên"
+              instructor={state.instructor}
               lessonId={state.selectedLesson.id}
               isAuthenticated={isAuthenticated}
             />
@@ -178,6 +179,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               lessonProgressRecords={state.lessonProgressRecords ?? []}
               completedLessonCount={state.completedLessonCount}
               onSelectLesson={state.handleSelectLesson}
+              currentLessonProgressPercent={state.progressPercent}
             />
           </div>
         </div>

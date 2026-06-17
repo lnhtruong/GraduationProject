@@ -13,6 +13,7 @@ interface Props {
   lessonProgressRecords: LessonProgressRecord[];
   completedLessonCount: number;
   onSelectLesson: (lessonId: number) => void;
+  currentLessonProgressPercent?: number;
 }
 
 export function LessonSidebar({
@@ -21,6 +22,7 @@ export function LessonSidebar({
   lessonProgressRecords,
   completedLessonCount,
   onSelectLesson,
+  currentLessonProgressPercent,
 }: Props) {
   return (
     <Card className="h-fit overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.08)] xl:sticky xl:top-4">
@@ -47,7 +49,20 @@ export function LessonSidebar({
                   record.lessonId === lesson.id &&
                   record.progress === "completed",
               );
+              const progressRecord = lessonProgressRecords.find(
+                (record) => record.lessonId === lesson.id,
+              );
               const lessonDuration = parseDurationToSeconds(lesson.duration);
+
+              let progressPercent = 0;
+              if (isSelected) {
+                progressPercent = currentLessonProgressPercent ?? 0;
+              } else if (isCompleted) {
+                progressPercent = 100;
+              } else if (progressRecord?.lastVideoPositionMs && lessonDuration > 0) {
+                const lastPosSec = progressRecord.lastVideoPositionMs / 1000;
+                progressPercent = Math.min(100, Math.round((lastPosSec / lessonDuration) * 100));
+              }
 
               return (
                 <button
@@ -116,9 +131,12 @@ export function LessonSidebar({
                         <Clock3 className="h-3.5 w-3.5" />
                         <span>{formatTime(lessonDuration)}</span>
                       </div>
-                      {isSelected ? (
+                      {progressPercent > 0 && progressPercent < 100 ? (
                         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
-                          <div className="h-full w-2/3 rounded-full bg-primary" />
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            style={{ width: `${progressPercent}%` }}
+                          />
                         </div>
                       ) : null}
                     </div>

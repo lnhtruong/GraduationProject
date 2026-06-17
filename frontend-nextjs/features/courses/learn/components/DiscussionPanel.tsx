@@ -78,7 +78,7 @@ function DiscussionItem({
     <div
       className={
         isReply
-          ? "rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
+          ? "rounded-2xl border border-emerald-100 bg-emerald-50/60 dark:border-emerald-950/40 dark:bg-emerald-950/20 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
           : "rounded-3xl border border-border/60 bg-background/95 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
       }
     >
@@ -109,7 +109,7 @@ function DiscussionItem({
               aria-pressed={Boolean(voted)}
               className={`inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs transition-colors ${
                 voted
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
@@ -149,7 +149,7 @@ function DiscussionItem({
       </div>
 
       {post.replies.length ? (
-        <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 pl-4 sm:pl-5">
+        <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 dark:border-emerald-900/40 pl-4 sm:pl-5">
           {post.replies.map((reply) => (
             <DiscussionItem
               key={reply.id}
@@ -228,7 +228,7 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
   };
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+    <Card id="discussion-panel-section" className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Flag, Pause, Play, Clapperboard } from "lucide-react";
+import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import Hls from "hls.js";
 import { QuizEditor } from "../QuizEditor";
 import { useQuizById, useUpdateQuiz } from "../../api/course-management.hooks";
 import type { QuizEditorState } from "../../types";
@@ -46,6 +53,16 @@ export function VideoPreview({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredMarkerKey, setHoveredMarkerKey] = useState<string | null>(null);
+
+  const hlsRef = useRef<Hls | null>(null);
+  const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
+  const [currentQualityLevel, setCurrentQualityLevel] = useState<number>(-1);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [menuView, setMenuView] = useState<"main" | "speed" | "quality">("main");
+
+  const currentQualityName = useMemo(() => {
+    return qualityLevels.find((level) => level.id === currentQualityLevel)?.name || "Tự động";
+  }, [qualityLevels, currentQualityLevel]);
   const [editingMarker, setEditingMarker] = useState<QuizTimelineMarker | null>(
     null,
   );
@@ -77,6 +94,97 @@ export function VideoPreview({
       clearTooltipHideTimeout();
     };
   }, []);
+
+  useEffect(() => {
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = currentQualityLevel;
+    }
+  }, [currentQualityLevel]);
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (!videoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      setQualityLevels([]);
+      setCurrentQualityLevel(-1);
+      return;
+    }
+
+    const isHls = videoUrl.includes(".m3u8");
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(videoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const levels = hls.levels.map((level, idx) => ({
+            id: idx,
+            name: level.height ? `${level.height}p` : `Chất lượng ${idx + 1}`,
+          }));
+          const sortedLevels = [
+            { id: -1, name: "Tự động" },
+            ...[...levels].reverse()
+          ];
+          setQualityLevels(sortedLevels);
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = videoUrl;
+      }
+    } else {
+      videoElement.src = videoUrl;
+      setQualityLevels([]);
+      setCurrentQualityLevel(-1);
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl]);
 
   const safeDuration = useMemo(() => {
     const fromVideo = Number(videoRef.current?.duration ?? 0);
@@ -119,10 +227,15 @@ export function VideoPreview({
 
   const formatTime = (value: number) => {
     const safe = Math.max(0, Math.floor(value));
-    const mm = Math.floor(safe / 60);
+    const hh = Math.floor(safe / 3600);
+    const mm = Math.floor((safe % 3600) / 60);
     const ss = safe % 60;
+    if (hh > 0) {
+      return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+    }
     return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
   };
+
 
   const handleTimelineSeek = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!timelineTrackRef.current || safeDuration <= 0) {
@@ -212,7 +325,8 @@ export function VideoPreview({
               <video
                 ref={videoRef}
                 className="h-full w-full cursor-pointer"
-                src={videoUrl}
+                playsInline
+                preload="metadata"
                 onClick={handleTogglePlayback}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
@@ -313,9 +427,128 @@ export function VideoPreview({
                   })}
                 </div>
 
-                <span className="w-12 shrink-0 text-right text-[11px] text-white/90">
+                <span className="w-12 shrink-0 text-right text-[11px] text-white/90 mr-1.5">
                   {formatTime(safeDuration)}
                 </span>
+
+                <DropdownMenu onOpenChange={(open) => { if (!open) setMenuView("main"); }}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/25 text-white hover:bg-black/55 focus:outline-hidden transition-colors"
+                      aria-label="Cài đặt video"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48 border border-white/15 bg-slate-900/95 text-white shadow-xl backdrop-blur-md"
+                  >
+                    {menuView === "main" && (
+                      <div className="flex flex-col gap-0.5 p-1">
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setMenuView("speed");
+                          }}
+                          className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center justify-between rounded-lg px-2 py-1.5 text-[12px] transition-colors"
+                        >
+                          <span className="font-medium text-white/90">Tốc độ phát</span>
+                          <span className="flex items-center gap-1 text-[11px] text-white/50">
+                            {playbackRate === 1 ? "Thường" : `${playbackRate}x`}
+                            <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                          </span>
+                        </DropdownMenuItem>
+
+                        {qualityLevels && qualityLevels.length > 1 && (
+                          <DropdownMenuItem
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setMenuView("quality");
+                            }}
+                            className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center justify-between rounded-lg px-2 py-1.5 text-[12px] transition-colors"
+                          >
+                            <span className="font-medium text-white/90">Chất lượng</span>
+                            <span className="flex items-center gap-1 text-[11px] text-white/50">
+                              {currentQualityName}
+                              <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                            </span>
+                          </DropdownMenuItem>
+                        )}
+                      </div>
+                    )}
+
+                    {menuView === "speed" && (
+                      <div className="flex flex-col gap-0.5 p-1">
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setMenuView("main");
+                          }}
+                          className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-white/70 border-b border-white/5 mb-1"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          <span>Tốc độ phát</span>
+                        </DropdownMenuItem>
+
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => {
+                          const isSelected = playbackRate === rate;
+                          return (
+                            <DropdownMenuItem
+                              key={rate}
+                              onSelect={() => {
+                                setPlaybackRate(rate);
+                                if (videoRef.current) {
+                                  videoRef.current.playbackRate = rate;
+                                }
+                              }}
+                              className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center justify-between rounded-lg px-2 py-1 text-[12px]"
+                            >
+                              <span className={isSelected ? "font-semibold text-primary" : "text-white/90"}>
+                                {rate === 1 ? "Thường" : `${rate}x`}
+                              </span>
+                              {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {menuView === "quality" && (
+                      <div className="flex flex-col gap-0.5 p-1">
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setMenuView("main");
+                          }}
+                          className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-white/70 border-b border-white/5 mb-1"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          <span>Chất lượng</span>
+                        </DropdownMenuItem>
+
+                        {qualityLevels.map((level) => {
+                          const isSelected = currentQualityLevel === level.id;
+                          return (
+                            <DropdownMenuItem
+                              key={level.id}
+                              onSelect={() => {
+                                setCurrentQualityLevel(level.id);
+                              }}
+                              className="focus:bg-white/10 focus:text-white cursor-pointer flex items-center justify-between rounded-lg px-2 py-1 text-[12px]"
+                            >
+                              <span className={isSelected ? "font-semibold text-primary" : "text-white/90"}>
+                                {level.name}
+                              </span>
+                              {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {hoveredMarker ? (
