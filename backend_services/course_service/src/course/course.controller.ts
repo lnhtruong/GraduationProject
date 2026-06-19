@@ -154,8 +154,20 @@ export class CoursesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.coursesService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const userId =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+    const role =
+      typeof roleHeader === 'string' && roleHeader.trim().length > 0
+        ? Number(roleHeader)
+        : undefined;
+    return this.coursesService.findOne(id, userId, role, true);
   }
 
   @Patch(':id')

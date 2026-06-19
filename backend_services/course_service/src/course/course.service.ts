@@ -1028,7 +1028,12 @@ export class CoursesService {
     ] as unknown as Order;
   }
 
-  async findOne(id: number): Promise<Course> {
+  async findOne(
+    id: number,
+    requesterUserId?: number,
+    requesterRole?: number,
+    enforceStatusCheck = false,
+  ): Promise<Course> {
     const course = await this.courseModel.findByPk(id, {
       include: this.buildCourseDetailInclude(),
       order: this.buildCourseDetailOrder(),
@@ -1039,6 +1044,17 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
+
+    if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
+      const isAdmin = requesterRole === this.ADMIN_ROLE;
+      const isOwner = requesterUserId === course.userId;
+      if (!isAdmin && !isOwner) {
+        throw new ForbiddenException(
+          'You do not have permission to access this course',
+        );
+      }
+    }
+
     return course;
   }
 
