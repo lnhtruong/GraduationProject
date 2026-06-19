@@ -71,9 +71,14 @@ export function useLessonDiscussions(
           return;
         }
 
+        const normalize = (post: DiscussionPostRecord): DiscussionPostRecord => ({
+          ...post,
+          replies: (post.replies ?? []).map(normalize),
+        });
+        const normalized = data.data.map(normalize);
         setTotal(data.total);
         setThreads((current) =>
-          isFirstPage ? data.data : [...current, ...data.data],
+          isFirstPage ? normalized : [...current, ...normalized],
         );
       } catch (fetchError) {
         if (controller.signal.aborted || requestId !== requestIdRef.current) {

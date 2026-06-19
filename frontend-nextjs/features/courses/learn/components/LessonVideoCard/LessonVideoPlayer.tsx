@@ -81,7 +81,7 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
           </div>
         )}
 
-        {!playerBlocked ? (
+        {selectedLessonVideoUrl && !playerBlocked ? (
           <button
             type="button"
             onClick={onTogglePlayback}

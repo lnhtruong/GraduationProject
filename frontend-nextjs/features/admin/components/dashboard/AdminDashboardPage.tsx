@@ -11,14 +11,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAdminDashboardStats } from "../../api/admin-dashboard.hooks";
-import { ROLES } from "@/lib/roles";
 
 export default function AdminDashboardPage() {
   const { data, isLoading, isError } = useAdminDashboardStats();
-
-  const students = data?.users.filter((u) => u.role === ROLES.STUDENT).length ?? null;
-  const lecturers = data?.users.filter((u) => u.role === ROLES.LECTURER).length ?? null;
-  const totalUsers = data?.users.length ?? null;
 
   return (
     <div className="space-y-8">
@@ -74,21 +69,21 @@ export default function AdminDashboardPage() {
           <StatCard
             icon={<Users className="h-5 w-5" />}
             label="Tổng người dùng"
-            value={isLoading ? undefined : (totalUsers ?? undefined)}
+            value={data?.users.total ?? undefined}
             colorClass="text-violet-600 bg-violet-50 dark:bg-violet-950/30"
             isLoading={isLoading}
           />
           <StatCard
             icon={<GraduationCap className="h-5 w-5" />}
             label="Học viên"
-            value={isLoading ? undefined : (students ?? undefined)}
+            value={data?.users.students ?? undefined}
             colorClass="text-sky-600 bg-sky-50 dark:bg-sky-950/30"
             isLoading={isLoading}
           />
           <StatCard
             icon={<ShieldCheck className="h-5 w-5" />}
             label="Giảng viên"
-            value={isLoading ? undefined : (lecturers ?? undefined)}
+            value={data?.users.lecturers ?? undefined}
             colorClass="text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30"
             isLoading={isLoading}
           />
