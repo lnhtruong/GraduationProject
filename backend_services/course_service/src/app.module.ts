@@ -21,6 +21,7 @@ import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit_logs/audit-logs.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 import { InstructorRevenueModule } from './instructor-revenue/instructor-revenue.module';
+import { AdminRevenueModule } from './admin-revenue/admin-revenue.module';
 import { DiscussionsModule } from './discussions/discussions.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 
@@ -49,10 +50,11 @@ import { WishlistModule } from './wishlist/wishlist.module';
     ReportsModule,
     QuizSubmissionsModule,
     InstructorRevenueModule,
+    AdminRevenueModule,
     DiscussionsModule,
     WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

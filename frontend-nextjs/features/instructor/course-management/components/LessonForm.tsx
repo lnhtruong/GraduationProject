@@ -24,6 +24,7 @@ import {
   useLessonActivitiesByLessonId,
   useQuizzesByLessonId,
   useCreateLessonActivity,
+  useUpdateLessonActivity,
   useCreateQuiz,
 } from "../api/course-management.hooks";
 import type {
@@ -112,7 +113,22 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   );
 
   const createLessonActivityMutation = useCreateLessonActivity();
+  const updateLessonActivityMutation = useUpdateLessonActivity();
   const createQuizMutation = useCreateQuiz();
+
+  // Toggle quiz visibility: 'public' = students can see/submit, 'draft' = hidden.
+  // New quizzes default to 'draft'; publishing the course also flips them to
+  // 'public'. This lets instructors show/hide a quiz added after publishing.
+  const handleToggleActivityStatus = async (
+    activityId: number,
+    nextStatus: "public" | "draft",
+  ) => {
+    if (!lessonId) return;
+    await updateLessonActivityMutation.mutateAsync({
+      id: activityId,
+      data: { status: nextStatus },
+    });
+  };
   const quizFormRef = useRef<ActivityQuizFormHandle>(null);
 
   const { register, control, handleSubmit, reset, setValue, formState } =
@@ -546,6 +562,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
           onEditQuiz={(activityId) => {
             setEditingOutsideQuizActivityId(activityId);
           }}
+          onToggleStatus={handleToggleActivityStatus}
+          isTogglingStatus={updateLessonActivityMutation.isPending}
         />
       )}
 

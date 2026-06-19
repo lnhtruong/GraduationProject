@@ -15,6 +15,7 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   LessonActivity,
   ActivityStatus,
+  ActivityType,
 } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
@@ -84,6 +85,8 @@ export class CoursesService {
     private readonly videoModel: typeof Video,
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
+    @InjectModel(LessonActivity)
+    private readonly lessonActivityModel: typeof LessonActivity,
     @InjectModel(Enroll)
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
@@ -91,7 +94,7 @@ export class CoursesService {
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
     private readonly auditLogsService: AuditLogsService,
-  ) { }
+  ) {}
 
   /**
    * BE-07: notify every follower of the publishing instructor that a new
@@ -176,7 +179,6 @@ export class CoursesService {
         }
       }
     } catch (err) {
-
       console.warn('[courses] failed to notify followers of publish', err);
     }
   }
@@ -251,9 +253,15 @@ export class CoursesService {
   private buildPublicCourseOrder(sort?: string): Order {
     switch (sort) {
       case 'popular':
-        return [[literal('enrolled_count'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('enrolled_count'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'rating':
-        return [[literal('avg_rating'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('avg_rating'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'newest':
       default:
         return [['id', 'DESC']];
@@ -336,12 +344,12 @@ export class CoursesService {
     const parsed =
       typeof value === 'string'
         ? (() => {
-          try {
-            return JSON.parse(value);
-          } catch {
-            return [];
-          }
-        })()
+            try {
+              return JSON.parse(value);
+            } catch {
+              return [];
+            }
+          })()
         : value;
 
     if (!Array.isArray(parsed)) {
@@ -509,7 +517,7 @@ export class CoursesService {
       instructorName,
       instructorAvatar:
         typeof instructor?.avatarUrl === 'string' &&
-          instructor.avatarUrl.trim().length > 0
+        instructor.avatarUrl.trim().length > 0
           ? instructor.avatarUrl
           : null,
       status: plain.status,
@@ -652,11 +660,11 @@ export class CoursesService {
     const categoryIdByName =
       categoryCounts.size > 0
         ? new Map(
-          (await getPublishedCategorySummaries()).map((category) => [
-            category.name,
-            category.id,
-          ]),
-        )
+            (await getPublishedCategorySummaries()).map((category) => [
+              category.name,
+              category.id,
+            ]),
+          )
         : undefined;
 
     return {
@@ -702,14 +710,14 @@ export class CoursesService {
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -768,19 +776,19 @@ export class CoursesService {
       maxPrice?: number;
       userId?: number;
       requesterRole?: number;
-      sort?: CoursePublicSort,
+      sort?: CoursePublicSort;
     } = {},
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     const {
       status,
@@ -820,7 +828,6 @@ export class CoursesService {
       }
       whereCondition.userId = userId;
     }
-
 
     const priceCondition: Record<symbol, number> = {};
     if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
@@ -1524,6 +1531,34 @@ export class CoursesService {
     return updated;
   }
 
+  /**
+   * Flip every 'draft' quiz lesson-activity of a course to 'public' so its
+   * quizzes become submittable. Called on course publish. Lessons removed/
+   * quizzes already public/archived are left as-is.
+   */
+  private async publishQuizActivitiesForCourse(
+    courseId: number,
+  ): Promise<void> {
+    const lessons = await this.lessonModel.findAll({
+      where: { courseId },
+      attributes: ['id'],
+      raw: true,
+    });
+    const lessonIds = lessons.map((lesson) => lesson.id);
+    if (lessonIds.length === 0) return;
+
+    await this.lessonActivityModel.update(
+      { status: ActivityStatus.PUBLIC },
+      {
+        where: {
+          lessonId: { [Op.in]: lessonIds },
+          activityType: ActivityType.QUIZ,
+          status: ActivityStatus.DRAFT,
+        },
+      },
+    );
+  }
+
   async publish(id: number, requester?: RequesterContext): Promise<Course> {
     const course = await this.findOne(id);
     if (course.status !== CourseStatus.APPROVED) {
@@ -1542,6 +1577,12 @@ export class CoursesService {
 
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    // Publish-cascade: make this course's draft quiz activities submittable.
+    // Quiz activities default to 'draft' and are never flipped elsewhere, so
+    // without this students can never submit a quiz. Only quiz activities in
+    // 'draft' are flipped (assignment / archived / removed are left untouched).
+    await this.publishQuizActivitiesForCourse(id);
 
     if (requester) {
       await this.auditLogsService.log({
