@@ -15,7 +15,6 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   LessonActivity,
   ActivityStatus,
-  ActivityType,
 } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
@@ -85,8 +84,6 @@ export class CoursesService {
     private readonly videoModel: typeof Video,
     @InjectModel(Lesson)
     private readonly lessonModel: typeof Lesson,
-    @InjectModel(LessonActivity)
-    private readonly lessonActivityModel: typeof LessonActivity,
     @InjectModel(Enroll)
     private readonly enrollModel: typeof Enroll,
     @InjectModel(Feedback)
@@ -1531,34 +1528,6 @@ export class CoursesService {
     return updated;
   }
 
-  /**
-   * Flip every 'draft' quiz lesson-activity of a course to 'public' so its
-   * quizzes become submittable. Called on course publish. Lessons removed/
-   * quizzes already public/archived are left as-is.
-   */
-  private async publishQuizActivitiesForCourse(
-    courseId: number,
-  ): Promise<void> {
-    const lessons = await this.lessonModel.findAll({
-      where: { courseId },
-      attributes: ['id'],
-      raw: true,
-    });
-    const lessonIds = lessons.map((lesson) => lesson.id);
-    if (lessonIds.length === 0) return;
-
-    await this.lessonActivityModel.update(
-      { status: ActivityStatus.PUBLIC },
-      {
-        where: {
-          lessonId: { [Op.in]: lessonIds },
-          activityType: ActivityType.QUIZ,
-          status: ActivityStatus.DRAFT,
-        },
-      },
-    );
-  }
-
   async publish(id: number, requester?: RequesterContext): Promise<Course> {
     const course = await this.findOne(id);
     if (course.status !== CourseStatus.APPROVED) {
@@ -1577,12 +1546,6 @@ export class CoursesService {
 
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
-
-    // Publish-cascade: make this course's draft quiz activities submittable.
-    // Quiz activities default to 'draft' and are never flipped elsewhere, so
-    // without this students can never submit a quiz. Only quiz activities in
-    // 'draft' are flipped (assignment / archived / removed are left untouched).
-    await this.publishQuizActivitiesForCourse(id);
 
     if (requester) {
       await this.auditLogsService.log({

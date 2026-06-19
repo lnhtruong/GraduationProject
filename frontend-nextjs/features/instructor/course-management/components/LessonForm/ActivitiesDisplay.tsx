@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkPlus, Eye, EyeOff, Play } from "lucide-react";
+import { BookmarkPlus, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Activity {
@@ -15,8 +15,6 @@ interface Props {
   isLoading: boolean;
   timelineCount?: number;
   onEditQuiz?: (activityId: number) => void;
-  onToggleStatus?: (activityId: number, nextStatus: "public" | "draft") => void;
-  isTogglingStatus?: boolean;
 }
 
 export function ActivitiesDisplay({
@@ -24,8 +22,6 @@ export function ActivitiesDisplay({
   isLoading,
   timelineCount = 0,
   onEditQuiz,
-  onToggleStatus,
-  isTogglingStatus = false,
 }: Props) {
   return (
     <div className="space-y-3">
@@ -39,23 +35,21 @@ export function ActivitiesDisplay({
         </div>
       ) : activities && activities.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-border/70 bg-background">
-          {activities.map((activity) => {
-            const isQuiz = activity.activityType === "quiz";
-            const isPublic = activity.status === "public";
-            return (
-              <div
-                key={activity.id}
-                className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2 transition-colors last:border-b-0 hover:bg-muted/35"
-              >
-                <button
-                  type="button"
-                  disabled={!isQuiz}
-                  onClick={() => {
-                    if (isQuiz) onEditQuiz?.(activity.id);
-                  }}
-                  className="group flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
-                >
-                  {isQuiz ? (
+          {activities.map((activity) => (
+            <button
+              key={activity.id}
+              type="button"
+              disabled={activity.activityType !== "quiz"}
+              onClick={() => {
+                if (activity.activityType === "quiz") {
+                  onEditQuiz?.(activity.id);
+                }
+              }}
+              className="group w-full text-left disabled:cursor-default"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2 transition-colors last:border-b-0 hover:bg-muted/35">
+                <div className="flex min-w-0 items-center gap-2">
+                  {activity.activityType === "quiz" ? (
                     <Play className="h-4 w-4 shrink-0 text-primary" />
                   ) : (
                     <BookmarkPlus className="h-4 w-4 shrink-0 text-yellow-600" />
@@ -63,46 +57,19 @@ export function ActivitiesDisplay({
                   <div className="min-w-0">
                     <p className="line-clamp-1 text-sm font-medium group-hover:text-primary">
                       {activity.title ||
-                        `${isQuiz ? "Quiz" : "Assignment"} #${activity.id}`}
+                        `${activity.activityType === "quiz" ? "Quiz" : "Assignment"} #${activity.id}`}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {isQuiz ? "Quiz" : "Bài tập"}
+                      {activity.activityType === "quiz" ? "Quiz" : "Bài tập"}
                     </p>
                   </div>
-                </button>
-
-                <div className="flex shrink-0 items-center gap-2 sm:ml-2">
-                  <Badge
-                    variant={isPublic ? "default" : "secondary"}
-                    className="text-xs"
-                  >
-                    {isPublic ? "Đang hiển thị" : "Đang ẩn"}
-                  </Badge>
-                  {isQuiz && onToggleStatus && (
-                    <button
-                      type="button"
-                      disabled={isTogglingStatus}
-                      onClick={() =>
-                        onToggleStatus(
-                          activity.id,
-                          isPublic ? "draft" : "public",
-                        )
-                      }
-                      title={isPublic ? "Ẩn quiz khỏi học viên" : "Hiện quiz cho học viên"}
-                      className="inline-flex items-center gap-1 rounded-md border border-border/70 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isPublic ? (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      ) : (
-                        <Eye className="h-3.5 w-3.5" />
-                      )}
-                      {isPublic ? "Ẩn" : "Hiện"}
-                    </button>
-                  )}
                 </div>
+                <Badge variant="secondary" className="shrink-0 text-xs sm:ml-2">
+                  {activity.status}
+                </Badge>
               </div>
-            );
-          })}
+            </button>
+          ))}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed py-4 text-center text-xs text-muted-foreground">
