@@ -3,6 +3,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { X, Sparkles } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -24,11 +27,15 @@ import { AIQuizProgress } from "./ActivityCreationDialog/AIQuizProgress";
 import { QuizAIReviewer } from "./ActivityCreationDialog/QuizAIReviewer";
 import {
   useCreateLessonActivity,
+  useUpdateLessonActivity,
+  useDeleteLessonActivity,
   useCreateQuiz,
   useLessonActivitiesByLessonId,
+  useQuizzesByLessonId,
 } from "../api/course-management.hooks";
 import { useGenerateQuizAIMutation } from "../api/ai-quiz.hooks";
 import { useVideoById } from "@/features/video/api/video.hooks";
+
 import type { QuizEditorState } from "../types";
 import {
   canCreateInVideoQuiz,
@@ -41,6 +48,7 @@ import { AssignmentForm } from "./ActivityCreationDialog/AssignmentForm";
 import { InvalidVideoWarning } from "./ActivityCreationDialog/InvalidVideoWarning";
 import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
+import { inferenceHttpClient } from "@/features/_shared/api-factories";
 
 interface Props {
   open: boolean;
@@ -76,15 +84,22 @@ export function ActivityCreationDialog({
   const [view, setView] = useState<"create" | "generating" | "review">("create");
   const [stage, setStage] = useState("");
   const [generatedQuizId, setGeneratedQuizId] = useState<number | null>(null);
+  const [generatedActivityId, setGeneratedActivityId] = useState<number | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const sseRef = useRef<any>(null);
-
   const { data: lessonActivities } = useLessonActivitiesByLessonId(lessonId);
   const { data: lessonVideo } = useVideoById(lessonVideoId ?? null);
+  const { data: inVideoQuizzes } = useQuizzesByLessonId(
+    lessonId,
+    "in_video",
+    open
+  );
 
   const createLessonActivityMutation = useCreateLessonActivity();
+  const updateLessonActivityMutation = useUpdateLessonActivity();
+  const deleteLessonActivityMutation = useDeleteLessonActivity();
   const createQuizMutation = useCreateQuiz();
   const generateQuizAIMutation = useGenerateQuizAIMutation();
+  const sseRef = useRef<any>(null);
 
   const { url: activeVideoUrl, durationSeconds: activeVideoDurationSeconds, hasVideoSource } =
     resolveActiveVideoSource({
@@ -100,15 +115,26 @@ export function ActivityCreationDialog({
     activeVideoDurationSeconds > 0 ? 1 : 0,
   );
 
-  const handleOpenChange = (val: boolean) => {
+  const handleOpenChange = async (val: boolean) => {
     if (!val) {
       if (sseRef.current) {
         sseRef.current.close();
         sseRef.current = null;
       }
+
+      // Clean up the draft activity if the user cancels AI generation or review
+      if ((view === "generating" || view === "review") && generatedActivityId) {
+        try {
+          await deleteLessonActivityMutation.mutateAsync(generatedActivityId);
+        } catch (err) {
+          console.warn("Failed to delete draft activity on dialog close:", err);
+        }
+      }
+
       setView("create");
       setStage("");
       setGeneratedQuizId(null);
+      setGeneratedActivityId(null);
       setActiveJobId(null);
     }
     onOpenChange(val);
@@ -172,11 +198,13 @@ export function ActivityCreationDialog({
         lessonId,
         activityType: "quiz",
         title: values.name.trim() || `Quiz AI: ${lessonTitle}`,
-        description: `AI Quiz generated from lesson video`,
+        description: "AI_REVIEW_PENDING", // Hold from appearing on player timeline until approved
         orderIndex: nextOrderIndex,
         status: "draft",
         createdBy: userId,
       });
+
+      setGeneratedActivityId(createdActivity.id);
 
       const jobResp = await generateQuizAIMutation.mutateAsync({
         videoId: lessonVideoId,
@@ -190,8 +218,8 @@ export function ActivityCreationDialog({
         passingScore: values.passingScore,
         timeLimitMinutes: values.timeLimitMinutes,
         isInVideo: values.isInVideo,
-        startTime: values.startTime ? Number(values.startTime) : undefined,
-        endTime: values.endTime ? Number(values.endTime) : undefined,
+        startTime: values.startTime,
+        endTime: values.endTime,
       });
 
       const jobId = jobResp.jobId;
@@ -215,6 +243,7 @@ export function ActivityCreationDialog({
             setView("create");
             setStage("");
             setActiveJobId(null);
+
           }
         },
         onQuizGenerated: (payload) => {
@@ -233,27 +262,51 @@ export function ActivityCreationDialog({
               sseRef.current.close();
               sseRef.current = null;
             }
+
           }
         },
       }, { userId });
+
 
     } catch (err: any) {
       toast.error(err?.message || "Đã xảy ra lỗi khi tạo yêu cầu sinh quiz.");
     }
   };
 
-  const handleCancelGeneration = () => {
+  const handleCancelGeneration = async () => {
     if (sseRef.current) {
       sseRef.current.close();
       sseRef.current = null;
     }
+
+    if (generatedActivityId) {
+      try {
+        await deleteLessonActivityMutation.mutateAsync(generatedActivityId);
+      } catch (err) {
+        console.warn("Failed to delete draft activity on cancel generation:", err);
+      }
+    }
+
     setView("create");
     setStage("");
+    setGeneratedActivityId(null);
     setActiveJobId(null);
-    toast.info("Đã hủy kết nối theo dõi tiến trình.");
+    toast.info("Đã hủy và loại bỏ hoạt động Quiz AI đang sinh.");
   };
 
-  const handleCompleteReview = () => {
+  const handleCompleteReview = async () => {
+    if (generatedActivityId) {
+      try {
+        await updateLessonActivityMutation.mutateAsync({
+          id: generatedActivityId,
+          data: {
+            description: "AI Quiz generated from lesson video", // Finalize description to show markers
+          },
+        });
+      } catch (err) {
+        console.error("Failed to finalize activity description:", err);
+      }
+    }
     toast.success("Đã lưu và hoàn tất Quiz AI!");
     handleOpenChange(false);
     router.refresh();
@@ -261,7 +314,10 @@ export function ActivityCreationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="h-[90vh] w-[96vw] max-w-none overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl sm:w-[94vw] lg:w-7xl">
+      <DialogContent className={cn(
+        "h-[90vh] w-[96vw] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-all duration-300",
+        view === "review" ? "sm:max-w-5xl" : "!max-w-2xl"
+      )}>
         <div className="flex h-full min-h-0 flex-col">
           <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
             <DialogTitle className="text-xl font-bold">
@@ -274,7 +330,10 @@ export function ActivityCreationDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
+          <div className={cn(
+            "min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-5 overflow-y-auto overflow-x-hidden",
+            view === "review" && "overflow-hidden flex flex-col"
+          )}>
             {view === "generating" ? (
               <AIQuizProgress stage={stage} onCancel={handleCancelGeneration} />
             ) : view === "review" ? (
@@ -331,9 +390,13 @@ export function ActivityCreationDialog({
                 <TabsContent value="quiz-ai" className="space-y-4 pt-4">
                   <QuizAIForm
                     lessonTitle={lessonTitle}
-                    hasVideo={Boolean(lessonVideoId)}
+                    hasVideo={hasVideoSource}
                     isPending={generateQuizAIMutation.isPending}
                     onSubmit={handleCreateQuizAI}
+                    onCancel={() => handleOpenChange(false)}
+                    existingQuizzes={inVideoQuizzes}
+                    videoDurationSeconds={activeVideoDurationSeconds}
+                    videoUrl={activeVideoUrl}
                   />
                 </TabsContent>
 
@@ -348,24 +411,17 @@ export function ActivityCreationDialog({
             )}
           </div>
 
-          {view === "create" ? (
-            activityTab === "quiz-ai" ? (
-              <div className="flex items-center justify-end gap-3 border-t border-border/70 bg-muted/10 px-4 py-3 sm:px-6">
-                <Button variant="ghost" onClick={() => handleOpenChange(false)} className="h-10 rounded-lg">
-                  Hủy
-                </Button>
-              </div>
-            ) : (
-              <ActivityDialogFooter
-                activityTab={activityTab}
-                onCancel={() => handleOpenChange(false)}
-                onCreateAssignment={() => void handleCreateAssignment()}
-                onCreateQuiz={() => void quizFormRef.current?.submit()}
-                isAssignmentPending={createLessonActivityMutation.isPending}
-                isQuizPending={createQuizMutation.isPending}
-              />
-            )
-          ) : null}
+          {view === "create" && (
+            <ActivityDialogFooter
+              activityTab={activityTab}
+              onCancel={() => handleOpenChange(false)}
+              onCreateAssignment={() => void handleCreateAssignment()}
+              onCreateQuiz={() => void quizFormRef.current?.submit()}
+              isAssignmentPending={createLessonActivityMutation.isPending}
+              isQuizPending={createQuizMutation.isPending}
+              isQuizAIPending={generateQuizAIMutation.isPending}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
