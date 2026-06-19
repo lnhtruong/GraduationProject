@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -615,16 +615,30 @@ export function VideoPreview({
           }
         }}
       >
-        <DialogContent className="h-[92vh] w-[96vw] max-w-none overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl sm:w-[92vw] lg:w-7xl">
+        <DialogContent 
+          showCloseButton={false}
+          className="h-[92vh] w-[92vw] sm:max-w-2xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col transition-all duration-300"
+        >
           <div className="flex h-full min-h-0 flex-col">
-            <DialogHeader className="border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
-              <DialogTitle className="text-xl">
+            <DialogHeader className="border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 pr-12 text-left sm:px-6 sm:pr-16 relative">
+              <DialogTitle className="text-xl font-bold">
                 Chỉnh quiz trong video
               </DialogTitle>
-              <DialogDescription>
-                Chỉnh trực tiếp quiz gắn với mốc đang chọn mà không cần chuyển
-                trang.
+              <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
+                Chỉnh trực tiếp quiz gắn với mốc đang chọn mà không cần chuyển trang.
               </DialogDescription>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setEditingMarker(null);
+                  setDraftQuizState(null);
+                }}
+                className="absolute right-4 top-4 h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground z-20"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
             </DialogHeader>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
