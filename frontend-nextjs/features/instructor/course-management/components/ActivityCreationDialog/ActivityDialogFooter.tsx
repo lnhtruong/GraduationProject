@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 
 interface Props {
-  activityTab: "quiz" | "assignment";
+  activityTab: "quiz" | "quiz-ai" | "assignment";
   onCancel: () => void;
   onCreateAssignment: () => void;
   onCreateQuiz: () => void;
   isAssignmentPending: boolean;
   isQuizPending: boolean;
+  isQuizAIPending: boolean;
 }
 
 export function ActivityDialogFooter({
@@ -19,32 +20,42 @@ export function ActivityDialogFooter({
   onCreateQuiz,
   isAssignmentPending,
   isQuizPending,
+  isQuizAIPending,
 }: Props) {
-  const isPending =
-    (activityTab === "assignment" ? isAssignmentPending : isQuizPending) ||
-    isAssignmentPending ||
-    isQuizPending;
-
   return (
     <DialogFooter className="sticky bottom-0 z-10 border-t border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:px-6">
-      <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+      <Button
+        variant="outline"
+        onClick={onCancel}
+        aria-label="Hủy và đóng hộp thoại"
+        className="w-full sm:w-auto h-10 rounded-xl font-semibold"
+      >
         Hủy
       </Button>
       {activityTab === "assignment" ? (
         <Button
           onClick={onCreateAssignment}
           disabled={isAssignmentPending}
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto h-10 rounded-xl font-semibold shadow-md"
         >
           {isAssignmentPending ? "Đang tạo..." : "Tạo bài tập"}
+        </Button>
+      ) : activityTab === "quiz-ai" ? (
+        <Button
+          type="submit"
+          form="quiz-ai-form"
+          disabled={isQuizAIPending}
+          className="w-full sm:w-auto h-10 rounded-xl font-semibold shadow-md bg-primary hover:bg-primary/90 gap-1.5"
+        >
+          {isQuizAIPending ? "Đang sinh..." : "Sinh quiz AI ✨"}
         </Button>
       ) : (
         <Button
           onClick={onCreateQuiz}
-          disabled={isPending}
-          className="w-full sm:w-auto"
+          disabled={isQuizPending}
+          className="w-full sm:w-auto h-10 rounded-xl font-semibold shadow-md"
         >
-          {isQuizPending || isAssignmentPending ? "Đang tạo..." : "Tạo quiz"}
+          {isQuizPending ? "Đang tạo..." : "Tạo quiz"}
         </Button>
       )}
     </DialogFooter>

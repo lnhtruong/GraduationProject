@@ -58,15 +58,22 @@ export function buildQuizTimelineMarkers(
   activities: InstructorLessonActivity[] | null | undefined,
 ): QuizTimelineMarker[] {
   const activityTitleMap = new Map<number, string>();
+  const pendingActivityIds = new Set<number>();
   (activities ?? []).forEach((activity) => {
     if (activity.title?.trim()) {
       activityTitleMap.set(activity.id, activity.title.trim());
+    }
+    if (activity.description === "AI_REVIEW_PENDING") {
+      pendingActivityIds.add(activity.id);
     }
   });
 
   const markers: QuizTimelineMarker[] = [];
 
   (quizzes ?? []).forEach((quiz) => {
+    if (pendingActivityIds.has(quiz.lessonActivityId)) {
+      return;
+    }
     quiz.questions.forEach((question) => {
       const seconds = parseVideoTimestampToSeconds(question.videoTimestamp);
       if (seconds === null) {
