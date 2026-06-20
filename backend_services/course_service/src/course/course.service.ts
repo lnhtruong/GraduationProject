@@ -1825,14 +1825,10 @@ export class CoursesService {
       });
     }
 
-    // Admin sửa course đã publish → giữ nguyên publish. Còn lại (draft/pending/
-    // approved...) → đưa về DRAFT để đi lại quy trình duyệt.
+    // Sửa trực tiếp (admin mọi trạng thái, hoặc non-admin trên khóa chưa khóa nội
+    // dung) → GIỮ NGUYÊN status hiện tại, không ép về DRAFT. Status nào giữ status đó.
     const wasPublished = course.status === CourseStatus.PUBLISH;
-    const nextStatus = wasPublished ? CourseStatus.PUBLISH : CourseStatus.DRAFT;
-    const updated = await course.update({
-      ...payload,
-      status: nextStatus,
-    });
+    const updated = await course.update({ ...payload });
 
     // Admin sửa trực tiếp course ĐÃ publish (không qua change request) → vẫn phải
     // báo học viên đã enroll + chủ khóa (nếu admin sửa hộ). Course chưa publish

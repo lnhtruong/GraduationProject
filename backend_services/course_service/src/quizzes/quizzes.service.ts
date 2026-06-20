@@ -323,6 +323,24 @@ export class QuizzesService {
       );
     }
 
+    // Đóng lỗ hổng lách change request: quiz tạo bằng AI cũng phải tuân ngưỡng
+    // PUBLISH/APPROVED như tạo tay. Non-admin tạo AI quiz trên khóa đã khóa nội
+    // dung → chặn; muốn thêm quiz thì tạo thủ công để đi qua change request chờ duyệt.
+    const courseOfActivity =
+      await this.coursesService.findCourseByLessonActivityId(
+        payload.lessonActivityId,
+      );
+    if (
+      requester.requesterRole !== ADMIN_ROLE &&
+      courseOfActivity &&
+      (courseOfActivity.status === CourseStatus.PUBLISH ||
+        courseOfActivity.status === CourseStatus.APPROVED)
+    ) {
+      throw new BadRequestException(
+        'Không thể tạo quiz bằng AI trên khóa đã publish/approved. Hãy tạo quiz thủ công để gửi change request cho admin duyệt.',
+      );
+    }
+
     const baseUrl = this.getAiServiceBaseUrl();
     const source = this.resolveQuizSource(video);
     const timeRange = this.resolveAiQuizTimeRange(payload);
