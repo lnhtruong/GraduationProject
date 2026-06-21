@@ -1405,7 +1405,12 @@ export class CoursesService {
     ] as unknown as Order;
   }
 
-  async findOne(id: number): Promise<Course> {
+  async findOne(
+    id: number,
+    requesterUserId?: number,
+    requesterRole?: number,
+    enforceStatusCheck = false,
+  ): Promise<Course> {
     const course = await this.courseModel.findByPk(id, {
       include: this.buildCourseDetailInclude(),
       order: this.buildCourseDetailOrder(),
@@ -1416,6 +1421,17 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
+
+    if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
+      const isAdmin = requesterRole === this.ADMIN_ROLE;
+      const isOwner = requesterUserId === course.userId;
+      if (!isAdmin && !isOwner) {
+        throw new ForbiddenException(
+          'You do not have permission to access this course',
+        );
+      }
+    }
+
     return course;
   }
 
@@ -2576,6 +2592,14 @@ export class CoursesService {
     if (course.status !== CourseStatus.APPROVED) {
       throw new BadRequestException(
         `Course must be in APPROVED status to publish. Current status: ${course.status}`,
+      );
+    }
+
+    // Check ownership for LECTURER
+    const isAdmin = requester?.role === 1;
+    if (requester && !isAdmin && course.userId !== requester.userId) {
+      throw new ForbiddenException(
+        'You do not have permission to publish this course',
       );
     }
 

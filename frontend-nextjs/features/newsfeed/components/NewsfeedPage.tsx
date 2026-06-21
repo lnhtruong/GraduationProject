@@ -27,6 +27,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		openOptionBox,
 		closeOptionBox,
 		setActiveVideoId,
+		toggleGlobalPaused,
 	} = useNewsfeedUiStore();
 	const [shareOpen, setShareOpen] = useState(false);
 	const [shareUrl, setShareUrl] = useState("");
@@ -36,7 +37,18 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 
 	useEffect(() => {
 		setActiveVideoId(activeVideo?.id ?? null);
+		// Reset trạng thái pause toàn cục khi chuyển video để video mới phát tự động
+		useNewsfeedUiStore.getState().setGlobalPaused(false);
 	}, [activeVideo?.id, setActiveVideoId]);
+
+	useEffect(() => {
+		if (activeVideo) {
+			const cleanTitle = activeVideo.title || activeVideo.caption || "Video ngắn";
+			document.title = `${cleanTitle} #shorts | LearnHub`;
+		} else {
+			document.title = "Bảng tin bài học ngắn | LearnHub";
+		}
+	}, [activeVideo]);
 
 	useEffect(() => {
 		if (!activeVideo) {
@@ -65,16 +77,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 
 			if (event.code === "Space") {
 				event.preventDefault();
-				const element = document.querySelector(
-					"video[data-active='true']",
-				) as HTMLVideoElement | null;
-				if (element) {
-					if (element.paused) {
-						void element.play();
-					} else {
-						element.pause();
-					}
-				}
+				toggleGlobalPaused();
 			}
 
 			if (event.key === "ArrowDown") {
@@ -92,7 +95,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		return () => {
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [goNext, goPrev]);
+	}, [goNext, goPrev, toggleGlobalPaused]);
 
 	const onOpenCourse = useCallback(() => {
 		if (isOptionBoxOpen && optionBoxContentType === "course") {
@@ -171,7 +174,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				className={cn(
 					"h-[calc(100vh-64px)] pt-0 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
-					isOptionBoxOpen ? "md:pr-[592px] lg:pr-[632px] pr-0" : "pr-0 md:pr-[72px]",
+					isOptionBoxOpen ? "md:pr-[452px] lg:pr-[522px] xl:pr-[592px] pr-0" : "pr-0 md:pr-[72px]",
 				)}
 			>
 				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">

@@ -19,29 +19,35 @@ export function LessonMetadataForm({
   errors,
 }: Props) {
   return (
-    <div className="mb-4 space-y-3">
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium">
+    <div className="mb-4 space-y-4">
+      <div className="grid gap-1.5">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           Tên bài học <span className="text-destructive">*</span>
         </Label>
         <Input
           {...titleRegister}
           placeholder="VD: Kiểu dữ liệu trong Python"
-          className={cn("text-sm", errors?.title && "border-destructive focus-visible:ring-destructive")}
+          className={cn(
+            "h-10 text-sm rounded-xl border-border focus-visible:ring-1 focus-visible:ring-primary/30",
+            errors?.title && "border-destructive focus-visible:ring-destructive"
+          )}
         />
         {errors?.title && (
           <p className="text-xs text-destructive mt-0.5">{errors.title.message}</p>
         )}
       </div>
 
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium">
+      <div className="grid gap-1.5">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           Mô tả ngắn <span className="text-destructive">*</span>
         </Label>
         <Textarea
           {...descriptionRegister}
           placeholder="Tóm tắt nội dung bài học"
-          className={cn("min-h-24 text-sm", errors?.description && "border-destructive focus-visible:ring-destructive")}
+          className={cn(
+            "min-h-24 text-sm rounded-xl border-border focus-visible:ring-1 focus-visible:ring-primary/30 resize-y",
+            errors?.description && "border-destructive focus-visible:ring-destructive"
+          )}
         />
         {errors?.description && (
           <p className="text-xs text-destructive mt-0.5">{errors.description.message}</p>

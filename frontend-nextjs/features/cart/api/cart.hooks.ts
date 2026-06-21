@@ -13,9 +13,9 @@ const cartItemsHooks = createQueryHooks("cart", ["items"], cartApi.getCart, {
 
 export const cartKeys = cartItemsHooks.keys;
 
-export function useCartQuery() {
+export function useCartQuery(enabled = true) {
   const { isAuthenticated } = useAuthState();
-  return cartItemsHooks.useQuery(isAuthenticated);
+  return cartItemsHooks.useQuery(isAuthenticated && enabled);
 }
 
 // Derive từ useCartQuery — không gọi API thêm

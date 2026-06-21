@@ -297,7 +297,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'POST',
     pattern: '/api/course/courses/:id/publish',
     access: 'roles',
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'POST',

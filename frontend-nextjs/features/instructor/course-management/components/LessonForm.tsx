@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { NotebookText, Clapperboard } from "lucide-react";
+import { NotebookText, Clapperboard, X } from "lucide-react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { lessonFormSchema } from "../schemas";
@@ -394,7 +394,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         <Button
           type="submit"
           form="lesson-form"
-          className="min-w-[120px]"
+          className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
           disabled={formState.isSubmitting || isUploadingVideo}
         >
           {isUploadingVideo ? "Đang tải video..." : (isEdit ? "Lưu bài học" : "Tạo bài học")}
@@ -564,13 +564,29 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
       {/* Local Quiz Editor Modal */}
       <Dialog open={showQuizEditorModal} onOpenChange={setShowQuizEditorModal}>
-        <DialogContent className="h-[90vh] w-[96vw] max-w-5xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col">
+        <DialogContent 
+          showCloseButton={false}
+          className="h-[92vh] w-[92vw] sm:max-w-2xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col transition-all duration-300"
+        >
           <div className="flex h-full min-h-0 flex-col">
-            <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 text-left">
+            <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 pr-12 text-left relative">
               <DialogTitle className="text-xl font-bold">Tạo hoạt động mới</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
                 Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học.
               </DialogDescription>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setShowQuizEditorModal(false);
+                  setQuizMode("outside_video");
+                  setQuizTimestamp("00:00:00.000");
+                }}
+                className="absolute right-4 top-4 h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground z-20"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
             </DialogHeader>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 space-y-6">

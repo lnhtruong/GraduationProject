@@ -1,6 +1,7 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useEffect, useRef } from "react";
 import { PlayCircle, Pause, Play } from "lucide-react";
 import { InVideoQuizPoint } from "../../utils";
+import Hls from "hls.js";
 
 interface LessonVideoPlayerProps {
   selectedLessonVideoUrl?: string;
@@ -8,11 +9,13 @@ interface LessonVideoPlayerProps {
   isPlaying: boolean;
   playerBlocked: boolean;
   currentLessonDurationLabel: string;
+  currentQualityLevel: number;
+  onQualityLevelsLoaded: (levels: { id: number; name: string }[]) => void;
   onTogglePlayback: () => void;
   onVideoKeyDown: (event: React.KeyboardEvent<HTMLVideoElement>) => void;
   onTimeUpdate: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
   onVideoEnded: () => void;
-  onVideoMetadataLoaded: (duration: number) => void;
+  onVideoMetadataLoaded: (duration: number, aspectRatio?: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setCurrentTime: (time: number) => void;
   setLastVideoTime: (time: number) => void;
@@ -26,6 +29,8 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
       isPlaying,
       playerBlocked,
       currentLessonDurationLabel,
+      currentQualityLevel,
+      onQualityLevelsLoaded,
       onTogglePlayback,
       onVideoKeyDown,
       onTimeUpdate,
@@ -37,6 +42,103 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
     },
     ref
   ) => {
+    const hlsRef = useRef<Hls | null>(null);
+
+    useEffect(() => {
+      if (hlsRef.current) {
+        hlsRef.current.currentLevel = currentQualityLevel;
+      }
+    }, [currentQualityLevel]);
+
+    useEffect(() => {
+      let videoElement: HTMLVideoElement | null = null;
+      if (ref) {
+        if (typeof ref === "function") {
+          // Hỗ trợ callback ref
+        } else if ("current" in ref) {
+          videoElement = ref.current;
+        }
+      }
+
+      if (!videoElement) return;
+
+      if (!selectedLessonVideoUrl) {
+        videoElement.src = "";
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+        return;
+      }
+
+      const isHls = selectedLessonVideoUrl.includes(".m3u8");
+
+      // Reset HLS instance cũ nếu có
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      if (isHls) {
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            maxMaxBufferLength: 15,
+            enableWorker: true,
+            lowLatencyMode: true,
+          });
+          hlsRef.current = hls;
+          hls.loadSource(selectedLessonVideoUrl);
+          hls.attachMedia(videoElement);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            const levels = hls.levels.map((level, idx) => ({
+              id: idx,
+              name: level.height ? `${level.height}p` : `Chất lượng ${idx + 1}`,
+            }));
+            const allLevels = [{ id: -1, name: "Tự động" }, ...levels];
+            onQualityLevelsLoaded(allLevels);
+          });
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  console.warn("[HLS.js] Lỗi mạng, đang thử load lại...", data);
+                  hls.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  console.warn("[HLS.js] Lỗi giải mã media, đang thử khôi phục...", data);
+                  hls.recoverMediaError();
+                  break;
+                default:
+                  console.error("[HLS.js] Lỗi nghiêm trọng, hủy trình phát:", data);
+                  hls.destroy();
+                  hlsRef.current = null;
+                  break;
+              }
+            }
+          });
+        } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+          // Support native HLS (như Safari trên macOS/iOS)
+          videoElement.src = selectedLessonVideoUrl;
+          // Safari không có manifest parse qua hls.js nên ta không thể lấy danh sách levels dễ dàng từ hls.js.
+          // Nhưng trình phát Safari có UI chọn native hoặc ta có thể map các mức cơ bản nếu cần.
+        } else {
+          console.error("Trình duyệt không hỗ trợ MSE phát HLS");
+        }
+      } else {
+        // Hỗ trợ video MP4 thông thường
+        videoElement.src = selectedLessonVideoUrl;
+      }
+
+      return () => {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
+    }, [selectedLessonVideoUrl, ref, onQualityLevelsLoaded]);
+
     return (
       <>
         {selectedLessonVideoUrl ? (
@@ -45,7 +147,6 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
             className={`h-full w-full cursor-pointer object-contain transition duration-300 ${
               activeQuizPoint ? "blur-[1.5px] brightness-75" : ""
             }`}
-            src={selectedLessonVideoUrl}
             playsInline
             preload="metadata"
             onClick={onTogglePlayback}
@@ -61,8 +162,16 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
             onPause={() => setIsPlaying(false)}
             onTimeUpdate={onTimeUpdate}
             onEnded={onVideoEnded}
+            onResize={(event) => {
+              const video = event.currentTarget;
+              if (video.videoWidth > 0 && video.videoHeight > 0) {
+                const aspect = video.videoWidth / video.videoHeight;
+                onVideoMetadataLoaded(video.duration, aspect);
+              }
+            }}
             onLoadedMetadata={(event) => {
-              onVideoMetadataLoaded(event.currentTarget.duration);
+              const aspect = event.currentTarget.videoWidth / event.currentTarget.videoHeight;
+              onVideoMetadataLoaded(event.currentTarget.duration, aspect);
               setCurrentTime(event.currentTarget.currentTime);
               setLastVideoTime(event.currentTarget.currentTime);
             }}

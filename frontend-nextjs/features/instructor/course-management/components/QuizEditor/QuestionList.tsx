@@ -1,7 +1,6 @@
 "use client";
 
-import { GripVertical, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { QuizEditorQuestion } from "../../types";
 
@@ -23,13 +22,13 @@ export function QuestionList({
   saveAction,
 }: Props) {
   return (
-    <div className="w-full min-w-0 space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full min-w-0 space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Questions
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Danh sách câu hỏi
           </p>
-          <h3 className="text-lg font-semibold">{questions.length} câu hỏi</h3>
+          <h3 className="text-lg font-bold mt-0.5">{questions.length} câu hỏi</h3>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
           <Button
@@ -37,15 +36,16 @@ export function QuestionList({
             size="sm"
             variant="outline"
             onClick={onAddQuestion}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto h-9 rounded-xl font-bold gap-1.5 shadow-xs"
           >
-            + Thêm câu hỏi
+            <Plus className="h-4 w-4 text-primary" />
+            Thêm câu hỏi
           </Button>
           {saveAction}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 pb-1 sm:pb-2">
+      <div className="flex flex-wrap gap-3 pb-2 max-h-[200px] overflow-y-auto pr-1">
         {questions.map((question, index) => {
           const isSelected = selectedQuestionId === question.id;
 
@@ -54,10 +54,10 @@ export function QuestionList({
               key={question.id}
               role="button"
               tabIndex={0}
-              className={`rounded-xl border text-left transition ${
+              className={`w-36 sm:w-44 h-20 rounded-xl border p-3 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 ${
                 isSelected
-                  ? "w-full border-primary bg-primary/5 px-3 py-2 sm:w-56"
-                  : "w-20 border-border/60 bg-background px-2 py-2 hover:border-primary/40"
+                  ? "border-primary bg-primary/[0.04] shadow-xs"
+                  : "border-border/60 bg-background hover:border-primary/40 hover:bg-muted/10"
               }`}
               onClick={() => onSelectQuestion(question.id)}
               onKeyDown={(event) => {
@@ -67,56 +67,43 @@ export function QuestionList({
                 }
               }}
             >
-              <div
-                className={`flex justify-between ${
-                  isSelected ? "items-start gap-2" : "items-center gap-1"
-                }`}
-              >
-                <div
-                  className={`flex min-w-0 ${
-                    isSelected
-                      ? "flex-1 items-center gap-2"
-                      : "items-center gap-1"
-                  }`}
-                >
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Q{index + 1}
-                  </span>
-                  {isSelected ? (
-                    <p className="line-clamp-1 text-sm font-medium">
-                      {question.prompt || "Câu hỏi chưa có nội dung"}
-                    </p>
-                  ) : null}
-                </div>
+              <div className="flex items-center justify-between w-full">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                  isSelected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                }`}>
+                  Câu {index + 1}
+                </span>
+                
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className={`shrink-0 text-destructive ${
-                    isSelected ? "h-7 w-7" : "h-6 w-6"
-                  }`}
+                  className="h-5 w-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   onClick={(event) => {
                     event.stopPropagation();
                     onRemoveQuestion(question.id);
                   }}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
-              {isSelected ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="text-[11px]">
-                    {question.options.length} lựa chọn
-                  </Badge>
-                  {question.options.some((o) => o.isCorrect) ? (
-                    <Badge variant="secondary" className="text-[11px]">
-                      Có đáp án đúng
-                    </Badge>
-                  ) : null}
+              <div className="flex items-end justify-between gap-1.5 w-full">
+                <p className="text-[11px] text-muted-foreground font-medium line-clamp-1 flex-1">
+                  {question.prompt || "Chưa nhập nội dung..."}
+                </p>
+                
+                <div className="flex items-center gap-1 shrink-0">
+                  {question.options.some((o) => o.isCorrect) && (
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-white text-[8px] font-bold" title="Đã chọn đáp án đúng">
+                      ✓
+                    </span>
+                  )}
+                  <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
+                    {question.options.length}L
+                  </span>
                 </div>
-              ) : null}
+              </div>
             </div>
           );
         })}

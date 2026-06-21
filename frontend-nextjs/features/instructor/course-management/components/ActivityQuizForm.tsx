@@ -2,11 +2,13 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { CirclePlus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import type { QuizEditorState } from "../types";
 import { useQuizEditor } from "../hooks/useQuizEditor";
 
@@ -112,30 +114,30 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
     return (
       <div className="space-y-6">
-        <Card className="border-border bg-card shadow-sm border-t-2 border-t-primary/30">
-          <CardHeader className="pb-3 border-b border-border/40">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Thông tin chung về Quiz</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+        <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-5">
+          <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/40">
+            Thông tin chung về Quiz
+          </h3>
+          <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="grid gap-2 md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+              <div className="grid gap-1.5 md:col-span-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   Tiêu đề Quiz <span className="text-destructive">*</span>
-                </label>
+                </Label>
                 <Input
-                  className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                  className="h-10 border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
                   placeholder="Nhập tiêu đề cho bài kiểm tra này..."
                   value={state.title}
                   onChange={(event) => updateTitle(event.target.value)}
                 />
               </div>
-              <div className="grid gap-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   Điểm đạt (%) <span className="text-destructive">*</span>
-                </label>
+                </Label>
                 <Input
                   type="number"
-                  className="h-10 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                  className="h-10 border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
                   placeholder="80"
                   value={state.passingScore}
                   onChange={(event) =>
@@ -145,10 +147,10 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Mô tả chi tiết</label>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">Mô tả chi tiết</Label>
               <Textarea
-                className="min-h-24 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                className="min-h-24 resize-y border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
                 placeholder="Nhập hướng dẫn làm bài hoặc thông tin tổng quan..."
                 value={state.description}
                 onChange={(event) => updateDescription(event.target.value)}
@@ -161,8 +163,8 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                 <span>Quiz này được cấu hình xuất hiện ở mốc {defaultTimestamp} trong video.</span>
               </div>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-2.5 pt-2">
           <div>
@@ -187,33 +189,33 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
         <div className="space-y-4">
           {state.questions.map((question, index) => (
-            <Card key={question.id} className="relative overflow-hidden border-border bg-card shadow-sm transition-all duration-200 border-t-2 border-t-primary/30">
-              <CardContent className="space-y-4 p-5">
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary shadow-inner">
-                      {index + 1}
-                    </span>
-                    <p className="text-sm font-bold text-foreground/90">Câu hỏi {index + 1}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    onClick={() => removeQuestion(question.id)}
-                  >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    Xóa câu hỏi
-                  </Button>
+            <div key={question.id} className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-5 transition-all duration-200">
+              <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary shadow-inner">
+                    {index + 1}
+                  </span>
+                  <p className="text-sm font-bold text-foreground/90">Câu hỏi {index + 1}</p>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={() => removeQuestion(question.id)}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  Xóa câu hỏi
+                </Button>
+              </div>
 
-                <div className="grid gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+              <div className="space-y-4">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     Nội dung câu hỏi <span className="text-destructive">*</span>
-                  </label>
+                  </Label>
                   <Textarea
-                    className="min-h-20 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                    className="min-h-20 resize-y border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
                     placeholder="Nhập câu hỏi ví dụ: Khái niệm X nghĩa là gì?"
                     value={question.prompt}
                     onChange={(event) =>
@@ -227,14 +229,14 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       Lựa chọn câu trả lời <span className="text-destructive">*</span>
-                    </p>
+                    </Label>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2.5 text-xs font-medium bg-background hover:bg-muted/40 border-border/80"
+                      className="h-7 px-2.5 text-xs font-medium bg-background hover:bg-muted/40 border-border/80 rounded-lg"
                       onClick={() => addOption(question.id)}
                     >
                       <CirclePlus className="mr-1.5 h-3.5 w-3.5 text-primary" />
@@ -260,7 +262,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                               label: event.target.value,
                             }))
                           }
-                          className="h-9 border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 placeholder:text-muted-foreground/50"
+                          className="h-9 border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 placeholder:text-muted-foreground/50 rounded-none"
                           placeholder="Nhập nội dung câu trả lời..."
                         />
 
@@ -307,12 +309,12 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                   </div>
                 </div>
 
-                <div className="grid gap-2 pt-2 border-t border-border/40">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                <div className="grid gap-1.5 pt-2 border-t border-border/40">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     Giải thích đáp án (Tùy chọn)
-                  </label>
+                  </Label>
                   <Textarea
-                    className="min-h-16 resize-y rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                    className="min-h-16 resize-y border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
                     placeholder="Giải thích tại sao đáp án trên lại đúng..."
                     value={question.explanation}
                     onChange={(event) =>
@@ -323,8 +325,8 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                     }
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       </div>
