@@ -11,10 +11,33 @@ import { UpdateLessonActivityDto } from './dto/update-lesson-activities.dto';
 export class LessonActivitiesController {
   constructor(private readonly lessonActivitiesService: LessonActivitiesService) { }
 
+  private parseRequester(
+    userIdHeader?: string,
+    roleHeader?: string,
+  ): { userId?: number; role?: number } {
+    let userId: number | undefined;
+    if (typeof userIdHeader === 'string' && userIdHeader.trim().length > 0) {
+      const parsed = Number(userIdHeader);
+      if (Number.isInteger(parsed) && parsed > 0) userId = parsed;
+    }
+    let role: number | undefined;
+    if (typeof roleHeader === 'string' && roleHeader.trim().length > 0) {
+      const parsed = Number(roleHeader);
+      if (Number.isInteger(parsed)) role = parsed;
+    }
+    return { userId, role };
+  }
+
   @Post()
-  create(@Body() body: CreateLessonActivityDto) {
-    console.log('check body: ', body);
-    return this.lessonActivitiesService.create(body);
+  create(
+    @Body() body: CreateLessonActivityDto,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    return this.lessonActivitiesService.create(
+      body,
+      this.parseRequester(userIdHeader, roleHeader),
+    );
   }
 
   @Get()
@@ -43,12 +66,28 @@ export class LessonActivitiesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLessonActivityDto: UpdateLessonActivityDto) {
-    return this.lessonActivitiesService.update(+id, updateLessonActivityDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateLessonActivityDto: UpdateLessonActivityDto,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    return this.lessonActivitiesService.update(
+      +id,
+      updateLessonActivityDto,
+      this.parseRequester(userIdHeader, roleHeader),
+    );
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.lessonActivitiesService.remove(+id);
+  remove(
+    @Param('id') id: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    return this.lessonActivitiesService.remove(
+      +id,
+      this.parseRequester(userIdHeader, roleHeader),
+    );
   }
 }
