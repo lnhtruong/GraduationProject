@@ -9,8 +9,10 @@ import {
   ShieldCheck,
   ChevronRight,
   Flag,
+  GraduationCap,
   ArrowLeft,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -31,6 +33,16 @@ const NAV_ITEMS = [
     label: "Báo cáo vi phạm",
     href: "/admin/reports",
     icon: Flag,
+  },
+  {
+    label: "Yêu cầu Giảng viên",
+    href: "/admin/lecturer-requests",
+    icon: GraduationCap,
+  },
+  {
+    label: "Đối soát doanh thu",
+    href: "/admin/revenue",
+    icon: BarChart3,
   },
 ];
 

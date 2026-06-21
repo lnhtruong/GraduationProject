@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ChevronUp, ChevronDown, ChevronsUpDown, BookOpen, Star } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, BookOpen, Star, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRevenueCoursesByRange } from "../../revenue/hooks";
 import type { CourseRevenueSummary } from "../../revenue/types";
+import { TransactionItemsDrawer } from "./TransactionItemsDrawer";
 
 function formatVND(amount: number): string {
   if (amount >= 1_000_000)
@@ -119,6 +120,7 @@ interface Props {
 export function CourseRevenueTable({ from, to, allCourses }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("allTime");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [drawerCourse, setDrawerCourse] = useState<{ courseId: number; courseName: string } | null>(null);
 
   const hasDateRange = Boolean(from && to);
   const { data: rangedCourses = [], isLoading: rangedLoading } =
@@ -181,67 +183,81 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
   const maxRevenue = Math.max(...sorted.map((c) => c.allTime), 1);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/40">
-            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-              Khoá học
-            </th>
-            <Th sortKey="allTime" current={sortKey} dir={sortDir} onSort={handleSort}>
-              Doanh thu
-            </Th>
-            <Th sortKey="enrollCount" current={sortKey} dir={sortDir} onSort={handleSort}>
-              Học viên
-            </Th>
-            <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
-              Đánh giá
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((course) => {
-            const isZero = course.allTime === 0;
-            const pct = maxRevenue > 0 ? (course.allTime / maxRevenue) * 100 : 0;
-            return (
-              <tr
-                key={course.courseId}
-                className={`group border-b border-border/30 transition-colors hover:bg-muted/20 last:border-0 ${isZero ? "opacity-60" : ""}`}
-              >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <CourseThumb
-                      courseId={course.courseId}
-                      courseName={course.courseName}
-                      thumbnailUrl={course.thumbnailUrl}
-                    />
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <p className="max-w-[260px] truncate font-medium leading-tight">
-                        {course.courseName}
-                      </p>
-                      <div className="h-1 w-full max-w-[260px] rounded-full bg-muted/50">
-                        <div
-                          className="h-1 rounded-full bg-primary/50 transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/40">
+              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                Khoá học
+              </th>
+              <Th sortKey="allTime" current={sortKey} dir={sortDir} onSort={handleSort}>
+                Doanh thu
+              </Th>
+              <Th sortKey="enrollCount" current={sortKey} dir={sortDir} onSort={handleSort}>
+                Học viên
+              </Th>
+              <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">
+                Đánh giá
+              </th>
+              <th className="w-6" />
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((course) => {
+              const isZero = course.allTime === 0;
+              const pct = maxRevenue > 0 ? (course.allTime / maxRevenue) * 100 : 0;
+              return (
+                <tr
+                  key={course.courseId}
+                  onClick={() => setDrawerCourse({ courseId: course.courseId, courseName: course.courseName })}
+                  className={`group cursor-pointer border-b border-border/30 transition-colors hover:bg-muted/20 last:border-0 ${isZero ? "opacity-60" : ""}`}
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <CourseThumb
+                        courseId={course.courseId}
+                        courseName={course.courseName}
+                        thumbnailUrl={course.thumbnailUrl}
+                      />
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <p className="max-w-[260px] truncate font-medium leading-tight">
+                          {course.courseName}
+                        </p>
+                        <div className="h-1 w-full max-w-[260px] rounded-full bg-muted/50">
+                          <div
+                            className="h-1 rounded-full bg-primary/50 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  <span className="font-semibold">{formatVND(course.allTime)}</span>
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                  {course.enrollCount}
-                </td>
-                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                  <RatingBadge value={course.avgRating} />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    <span className="font-semibold">{formatVND(course.allTime)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                    {course.enrollCount}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                    <RatingBadge value={course.avgRating} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground" />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <TransactionItemsDrawer
+        course={drawerCourse}
+        from={from}
+        to={to}
+        onClose={() => setDrawerCourse(null)}
+      />
+    </>
   );
 }

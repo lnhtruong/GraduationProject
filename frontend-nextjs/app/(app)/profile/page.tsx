@@ -5,8 +5,9 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { getRoleName } from "@/lib/roles";
+import { getRoleName, ROLES } from "@/lib/roles";
 import AvatarUploader from "@/features/auth/components/AvatarUploader";
+import { BecomeInstructorSection } from "@/features/lecturer-requests/components/student/BecomeInstructorSection";
 
 export default function ProfilePage() {
   return (
@@ -33,7 +34,7 @@ function ProfileContent() {
   };
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Hồ sơ của tôi</h1>
 
       <div className="grid gap-6">
@@ -98,6 +99,12 @@ function ProfileContent() {
             </CardContent>
           </Card>
         </div>
+
+        {user?.role === ROLES.STUDENT && (
+          <div>
+            <BecomeInstructorSection />
+          </div>
+        )}
       </div>
     </div>
   );
