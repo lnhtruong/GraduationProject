@@ -185,6 +185,7 @@ export default function CourseDetail({ courseId }: Props) {
             </div>
 
             <CourseContentAccordion
+              courseId={courseId}
               lessons={course.lessons}
               isEnrolled={isEnrolled}
             />
