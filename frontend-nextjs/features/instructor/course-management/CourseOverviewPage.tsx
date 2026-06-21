@@ -155,11 +155,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
       }
 
       if (course.status === "approved") {
-        if (!isAdmin) {
-          toast.info("Khóa học đã được duyệt, chờ admin publish");
-          return;
-        }
-
         await publishCourseMutation.mutateAsync(course.id);
         toast.success("Đã publish khóa học");
       }
@@ -274,16 +269,14 @@ export default function CourseOverviewPage({ courseId }: Props) {
                     <Button
                       type="button"
                       size="sm"
-                      disabled={!isAdmin || publishCourseMutation.isPending}
+                      disabled={publishCourseMutation.isPending}
                       onClick={() => {
                         void handleCourseStatusAction();
                       }}
                     >
                       {publishCourseMutation.isPending
                         ? "Đang publish..."
-                        : isAdmin
-                          ? "Publish khóa học"
-                          : "Đã duyệt, chờ publish"}
+                        : "Publish khóa học"}
                     </Button>
                   )}
                 </div>

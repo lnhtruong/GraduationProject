@@ -2,6 +2,7 @@
 
 import { BookmarkPlus, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Activity {
   id: number;
@@ -64,8 +65,15 @@ export function ActivitiesDisplay({
                     </p>
                   </div>
                 </div>
-                <Badge variant="secondary" className="shrink-0 text-xs sm:ml-2">
-                  {activity.status}
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-md sm:ml-2 border",
+                    activity.status === "draft" && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+                    activity.status === "published" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  )}
+                >
+                  {activity.status === "draft" ? "Bản nháp" : activity.status === "published" ? "Đã công khai" : activity.status}
                 </Badge>
               </div>
             </button>

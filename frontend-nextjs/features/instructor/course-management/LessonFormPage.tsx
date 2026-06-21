@@ -117,16 +117,17 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           {isEdit ? (
             <Button
               onClick={() => setActivityDialogOpen(true)}
-              className="h-10 text-xs"
+              variant="outline"
+              className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all"
             >
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Sparkles className="h-4 w-4 text-primary" />
               Tạo hoạt động
             </Button>
           ) : null}
           <Button
             variant="outline"
             onClick={() => router.back()}
-            className="h-10 text-xs"
+            className="h-10 text-xs font-semibold rounded-xl gap-1.5 shadow-sm transition-all"
           >
             Quay lại
           </Button>

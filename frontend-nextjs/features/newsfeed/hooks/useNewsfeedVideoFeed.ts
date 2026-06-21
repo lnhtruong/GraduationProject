@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNewsfeedFeed } from "../api/newsfeed.hooks";
 import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
-
-// Cửa sổ throttle dùng chung cho mọi nguồn điều hướng (scroll, vuốt, phím, nút):
-// mỗi thao tác chỉ chuyển đúng 1 video, dù lặp nhanh đến đâu.
-const NEWSFEED_NAV_COOLDOWN_MS = 620;
+import { NEWSFEED_NAV_COOLDOWN_MS } from "../constants";
 
 function uniqueByFeedId<T extends { feedId: number }>(items: T[]) {
   return items.filter((item, index, list) => list.findIndex((candidate) => candidate.feedId === item.feedId) === index);

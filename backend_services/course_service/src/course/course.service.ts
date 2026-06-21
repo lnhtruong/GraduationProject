@@ -91,7 +91,7 @@ export class CoursesService {
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
     private readonly auditLogsService: AuditLogsService,
-  ) { }
+  ) {}
 
   /**
    * BE-07: notify every follower of the publishing instructor that a new
@@ -176,7 +176,6 @@ export class CoursesService {
         }
       }
     } catch (err) {
-
       console.warn('[courses] failed to notify followers of publish', err);
     }
   }
@@ -251,9 +250,15 @@ export class CoursesService {
   private buildPublicCourseOrder(sort?: string): Order {
     switch (sort) {
       case 'popular':
-        return [[literal('enrolled_count'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('enrolled_count'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'rating':
-        return [[literal('avg_rating'), 'DESC'], ['id', 'DESC']] as Order;
+        return [
+          [literal('avg_rating'), 'DESC'],
+          ['id', 'DESC'],
+        ] as Order;
       case 'newest':
       default:
         return [['id', 'DESC']];
@@ -336,12 +341,12 @@ export class CoursesService {
     const parsed =
       typeof value === 'string'
         ? (() => {
-          try {
-            return JSON.parse(value);
-          } catch {
-            return [];
-          }
-        })()
+            try {
+              return JSON.parse(value);
+            } catch {
+              return [];
+            }
+          })()
         : value;
 
     if (!Array.isArray(parsed)) {
@@ -509,7 +514,7 @@ export class CoursesService {
       instructorName,
       instructorAvatar:
         typeof instructor?.avatarUrl === 'string' &&
-          instructor.avatarUrl.trim().length > 0
+        instructor.avatarUrl.trim().length > 0
           ? instructor.avatarUrl
           : null,
       status: plain.status,
@@ -652,11 +657,11 @@ export class CoursesService {
     const categoryIdByName =
       categoryCounts.size > 0
         ? new Map(
-          (await getPublishedCategorySummaries()).map((category) => [
-            category.name,
-            category.id,
-          ]),
-        )
+            (await getPublishedCategorySummaries()).map((category) => [
+              category.name,
+              category.id,
+            ]),
+          )
         : undefined;
 
     return {
@@ -702,14 +707,14 @@ export class CoursesService {
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -768,19 +773,19 @@ export class CoursesService {
       maxPrice?: number;
       userId?: number;
       requesterRole?: number;
-      sort?: CoursePublicSort,
+      sort?: CoursePublicSort;
     } = {},
   ): Promise<
     | Course[]
     | {
-      data: Course[];
-      pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-      };
-    }
+        data: Course[];
+        pagination: {
+          page: number;
+          limit: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      }
   > {
     const {
       status,
@@ -820,7 +825,6 @@ export class CoursesService {
       }
       whereCondition.userId = userId;
     }
-
 
     const priceCondition: Record<symbol, number> = {};
     if (typeof minPrice === 'number' && Number.isFinite(minPrice)) {
@@ -1028,7 +1032,12 @@ export class CoursesService {
     ] as unknown as Order;
   }
 
-  async findOne(id: number): Promise<Course> {
+  async findOne(
+    id: number,
+    requesterUserId?: number,
+    requesterRole?: number,
+    enforceStatusCheck = false,
+  ): Promise<Course> {
     const course = await this.courseModel.findByPk(id, {
       include: this.buildCourseDetailInclude(),
       order: this.buildCourseDetailOrder(),
@@ -1039,6 +1048,17 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
+
+    if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
+      const isAdmin = requesterRole === this.ADMIN_ROLE;
+      const isOwner = requesterUserId === course.userId;
+      if (!isAdmin && !isOwner) {
+        throw new ForbiddenException(
+          'You do not have permission to access this course',
+        );
+      }
+    }
+
     return course;
   }
 
@@ -1529,6 +1549,14 @@ export class CoursesService {
     if (course.status !== CourseStatus.APPROVED) {
       throw new BadRequestException(
         `Course must be in APPROVED status to publish. Current status: ${course.status}`,
+      );
+    }
+
+    // Check ownership for LECTURER
+    const isAdmin = requester?.role === 1;
+    if (requester && !isAdmin && course.userId !== requester.userId) {
+      throw new ForbiddenException(
+        'You do not have permission to publish this course',
       );
     }
 

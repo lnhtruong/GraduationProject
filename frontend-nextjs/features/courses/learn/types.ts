@@ -114,6 +114,7 @@ export interface DiscussionPostRecord {
   content: string;
   isBestAnswer: boolean;
   upvotes: number;
+  voted?: boolean;
   createdAt: string;
   updatedAt: string;
   author: DiscussionAuthorSnapshot;

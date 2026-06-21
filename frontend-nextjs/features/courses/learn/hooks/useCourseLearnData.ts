@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useInstructorCourseById,
@@ -6,6 +6,7 @@ import {
   useQuizzesByLessonId,
 } from "../../../instructor/course-management/api/course-management.hooks";
 import { useVideoById } from "../../../video/api/video.hooks";
+import { useCourseInstructor } from "../../api/courseDetail.api";
 import {
   useLessonProgressByCourseId,
   useLessonProgressHeartbeat,
@@ -35,6 +36,11 @@ export function useCourseLearnData(courseId: number) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
@@ -43,20 +49,25 @@ export function useCourseLearnData(courseId: number) {
     user?.id,
   );
 
-  // enrollmentSettled: true khi store đã hydrate VÀ query đã chạy xong (không còn loading).
-  // Khi userId chưa có (store chưa hydrate), query bị disabled → isLoading=false ngay
-  // nhưng ta cần !!user?.id để đảm bảo store đã sẵn sàng trước khi đánh giá kết quả.
-  const enrollmentSettled = !!user?.id && !enrollmentLoading;
+  // enrollmentSettled: true when store has hydrated, user is authenticated, and enrollment query finished.
+  const enrollmentSettled = hydrated && isAuthenticated && !enrollmentLoading;
 
   useEffect(() => {
-    if (!enrollmentSettled) return;
-    if (!isAuthenticated || enrollment == null) {
+    if (!hydrated) return;
+
+    if (!isAuthenticated) {
+      router.replace(`/courses/${courseId}`);
+      return;
+    }
+
+    if (enrollmentSettled && enrollment == null) {
       router.replace(`/courses/${courseId}`);
     }
-  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, router]);
+  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, hydrated, router]);
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
+  const { data: instructor } = useCourseInstructor(course?.userId);
   const { data: lessonsRaw, isLoading: lessonsLoading } =
     useLessonsByCourseId(courseId);
 
@@ -215,7 +226,7 @@ export function useCourseLearnData(courseId: number) {
         // assumptions about player timing, but returning the result makes
         // the mutation-based cache updated and available synchronously.
         return saved;
-      } catch (e) {
+      } catch {
         // noop: leave reconciliation to react-query
       }
     })();
@@ -376,12 +387,16 @@ export function useCourseLearnData(courseId: number) {
 
   const totalQuizMarkers = inVideoQuizPoints.length;
   const currentLessonDurationLabel = formatTime(selectedLessonDuration);
+  const isQuizQueriesLoading = useMemo(
+    () => quizSubmissionQueries.some((query) => query.isLoading || query.isFetching),
+    [quizSubmissionQueries],
+  );
   const progressSyncing =
     lessonProgressLoading ||
     lessonProgressFetching ||
     lessonProgressUpdating ||
     quizSubmissionSubmitting ||
-    quizSubmissionQueries.some((query) => query.isLoading || query.isFetching);
+    isQuizQueriesLoading;
 
   const submitQuizAttempt = useCallback(
     (payload: SubmitQuizPayload) => {
@@ -425,6 +440,7 @@ export function useCourseLearnData(courseId: number) {
 
   return {
     course,
+    instructor,
     courseLoading,
     enrollmentSettled,
     lessons,
@@ -451,6 +467,7 @@ export function useCourseLearnData(courseId: number) {
     totalQuizMarkers,
     currentLessonDurationLabel,
     progressSyncing,
+    isQuizQueriesLoading,
     handleSelectLesson,
     markLessonCompleted,
     sendHeartbeat,

@@ -3,23 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
+import { NewsfeedVideoCard, type NewsfeedPlaybackRate } from "./NewsfeedVideoCard";
 import {
   NEWSFEED_PLAYBACK_RATE_OPTIONS,
-  NewsfeedVideoCard,
-  type NewsfeedPlaybackRate,
-} from "./NewsfeedVideoCard";
-
-const NEWSFEED_PLAYBACK_RATE_STORAGE_KEY = "newsfeed.playbackRate";
+  NEWSFEED_PLAYBACK_RATE_STORAGE_KEY,
+  NEWSFEED_WHEEL_THRESHOLD,
+  NEWSFEED_WHEEL_THROTTLE_MS,
+  NEWSFEED_SWIPE_THRESHOLD,
+  NEWSFEED_SCROLL_DURATION_MS,
+} from "../constants";
 
 function isNewsfeedPlaybackRate(value: string): value is NewsfeedPlaybackRate {
-  return NEWSFEED_PLAYBACK_RATE_OPTIONS.includes(value as NewsfeedPlaybackRate);
+  return (NEWSFEED_PLAYBACK_RATE_OPTIONS as readonly string[]).includes(value);
 }
-
-const NEWSFEED_WHEEL_THRESHOLD = 30;
-const NEWSFEED_WHEEL_THROTTLE_MS = 620;
-const NEWSFEED_SWIPE_THRESHOLD = 40;
-// Thời gian animation chuyển video (ms).
-const NEWSFEED_SCROLL_DURATION_MS = 520;
 
 function easeOutQuint(t: number): number {
   return 1 - Math.pow(1 - t, 5);
@@ -200,24 +196,31 @@ export function NewsfeedVideoFeed({
         className,
       )}
     >
-      {videos.map((video, index) => (
-        <div
-          key={video.feedId}
-          ref={(node) => setItemRef(index, node)}
-          data-index={index}
-        >
-          <NewsfeedVideoCard
-            video={video}
-            isActive={index === activeIndex}
-            shouldPreload={index === nextIndex}
-            playbackRate={playbackRate}
-            onPlaybackRateChange={setPlaybackRate}
-            onOpenCourse={onOpenCourse}
-            onOpenComments={onOpenComments}
-            onOpenShare={onOpenShare}
-          />
-        </div>
-      ))}
+      {videos.map((video, index) => {
+        const isVisible = Math.abs(index - activeIndex) <= 1;
+        return (
+          <div
+            key={video.feedId}
+            ref={(node) => setItemRef(index, node)}
+            data-index={index}
+          >
+            {isVisible ? (
+              <NewsfeedVideoCard
+                video={video}
+                isActive={index === activeIndex}
+                shouldPreload={index === nextIndex}
+                playbackRate={playbackRate}
+                onPlaybackRateChange={setPlaybackRate}
+                onOpenCourse={onOpenCourse}
+                onOpenComments={onOpenComments}
+                onOpenShare={onOpenShare}
+              />
+            ) : (
+              <div className="h-[calc(100vh-64px)] w-full bg-background dark:bg-black/95 md:bg-black/95 flex items-center justify-center text-muted-foreground/20 text-xs" />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
