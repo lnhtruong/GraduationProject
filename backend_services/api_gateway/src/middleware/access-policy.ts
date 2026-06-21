@@ -129,6 +129,32 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
 
+  // Admin revenue analytics (admin only)
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/summary',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/timeseries',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/by-category',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/transactions',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Instructor revenue
   {
     method: 'GET',
