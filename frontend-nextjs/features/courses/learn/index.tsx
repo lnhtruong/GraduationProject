@@ -8,6 +8,7 @@ import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
 import { DiscussionPanel } from "./components/DiscussionPanel";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import Link from "next/link";
 
 interface Props {
   courseId: number;
@@ -88,9 +89,9 @@ export default function CourseLearnPage({ courseId }: Props) {
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
         <div className="mb-5 flex items-center gap-3 text-sm text-muted-foreground">
           <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <span>Khóa học</span>
+            <Link href="/courses" className="hover:text-foreground transition-colors">Khóa học</Link>
             <span className="opacity-60">›</span>
-            <span className="truncate max-w-[24rem]">{state.course.name}</span>
+            <Link href={`/courses/${courseId}`} className="truncate max-w-[24rem] hover:text-foreground transition-colors">{state.course.name}</Link>
             <span className="opacity-60">›</span>
             <span className="font-semibold truncate max-w-[24rem]">
               {state.selectedLesson.title}
