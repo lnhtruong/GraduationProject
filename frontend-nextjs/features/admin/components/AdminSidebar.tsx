@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Flag,
+  Wallet,
   GraduationCap,
   ArrowLeft,
   LogOut,
@@ -29,14 +30,19 @@ const NAV_ITEMS = [
   },
   { label: "Người dùng", href: "/admin/users", icon: Users },
   {
-    label: "Báo cáo vi phạm",
-    href: "/admin/reports",
-    icon: Flag,
+    label: "Doanh thu",
+    href: "/admin/revenue",
+    icon: Wallet,
   },
   {
     label: "Yêu cầu Giảng viên",
     href: "/admin/lecturer-requests",
     icon: GraduationCap,
+  },
+  {
+    label: "Báo cáo vi phạm",
+    href: "/admin/reports",
+    icon: Flag,
   },
 ];
 
