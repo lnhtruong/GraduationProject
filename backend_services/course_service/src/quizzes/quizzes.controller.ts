@@ -184,13 +184,9 @@ export class QuizzesController {
     @Headers('x-user-role') roleHeader?: string,
   ) {
     // Soft delete (paranoid mode trên Quiz model) — set deleted_at, không xoá vĩnh viễn.
-    // Course đã publish (non-admin) → trả về change request thay vì xoá ngay.
+    // Xoá trực tiếp (không còn change request); chỉ admin/chủ khóa được xoá.
     const requester = this.parseRequester(userIdHeader, roleHeader);
-    const result = await this.quizzesService.removeWithReview(
-      Number(id),
-      requester,
-    );
-    if (result) return result;
+    await this.quizzesService.removeWithReview(Number(id), requester);
     return { success: true };
   }
 

@@ -41,9 +41,12 @@ export class LessonActivitiesController {
   }
 
   @Get()
-  findAllByLessonId(@Query('lessonId') lessonId: string) {
+  findAllByLessonId(
+    @Query('lessonId') lessonId: string,
+    @Query('status') status?: string,
+  ) {
     if (lessonId) {
-      return this.lessonActivitiesService.findAllByLessonId(+lessonId);
+      return this.lessonActivitiesService.findAllByLessonId(+lessonId, status);
     }
     return [];
   }

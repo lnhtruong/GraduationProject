@@ -19,6 +19,7 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   LessonActivity,
   ActivityStatus,
+  ActivityType,
 } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
@@ -31,7 +32,6 @@ import {
   CourseUpdatePayload,
   ChangeRequestPayload,
   LessonChangePayload,
-  QuizChangePayload,
 } from 'src/models/course-change-request.model';
 import { EnrollsService } from 'src/enrolls/enrolls.service';
 import { QuizzesService } from 'src/quizzes/quizzes.service';
@@ -2020,50 +2020,6 @@ export class CoursesService {
   }
 
   /**
-   * Tạo (hoặc ghi đè) một quiz change request `pending` — gọi từ QuizzesService
-   * khi course đã publish. Cùng quy ước với lesson:
-   * - `quiz.create`: luôn tạo mới (chưa có quiz đích để gom nhóm).
-   * - `quiz.update` / `quiz.delete`: ghi đè request pending cùng (kind, targetId)
-   *   nếu có — tối đa 1 pending mỗi (kind, quiz).
-   */
-  async createQuizChangeRequest(params: {
-    kind: CourseChangeRequestKind;
-    courseId: number;
-    targetId: number | null;
-    payload: QuizChangePayload;
-    prevData: QuizChangePayload | null;
-    requestedBy: number;
-  }): Promise<CourseChangeRequest> {
-    if (params.targetId !== null) {
-      const existing = await this.courseChangeRequestModel.findOne({
-        where: {
-          courseId: params.courseId,
-          kind: params.kind,
-          targetId: params.targetId,
-          status: CourseChangeRequestStatus.PENDING,
-        },
-      });
-      if (existing) {
-        return await existing.update({
-          payload: params.payload,
-          prevData: params.prevData,
-          requestedBy: params.requestedBy,
-        });
-      }
-    }
-
-    return await this.courseChangeRequestModel.create({
-      courseId: params.courseId,
-      requestedBy: params.requestedBy,
-      payload: params.payload,
-      prevData: params.prevData,
-      kind: params.kind,
-      targetId: params.targetId,
-      status: CourseChangeRequestStatus.PENDING,
-    });
-  }
-
-  /**
    * Public: gọi từ QuizzesService khi admin sửa/thêm/xóa quiz TRỰC TIẾP (bypass
    * change request) trên một khóa đã publish. No-op nếu course không tồn tại
    * hoặc chưa publish. Best-effort.
@@ -2605,6 +2561,26 @@ export class CoursesService {
 
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    // Publish course → publish luôn các quiz activity còn draft (draft → public)
+    // để học viên nộp bài được. Activity đã archived/removed/public giữ nguyên.
+    const lessonRows = await this.lessonModel.findAll({
+      where: { courseId: id },
+      attributes: ['id'],
+    });
+    const lessonIds = lessonRows.map((l) => l.id);
+    if (lessonIds.length) {
+      await this.lessonActivityModel.update(
+        { status: ActivityStatus.PUBLIC },
+        {
+          where: {
+            lessonId: { [Op.in]: lessonIds },
+            activityType: ActivityType.QUIZ,
+            status: ActivityStatus.DRAFT,
+          },
+        },
+      );
+    }
 
     if (requester) {
       await this.auditLogsService.log({

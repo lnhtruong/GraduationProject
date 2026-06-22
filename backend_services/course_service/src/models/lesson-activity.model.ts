@@ -72,11 +72,10 @@ export class LessonActivity extends Model {
 
   @Column({
     type: DataType.ENUM(...Object.values(ActivityStatus)),
-    // PUBLIC khi tạo: activity (quiz container/assignment) trở thành submittable
-    // ngay khi course publish. Không có luồng nào promote draft->public, và listing
-    // đã hiển thị cả draft (chỉ ẩn removed), nên draft chỉ chặn nộp quiz một cách
-    // ngoài ý muốn. Gate thực sự cho học viên vẫn là course.status=publish + enrollment.
-    defaultValue: ActivityStatus.PUBLIC,
+    // Mặc định DRAFT khi tạo; có thể truyền `status` qua DTO để override. Activity
+    // chuyển sang PUBLIC khi publish course (promote quiz activity) hoặc khi giảng
+    // viên filter quiz. Học viên chỉ nộp được khi activity = public.
+    defaultValue: ActivityStatus.DRAFT,
   })
   declare status: ActivityStatus;
 

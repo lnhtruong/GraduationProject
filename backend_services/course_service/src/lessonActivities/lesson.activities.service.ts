@@ -1,5 +1,6 @@
 // src/models/lesson-activities/lesson-activities.service.ts
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -82,12 +83,42 @@ export class LessonActivitiesService {
     });
   }
 
-  // Lấy danh sách activity theo lessonId (bỏ qua những cái đã bị xóa)
-  async findAllByLessonId(lessonId: number): Promise<LessonActivity[]> {
+  /**
+   * Parse query `?status=public` hoặc `?status=draft,public` → list ActivityStatus.
+   * Trả undefined nếu không truyền (caller dùng default: bỏ qua `removed`). Giá trị
+   * không hợp lệ → 400.
+   */
+  private parseStatusFilter(value?: string): ActivityStatus[] | undefined {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return undefined;
+    }
+    const allowed = Object.values(ActivityStatus) as string[];
+    const parts = value
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0);
+    const invalid = parts.filter((s) => !allowed.includes(s));
+    if (invalid.length) {
+      throw new BadRequestException(
+        `Invalid status: ${invalid.join(', ')}. Allowed: ${allowed.join(', ')}.`,
+      );
+    }
+    return parts as ActivityStatus[];
+  }
+
+  // Lấy danh sách activity theo lessonId. Mặc định bỏ qua `removed`; truyền
+  // `status` (vd "public" hoặc "draft,public") để lọc đúng các trạng thái đó.
+  async findAllByLessonId(
+    lessonId: number,
+    status?: string,
+  ): Promise<LessonActivity[]> {
+    const statuses = this.parseStatusFilter(status);
     return await this.lessonActivityModel.findAll({
       where: {
         lessonId,
-        status: { [Op.ne]: ActivityStatus.REMOVED },
+        status: statuses
+          ? { [Op.in]: statuses }
+          : { [Op.ne]: ActivityStatus.REMOVED },
       },
       order: [['orderIndex', 'ASC']],
     });

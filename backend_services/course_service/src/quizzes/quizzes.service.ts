@@ -14,7 +14,7 @@ import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Video } from 'src/models/video.model';
-import { LessonActivity } from 'src/models/lesson-activity.model';
+import { ActivityStatus, LessonActivity } from 'src/models/lesson-activity.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
@@ -26,11 +26,9 @@ import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
 import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
 import { QuestionType } from 'src/models/quiz-question.model';
 import { CoursesService } from 'src/course/course.service';
-import { CourseStatus } from 'src/models/course.model';
 import {
   CourseChangeRequest,
   CourseChangeRequestKind,
-  QuizChangePayload,
 } from 'src/models/course-change-request.model';
 
 const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
@@ -320,24 +318,6 @@ export class QuizzesService {
     if (!lessonActivity) {
       throw new NotFoundException(
         `LessonActivity ${payload.lessonActivityId} not found`,
-      );
-    }
-
-    // Đóng lỗ hổng lách change request: quiz tạo bằng AI cũng phải tuân ngưỡng
-    // PUBLISH/APPROVED như tạo tay. Non-admin tạo AI quiz trên khóa đã khóa nội
-    // dung → chặn; muốn thêm quiz thì tạo thủ công để đi qua change request chờ duyệt.
-    const courseOfActivity =
-      await this.coursesService.findCourseByLessonActivityId(
-        payload.lessonActivityId,
-      );
-    if (
-      requester.requesterRole !== ADMIN_ROLE &&
-      courseOfActivity &&
-      (courseOfActivity.status === CourseStatus.PUBLISH ||
-        courseOfActivity.status === CourseStatus.APPROVED)
-    ) {
-      throw new BadRequestException(
-        'Không thể tạo quiz bằng AI trên khóa đã publish/approved. Hãy tạo quiz thủ công để gửi change request cho admin duyệt.',
       );
     }
 
@@ -872,33 +852,23 @@ export class QuizzesService {
     await quiz.destroy();
   }
 
-  // ───────────────────────── Change-request flow (quiz) ─────────────────────
+  // ───────────────────────── Quiz CRUD (trực tiếp, không change request) ─────
   //
-  // Khi course ĐÃ publish và người sửa KHÔNG phải admin: thao tác create/update/
-  // delete quiz không áp dụng trực tiếp mà tạo một change request chờ admin
-  // duyệt (giống lesson). Admin / course chưa publish → sửa trực tiếp như cũ.
-
-  /** requestedBy bắt buộc khi tạo change request (cột requested_by NOT NULL). */
-  private requireRequester(requester?: QuizRequester): number {
-    const userId = requester?.userId;
-    if (!userId || !Number.isInteger(userId) || userId <= 0) {
-      throw new BadRequestException(
-        'User ID is required to request changes on a published course',
-      );
-    }
-    return userId;
-  }
+  // Quiz create/update/delete áp dụng TRỰC TIẾP ở mọi trạng thái course (không
+  // còn change request). Vẫn yêu cầu admin hoặc chủ khóa. Việc quiz "lên sóng"
+  // cho học viên do trạng thái lesson activity quyết định (publish course hoặc
+  // filter quiz mới chuyển activity sang public).
 
   /**
-   * Xác thực quyền + quyết định cần change request hay không, theo nguyên tắc
-   * 403 TRƯỚC 404: non-admin không xác nhận được là chủ khóa (course/activity
-   * không tồn tại hoặc của người khác) → 403, không lộ tồn tại. Admin: full quyền.
-   * Trả về courseId + cờ needsChangeRequest (course đã publish && non-admin).
+   * Xác thực quyền sửa quiz theo nguyên tắc 403 TRƯỚC 404: chỉ admin hoặc chủ
+   * khóa (course chứa lesson activity) mới được CRUD quiz; người khác — kể cả khi
+   * course/activity không tồn tại — nhận 403, không lộ tồn tại. Trả về courseId
+   * để gửi notification.
    */
-  private async resolveQuizCourseContext(
+  private async resolveQuizCourseId(
     lessonActivityId: number,
     requester?: QuizRequester,
-  ): Promise<{ courseId: number; needsChangeRequest: boolean }> {
+  ): Promise<number> {
     const course =
       await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
 
@@ -908,72 +878,28 @@ export class QuizzesService {
           `Course for lesson activity ${lessonActivityId} not found`,
         );
       }
-      return { courseId: course.id, needsChangeRequest: false };
+      return course.id;
     }
 
     const ownerId = (course as { userId?: number } | null)?.userId;
     if (!course || ownerId !== requester?.userId) {
       throw new ForbiddenException('You are not the owner of this course');
     }
-    return {
-      courseId: course.id,
-      // publish (đang live) + approved (admin đã duyệt nội dung) → sửa quiz phải
-      // qua change request chờ duyệt lại. draft/pending/rejected/banned sửa trực tiếp.
-      needsChangeRequest:
-        course.status === CourseStatus.PUBLISH ||
-        course.status === CourseStatus.APPROVED,
-    };
+    return course.id;
   }
 
   /**
-   * Ảnh chụp giá trị quiz hiện tại cho đúng các field có trong `payload` (để
-   * hiển thị diff khi admin duyệt). `questions` được serialize gọn lại.
-   */
-  private snapshotQuiz(
-    quiz: Quiz,
-    payload: QuizChangePayload,
-  ): QuizChangePayload {
-    const snapshot: Record<string, unknown> = {};
-    for (const key of Object.keys(payload)) {
-      if (key === 'questions') {
-        snapshot.questions = (quiz.questions ?? []).map((q) => ({
-          quesType: q.quesType,
-          quesText: q.quesText,
-          point: q.point,
-          correctAns: q.correctAns,
-          orderIndex: q.orderIndex,
-          videoTimestamp: q.videoTimestamp,
-        }));
-      } else {
-        snapshot[key] = quiz.get(key as keyof Quiz) ?? null;
-      }
-    }
-    return snapshot as QuizChangePayload;
-  }
-
-  /**
-   * Entry point từ controller cho `POST /quizzes`. Course đã publish (non-admin)
-   * → tạo change request `quiz.create`; còn lại → createOne trực tiếp + báo học
-   * viên nếu admin sửa khóa đã publish.
+   * Entry point từ controller cho `POST /quizzes`. Tạo quiz TRỰC TIẾP (không còn
+   * change request); chỉ admin/chủ khóa được tạo. Báo học viên nếu khóa đã publish.
    */
   async createOneWithReview(
     payload: CreateQuizDto,
     requester?: QuizRequester,
-  ): Promise<Quiz | CourseChangeRequest> {
-    const { courseId, needsChangeRequest } =
-      await this.resolveQuizCourseContext(payload.lessonActivityId, requester);
-
-    if (needsChangeRequest) {
-      return await this.coursesService.createQuizChangeRequest({
-        kind: CourseChangeRequestKind.QUIZ_CREATE,
-        courseId,
-        targetId: null,
-        payload: { ...payload } as QuizChangePayload,
-        prevData: null,
-        requestedBy: this.requireRequester(requester),
-      });
-    }
-
+  ): Promise<Quiz> {
+    const courseId = await this.resolveQuizCourseId(
+      payload.lessonActivityId,
+      requester,
+    );
     const quiz = await this.createOne(payload);
     await this.coursesService.notifyQuizChangeDirect(
       courseId,
@@ -984,30 +910,19 @@ export class QuizzesService {
   }
 
   /**
-   * Entry point từ controller cho `PATCH /quizzes/:id`. Course đã publish
-   * (non-admin) → tạo change request `quiz.update`; còn lại → update trực tiếp.
+   * Entry point từ controller cho `PATCH /quizzes/:id`. Update TRỰC TIẾP (không
+   * còn change request); chỉ admin/chủ khóa. Báo học viên nếu khóa đã publish.
    */
   async updateWithReview(
     id: number,
     payload: UpdateQuizDto,
     requester?: QuizRequester,
-  ): Promise<Quiz | CourseChangeRequest> {
+  ): Promise<Quiz> {
     const quiz = await this.findOne(id);
-    const { courseId, needsChangeRequest } =
-      await this.resolveQuizCourseContext(quiz.lessonActivityId, requester);
-
-    if (needsChangeRequest) {
-      const changePayload = { ...payload } as QuizChangePayload;
-      return await this.coursesService.createQuizChangeRequest({
-        kind: CourseChangeRequestKind.QUIZ_UPDATE,
-        courseId,
-        targetId: quiz.id,
-        payload: changePayload,
-        prevData: this.snapshotQuiz(quiz, changePayload),
-        requestedBy: this.requireRequester(requester),
-      });
-    }
-
+    const courseId = await this.resolveQuizCourseId(
+      quiz.lessonActivityId,
+      requester,
+    );
     const updated = await this.update(id, payload);
     await this.coursesService.notifyQuizChangeDirect(
       courseId,
@@ -1018,30 +933,18 @@ export class QuizzesService {
   }
 
   /**
-   * Entry point từ controller cho `DELETE /quizzes/:id`. Course đã publish
-   * (non-admin) → tạo change request `quiz.delete`; còn lại → remove trực tiếp.
+   * Entry point từ controller cho `DELETE /quizzes/:id`. Xoá (soft) TRỰC TIẾP
+   * (không còn change request); chỉ admin/chủ khóa. Báo học viên nếu khóa đã publish.
    */
   async removeWithReview(
     id: number,
     requester?: QuizRequester,
-  ): Promise<void | CourseChangeRequest> {
+  ): Promise<void> {
     const quiz = await this.findOne(id);
-    const { courseId, needsChangeRequest } =
-      await this.resolveQuizCourseContext(quiz.lessonActivityId, requester);
-
-    if (needsChangeRequest) {
-      return await this.coursesService.createQuizChangeRequest({
-        kind: CourseChangeRequestKind.QUIZ_DELETE,
-        courseId,
-        targetId: quiz.id,
-        // payload rỗng (xoá không có state mới); prevData giữ tên quiz để admin
-        // biết đang xoá quiz nào.
-        payload: {},
-        prevData: { name: quiz.name },
-        requestedBy: this.requireRequester(requester),
-      });
-    }
-
+    const courseId = await this.resolveQuizCourseId(
+      quiz.lessonActivityId,
+      requester,
+    );
     await this.remove(id);
     await this.coursesService.notifyQuizChangeDirect(
       courseId,
@@ -1179,6 +1082,13 @@ export class QuizzesService {
         );
       }
     });
+
+    // Lọc xong = giảng viên đã chốt nội dung quiz → publish lesson activity
+    // (draft → public) để học viên có thể nộp bài.
+    await this.lessonActivityModel.update(
+      { status: ActivityStatus.PUBLIC },
+      { where: { id: quiz.lessonActivityId } },
+    );
 
     return await this.findOne(quizId);
   }
