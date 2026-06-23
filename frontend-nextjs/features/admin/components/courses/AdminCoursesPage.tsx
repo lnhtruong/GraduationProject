@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  BookCheck, Clock4, XCircle, Search, ChevronLeft, ChevronRight,
+  BookCheck, Search, ChevronLeft, ChevronRight,
   SlidersHorizontal, AlertTriangle, RefreshCw, DollarSign, X, FileEdit,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -244,8 +244,6 @@ export default function AdminCoursesPage() {
     useAdminCoursesPaginated({ page: coursePage, limit: PAGE_SIZE, ...serverCourseFilters });
 
   const { data: pendingStats } = useAdminCourseStats("pending");
-  const { data: approvedStats } = useAdminCourseStats("approved");
-  const { data: rejectedStats } = useAdminCourseStats("rejected");
 
   // ── Change-request query (single, server-side filtered) ──
   const { data: crData, isLoading: isCrLoading, isError: isCrError, refetch: refetchCR } =
@@ -257,13 +255,7 @@ export default function AdminCoursesPage() {
       limit: PAGE_SIZE,
     });
 
-  // ── Stats ──
-  const stats = {
-    pending: pendingStats?.pagination.totalItems ?? 0,
-    approved: approvedStats?.pagination.totalItems ?? 0,
-    rejected: rejectedStats?.pagination.totalItems ?? 0,
-    crPending: 0,
-  };
+  const stats = { pending: pendingStats?.pagination.totalItems ?? 0 };
 
   // ── Course mutations ──
   const approve = useApproveCourse();
@@ -310,16 +302,9 @@ export default function AdminCoursesPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-end justify-between gap-4 border-b border-border/50 pb-5">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Duyệt khóa học</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Xem xét và phê duyệt khóa học do giảng viên gửi lên</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <StatChip icon={<Clock4 className="h-3.5 w-3.5" />} value={stats.pending} colorClass="text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400" label="chờ duyệt" />
-          <StatChip icon={<BookCheck className="h-3.5 w-3.5" />} value={stats.approved} colorClass="text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400" label="đã duyệt" />
-          <StatChip icon={<XCircle className="h-3.5 w-3.5" />} value={stats.rejected} colorClass="text-destructive bg-destructive/5 border-destructive/20" label="từ chối" />
-        </div>
+      <div className="border-b border-border/50 pb-5">
+        <h1 className="text-xl font-bold tracking-tight">Duyệt khóa học</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">Xem xét và phê duyệt khóa học do giảng viên gửi lên</p>
       </div>
 
       <Tabs defaultValue="courses" className="space-y-4">
@@ -633,17 +618,6 @@ function ErrorRetry({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function StatChip({
-  icon, value, colorClass, label,
-}: {
-  icon: ReactNode; value: number; colorClass: string; label: string;
-}) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${colorClass}`}>
-      {icon}{value} {label}
-    </span>
-  );
-}
 
 function Pagination({
   page, totalPages, totalItems, pageSize, onPageChange,
