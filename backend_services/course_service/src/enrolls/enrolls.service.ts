@@ -122,18 +122,14 @@ export class EnrollsService {
       transaction,
     );
 
+    // Luôn cập nhật progress value. Nhưng KHÔNG hạ status: user đã COMPLETED thì
+    // giữ nguyên status/completedAt kể cả khi % tụt xuống dưới 100 (thêm lesson
+    // mới sau khi approve change request) — chỉ progress phản ánh tập lesson mới.
     const updates: Partial<Enroll> = { progress: percent };
 
-    if (percent >= 100) {
-      if (enroll.status === EnrollStatus.ACTIVE) {
-        updates.status = EnrollStatus.COMPLETED;
-        updates.completedAt = enroll.completedAt ?? new Date();
-      }
-    } else if (enroll.status === EnrollStatus.COMPLETED) {
-      // Tập lesson lớn lên (thêm lesson mới sau khi approve change request) →
-      // enroll không còn đạt 100% → hạ về active và xoá mốc hoàn thành.
-      updates.status = EnrollStatus.ACTIVE;
-      updates.completedAt = null;
+    if (percent >= 100 && enroll.status === EnrollStatus.ACTIVE) {
+      updates.status = EnrollStatus.COMPLETED;
+      updates.completedAt = enroll.completedAt ?? new Date();
     }
 
     await enroll.update(updates, { transaction });
