@@ -88,6 +88,11 @@ export class EnrollsService {
     }
 
     for (const enroll of enrolls) {
+      // User đã hoàn thành: giữ nguyên status/progress/completedAt, không seed
+      // lesson mới và không tính lại.
+      if (enroll.status === EnrollStatus.COMPLETED) {
+        continue;
+      }
       await this.sequelize.transaction(async (transaction) => {
         await this.seedLessonProgressForCourse(
           enroll.userId,
@@ -116,6 +121,12 @@ export class EnrollsService {
       return;
     }
 
+    // Enroll đã hoàn thành thì đóng băng: không tính lại %, không hạ status,
+    // không xoá mốc completedAt — kể cả khi course đổi nội dung qua change request.
+    if (enroll.status === EnrollStatus.COMPLETED) {
+      return;
+    }
+
     const percent = await this.computeLessonProgressPercent(
       userId,
       courseId,
@@ -124,16 +135,9 @@ export class EnrollsService {
 
     const updates: Partial<Enroll> = { progress: percent };
 
-    if (percent >= 100) {
-      if (enroll.status === EnrollStatus.ACTIVE) {
-        updates.status = EnrollStatus.COMPLETED;
-        updates.completedAt = enroll.completedAt ?? new Date();
-      }
-    } else if (enroll.status === EnrollStatus.COMPLETED) {
-      // Tập lesson lớn lên (thêm lesson mới sau khi approve change request) →
-      // enroll không còn đạt 100% → hạ về active và xoá mốc hoàn thành.
-      updates.status = EnrollStatus.ACTIVE;
-      updates.completedAt = null;
+    if (percent >= 100 && enroll.status === EnrollStatus.ACTIVE) {
+      updates.status = EnrollStatus.COMPLETED;
+      updates.completedAt = enroll.completedAt ?? new Date();
     }
 
     await enroll.update(updates, { transaction });
