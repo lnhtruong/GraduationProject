@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import type React from "react";
+import Hls from "hls.js";
 import { Sparkles, Languages, Trophy, Timer, Video, Shuffle, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -210,6 +211,77 @@ export function QuizAIForm({
   const [hasManuallyEdited, setHasManuallyEdited] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (!videoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      return;
+    }
+
+    const isHls = videoUrl.includes(".m3u8");
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(videoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = videoUrl;
+      }
+    } else {
+      videoElement.src = videoUrl;
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl]);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const safeDuration = Math.max(0, Number(videoDurationSeconds ?? 0));
   const [currentSeconds, setCurrentSeconds] = useState(0);
@@ -650,7 +722,6 @@ export function QuizAIForm({
               <video
                 ref={videoRef}
                 className="mx-auto block h-auto max-h-[300px] w-full object-contain cursor-pointer select-none"
-                src={videoUrl}
                 preload="metadata"
                 playsInline
                 onClick={togglePlay}

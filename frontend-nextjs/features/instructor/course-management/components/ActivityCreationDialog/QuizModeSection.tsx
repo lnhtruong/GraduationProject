@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import Hls from "hls.js";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -60,7 +61,77 @@ export function QuizModeSection({
   lessonVideoDuration,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const safeDuration = Math.max(0, Number(lessonVideoDuration ?? 0));
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (!lessonVideoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      return;
+    }
+
+    const isHls = lessonVideoUrl.includes(".m3u8");
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(lessonVideoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = lessonVideoUrl;
+      }
+    } else {
+      videoElement.src = lessonVideoUrl;
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [lessonVideoUrl]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -191,7 +262,6 @@ export function QuizModeSection({
               <video
                 ref={videoRef}
                 className="mx-auto block h-auto max-h-[300px] w-full object-contain cursor-pointer select-none"
-                src={lessonVideoUrl}
                 preload="metadata"
                 playsInline
                 onClick={togglePlay}

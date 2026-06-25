@@ -101,10 +101,10 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     useLessonActivitiesByLessonId(lessonId, Boolean(lessonId));
 
   const { data: inVideoQuizzes, isLoading: quizzesLoading } =
-    useQuizzesByLessonId(lessonId, "in_video", Boolean(lessonId));
+    useQuizzesByLessonId(lessonId, "in_video", undefined, Boolean(lessonId));
 
   const { data: outVideoQuizzes, isLoading: outVideoQuizzesLoading } =
-    useQuizzesByLessonId(lessonId, "after_video", Boolean(lessonId));
+    useQuizzesByLessonId(lessonId, "after_video", undefined, Boolean(lessonId));
 
   const initialValues = useMemo<LessonFormValues>(
     () => buildInitialLessonValues(courseId, lesson),
@@ -301,7 +301,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         title: pendingQuiz.title.trim() || "Quiz: Bài học",
         description: pendingQuiz.description.trim() || "Activity quiz",
         orderIndex: nextOrderIndex,
-        status: "draft",
+        status: "public",
         createdBy: user?.id,
       });
       nextOrderIndex += 1;
@@ -326,7 +326,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         title: state.title.trim() || "Quiz: Bài học",
         description: state.description.trim() || "Activity quiz",
         orderIndex: nextOrderIndex,
-        status: "draft",
+        status: "public",
         createdBy: user?.id,
       });
 
@@ -391,14 +391,27 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   return (
     <div className="w-full space-y-6">
       {portalTarget && createPortal(
-        <Button
-          type="submit"
-          form="lesson-form"
-          className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
-          disabled={formState.isSubmitting || isUploadingVideo}
-        >
-          {isUploadingVideo ? "Đang tải video..." : (isEdit ? "Lưu bài học" : "Tạo bài học")}
-        </Button>,
+        <>
+          {!isEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all"
+              onClick={() => setShowQuizEditorModal(true)}
+            >
+              <NotebookText className="h-4 w-4 text-primary" />
+              Tạo hoạt động
+            </Button>
+          )}
+          <Button
+            type="submit"
+            form="lesson-form"
+            className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
+            disabled={formState.isSubmitting || isUploadingVideo}
+          >
+            {isUploadingVideo ? "Đang tải video..." : (isEdit ? "Lưu bài học" : "Tạo bài học")}
+          </Button>
+        </>,
         portalTarget
       )}
 
@@ -523,17 +536,15 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         </p>
       ) : null}
 
-      {/* Video Preview - Edit Page Only */}
-      {isEdit && hasVideoSource && (
-        <VideoPreview
-          courseId={courseId}
-          lessonId={lessonId ?? 0}
-          videoUrl={activeVideoUrl}
-          videoDurationSeconds={activeVideoDurationSeconds}
-          videoLoading={videoLoading && !draftVideoBlobUrl}
-          timelineMarkers={timelineMarkers}
-        />
-      )}
+      {/* Video Preview */}
+      <VideoPreview
+        courseId={courseId}
+        lessonId={lessonId ?? 0}
+        videoUrl={activeVideoUrl}
+        videoDurationSeconds={activeVideoDurationSeconds}
+        videoLoading={videoLoading && !draftVideoBlobUrl}
+        timelineMarkers={timelineMarkers}
+      />
 
       {/* Activities Section */}
       {lessonId && (

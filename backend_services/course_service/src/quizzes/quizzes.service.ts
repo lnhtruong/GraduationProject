@@ -717,14 +717,28 @@ export class QuizzesService {
   async findAllByLessonId(
     lessonId: number,
     type?: 'in_video' | 'after_video',
+    status?: string,
   ): Promise<Quiz[]> {
     if (!Number.isInteger(lessonId) || lessonId <= 0) {
       throw new BadRequestException('lessonId must be a positive integer.');
     }
 
+    const whereActivity: any = { lessonId };
+    if (status) {
+      const parts = status
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s.length > 0);
+      if (parts.length) {
+        whereActivity.status = { [Op.in]: parts };
+      }
+    } else {
+      whereActivity.status = { [Op.ne]: 'removed' };
+    }
+
     const lessonActivities = await this.lessonActivityModel.findAll({
       attributes: ['id'],
-      where: { lessonId },
+      where: whereActivity,
     });
 
     if (!lessonActivities.length) {

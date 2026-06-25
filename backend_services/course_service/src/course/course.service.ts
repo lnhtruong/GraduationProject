@@ -1422,13 +1422,26 @@ export class CoursesService {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
 
+    const isAdmin = requesterRole === this.ADMIN_ROLE;
+    const isOwner = requesterUserId === course.userId;
+
     if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
-      const isAdmin = requesterRole === this.ADMIN_ROLE;
-      const isOwner = requesterUserId === course.userId;
       if (!isAdmin && !isOwner) {
         throw new ForbiddenException(
           'You do not have permission to access this course',
         );
+      }
+    }
+
+    if (!isAdmin && !isOwner) {
+      if (course.lessons) {
+        for (const lesson of course.lessons) {
+          if (lesson.lessonActivities) {
+            lesson.lessonActivities = lesson.lessonActivities.filter(
+              (activity) => activity.status === ActivityStatus.PUBLIC,
+            );
+          }
+        }
       }
     }
 

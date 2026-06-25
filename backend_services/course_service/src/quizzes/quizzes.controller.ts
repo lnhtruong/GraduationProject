@@ -147,6 +147,7 @@ export class QuizzesController {
   async findAllByLessonId(
     @Param('lessonId') lessonId: string,
     @Query('type') type?: string,
+    @Query('status') status?: string,
   ) {
     const parsedLessonId = Number(lessonId);
     const parsedType = this.parseQuizTypeFilter(type);
@@ -154,6 +155,7 @@ export class QuizzesController {
     return await this.quizzesService.findAllByLessonId(
       parsedLessonId,
       parsedType,
+      status,
     );
   }
 
