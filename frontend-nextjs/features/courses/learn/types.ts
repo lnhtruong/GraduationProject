@@ -118,7 +118,7 @@ export interface DiscussionPostRecord {
   createdAt: string;
   updatedAt: string;
   author: DiscussionAuthorSnapshot;
-  replies: DiscussionPostRecord[];
+  replies?: DiscussionPostRecord[];
 }
 
 export interface DiscussionListResponse {

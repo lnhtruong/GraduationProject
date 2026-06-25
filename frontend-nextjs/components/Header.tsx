@@ -12,12 +12,18 @@ import {
   Menu,
   User,
   LogOut,
-  Settings,
   FolderOpen,
   BookOpen,
   GraduationCap,
   ShieldCheck,
   Heart,
+  Repeat,
+  LayoutDashboard,
+  Sun,
+  Moon,
+  MonitorSmartphone,
+  MonitorPlay,
+  Briefcase,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,14 +36,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { SearchBar } from "@/components/SearchBar";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
 import { useUiModeStore } from "@/store/ui-mode";
 import { useCartSummary } from "@/features/cart/api/cart.hooks";
@@ -62,6 +73,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { viewMode, setViewMode } = useUiModeStore();
+  const { theme, setTheme } = useTheme();
   const [isDesktopSearchVisible, setIsDesktopSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
@@ -121,7 +133,7 @@ export function Header() {
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
       <div className="flex h-16 w-full items-center justify-between gap-3 px-2 sm:px-3 lg:px-4">
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className={cn("items-center gap-2 sm:gap-3", isDesktopSearchVisible ? "hidden md:flex" : "flex")}>
           {/* Logo and Title */}
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
             <Link
@@ -201,10 +213,10 @@ export function Header() {
         </div>
 
         {/* Right Side Controls */}
-        <div className={cn("flex items-center justify-end gap-2")}>
-          {/* Desktop Search Form */}
+        <div className={cn("flex items-center justify-end gap-2", isDesktopSearchVisible ? "w-full md:w-auto" : "")}>
+          {/* Search Form (Mobile & Desktop) */}
           {isDesktopSearchVisible && (
-            <div className="ml-auto hidden items-center gap-1 md:flex md:w-72 lg:w-96">
+            <div className="flex w-full items-center gap-1 md:ml-auto md:w-72 lg:w-96">
               <SearchBar className="flex-1" />
               <Button
                 type="button"
@@ -222,7 +234,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden rounded-full border border-border/70 md:inline-flex"
+              className="rounded-full border border-border/70"
               onClick={() => setIsDesktopSearchVisible(true)}
               aria-label="Toggle search"
             >
@@ -253,11 +265,9 @@ export function Header() {
             </div>
           )}
 
-          <div
-            className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
-          >
-            <ThemeToggle />
-          </div>
+
+
+
 
           {isAuthenticated ? (
             <NotificationBell className="md:inline-flex" />
@@ -266,6 +276,7 @@ export function Header() {
           {/* Auth Section */}
           {isAuthenticated ? (
             <motion.div
+              className={cn(isDesktopSearchVisible ? "hidden md:block" : "block")}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
@@ -290,7 +301,7 @@ export function Header() {
                     </Button>
                   </motion.div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -305,70 +316,138 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/workspace" className="cursor-pointer">
-                      <FolderOpen className="mr-2 h-4 w-4" />
-                      <span>Không gian làm việc</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/library" className="cursor-pointer">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      <span>Thư viện video & ảnh</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/library/wishlist" className="cursor-pointer">
-                      <Heart className="mr-2 h-4 w-4" />
-                      <span>Khóa học đã lưu</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  {/* Admin Panel — chỉ hiện với ADMIN */}
+
+                  {/* Admin Panel — Top Priority */}
                   {user?.role === ROLES.ADMIN && (
                     <>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
-                        <Link href="/admin" className="cursor-pointer">
+                        <Link
+                          href={pathname.startsWith("/admin") ? "/" : "/admin"}
+                          className="cursor-pointer text-primary focus:bg-primary/5 focus:text-primary font-semibold"
+                        >
                           <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-                          <span className="font-medium text-primary">
-                            Admin Panel
-                          </span>
+                          <span>{pathname.startsWith("/admin") ? "LearnHub" : "Admin Studio"}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {/* YouTube Studio Style Switch */}
+                  {canUseTeacherMode && (
+                    <>
+                      <DropdownMenuItem
+                        className="cursor-pointer text-primary focus:bg-primary/5 focus:text-primary font-semibold"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setViewMode(isTeacherMode ? "learner" : "teacher");
+                          router.push(isTeacherMode ? "/" : "/instructor/dashboard");
+                        }}
+                      >
+                        <MonitorPlay className="mr-2 h-4 w-4 text-primary" />
+                        <span>{isTeacherMode ? "LearnHub" : "LearnHub Studio"}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {/* Contextual Menu Items */}
+                  {isTeacherMode ? (
+                    <>
+                      {/* Teacher View */}
+                      <DropdownMenuItem asChild>
+                        <Link href="/instructor/dashboard" className="cursor-pointer">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Bảng điều khiển</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/instructor/courses" className="cursor-pointer">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          <span>Quản lý khóa học</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/library" className="cursor-pointer">
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          <span>Thư viện Media</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/instructor/analytics" className="cursor-pointer">
+                          <Search className="mr-2 h-4 w-4" />
+                          <span>Doanh thu & Phân tích</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      {/* Learner View */}
+                      <DropdownMenuItem asChild>
+                        <Link href="/my-courses" className="cursor-pointer">
+                          <GraduationCap className="mr-2 h-4 w-4" />
+                          <span>Học tập của tôi</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/workspace" className="cursor-pointer">
+                          <Briefcase className="mr-2 h-4 w-4" />
+                          <span>Workspace của tôi</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/library/wishlist" className="cursor-pointer">
+                          <Heart className="mr-2 h-4 w-4" />
+                          <span>Khóa học đã lưu</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild className="md:hidden">
+                        <Link href="/cart" className="cursor-pointer">
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          <span>Giỏ hàng của tôi</span>
                         </Link>
                       </DropdownMenuItem>
                     </>
                   )}
-                  {/* Teacher Mode — chỉ hiện với LECTURER và ADMIN */}
-                  {canAccessInstructor(user?.role) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={(event) => event.preventDefault()}
-                        className="mx-1.5 my-1 flex w-[calc(100%-0.75rem)] cursor-default items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 focus:bg-primary/10"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <GraduationCap className="mt-0.5 h-4 w-4 text-primary" />
-                          <div className="leading-tight">
-                            <p className="text-sm font-semibold text-primary">
-                              Teacher Mode
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Chuyển sang không gian giảng viên
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={isTeacherMode}
-                          onCheckedChange={(checked) => {
-                            setViewMode(checked ? "teacher" : "learner");
-                            router.push(
-                              checked ? "/instructor/dashboard" : "/",
-                            );
-                          }}
-                          aria-label="Teacher mode switch"
-                        />
-                      </DropdownMenuItem>
-                    </>
-                  )}
+
+
+
+                  {/* Theme Toggle Submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      {theme === "light" ? (
+                        <Sun className="mr-2 h-4 w-4" />
+                      ) : theme === "dark" ? (
+                        <Moon className="mr-2 h-4 w-4" />
+                      ) : (
+                        <MonitorSmartphone className="mr-2 h-4 w-4" />
+                      )}
+                      <span>Giao diện: {theme === "light" ? "Sáng" : theme === "dark" ? "Tối" : "Thiết bị"}</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-56">
+                        <DropdownMenuCheckboxItem 
+                          checked={theme === "system"} 
+                          onCheckedChange={() => setTheme("system")}
+                        >
+                          Giao diện thiết bị
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem 
+                          checked={theme === "dark"} 
+                          onCheckedChange={() => setTheme("dark")}
+                        >
+                          Giao diện tối
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem 
+                          checked={theme === "light"} 
+                          onCheckedChange={() => setTheme("light")}
+                        >
+                          Giao diện sáng
+                        </DropdownMenuCheckboxItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">
@@ -376,18 +455,13 @@ export function Header() {
                       <span>Hồ sơ</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Cài đặt</span>
-                    </Link>
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="cursor-pointer text-destructive focus:text-destructive"
+                    variant="destructive"
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-2 h-4 w-4 text-destructive" />
                     <span>Đăng xuất</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -395,7 +469,7 @@ export function Header() {
             </motion.div>
           ) : (
             <motion.div
-              className="flex items-center gap-2"
+              className={cn("flex items-center gap-2", isDesktopSearchVisible ? "hidden md:flex" : "flex")}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}

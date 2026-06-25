@@ -1,11 +1,10 @@
 import { motion } from "framer-motion";
-import { CheckCircle2, Circle, Clock3, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, Clock3 } from "lucide-react";
 import type { LessonProgressRecord } from "../types";
 import { InstructorLesson } from "@/features/instructor/course-management/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatTime, parseDurationToSeconds } from "../utils";
-import { Separator } from "@/components/ui/separator";
 
 interface Props {
   lessons: InstructorLesson[];
@@ -25,17 +24,21 @@ export function LessonSidebar({
   currentLessonProgressPercent,
 }: Props) {
   return (
-    <Card className="h-fit overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.08)] xl:sticky xl:top-4">
-      <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Tiếp theo</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Danh sách phát bài học — chọn bài để xem tiếp.
-            </p>
-          </div>
-          <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-xs text-muted-foreground">
-            {completedLessonCount}/{lessons.length} hoàn thành
+    <Card className="h-fit overflow-hidden border border-border/40 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.06)] xl:sticky xl:top-4 rounded-3xl">
+      <CardHeader className="border-b border-border/40 bg-muted/20 p-4 md:p-5">
+        <div className="space-y-2">
+          <CardTitle className="text-base font-bold">Danh sách phát</CardTitle>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-muted-foreground font-medium">
+              <span>Tiến độ học tập</span>
+              <span>{completedLessonCount}/{lessons.length} bài học</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-500" 
+                style={{ width: `${lessons.length > 0 ? (completedLessonCount / lessons.length) * 100 : 0}%` }}
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -155,16 +158,6 @@ export function LessonSidebar({
             })}
           </div>
         </ScrollArea>
-        <Separator />
-        <div className="flex items-center justify-between gap-3 p-3 text-xs text-muted-foreground">
-          <span>
-            Đã hoàn thành {completedLessonCount}/{lessons.length} bài học.
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Danh sách phát
-          </span>
-        </div>
       </CardContent>
     </Card>
   );
