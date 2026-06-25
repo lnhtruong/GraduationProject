@@ -594,16 +594,7 @@ export function VideoPreview({
           ) : null}
         </div>
       </div>
-        {videoUrl ? (
-          <div>
-            {timelineMarkers.length ? null : (
-              <div className="rounded-lg border border-dashed border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
-                Chưa có quiz gắn mốc trong video. Tạo quiz với mode "Trong
-                video" để hiển thị marker.
-              </div>
-            )}
-          </div>
-        ) : null}
+
       </CardContent>
 
       <Dialog

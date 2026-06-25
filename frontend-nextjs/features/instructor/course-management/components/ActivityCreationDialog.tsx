@@ -91,6 +91,7 @@ export function ActivityCreationDialog({
   const { data: inVideoQuizzes } = useQuizzesByLessonId(
     lessonId,
     "in_video",
+    undefined,
     open
   );
 
@@ -169,7 +170,7 @@ export function ActivityCreationDialog({
       title: state.title.trim() || `Quiz: ${lessonTitle}`,
       description: state.description.trim() || "Activity quiz",
       orderIndex: nextOrderIndex,
-      status: "draft",
+      status: "public",
       createdBy: userId,
     });
 
@@ -301,6 +302,7 @@ export function ActivityCreationDialog({
           id: generatedActivityId,
           data: {
             description: "AI Quiz generated from lesson video", // Finalize description to show markers
+            status: "public",
           },
         });
       } catch (err) {

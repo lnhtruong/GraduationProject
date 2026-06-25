@@ -6,9 +6,14 @@ import { LessonsController } from './lesson.controller';
 import { Lesson } from 'src/models/lesson.model';
 import { Video } from 'src/models/video.model';
 import { CoursesModule } from 'src/course/course.module';
+import { EnrollsModule } from 'src/enrolls/enrolls.module';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Lesson, Video]), CoursesModule],
+  imports: [
+    SequelizeModule.forFeature([Lesson, Video]),
+    CoursesModule,
+    EnrollsModule,
+  ],
   controllers: [LessonsController],
   providers: [LessonsService],
   exports: [LessonsService],

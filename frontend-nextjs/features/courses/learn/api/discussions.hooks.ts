@@ -89,11 +89,11 @@ export function useCreateDiscussionMutation(lessonId: number) {
             data: pages[0].data.map((root: DiscussionPostRecord) => {
               if (
                 root.id === newPostPayload.parentId ||
-                root.replies.some((r) => r.id === newPostPayload.parentId)
+                (root.replies && root.replies.some((r) => r.id === newPostPayload.parentId))
               ) {
                 return {
                   ...root,
-                  replies: [...root.replies, tempPost],
+                  replies: [...(root.replies || []), tempPost],
                 };
               }
               return root;
@@ -136,7 +136,7 @@ export function useCreateDiscussionMutation(lessonId: number) {
               if (root.id === parentRootId) {
                 return {
                   ...root,
-                  replies: root.replies.map((r: DiscussionPostRecord) =>
+                  replies: (root.replies || []).map((r: DiscussionPostRecord) =>
                     r.id === context?.tempId ? savedPost : r,
                   ),
                 };
@@ -187,11 +187,11 @@ export function useToggleUpvoteMutation(lessonId: number) {
             }
 
             // Check if replies match
-            const hasMatchingReply = root.replies.some((r) => r.id === postId);
+            const hasMatchingReply = root.replies && root.replies.some((r) => r.id === postId);
             if (hasMatchingReply) {
               return {
                 ...root,
-                replies: root.replies.map((r: DiscussionPostRecord) => {
+                replies: (root.replies || []).map((r: DiscussionPostRecord) => {
                   if (r.id === postId) {
                     const wasVoted = Boolean(r.voted);
                     return {
@@ -239,11 +239,11 @@ export function useToggleUpvoteMutation(lessonId: number) {
               };
             }
 
-            const hasMatchingReply = root.replies.some((r) => r.id === postId);
+            const hasMatchingReply = root.replies && root.replies.some((r) => r.id === postId);
             if (hasMatchingReply) {
               return {
                 ...root,
-                replies: root.replies.map((r: DiscussionPostRecord) =>
+                replies: (root.replies || []).map((r: DiscussionPostRecord) =>
                   r.id === postId
                     ? { ...r, upvotes: result.upvotes, voted: result.voted }
                     : r,

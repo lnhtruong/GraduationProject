@@ -72,6 +72,9 @@ export class LessonActivity extends Model {
 
   @Column({
     type: DataType.ENUM(...Object.values(ActivityStatus)),
+    // Mặc định DRAFT khi tạo; có thể truyền `status` qua DTO để override. Activity
+    // chuyển sang PUBLIC khi publish course (promote quiz activity) hoặc khi giảng
+    // viên filter quiz. Học viên chỉ nộp được khi activity = public.
     defaultValue: ActivityStatus.DRAFT,
   })
   declare status: ActivityStatus;

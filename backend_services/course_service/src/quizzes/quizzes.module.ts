@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
@@ -7,12 +7,21 @@ import { Video } from 'src/models/video.model';
 import { LessonActivity } from 'src/models/lesson-activity.model';
 import { QuizzesController } from './quizzes.controller';
 import { QuizzesService } from './quizzes.service';
+import { CoursesModule } from 'src/course/course.module';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Quiz, QuizQuestion, QuizOption, Video, LessonActivity])],
+  imports: [
+    SequelizeModule.forFeature([
+      Quiz,
+      QuizQuestion,
+      QuizOption,
+      Video,
+      LessonActivity,
+    ]),
+    forwardRef(() => CoursesModule),
+  ],
   controllers: [QuizzesController],
   providers: [QuizzesService],
   exports: [QuizzesService],
 })
 export class QuizzesModule {}
-

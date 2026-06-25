@@ -259,11 +259,13 @@ export function useCourseLearnData(courseId: number) {
   const { data: inVideoQuizzes } = useQuizzesByLessonId(
     selectedLesson?.id ?? null,
     "in_video",
+    "public",
     Boolean(selectedLesson?.id),
   );
   const { data: afterVideoQuizzes } = useQuizzesByLessonId(
     selectedLesson?.id ?? null,
     "after_video",
+    "public",
     Boolean(selectedLesson?.id),
   );
 

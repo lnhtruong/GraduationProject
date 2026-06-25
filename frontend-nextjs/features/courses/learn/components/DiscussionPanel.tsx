@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Loader2, MessageCircleMore, RefreshCw, ThumbsUp } from "lucide-react";
+import { Loader2, MessageCircleMore, RefreshCw, ThumbsUp, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,6 +70,9 @@ function DiscussionItem({
   onUpvote,
   canInteract,
   voted,
+  openReplyFor,
+  onReplySubmit,
+  onReplyCancel,
 }: {
   post: DiscussionPostRecord;
   isReply?: boolean;
@@ -77,13 +80,20 @@ function DiscussionItem({
   onUpvote?: (postId: number) => void;
   canInteract?: boolean;
   voted?: boolean;
+  openReplyFor?: number | null;
+  onReplySubmit?: (parentId: number, content: string) => Promise<void>;
+  onReplyCancel?: () => void;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div
       className={
         isReply
-          ? "rounded-2xl border border-emerald-100 bg-emerald-50/60 dark:border-emerald-950/40 dark:bg-emerald-950/20 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
-          : "rounded-3xl border border-border/60 bg-background/95 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+          ? post.isBestAnswer
+            ? "rounded-2xl border border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-900/30 dark:bg-emerald-950/15 p-4 shadow-[0_8px_24px_rgba(16,185,129,0.04)]"
+            : "rounded-2xl border border-border/50 bg-muted/40 dark:bg-muted/10 p-4 shadow-[0_8px_20px_rgba(15,23,42,0.02)]"
+          : "rounded-3xl border border-border/60 bg-background/95 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.04)]"
       }
     >
       <div className="flex items-start gap-3">
@@ -152,9 +162,23 @@ function DiscussionItem({
         </div>
       </div>
 
-      {post.replies.length ? (
-        <div className="mt-4 space-y-3 border-l-2 border-dashed border-emerald-200/80 dark:border-emerald-900/40 pl-4 sm:pl-5">
-          {post.replies.map((reply) => (
+      {openReplyFor === post.id ? (
+        <div className="mt-3 pl-4 sm:pl-5">
+          <ReplyBox
+            onSubmit={async (c) => {
+              if (onReplySubmit) {
+                await onReplySubmit(post.id, c);
+                setIsExpanded(true);
+              }
+            }}
+            onCancel={onReplyCancel}
+          />
+        </div>
+      ) : null}
+
+      {post.replies && post.replies.length > 0 ? (
+        <div className="mt-4 space-y-3 border-l-2 border-dashed border-border/80 dark:border-border/40 pl-4 sm:pl-5">
+          {(isExpanded ? post.replies : post.replies.slice(0, 1)).map((reply) => (
             <DiscussionItem
               key={reply.id}
               post={reply}
@@ -163,8 +187,30 @@ function DiscussionItem({
               onUpvote={onUpvote}
               canInteract={canInteract}
               voted={reply.voted}
+              openReplyFor={openReplyFor}
+              onReplySubmit={onReplySubmit}
+              onReplyCancel={onReplyCancel}
             />
           ))}
+
+          {post.replies.length > 1 && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="mt-2 text-xs font-semibold text-primary hover:text-primary/80 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                  Thu gọn phản hồi
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  Xem thêm {post.replies.length - 1} phản hồi
+                </>
+              )}
+            </button>
+          )}
         </div>
       ) : null}
     </div>
@@ -280,16 +326,10 @@ export function DiscussionPanel({ lessonId, lessonTitle }: Props) {
                     onUpvote={handleToggleUpvote}
                     canInteract={isAuthenticated}
                     voted={post.voted}
+                    openReplyFor={openReplyFor}
+                    onReplySubmit={handleReply}
+                    onReplyCancel={() => setOpenReplyFor(null)}
                   />
-
-                  {openReplyFor === post.id ? (
-                    <div className="mt-3 pl-4 sm:pl-5">
-                      <ReplyBox
-                        onSubmit={(c) => handleReply(post.id, c)}
-                        onCancel={() => setOpenReplyFor(null)}
-                      />
-                    </div>
-                  ) : null}
                 </div>
               ))}
 

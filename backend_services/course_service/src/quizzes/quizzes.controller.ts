@@ -19,12 +19,17 @@ import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
 import { CreateQuizFromAIDto } from './dto/create-quiz-from-ai.dto';
 import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
 import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
+import { Quiz } from 'src/models/quiz.model';
+import { CourseChangeRequest } from 'src/models/course-change-request.model';
 
 @Controller('quizzes')
 export class QuizzesController {
   constructor(private readonly quizzesService: QuizzesService) {}
 
-  private parseRequiredHeaderInt(value: string | undefined, label: string): number {
+  private parseRequiredHeaderInt(
+    value: string | undefined,
+    label: string,
+  ): number {
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed <= 0) {
       throw new UnauthorizedException(`${label} is required`);
@@ -32,7 +37,27 @@ export class QuizzesController {
     return parsed;
   }
 
-  private parseQuizTypeFilter(value?: string): 'in_video' | 'after_video' | undefined {
+  /** Parse requester từ header (optional) — dùng cho gating change request. */
+  private parseRequester(
+    userIdHeader?: string,
+    roleHeader?: string,
+  ): { userId?: number; role?: number } {
+    let userId: number | undefined;
+    if (typeof userIdHeader === 'string' && userIdHeader.trim().length > 0) {
+      const parsed = Number(userIdHeader);
+      if (Number.isInteger(parsed) && parsed > 0) userId = parsed;
+    }
+    let role: number | undefined;
+    if (typeof roleHeader === 'string' && roleHeader.trim().length > 0) {
+      const parsed = Number(roleHeader);
+      if (Number.isInteger(parsed)) role = parsed;
+    }
+    return { userId, role };
+  }
+
+  private parseQuizTypeFilter(
+    value?: string,
+  ): 'in_video' | 'after_video' | undefined {
     if (typeof value !== 'string' || value.trim().length === 0) {
       return undefined;
     }
@@ -42,14 +67,31 @@ export class QuizzesController {
       return normalized;
     }
 
-    throw new BadRequestException('type must be either "in_video" or "after_video".');
+    throw new BadRequestException(
+      'type must be either "in_video" or "after_video".',
+    );
   }
 
   // Single endpoint supports both: object and array payloads.
   @Post()
-  async create(@Body() body: CreateQuizDto | CreateQuizDto[]) {
-    if (Array.isArray(body)) return await this.quizzesService.createMany(body);
-    return await this.quizzesService.createOne(body);
+  async create(
+    @Body() body: CreateQuizDto | CreateQuizDto[],
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+    // Course đã publish (non-admin) → mỗi quiz đi qua change request; còn lại
+    // tạo trực tiếp. Xử lý từng item để cùng một code path gating.
+    if (Array.isArray(body)) {
+      const out: Array<Quiz | CourseChangeRequest> = [];
+      for (const item of body) {
+        out.push(
+          await this.quizzesService.createOneWithReview(item, requester),
+        );
+      }
+      return out;
+    }
+    return await this.quizzesService.createOneWithReview(body, requester);
   }
   @Post('ai')
   @HttpCode(202)
@@ -58,8 +100,14 @@ export class QuizzesController {
     @Headers('x-user-id') userIdHeader?: string,
     @Headers('x-user-role') roleHeader?: string,
   ) {
-    const requesterUserId = this.parseRequiredHeaderInt(userIdHeader, 'x-user-id');
-    const requesterRole = this.parseRequiredHeaderInt(roleHeader, 'x-user-role');
+    const requesterUserId = this.parseRequiredHeaderInt(
+      userIdHeader,
+      'x-user-id',
+    );
+    const requesterRole = this.parseRequiredHeaderInt(
+      roleHeader,
+      'x-user-role',
+    );
 
     if (Array.isArray(body)) {
       return await this.quizzesService.createManyByAI(body, {
@@ -99,11 +147,16 @@ export class QuizzesController {
   async findAllByLessonId(
     @Param('lessonId') lessonId: string,
     @Query('type') type?: string,
+    @Query('status') status?: string,
   ) {
     const parsedLessonId = Number(lessonId);
     const parsedType = this.parseQuizTypeFilter(type);
 
-    return await this.quizzesService.findAllByLessonId(parsedLessonId, parsedType);
+    return await this.quizzesService.findAllByLessonId(
+      parsedLessonId,
+      parsedType,
+      status,
+    );
   }
 
   @Get(':id')
@@ -112,14 +165,30 @@ export class QuizzesController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() payload: UpdateQuizDto) {
-    return await this.quizzesService.update(Number(id), payload);
+  async update(
+    @Param('id') id: string,
+    @Body() payload: UpdateQuizDto,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+    return await this.quizzesService.updateWithReview(
+      Number(id),
+      payload,
+      requester,
+    );
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    // Soft delete (paranoid mode trên Quiz model) — set deleted_at, không xoá vĩnh viễn
-    await this.quizzesService.remove(Number(id));
+  async remove(
+    @Param('id') id: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    // Soft delete (paranoid mode trên Quiz model) — set deleted_at, không xoá vĩnh viễn.
+    // Xoá trực tiếp (không còn change request); chỉ admin/chủ khóa được xoá.
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+    await this.quizzesService.removeWithReview(Number(id), requester);
     return { success: true };
   }
 
@@ -143,7 +212,10 @@ export class QuizzesController {
     @Param('id') id: string,
     @Param('questionId') questionId: string,
   ) {
-    await this.quizzesService.softDeleteQuestion(Number(id), Number(questionId));
+    await this.quizzesService.softDeleteQuestion(
+      Number(id),
+      Number(questionId),
+    );
     return { success: true };
   }
 
@@ -165,4 +237,3 @@ export class QuizzesController {
     return await this.quizzesService.listAllQuestions(Number(id));
   }
 }
-
