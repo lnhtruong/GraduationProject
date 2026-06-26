@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { followApi } from "./follow.api";
-import type { InstructorStats } from "./types";
+import type { InstructorStats, FollowingInstructor } from "./types";
 
 const STATS_KEY = (id: number) => ["instructor", "stats", id] as const;
 const FOLLOWING_KEY = ["users", "following"] as const;
@@ -49,17 +49,25 @@ export function useUnfollowMutation(instructorId: number) {
     mutationFn: () => followApi.unfollow(instructorId),
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: STATS_KEY(instructorId) });
-      const previous = qc.getQueryData<InstructorStats>(STATS_KEY(instructorId));
+      await qc.cancelQueries({ queryKey: FOLLOWING_KEY });
+      const previousStats = qc.getQueryData<InstructorStats>(STATS_KEY(instructorId));
+      const previousFollowing = qc.getQueryData<FollowingInstructor[]>(FOLLOWING_KEY);
       qc.setQueryData<InstructorStats>(STATS_KEY(instructorId), (old) =>
         old
           ? { followerCount: Math.max(0, old.followerCount - 1), isFollowing: false }
           : { followerCount: 0, isFollowing: false },
       );
-      return { previous };
+      qc.setQueryData<FollowingInstructor[]>(FOLLOWING_KEY, (old) =>
+        old ? old.filter((i) => i.id !== instructorId) : [],
+      );
+      return { previousStats, previousFollowing };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.previous !== undefined) {
-        qc.setQueryData(STATS_KEY(instructorId), ctx.previous);
+      if (ctx?.previousStats !== undefined) {
+        qc.setQueryData(STATS_KEY(instructorId), ctx.previousStats);
+      }
+      if (ctx?.previousFollowing !== undefined) {
+        qc.setQueryData(FOLLOWING_KEY, ctx.previousFollowing);
       }
     },
     onSettled: () => {

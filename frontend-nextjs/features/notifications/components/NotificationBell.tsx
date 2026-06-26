@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, User, Megaphone } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -24,6 +25,8 @@ import {
   useUnreadNotifications,
 } from "../api/notification.hooks";
 import { subscribeToUserNotifications } from "../lib/notification-stream";
+import { useAuthStore } from "@/store/auth";
+import { LECTURER_REQUEST_KEYS } from "@/features/lecturer-requests/api/lecturer-requests.hooks";
 
 function formatRelativeTime(isoTime: string): string {
   const diffMs = Date.now() - new Date(isoTime).getTime();
@@ -46,6 +49,7 @@ export function NotificationBell({ className }: { className?: string }) {
   const userId = user?.id ?? null;
 
   const [open, setOpen] = useState(false);
+  const isUpgradingRole = useRef(false);
 
   const notificationsQuery = useNotificationsList(userId, isAuthenticated, 5);
   const unreadQuery = useUnreadNotifications(userId, isAuthenticated, 20);
@@ -117,6 +121,35 @@ export function NotificationBell({ className }: { className?: string }) {
           void queryClient.invalidateQueries({
             queryKey: notificationKeys.root,
           });
+          return;
+        }
+
+        if (eventName === "notify:lecturer-request") {
+          const data = (payload as { data?: { approved?: boolean } } | null)?.data;
+          const isApproved = data?.approved === true;
+
+          void queryClient.invalidateQueries({ queryKey: LECTURER_REQUEST_KEYS.all });
+          void queryClient.invalidateQueries({ queryKey: notificationKeys.root });
+
+          if (isApproved) {
+            if (!isUpgradingRole.current) {
+              isUpgradingRole.current = true;
+
+              const currentUser = useAuthStore.getState().user;
+              if (currentUser) {
+                useAuthStore.getState().setUser({ ...currentUser, role: 3 });
+              }
+
+              toast.success(
+                "Chúc mừng! Bạn đã trở thành Giảng viên. Hãy bật Teacher Mode để bắt đầu.",
+                { duration: 8000 },
+              );
+
+              isUpgradingRole.current = false;
+            }
+          } else {
+            toast.info("Yêu cầu Giảng viên của bạn đã bị từ chối. Xem chi tiết trong hồ sơ.");
+          }
           return;
         }
 

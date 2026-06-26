@@ -145,7 +145,7 @@ export default function CourseDetail({ courseId }: Props) {
               description: "Xem tại Khóa học đã lưu",
               action: {
                 label: "Xem ngay",
-                onClick: () => router.push("/library/wishlist"),
+                onClick: () => router.push("/wishlist"),
               },
             });
           }
@@ -185,6 +185,7 @@ export default function CourseDetail({ courseId }: Props) {
             </div>
 
             <CourseContentAccordion
+              courseId={courseId}
               lessons={course.lessons}
               isEnrolled={isEnrolled}
             />

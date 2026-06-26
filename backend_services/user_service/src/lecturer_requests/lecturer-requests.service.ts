@@ -88,13 +88,13 @@ export class LecturerRequestsService {
         {
           model: User,
           as: 'requester',
-          attributes: ['id', 'firstName', 'lastName', 'email', 'role'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'role', 'avatarUrl'],
           required: false,
         },
         {
           model: User,
           as: 'reviewer',
-          attributes: ['id', 'firstName', 'lastName', 'email'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
           required: false,
         },
       ],
@@ -112,13 +112,13 @@ export class LecturerRequestsService {
         {
           model: User,
           as: 'requester',
-          attributes: ['id', 'firstName', 'lastName', 'email', 'role'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'role', 'avatarUrl'],
           required: false,
         },
         {
           model: User,
           as: 'reviewer',
-          attributes: ['id', 'firstName', 'lastName', 'email'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
           required: false,
         },
       ],

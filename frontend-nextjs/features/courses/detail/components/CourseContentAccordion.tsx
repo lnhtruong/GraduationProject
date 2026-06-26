@@ -4,12 +4,16 @@ import {
   HelpCircle,
   PenLine,
   CheckCircle,
+  Lock,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDuration, totalLessonsDuration } from "../../utils";
 import type { Lesson, LessonContentType } from "../../types";
 
 interface Props {
+  courseId: number;
   lessons: Lesson[];
   /** IDs of lessons the user has completed */
   completedLessonIds?: number[];
@@ -24,11 +28,29 @@ const CONTENT_ICON: Record<LessonContentType, React.ElementType> = {
 };
 
 export function CourseContentAccordion({
+  courseId,
   lessons,
   completedLessonIds = [],
   isEnrolled,
 }: Props) {
+  const router = useRouter();
   const totalDuration = totalLessonsDuration(lessons);
+
+  const handleLessonClick = (lesson: Lesson) => {
+    const isLocked = !isEnrolled && !lesson.isFree;
+    if (isLocked) {
+      toast.info("Bạn cần đăng ký khoá học để xem bài học này.", {
+        action: {
+          label: "Đăng ký ngay",
+          onClick: () => {
+            document.getElementById("course-enroll-cta")?.scrollIntoView({ behavior: "smooth" });
+          },
+        },
+      });
+      return;
+    }
+    router.push(`/courses/${courseId}/learn?lessonId=${lesson.id}`);
+  };
 
   return (
     <section>
@@ -50,10 +72,11 @@ export function CourseContentAccordion({
           return (
             <div
               key={lesson.id}
+              onClick={() => handleLessonClick(lesson)}
               className={cn(
-                "flex items-center gap-3 px-5 py-3.5 transition-colors",
+                "flex items-center gap-3 px-5 py-3.5 transition-colors cursor-pointer",
                 idx !== 0 && "border-t border-border/40",
-                "hover:bg-muted/20 cursor-pointer",
+                isLocked ? "hover:bg-muted/10 opacity-70" : "hover:bg-muted/20",
                 isCompleted && "bg-muted/10",
               )}
             >
@@ -62,14 +85,19 @@ export function CourseContentAccordion({
                 {lesson.order}
               </span>
 
-              {/* Content type icon */}
-              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {/* Content type icon or lock */}
+              {isLocked ? (
+                <Lock className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+              ) : (
+                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
 
               {/* Title */}
               <span
                 className={cn(
                   "flex-1 text-sm",
                   isCompleted && "text-muted-foreground line-through",
+                  isLocked && "text-muted-foreground",
                 )}
               >
                 {lesson.title}

@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getRoleName } from "@/lib/roles";
+import { getRoleName, ROLES } from "@/lib/roles";
 import AvatarUploader from "@/features/auth/components/AvatarUploader";
+import { BecomeInstructorSection } from "@/features/lecturer-requests/components/student/BecomeInstructorSection";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -152,6 +153,10 @@ export function ProfileContent() {
                   </div>
                 </CardContent>
               </Card>
+
+              {user?.role === ROLES.STUDENT && (
+                <BecomeInstructorSection />
+              )}
             </div>
 
           </div>

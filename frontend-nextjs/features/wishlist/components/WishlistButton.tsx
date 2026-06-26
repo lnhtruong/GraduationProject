@@ -38,7 +38,7 @@ export function WishlistButton({ courseId, className }: WishlistButtonProps) {
               description: "Xem tại Khóa học đã lưu",
               action: {
                 label: "Xem ngay",
-                onClick: () => router.push("/library/wishlist"),
+                onClick: () => router.push("/wishlist"),
               },
             });
           }

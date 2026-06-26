@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ListVideo } from "lucide-react";
 import { useCourseLearnPage } from "./hooks/useCourseLearnPage";
@@ -92,11 +93,13 @@ export default function CourseLearnPage({ courseId }: Props) {
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
         <div className="mb-5 flex items-center gap-3 text-muted-foreground">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs sm:text-sm">
-            <span className="whitespace-nowrap">Khóa học</span>
+            <Link href="/courses" className="whitespace-nowrap hover:text-foreground transition-colors">
+              Khóa học
+            </Link>
             <span className="opacity-60 select-none">›</span>
-            <span className="truncate max-w-[8rem] sm:max-w-[18rem] md:max-w-[24rem] whitespace-nowrap" title={state.course.name}>
+            <Link href={`/courses/${courseId}`} className="truncate max-w-[8rem] sm:max-w-[18rem] md:max-w-[24rem] whitespace-nowrap hover:text-foreground transition-colors" title={state.course.name}>
               {state.course.name}
-            </span>
+            </Link>
             <span className="opacity-60 select-none">›</span>
             <span className="font-semibold truncate max-w-[8rem] sm:max-w-[18rem] md:max-w-[24rem] whitespace-nowrap" title={state.selectedLesson.title}>
               {state.selectedLesson.title}

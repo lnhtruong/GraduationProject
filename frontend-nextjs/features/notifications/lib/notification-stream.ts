@@ -117,11 +117,8 @@ export function subscribeToUserNotifications(options: {
       }
     } catch (error) {
       if (controller.signal.aborted) return;
-      options.onError?.(
-        new Error(
-          `SSE error: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      options.onError?.(new Error(`SSE error: ${msg}`));
     }
   })();
 
