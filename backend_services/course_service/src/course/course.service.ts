@@ -2418,6 +2418,13 @@ export class CoursesService {
 
   async remove(id: number, requester?: RequesterContext): Promise<void> {
     const course = await this.findOne(id);
+    if (requester) {
+      const isAdmin = requester.role === this.ADMIN_ROLE;
+      const ownerId = (course as Course & { userId?: number }).userId;
+      if (!isAdmin && ownerId !== requester.userId) {
+        throw new ForbiddenException('You are not the owner of this course');
+      }
+    }
     const before = this.auditableCourseSnapshot(course);
     // Course bị xoá (soft delete) → chỉ xoá các change request ĐANG PENDING của
     // nó (không còn ý nghĩa gửi admin duyệt). Request đã approved/rejected GIỮ LẠI

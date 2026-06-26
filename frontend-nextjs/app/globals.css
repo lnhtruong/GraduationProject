@@ -403,3 +403,34 @@
 .system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button .ck-button__label {
   color: var(--popover-foreground) !important;
 }
+
+/* Fullscreen mobile rotation fallback */
+.fullscreen-active:fullscreen,
+.fullscreen-active:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  background-color: black !important;
+}
+
+.fullscreen-active .video-player-inner {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+  background-color: black !important;
+}
+
+@media (orientation: portrait) {
+  .fullscreen-active:fullscreen .video-player-inner,
+  .fullscreen-active:-webkit-full-screen .video-player-inner {
+    width: 100vh !important;
+    height: 100vw !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    background-color: black !important;
+  }
+}

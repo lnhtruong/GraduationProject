@@ -38,6 +38,7 @@ interface Props {
   volume: number;
   isMuted: boolean;
   isFullscreen: boolean;
+  setIsFullscreen?: (isFullscreen: boolean) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
   isQuizSolved: (point: InVideoQuizPoint) => boolean;
   qualityLevels: { id: number; name: string }[];
@@ -94,6 +95,7 @@ export function LessonVideoCard({
   volume,
   isMuted,
   isFullscreen,
+  setIsFullscreen,
   videoRef,
   isQuizSolved,
   qualityLevels,
@@ -157,8 +159,12 @@ export function LessonVideoCard({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-border/40 bg-black shadow-[0_16px_48px_rgba(15,23,42,0.15)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.4)]"
-      style={{ aspectRatio: videoAspectRatio || 16/9 }}
+      className={`relative overflow-hidden bg-black shadow-[0_16px_48px_rgba(15,23,42,0.15)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.4)] ${
+        isFullscreen
+          ? "fullscreen-active w-full h-full border-0 rounded-none"
+          : "rounded-2xl border border-border/40"
+      }`}
+      style={{ aspectRatio: isFullscreen ? undefined : (videoAspectRatio || 16/9) }}
       onMouseMove={() => {
         setControlsVisible(true);
         scheduleAutoHide();
@@ -171,25 +177,27 @@ export function LessonVideoCard({
         scheduleAutoHide();
       }}
     >
-      {/* Core Video Player */}
-      <LessonVideoPlayer
-        ref={videoRef}
-        selectedLessonVideoUrl={selectedLessonVideoUrl}
-        activeQuizPoint={activeQuizPoint}
-        isPlaying={isPlaying}
-        playerBlocked={playerBlocked}
-        currentLessonDurationLabel={currentLessonDurationLabel}
-        currentQualityLevel={currentQualityLevel}
-        onQualityLevelsLoaded={onQualityLevelsLoaded}
-        onTogglePlayback={onTogglePlayback}
-        onVideoKeyDown={onVideoKeyDown}
-        onTimeUpdate={onTimeUpdate}
-        onVideoEnded={onVideoEnded}
-        onVideoMetadataLoaded={onVideoMetadataLoaded}
-        setIsPlaying={setIsPlaying}
-        setCurrentTime={setCurrentTime}
-        setLastVideoTime={setLastVideoTime}
-      />
+      <div className="w-full h-full relative video-player-inner">
+        {/* Core Video Player */}
+        <LessonVideoPlayer
+          ref={videoRef}
+          selectedLessonVideoUrl={selectedLessonVideoUrl}
+          activeQuizPoint={activeQuizPoint}
+          isPlaying={isPlaying}
+          playerBlocked={playerBlocked}
+          currentLessonDurationLabel={currentLessonDurationLabel}
+          currentQualityLevel={currentQualityLevel}
+          onQualityLevelsLoaded={onQualityLevelsLoaded}
+          onTogglePlayback={onTogglePlayback}
+          onVideoKeyDown={onVideoKeyDown}
+          onTimeUpdate={onTimeUpdate}
+          onVideoEnded={onVideoEnded}
+          onVideoMetadataLoaded={onVideoMetadataLoaded}
+          setIsPlaying={setIsPlaying}
+          setCurrentTime={setCurrentTime}
+          setLastVideoTime={setLastVideoTime}
+          setIsFullscreen={setIsFullscreen}
+        />
 
       {/* Quiz overlays (in-video and after-lesson) */}
       <LessonVideoQuizOverlay
@@ -262,6 +270,7 @@ export function LessonVideoCard({
           onToggleFullscreen={onToggleFullscreen}
           onTogglePictureInPicture={onTogglePictureInPicture}
         />
+      </div>
       </div>
     </div>
   );

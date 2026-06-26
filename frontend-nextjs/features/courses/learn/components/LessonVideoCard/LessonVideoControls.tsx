@@ -66,20 +66,20 @@ export function LessonVideoControls({
     qualityLevels.find((level) => level.id === currentQualityLevel)?.name || "Tự động";
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+    <div className="flex items-center justify-between gap-1.5 sm:gap-3">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-4">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={onTogglePlayback}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
+              className="inline-flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all hover:bg-white/15 hover:scale-[1.02]"
               aria-label={isPlaying ? "Pause video" : "Play video"}
             >
               {isPlaying ? (
-                <Pause className="h-5 w-5" />
+                <Pause className="h-4 w-4 sm:h-5 sm:w-5" />
               ) : (
-                <Play className="ml-0.5 h-5 w-5" />
+                <Play className="ml-0.5 h-4 w-4 sm:h-5 sm:w-5" />
               )}
             </button>
           </TooltipTrigger>
@@ -98,15 +98,15 @@ export function LessonVideoControls({
               <button
                 type="button"
                 onClick={onToggleMute}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+                className="inline-flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
                 aria-label={
                   isMuted || volume === 0 ? "Bật âm lượng" : "Tắt âm lượng"
                 }
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX className="h-4.5 w-4.5" />
+                  <VolumeX className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                 ) : (
-                  <Volume2 className="h-4.5 w-4.5" />
+                  <Volume2 className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                 )}
               </button>
             </TooltipTrigger>
@@ -132,14 +132,14 @@ export function LessonVideoControls({
           </div>
         </div>
 
-        <div className="min-w-0 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-md">
+        <div className="min-w-0 rounded-full border border-white/10 bg-white/8 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px] font-medium text-white/90 backdrop-blur-md whitespace-nowrap">
           {formatTime(currentTime)}
           <span className="mx-1.5 text-white/40">/</span>
           {formatTime(selectedLessonDuration)}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         {/* settings menu (YouTube-like) */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -154,11 +154,11 @@ export function LessonVideoControls({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+                    className="inline-flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
                     aria-label="Cài đặt video"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <Settings className="h-4.5 w-4.5" />
+                    <Settings className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -290,7 +290,7 @@ export function LessonVideoControls({
             <button
               type="button"
               onClick={onTogglePictureInPicture}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+              className="hidden sm:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
               aria-label="Picture in Picture"
             >
               <PictureInPicture2 className="h-4.5 w-4.5" />
@@ -309,13 +309,13 @@ export function LessonVideoControls({
             <button
               type="button"
               onClick={onToggleFullscreen}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
+              className="inline-flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/15"
               aria-label="Toàn màn hình"
             >
               {isFullscreen ? (
-                <Minimize className="h-4.5 w-4.5" />
+                <Minimize className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               ) : (
-                <Maximize className="h-4.5 w-4.5" />
+                <Maximize className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               )}
             </button>
           </TooltipTrigger>
