@@ -24,8 +24,8 @@ export function LessonSidebar({
   currentLessonProgressPercent,
 }: Props) {
   return (
-    <Card className="h-fit overflow-hidden border border-border/40 bg-card/95 shadow-[0_16px_48px_rgba(15,23,42,0.06)] xl:sticky xl:top-4 rounded-3xl">
-      <CardHeader className="border-b border-border/40 bg-muted/20 p-4 md:p-5">
+    <Card className="h-full xl:h-[calc(100vh-8rem)] flex flex-col overflow-hidden border-0 xl:border border-border/40 bg-card/95 shadow-none xl:shadow-[0_16px_48px_rgba(15,23,42,0.06)] xl:sticky xl:top-4 rounded-none xl:rounded-3xl">
+      <CardHeader className="border-b border-border/40 bg-muted/20 p-3.5 sm:p-5">
         <div className="space-y-2">
           <CardTitle className="text-base font-bold">Danh sách phát</CardTitle>
           <div className="space-y-1.5">
@@ -42,8 +42,8 @@ export function LessonSidebar({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="max-h-112 sm:max-h-128 xl:h-[calc(100vh-8.5rem)] xl:min-h-105">
+      <CardContent className="p-0 flex-1 min-h-0 flex flex-col">
+        <ScrollArea className="flex-1 min-h-0 w-full">
           <div className="space-y-2 p-3">
             {lessons.map((lesson, index) => {
               const isSelected = lesson.id === selectedLessonId;
@@ -72,7 +72,7 @@ export function LessonSidebar({
                   key={lesson.id}
                   type="button"
                   onClick={() => onSelectLesson(lesson.id)}
-                  className={`group w-full rounded-2xl border p-3 text-left transition-all ${isSelected ? "border-primary/40 bg-primary/10 shadow-sm" : "border-border/50 bg-card hover:border-primary/30 hover:bg-muted/60"}`}
+                  className={`group w-full rounded-xl sm:rounded-2xl border p-2.5 sm:p-3 text-left transition-all ${isSelected ? "border-primary/40 bg-primary/10 shadow-sm" : "border-border/50 bg-card hover:border-primary/30 hover:bg-muted/60"}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
