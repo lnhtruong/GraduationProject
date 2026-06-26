@@ -36,6 +36,7 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'POST', pattern: '/api/auth/google', access: 'public' },
   { method: 'GET', pattern: '/api/auth/github', access: 'public' },
   { method: 'GET', pattern: '/api/auth/github/callback', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/oauth-session', access: 'public' },
   { method: 'GET', pattern: '/api/auth/facebook', access: 'public' },
   { method: 'GET', pattern: '/api/auth/facebook/callback', access: 'public' },
   { method: 'POST', pattern: '/api/auth/refresh', access: 'public' },

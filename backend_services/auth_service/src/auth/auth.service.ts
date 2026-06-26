@@ -9,6 +9,7 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import {
   OAuth2Client,
   TokenPayload as GoogleTokenPayload,
@@ -360,7 +361,34 @@ export class AuthService {
     };
   }
 
-  buildGithubOAuthUrl(): string {
+  private async generateOAuthState(): Promise<string> {
+    const state = crypto.randomBytes(32).toString('hex');
+    await this.redisService.set('oauth_state:' + state, '1', 300);
+    return state;
+  }
+
+  private async verifyOAuthState(state: string): Promise<void> {
+    const value = await this.redisService.get('oauth_state:' + state);
+    if (!value) {
+      throw new UnauthorizedException('Invalid OAuth state');
+    }
+    await this.redisService.del('oauth_state:' + state);
+  }
+
+  async createOAuthSession(payload: { accessToken: string; user: object }): Promise<string> {
+    const nonce = crypto.randomBytes(32).toString('hex');
+    await this.redisService.set('oauth_session:' + nonce, JSON.stringify(payload), 120);
+    return nonce;
+  }
+
+  async consumeOAuthSession(nonce: string): Promise<{ accessToken: string; user: object } | null> {
+    const raw = await this.redisService.get('oauth_session:' + nonce);
+    if (!raw) return null;
+    await this.redisService.del('oauth_session:' + nonce);
+    return JSON.parse(raw);
+  }
+
+  async buildGithubOAuthUrl(): Promise<string> {
     const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
     const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
 
@@ -368,16 +396,19 @@ export class AuthService {
       throw new BadRequestException('GitHub OAuth is not configured');
     }
 
+    const state = await this.generateOAuthState();
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       scope: 'user:email',
+      state,
     });
 
     return `https://github.com/login/oauth/authorize?${params.toString()}`;
   }
 
-  async githubCallback(code: string) {
+  async githubCallback(code: string, state: string) {
+    await this.verifyOAuthState(state);
     const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
     const clientSecret = this.configService.get<string>('GITHUB_CLIENT_SECRET');
     const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
@@ -467,7 +498,7 @@ export class AuthService {
     return this.issueAuthTokens(user);
   }
 
-  buildFacebookOAuthUrl(): string {
+  async buildFacebookOAuthUrl(): Promise<string> {
     const appId = this.configService.get<string>('FACEBOOK_APP_ID');
     const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
 
@@ -475,17 +506,20 @@ export class AuthService {
       throw new BadRequestException('Facebook OAuth is not configured');
     }
 
+    const state = await this.generateOAuthState();
     const params = new URLSearchParams({
       client_id: appId,
       redirect_uri: redirectUri,
       scope: 'email,public_profile',
       response_type: 'code',
+      state,
     });
 
     return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
   }
 
-  async facebookCallback(code: string) {
+  async facebookCallback(code: string, state: string) {
+    await this.verifyOAuthState(state);
     const appId = this.configService.get<string>('FACEBOOK_APP_ID');
     const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
     const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
@@ -494,16 +528,10 @@ export class AuthService {
       throw new BadRequestException('Facebook OAuth is not configured');
     }
 
-    const tokenRes = await this.httpService.axiosRef.get(
+    const tokenRes = await this.httpService.axiosRef.post(
       'https://graph.facebook.com/v19.0/oauth/access_token',
-      {
-        params: {
-          client_id: appId,
-          client_secret: appSecret,
-          redirect_uri: redirectUri,
-          code,
-        },
-      },
+      new URLSearchParams({ client_id: appId, client_secret: appSecret, redirect_uri: redirectUri, code }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
     );
 
     const accessToken: string = tokenRes.data?.access_token;
