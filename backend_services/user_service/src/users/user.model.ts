@@ -52,6 +52,20 @@ export class User extends Model {
   declare googleId: string | null;
 
   @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  declare githubId: string | null;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  declare facebookId: string | null;
+
+  @Column({
     type: DataType.BOOLEAN,
     allowNull: false,
     defaultValue: false,
