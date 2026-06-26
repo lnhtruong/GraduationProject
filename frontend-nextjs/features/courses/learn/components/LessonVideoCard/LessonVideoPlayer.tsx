@@ -19,6 +19,7 @@ interface LessonVideoPlayerProps {
   setIsPlaying: (isPlaying: boolean) => void;
   setCurrentTime: (time: number) => void;
   setLastVideoTime: (time: number) => void;
+  setIsFullscreen?: (isFullscreen: boolean) => void;
 }
 
 export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerProps>(
@@ -39,6 +40,7 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
       setIsPlaying,
       setCurrentTime,
       setLastVideoTime,
+      setIsFullscreen,
     },
     ref
   ) => {
@@ -78,6 +80,16 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+
+      const handleWebKitBegin = () => {
+        setIsFullscreen?.(true);
+      };
+      const handleWebKitEnd = () => {
+        setIsFullscreen?.(false);
+      };
+
+      videoElement.addEventListener("webkitbeginfullscreen", handleWebKitBegin);
+      videoElement.addEventListener("webkitendfullscreen", handleWebKitEnd);
 
       if (isHls) {
         if (Hls.isSupported()) {
@@ -136,8 +148,12 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
           hlsRef.current.destroy();
           hlsRef.current = null;
         }
+        if (videoElement) {
+          videoElement.removeEventListener("webkitbeginfullscreen", handleWebKitBegin);
+          videoElement.removeEventListener("webkitendfullscreen", handleWebKitEnd);
+        }
       };
-    }, [selectedLessonVideoUrl, ref, onQualityLevelsLoaded]);
+    }, [selectedLessonVideoUrl, ref, onQualityLevelsLoaded, setIsFullscreen]);
 
     return (
       <>
@@ -190,7 +206,7 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
           </div>
         )}
 
-        {selectedLessonVideoUrl && !playerBlocked ? (
+        {!playerBlocked ? (
           <button
             type="button"
             onClick={onTogglePlayback}

@@ -62,6 +62,7 @@ export function VideoSelectionSection({
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
   onDraftVideoChangeRef.current = onDraftVideoChange;
 
+
   const {
     session,
     startUpload,
@@ -193,6 +194,7 @@ export function VideoSelectionSection({
   const durationSec = previewDuration ?? selectedVideo?.duration ?? null;
   const formattedDur = formatDuration(durationSec);
 
+
   let statusText = "";
   if (previewBlobUrl) {
     if (session.status === "completed") {
@@ -258,42 +260,6 @@ export function VideoSelectionSection({
               </div>
             </div>
 
-            {/* Video Player - Hide in Edit Mode to avoid double players */}
-            {!isEdit && (
-              <div className="relative aspect-video bg-black/95">
-                {videoUrl ? (
-                  <video
-                    className="mx-auto block h-full max-h-[420px] w-full object-contain"
-                    src={videoUrl}
-                    controls
-                    preload="metadata"
-                    playsInline
-                    onLoadedMetadata={(event) => {
-                      if (previewBlobUrl) {
-                        const durationSeconds = event.currentTarget.duration;
-                        const safeDuration =
-                          Number.isFinite(durationSeconds) && durationSeconds > 0
-                            ? durationSeconds
-                            : null;
-                        setPreviewDuration(safeDuration);
-                        onDraftVideoChangeRef.current?.({
-                          blobUrl: previewBlobUrl,
-                          durationSeconds: safeDuration,
-                          fileName: previewFileName,
-                        });
-                      }
-                    }}
-                  >
-                    Trình duyệt không hỗ trợ phát video.
-                  </video>
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
-                    Đang tải video...
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Actions Footer */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-4 py-3">
@@ -307,21 +273,6 @@ export function VideoSelectionSection({
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                 Chọn video khác
               </Button>
-
-              {!isEdit && (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    onPendingCreateQuiz?.();
-                  }}
-                  className="h-9 text-xs font-medium px-4 shadow-sm"
-                >
-                  <NotebookText className="mr-1.5 h-3.5 w-3.5" />
-                  Tạo Quiz
-                </Button>
-              )}
             </div>
           </div>
 

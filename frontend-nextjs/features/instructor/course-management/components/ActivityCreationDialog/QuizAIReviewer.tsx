@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { CheckCircle2, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import Hls from "hls.js";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,9 @@ interface Props {
 export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const videoRefDesktop = useRef<HTMLVideoElement | null>(null);
   const videoRefMobile = useRef<HTMLVideoElement | null>(null);
+  const hlsDesktopRef = useRef<Hls | null>(null);
+  const hlsMobileRef = useRef<Hls | null>(null);
+
   const { data, isLoading } = useAllQuizQuestionsQuery(quizId);
   const deleteMutation = useDeleteQuizQuestionMutation(quizId);
   const restoreMutation = useRestoreQuizQuestionsMutation(quizId);
@@ -38,6 +42,142 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   // Mobile viewport states
   const [showVideoMobile, setShowVideoMobile] = useState<boolean>(true);
   const [activeTabMobile, setActiveTabMobile] = useState<"active" | "deleted">("active");
+
+  useEffect(() => {
+    const videoElement = videoRefDesktop.current;
+    if (!videoElement) return;
+
+    if (!lessonVideoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsDesktopRef.current) {
+        hlsDesktopRef.current.destroy();
+        hlsDesktopRef.current = null;
+      }
+      return;
+    }
+
+    const isHls = lessonVideoUrl.includes(".m3u8");
+    if (hlsDesktopRef.current) {
+      hlsDesktopRef.current.destroy();
+      hlsDesktopRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsDesktopRef.current = hls;
+        hls.loadSource(lessonVideoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsDesktopRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = lessonVideoUrl;
+      }
+    } else {
+      videoElement.src = lessonVideoUrl;
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsDesktopRef.current) {
+        hlsDesktopRef.current.destroy();
+        hlsDesktopRef.current = null;
+      }
+    };
+  }, [lessonVideoUrl]);
+
+  useEffect(() => {
+    const videoElement = videoRefMobile.current;
+    if (!videoElement) return;
+
+    if (!lessonVideoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsMobileRef.current) {
+        hlsMobileRef.current.destroy();
+        hlsMobileRef.current = null;
+      }
+      return;
+    }
+
+    const isHls = lessonVideoUrl.includes(".m3u8");
+    if (hlsMobileRef.current) {
+      hlsMobileRef.current.destroy();
+      hlsMobileRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsMobileRef.current = hls;
+        hls.loadSource(lessonVideoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsMobileRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = lessonVideoUrl;
+      }
+    } else {
+      videoElement.src = lessonVideoUrl;
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsMobileRef.current) {
+        hlsMobileRef.current.destroy();
+        hlsMobileRef.current = null;
+      }
+    };
+  }, [lessonVideoUrl, showVideoMobile]);
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
@@ -280,7 +420,6 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
               <div className="bg-black aspect-video w-full max-h-[160px] sm:max-h-[220px]">
                 <video
                   ref={videoRefMobile}
-                  src={lessonVideoUrl}
                   className="w-full h-full object-contain"
                   controls
                   playsInline
@@ -506,7 +645,6 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
           <div className="rounded-2xl border border-border bg-black overflow-hidden shadow-lg aspect-video shrink-0">
             <video
               ref={videoRefDesktop}
-              src={lessonVideoUrl}
               className="w-full h-full object-contain"
               controls
               playsInline

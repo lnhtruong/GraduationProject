@@ -64,11 +64,15 @@ export const quizApi = {
 	listByLesson: async (
 		lessonId: number,
 		type?: LessonQuizTypeFilter,
+		status?: string,
 	): Promise<Quiz[]> => {
 		const { data } = await apiHttpClient.get<QuizApiResponse[]>(
 			`/course/quizzes/lesson/${lessonId}`,
 			{
-				params: type ? { type } : undefined,
+				params: {
+					...(type ? { type } : {}),
+					...(status ? { status } : {}),
+				},
 			},
 		);
 

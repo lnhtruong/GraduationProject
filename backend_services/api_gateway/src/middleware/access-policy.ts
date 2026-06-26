@@ -192,6 +192,13 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/categories', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses', access: 'public' },
   { method: 'GET', pattern: '/api/course/courses/mine', access: 'authenticated' },
+  // Change requests: rule cụ thể PHẢI đặt trước ':id' (first-match).
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/change-requests',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
   { method: 'GET', pattern: '/api/course/courses/:id', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'authenticated' },
@@ -280,6 +287,13 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/course/courses',
     access: 'roles',
     roles: [UserRole.LECTURER, UserRole.ADMIN],
+  },
+  // Admin duyệt change request — PHẢI đặt trước PATCH ':id' (first-match).
+  {
+    method: 'PATCH',
+    pattern: '/api/course/courses/change-requests/:requestId/review',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
   },
   {
     method: 'PATCH',

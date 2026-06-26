@@ -13,6 +13,9 @@ export const NotificationEventType = {
   DISCUSSION_REPLY_CREATED: 'discussion.reply.created',
   INSTRUCTOR_FOLLOW_NEW: 'instructor.follow.new',
   COURSE_PUBLISH_NEW_FROM_INSTRUCTOR: 'course.publish.new_from_instructor',
+  COURSE_CHANGE_REQUEST_APPROVED: 'course.change_request.approved',
+  COURSE_CHANGE_REQUEST_REJECTED: 'course.change_request.rejected',
+  COURSE_UPDATED: 'course.updated',
 } as const;
 
 export type NotificationEventType =
@@ -64,6 +67,9 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.DISCUSSION_REPLY_CREATED,
   NotificationEventType.INSTRUCTOR_FOLLOW_NEW,
   NotificationEventType.COURSE_PUBLISH_NEW_FROM_INSTRUCTOR,
+  NotificationEventType.COURSE_CHANGE_REQUEST_APPROVED,
+  NotificationEventType.COURSE_CHANGE_REQUEST_REJECTED,
+  NotificationEventType.COURSE_UPDATED,
 ] as const;
 
 export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [

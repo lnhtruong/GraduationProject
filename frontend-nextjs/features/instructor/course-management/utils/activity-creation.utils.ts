@@ -70,7 +70,7 @@ export function createAssignmentPayload(
     title: title.trim() || `Bài tập: ${lessonTitle}`,
     description: "Activity bài tập",
     orderIndex: nextOrderIndex,
-    status: "draft" as const,
+    status: "public" as const,
     createdBy: userId,
   };
 }

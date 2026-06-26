@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import { ListVideo } from "lucide-react";
 import { useCourseLearnPage } from "./hooks/useCourseLearnPage";
 import { Card, CardContent } from "@/components/ui/card";
 import { LessonVideoCard } from "./components/LessonVideoCard";
@@ -8,7 +11,7 @@ import { LessonSidebar } from "./components/LessonSidebar";
 import { LessonInfoPanel } from "./components/LessonInfoPanel";
 import { DiscussionPanel } from "./components/DiscussionPanel";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
-import Link from "next/link";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface Props {
   courseId: number;
@@ -17,6 +20,7 @@ interface Props {
 export default function CourseLearnPage({ courseId }: Props) {
   const state = useCourseLearnPage(courseId);
   const { isAuthenticated } = useAuthState();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!state.enrollmentSettled || state.courseLoading || state.lessonsLoading) {
     return (
@@ -87,13 +91,17 @@ export default function CourseLearnPage({ courseId }: Props) {
       </div>
 
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
-        <div className="mb-5 flex items-center gap-3 text-sm text-muted-foreground">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <Link href="/courses" className="hover:text-foreground transition-colors">Khóa học</Link>
-            <span className="opacity-60">›</span>
-            <Link href={`/courses/${courseId}`} className="truncate max-w-[24rem] hover:text-foreground transition-colors">{state.course.name}</Link>
-            <span className="opacity-60">›</span>
-            <span className="font-semibold truncate max-w-[24rem]">
+        <div className="mb-5 flex items-center gap-3 text-muted-foreground">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs sm:text-sm">
+            <Link href="/courses" className="whitespace-nowrap hover:text-foreground transition-colors">
+              Khóa học
+            </Link>
+            <span className="opacity-60 select-none">›</span>
+            <Link href={`/courses/${courseId}`} className="truncate max-w-[8rem] sm:max-w-[18rem] md:max-w-[24rem] whitespace-nowrap hover:text-foreground transition-colors" title={state.course.name}>
+              {state.course.name}
+            </Link>
+            <span className="opacity-60 select-none">›</span>
+            <span className="font-semibold truncate max-w-[8rem] sm:max-w-[18rem] md:max-w-[24rem] whitespace-nowrap" title={state.selectedLesson.title}>
               {state.selectedLesson.title}
             </span>
           </nav>
@@ -128,7 +136,8 @@ export default function CourseLearnPage({ courseId }: Props) {
               volume={state.volume}
               isMuted={state.isMuted}
               isFullscreen={state.isFullscreen}
-               videoRef={state.videoRef}
+              setIsFullscreen={state.setIsFullscreen}
+              videoRef={state.videoRef}
               isQuizSolved={state.isQuizSolved}
               qualityLevels={state.qualityLevels}
               currentQualityLevel={state.currentQualityLevel}
@@ -158,22 +167,25 @@ export default function CourseLearnPage({ courseId }: Props) {
               setLastVideoTime={state.setLastVideoTime}
             />
 
-            <LessonInfoPanel
-              lessonTitle={state.selectedLesson.title}
-              lessonDescription={state.selectedLesson.description}
-              courseName={state.course.name}
-              instructor={state.instructor}
-              lessonId={state.selectedLesson.id}
-              isAuthenticated={isAuthenticated}
-            />
+            <div className="space-y-6">
+              <LessonInfoPanel
+                lessonTitle={state.selectedLesson.title}
+                lessonDescription={state.selectedLesson.description}
+                courseName={state.course.name}
+                instructor={state.instructor}
+                lessonId={state.selectedLesson.id}
+                isAuthenticated={isAuthenticated}
+              />
 
-            <DiscussionPanel
-              lessonId={state.selectedLesson.id}
-              lessonTitle={state.selectedLesson.title}
-            />
+              <DiscussionPanel
+                lessonId={state.selectedLesson.id}
+                lessonTitle={state.selectedLesson.title}
+              />
+            </div>
           </div>
 
-          <div className="w-full shrink-0 xl:w-90 2xl:w-95">
+          {/* Desktop Playlist Sidebar */}
+          <div className="hidden xl:block w-full shrink-0 xl:w-90 2xl:w-95">
             <LessonSidebar
               lessons={state.lessons}
               selectedLessonId={state.selectedLesson.id}
@@ -183,6 +195,39 @@ export default function CourseLearnPage({ courseId }: Props) {
               currentLessonProgressPercent={state.progressPercent}
             />
           </div>
+        </div>
+
+        {/* Mobile Floating Playlist Button (FAB) */}
+        <div className="xl:hidden fixed bottom-6 left-6 z-40">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="flex h-12 items-center gap-2 rounded-full bg-primary px-4 py-3 text-xs sm:text-sm font-bold text-primary-foreground shadow-2xl hover:bg-primary/95 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <ListVideo className="h-4 w-4" />
+                <span>Danh sách bài ({state.lessons.length})</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="p-0 w-80 sm:w-96 border-l border-border/80 bg-card">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Danh sách bài giảng</SheetTitle>
+              </SheetHeader>
+              <div className="h-full">
+                <LessonSidebar
+                  lessons={state.lessons}
+                  selectedLessonId={state.selectedLesson.id}
+                  lessonProgressRecords={state.lessonProgressRecords ?? []}
+                  completedLessonCount={state.completedLessonCount}
+                  onSelectLesson={(id) => {
+                    state.handleSelectLesson(id);
+                    setSidebarOpen(false);
+                  }}
+                  currentLessonProgressPercent={state.progressPercent}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </main>
     </div>

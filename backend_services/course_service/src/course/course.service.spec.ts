@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { getModelToken } from '@nestjs/sequelize';
+import { getConnectionToken, getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Op } from 'sequelize';
 
@@ -16,9 +16,12 @@ import { Enroll } from '../models/enroll.model';
 import { Feedback } from '../models/feedback.model';
 import { InstructorFollow } from '../models/instructor-follow.model';
 import { Video } from '../models/video.model';
+import { CourseChangeRequest } from '../models/course-change-request.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
+import { EnrollsService } from '../enrolls/enrolls.service';
 
 import { CoursesService } from './course.service';
+import { QuizzesService } from '../quizzes/quizzes.service';
 
 type Mock<T = any> = jest.Mock<T>;
 
@@ -66,7 +69,27 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         { provide: getModelToken(Enroll), useValue: enrollModel },
         { provide: getModelToken(Feedback), useValue: feedbackModel },
         { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
+        {
+          provide: getModelToken(CourseChangeRequest),
+          useValue: makeModelMock(),
+        },
+        { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
+        { provide: getModelToken(LessonActivity), useValue: makeModelMock() },
+        {
+          provide: getConnectionToken(),
+          useValue: {
+            transaction: jest.fn((cb: (t: unknown) => unknown) => cb({})),
+          },
+        },
         { provide: AuditLogsService, useValue: { log: jest.fn() } },
+        {
+          provide: EnrollsService,
+          useValue: { reconcileCourseEnrollProgress: jest.fn() },
+        },
+        {
+          provide: QuizzesService,
+          useValue: { applyApprovedQuizChange: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -340,7 +363,7 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
       update,
     });
 
-    await service.update(1, { thumbnailUrl: '' });
+    await service.update(1, { thumbnailUrl: '' }, { userId: 5, role: 1 });
 
     expect(update).toHaveBeenCalledWith({
       thumbnailUrl: null,

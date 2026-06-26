@@ -41,11 +41,12 @@ const lessonQuizKeys = createKeyFactory("lesson-quizzes");
 export function useQuizzesByLessonId(
 	lessonId: number | null,
 	type?: LessonQuizTypeFilter,
+	status?: string,
 	enabled = true,
 ) {
 	return useQuery({
-		queryKey: lessonQuizKeys.custom("by-lesson", lessonId, type ?? "all"),
-		queryFn: () => quizApi.listByLesson(lessonId as number, type),
+		queryKey: lessonQuizKeys.custom("by-lesson", lessonId, type ?? "all", status ?? "all"),
+		queryFn: () => quizApi.listByLesson(lessonId as number, type, status),
 		enabled: enabled && lessonId !== null,
 		staleTime: 60 * 1000,
 	});

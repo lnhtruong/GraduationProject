@@ -288,15 +288,44 @@ export function useCourseLearnPlayer({
     }
   }, []);
 
-  const handleToggleFullscreen = useCallback(() => {
+  const handleToggleFullscreen = useCallback(async () => {
     const videoContainer = videoRef.current?.parentElement;
+    const video = videoRef.current;
+    const orientation = window.screen?.orientation as any;
 
     if (!document.fullscreenElement) {
-      void videoContainer?.requestFullscreen().catch(() => {});
+      try {
+        if (videoContainer?.requestFullscreen) {
+          await videoContainer.requestFullscreen();
+          if (orientation?.lock) {
+            await orientation.lock("landscape").catch(() => {});
+          }
+        } else if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+          (video as any).webkitEnterFullscreen();
+        }
+      } catch (err) {
+        console.warn("Standard fullscreen failed, trying webkitEnterFullscreen:", err);
+        if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+          try {
+            (video as any).webkitEnterFullscreen();
+          } catch (e) {
+            console.error("webkitEnterFullscreen failed too:", e);
+          }
+        }
+      }
       return;
     }
 
-    void document.exitFullscreen().catch(() => {});
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        if (orientation?.unlock) {
+          orientation.unlock();
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi exit fullscreen:", err);
+    }
   }, []);
 
   const handleSeekBackward = useCallback(() => {
@@ -1034,5 +1063,6 @@ export function useCourseLearnPlayer({
     setIsPlaying,
     setCurrentTime,
     setLastVideoTime,
+    setIsFullscreen,
   };
 }

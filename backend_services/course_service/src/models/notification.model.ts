@@ -5,6 +5,13 @@ export const DISCUSSION_POST_SOURCE = 'discussion_post';
 export const COURSE_PUBLISH_EVENT = 'course.publish.new_from_instructor';
 export const COURSE_SOURCE = 'course';
 
+/** Gửi cho giảng viên khi change request của họ được admin duyệt. */
+export const COURSE_CHANGE_APPROVED_EVENT = 'course.change_request.approved';
+/** Gửi cho giảng viên khi change request của họ bị admin từ chối. */
+export const COURSE_CHANGE_REJECTED_EVENT = 'course.change_request.rejected';
+/** Gửi cho học viên đã enroll khi nội dung khóa học được cập nhật (sau approve). */
+export const COURSE_UPDATED_EVENT = 'course.updated';
+
 @Table({
   tableName: 'notifications',
   timestamps: true,

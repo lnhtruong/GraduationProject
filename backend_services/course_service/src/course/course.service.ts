@@ -1,12 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
-import { Includeable, Order, WhereOptions } from 'sequelize';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { Includeable, Order, Transaction, WhereOptions } from 'sequelize';
 import { col, fn, literal, Op, where as sequelizeWhere } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { SearchCoursesQueryDto } from './dto/search-courses-query.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -15,11 +19,22 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   LessonActivity,
   ActivityStatus,
+  ActivityType,
 } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Enroll, EnrollStatus } from 'src/models/enroll.model';
+import {
+  CourseChangeRequest,
+  CourseChangeRequestKind,
+  CourseChangeRequestStatus,
+  CourseUpdatePayload,
+  ChangeRequestPayload,
+  LessonChangePayload,
+} from 'src/models/course-change-request.model';
+import { EnrollsService } from 'src/enrolls/enrolls.service';
+import { QuizzesService } from 'src/quizzes/quizzes.service';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
@@ -64,11 +79,43 @@ type CourseCategorySource = {
   get?: (options?: { plain?: boolean }) => Record<string, unknown>;
 };
 
+/** Diff của một field trong change request: giá trị cũ → giá trị mới. */
+export type CourseChangeFieldDiff = {
+  field: string;
+  from: unknown;
+  to: unknown;
+};
+
+/**
+ * Change request kèm `changes` (diff cũ → mới) đã tính sẵn cho FE.
+ * Spread từ `toJSON()` nên vẫn giữ nguyên `payload`, `prevData`, timestamps...
+ */
+export type CourseChangeRequestView = Record<string, unknown> & {
+  payload: ChangeRequestPayload;
+  prevData: ChangeRequestPayload | null;
+  changes: CourseChangeFieldDiff[];
+};
+
 export type CoursePublicSort = 'newest' | 'popular' | 'rating';
+
+/** Một bản ghi notification gửi tới media_service qua internal bulk endpoint. */
+type InternalNotificationItem = {
+  userId: number;
+  eventType: string;
+  sseEventType: string;
+  title: string;
+  message: string | null;
+  payload: Record<string, unknown>;
+  sourceType: string;
+  sourceId: number;
+};
 import { InstructorFollow } from 'src/models/instructor-follow.model';
 import {
+  COURSE_CHANGE_APPROVED_EVENT,
+  COURSE_CHANGE_REJECTED_EVENT,
   COURSE_PUBLISH_EVENT,
   COURSE_SOURCE,
+  COURSE_UPDATED_EVENT,
 } from 'src/models/notification.model';
 import { User } from 'src/users/user.model';
 
@@ -86,11 +133,20 @@ export class CoursesService {
     private readonly lessonModel: typeof Lesson,
     @InjectModel(Enroll)
     private readonly enrollModel: typeof Enroll,
+    @InjectModel(CourseChangeRequest)
+    private readonly courseChangeRequestModel: typeof CourseChangeRequest,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
+    @InjectModel(LessonActivity)
+    private readonly lessonActivityModel: typeof LessonActivity,
+    @InjectConnection()
+    private readonly sequelize: Sequelize,
     private readonly auditLogsService: AuditLogsService,
+    private readonly enrollsService: EnrollsService,
+    @Inject(forwardRef(() => QuizzesService))
+    private readonly quizzesService: QuizzesService,
   ) {}
 
   /**
@@ -132,7 +188,7 @@ export class CoursesService {
         redirectUrl,
       };
 
-      const records = follows.map((f) => ({
+      const records: InternalNotificationItem[] = follows.map((f) => ({
         userId: f.followerId,
         eventType: COURSE_PUBLISH_EVENT,
         sseEventType: NOTIFY_CREATED_SSE_EVENT,
@@ -143,41 +199,318 @@ export class CoursesService {
         sourceId: course.id,
       }));
 
-      const mediaServiceUrl =
-        process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
-      const secret = process.env.INTERNAL_SERVICE_SECRET;
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (secret) headers['x-internal-secret'] = secret;
+      await this.dispatchInternalNotifications(records);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[courses] failed to notify followers of publish', err);
+    }
+  }
 
-      for (
-        let i = 0;
-        i < records.length;
-        i += INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE
-      ) {
-        const items = records.slice(
-          i,
-          i + INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE,
-        );
+  /**
+   * Gửi danh sách notification tới media_service qua internal bulk endpoint.
+   * Best-effort: chunk theo lô, lỗi chỉ log chứ không ném (không được phá luồng
+   * nghiệp vụ chính). Dùng chung cho publish, change-request approve...
+   */
+  private async dispatchInternalNotifications(
+    items: InternalNotificationItem[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const mediaServiceUrl =
+      process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
+    const secret = process.env.INTERNAL_SERVICE_SECRET;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (secret) headers['x-internal-secret'] = secret;
+
+    for (
+      let i = 0;
+      i < items.length;
+      i += INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE
+    ) {
+      const chunk = items.slice(
+        i,
+        i + INTERNAL_NOTIFICATION_REQUEST_CHUNK_SIZE,
+      );
+      try {
         const res = await fetch(
           `${mediaServiceUrl}/notifications/internal/bulk`,
           {
             method: 'POST',
             headers,
-            body: JSON.stringify({ items }),
+            body: JSON.stringify({ items: chunk }),
           },
         );
         if (!res.ok) {
           const text = await res.text();
           console.warn(
-            `[courses] follower notification dispatch failed (${res.status}): ${text}`,
+            `[courses] notification dispatch failed (${res.status}): ${text}`,
           );
         }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[courses] notification dispatch error', err);
       }
-    } catch (err) {
-      console.warn('[courses] failed to notify followers of publish', err);
     }
+  }
+
+  /** Copy noti gửi CHỦ KHÓA khi admin sửa trực tiếp khóa của họ, tùy `kind`. */
+  private buildOwnerDirectChangeCopy(
+    kind: CourseChangeRequestKind,
+    courseName: string,
+  ): { title: string; message: string } {
+    switch (kind) {
+      case CourseChangeRequestKind.LESSON_CREATE:
+        return {
+          title: 'Khóa học của bạn có bài học mới',
+          message: `Quản trị viên vừa thêm một bài học vào khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.LESSON_UPDATE:
+        return {
+          title: 'Bài học trong khóa của bạn được cập nhật',
+          message: `Quản trị viên vừa cập nhật một bài học trong khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.LESSON_DELETE:
+        return {
+          title: 'Một bài học trong khóa của bạn bị gỡ',
+          message: `Quản trị viên vừa gỡ một bài học khỏi khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.QUIZ_CREATE:
+        return {
+          title: 'Khóa học của bạn có bài kiểm tra mới',
+          message: `Quản trị viên vừa thêm một bài kiểm tra vào khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.QUIZ_UPDATE:
+        return {
+          title: 'Bài kiểm tra trong khóa của bạn được cập nhật',
+          message: `Quản trị viên vừa cập nhật một bài kiểm tra trong khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.QUIZ_DELETE:
+        return {
+          title: 'Một bài kiểm tra trong khóa của bạn bị gỡ',
+          message: `Quản trị viên vừa gỡ một bài kiểm tra khỏi khóa học "${courseName}" của bạn.`,
+        };
+      case CourseChangeRequestKind.COURSE_UPDATE:
+      default:
+        return {
+          title: 'Khóa học của bạn được cập nhật',
+          message: `Quản trị viên vừa cập nhật khóa học "${courseName}" của bạn.`,
+        };
+    }
+  }
+
+  /** Copy noti gửi học viên, tùy loại thay đổi đã được duyệt. */
+  private buildStudentUpdateCopy(
+    kind: CourseChangeRequestKind,
+    courseName: string,
+  ): { title: string; message: string } {
+    switch (kind) {
+      case CourseChangeRequestKind.LESSON_CREATE:
+        return {
+          title: 'Khóa học có bài học mới',
+          message: `Khóa học "${courseName}" bạn đã đăng ký vừa có bài học mới.`,
+        };
+      case CourseChangeRequestKind.LESSON_UPDATE:
+        return {
+          title: 'Bài học được cập nhật',
+          message: `Một bài học trong khóa "${courseName}" vừa được cập nhật.`,
+        };
+      case CourseChangeRequestKind.LESSON_DELETE:
+        return {
+          title: 'Nội dung khóa học thay đổi',
+          message: `Một bài học trong khóa "${courseName}" vừa được gỡ bỏ.`,
+        };
+      case CourseChangeRequestKind.QUIZ_CREATE:
+        return {
+          title: 'Khóa học có bài kiểm tra mới',
+          message: `Khóa học "${courseName}" bạn đã đăng ký vừa có bài kiểm tra mới.`,
+        };
+      case CourseChangeRequestKind.QUIZ_UPDATE:
+        return {
+          title: 'Bài kiểm tra được cập nhật',
+          message: `Một bài kiểm tra trong khóa "${courseName}" vừa được cập nhật.`,
+        };
+      case CourseChangeRequestKind.QUIZ_DELETE:
+        return {
+          title: 'Nội dung khóa học thay đổi',
+          message: `Một bài kiểm tra trong khóa "${courseName}" vừa được gỡ bỏ.`,
+        };
+      case CourseChangeRequestKind.COURSE_UPDATE:
+      default:
+        return {
+          title: 'Khóa học được cập nhật',
+          message: `Khóa học "${courseName}" bạn đã đăng ký vừa được cập nhật.`,
+        };
+    }
+  }
+
+  /**
+   * Sau khi admin approve một change request: lưu notification + bắn SSE cho
+   * giảng viên (người yêu cầu + chủ khóa học) và toàn bộ học viên đã enroll.
+   * Best-effort — không phá luồng approve nếu media_service lỗi.
+   */
+  private async notifyChangeRequestApproved(
+    course: Course,
+    request: CourseChangeRequest,
+  ): Promise<void> {
+    try {
+      const courseId = course.id;
+      const courseName =
+        (course as Course & { name?: string }).name ?? 'khóa học';
+      const kind = request.kind ?? CourseChangeRequestKind.COURSE_UPDATE;
+      const redirectUrl = `/courses/${courseId}`;
+      const items: InternalNotificationItem[] = [];
+
+      // Giảng viên: người tạo request + chủ khóa học (dedup, thường trùng nhau).
+      const teacherIds = new Set<number>();
+      if (request.requestedBy) teacherIds.add(request.requestedBy);
+      const ownerId = (course as Course & { userId?: number }).userId;
+      if (ownerId) teacherIds.add(ownerId);
+
+      for (const userId of teacherIds) {
+        items.push({
+          userId,
+          eventType: COURSE_CHANGE_APPROVED_EVENT,
+          sseEventType: NOTIFY_CREATED_SSE_EVENT,
+          title: 'Yêu cầu thay đổi đã được duyệt',
+          message: `Thay đổi của bạn cho khóa học "${courseName}" đã được duyệt và áp dụng.`,
+          payload: {
+            courseId,
+            changeRequestId: request.id,
+            kind,
+            redirectUrl,
+          },
+          sourceType: COURSE_SOURCE,
+          sourceId: courseId,
+        });
+      }
+
+      // Học viên còn theo học (loại trừ enroll đã DROPPED — không cần báo nội
+      // dung cập nhật; và loại trừ giảng viên để tránh noti trùng).
+      const enrolls = await this.enrollModel.findAll({
+        where: {
+          courseId,
+          status: {
+            [Op.in]: [EnrollStatus.ACTIVE, EnrollStatus.COMPLETED],
+          },
+        },
+        attributes: ['userId'],
+      });
+      const { title, message } = this.buildStudentUpdateCopy(kind, courseName);
+      const notifiedStudents = new Set<number>();
+      for (const enroll of enrolls) {
+        const studentId = enroll.userId;
+        if (teacherIds.has(studentId) || notifiedStudents.has(studentId)) {
+          continue;
+        }
+        notifiedStudents.add(studentId);
+        items.push({
+          userId: studentId,
+          eventType: COURSE_UPDATED_EVENT,
+          sseEventType: NOTIFY_CREATED_SSE_EVENT,
+          title,
+          message,
+          payload: { courseId, kind, redirectUrl },
+          sourceType: COURSE_SOURCE,
+          sourceId: courseId,
+        });
+      }
+
+      await this.dispatchInternalNotifications(items);
+    } catch (err) {
+      console.warn('[courses] failed to notify change-request approval', err);
+    }
+  }
+
+  /**
+   * Sau khi admin reject một change request: lưu notification + bắn SSE cho
+   * giảng viên (người yêu cầu + chủ khóa học). Học viên KHÔNG được báo vì nội
+   * dung khóa học không đổi. Best-effort. Dùng findByPk nhẹ (không cần include
+   * tree) và bỏ qua nếu course đã bị xoá.
+   */
+  private async notifyChangeRequestRejected(
+    request: CourseChangeRequest,
+    note?: string,
+  ): Promise<void> {
+    try {
+      const course = await this.courseModel.findByPk(request.courseId, {
+        attributes: ['id', 'name', 'userId'],
+      });
+      const courseName =
+        (course as (Course & { name?: string }) | null)?.name ?? 'khóa học';
+
+      const teacherIds = new Set<number>();
+      if (request.requestedBy) teacherIds.add(request.requestedBy);
+      const ownerId = (course as (Course & { userId?: number }) | null)?.userId;
+      if (ownerId) teacherIds.add(ownerId);
+      if (teacherIds.size === 0) return;
+
+      const trimmedNote = note?.trim();
+      const message = trimmedNote
+        ? `Yêu cầu thay đổi khóa học "${courseName}" đã bị từ chối. Lý do: ${trimmedNote}`
+        : `Yêu cầu thay đổi khóa học "${courseName}" đã bị từ chối.`;
+
+      const items: InternalNotificationItem[] = [...teacherIds].map(
+        (userId) => ({
+          userId,
+          eventType: COURSE_CHANGE_REJECTED_EVENT,
+          sseEventType: NOTIFY_CREATED_SSE_EVENT,
+          title: 'Yêu cầu thay đổi bị từ chối',
+          message,
+          payload: {
+            courseId: request.courseId,
+            changeRequestId: request.id,
+            kind: request.kind ?? CourseChangeRequestKind.COURSE_UPDATE,
+            redirectUrl: `/courses/${request.courseId}`,
+            note: trimmedNote ?? null,
+          },
+          sourceType: COURSE_SOURCE,
+          sourceId: request.courseId,
+        }),
+      );
+
+      await this.dispatchInternalNotifications(items);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[courses] failed to notify change-request rejection', err);
+    }
+  }
+
+  /**
+   * Xoá các pending request đang trỏ tới một lesson (kind lesson.update /
+   * lesson.delete) khi lesson đó bị xoá — tránh để lại request mồ côi không thể
+   * áp dụng. `exceptRequestId` để chừa lại chính request đang được duyệt.
+   */
+  private async purgeLessonChangeRequests(
+    lessonId: number,
+    options: { exceptRequestId?: number; transaction?: Transaction } = {},
+  ): Promise<void> {
+    const where: WhereOptions = {
+      targetId: lessonId,
+      status: CourseChangeRequestStatus.PENDING,
+      kind: {
+        [Op.in]: [
+          CourseChangeRequestKind.LESSON_UPDATE,
+          CourseChangeRequestKind.LESSON_DELETE,
+        ],
+      },
+    };
+    if (options.exceptRequestId) {
+      where.id = { [Op.ne]: options.exceptRequestId };
+    }
+    await this.courseChangeRequestModel.destroy({
+      where,
+      transaction: options.transaction,
+    });
+  }
+
+  /**
+   * Public: gọi khi một lesson bị xoá trực tiếp (course chưa publish) để dọn các
+   * pending request mồ côi trỏ tới lesson đó. No-op nếu không có request nào.
+   */
+  async deletePendingRequestsForLesson(lessonId: number): Promise<void> {
+    await this.purgeLessonChangeRequests(lessonId);
   }
 
   private auditableCourseSnapshot(course: Course) {
@@ -187,6 +520,46 @@ export class CoursesService {
       status: course.status,
       userId: (course as Course & { userId?: number }).userId ?? null,
     };
+  }
+
+  /**
+   * Chụp giá trị HIỆN TẠI của course cho đúng các field xuất hiện trong
+   * `payload`. Dùng làm `prev_data` để hiển thị diff khi duyệt change request.
+   */
+  private snapshotPreviousData(
+    course: Course,
+    payload: CourseUpdatePayload,
+  ): CourseUpdatePayload {
+    const snapshot: Record<string, unknown> = {};
+    for (const key of Object.keys(payload)) {
+      snapshot[key] = course.get(key as keyof Course) ?? null;
+    }
+    return snapshot as CourseUpdatePayload;
+  }
+
+  /** Tạo danh sách diff (cũ → mới) theo từng field có trong `payload`. */
+  private buildChanges(
+    payload: ChangeRequestPayload,
+    prevData: ChangeRequestPayload | null,
+  ): CourseChangeFieldDiff[] {
+    const prev = (prevData ?? {}) as Record<string, unknown>;
+    const next = payload as Record<string, unknown>;
+    return Object.keys(next).map((field) => ({
+      field,
+      from: field in prev ? (prev[field] ?? null) : null,
+      to: next[field] ?? null,
+    }));
+  }
+
+  /** Bọc change request kèm `changes` đã tính sẵn cho FE. */
+  private toChangeRequestView(
+    request: CourseChangeRequest,
+  ): CourseChangeRequestView {
+    const json = request.toJSON() as Record<string, unknown>;
+    return {
+      ...json,
+      changes: this.buildChanges(request.payload, request.prevData ?? null),
+    } as CourseChangeRequestView;
   }
 
   private readonly ADMIN_ROLE = 1;
@@ -1049,13 +1422,26 @@ export class CoursesService {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
 
+    const isAdmin = requesterRole === this.ADMIN_ROLE;
+    const isOwner = requesterUserId === course.userId;
+
     if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
-      const isAdmin = requesterRole === this.ADMIN_ROLE;
-      const isOwner = requesterUserId === course.userId;
       if (!isAdmin && !isOwner) {
         throw new ForbiddenException(
           'You do not have permission to access this course',
         );
+      }
+    }
+
+    if (!isAdmin && !isOwner) {
+      if (course.lessons) {
+        for (const lesson of course.lessons) {
+          if (lesson.lessonActivities) {
+            lesson.lessonActivities = lesson.lessonActivities.filter(
+              (activity) => activity.status === ActivityStatus.PUBLIC,
+            );
+          }
+        }
       }
     }
 
@@ -1396,24 +1782,657 @@ export class CoursesService {
     };
   }
 
-  async update(id: number, updateCourseDto: UpdateCourseDto): Promise<Course> {
-    const course = await this.findOne(id);
-    if (course.status === CourseStatus.PUBLISH) {
-      throw new BadRequestException(
-        'Cannot edit a published course. Only quiz edits are allowed after publishing.',
+  /**
+   * Cập nhật course.
+   * - Course ở `PUBLISH` hoặc `APPROVED` (non-admin) → KHÔNG sửa trực tiếp. Tự
+   *   động tạo (hoặc ghi đè) một change request `pending` để admin duyệt; course
+   *   giữ nguyên trạng thái và nội dung live. Trả về change request thay vì course.
+   *   (`approved` = admin đã duyệt nội dung, sửa thì phải duyệt lại — đồng bộ với
+   *   lesson/quiz.)
+   * - Các trạng thái khác (draft/pending/rejected/banned) → sửa trực tiếp, đưa
+   *   về `DRAFT` (hành vi cũ).
+   * - Admin: toàn quyền, sửa trực tiếp mọi trạng thái.
+   * Tối đa 1 request `pending` / course: gọi lại sẽ ghi đè payload pending.
+   */
+  async update(
+    id: number,
+    updateCourseDto: UpdateCourseDto,
+    requester: RequesterContext,
+  ): Promise<Course | CourseChangeRequest> {
+    // Check permission TRƯỚC khi lộ tồn tại: non-admin không phải chủ khóa —
+    // kể cả khi khóa không tồn tại — đều nhận 403, không tiết lộ khóa có tồn
+    // tại hay không. Admin: lỗi 404 bình thường.
+    const isAdmin = requester.role === this.ADMIN_ROLE;
+    let course: Course;
+    try {
+      course = await this.findOne(id);
+    } catch (err) {
+      if (isAdmin) throw err;
+      throw new ForbiddenException('You are not the owner of this course');
+    }
+    const ownerId = (course as Course & { userId?: number }).userId;
+    if (!isAdmin && ownerId !== requester.userId) {
+      throw new ForbiddenException('You are not the owner of this course');
+    }
+
+    await this.validateVideoId(updateCourseDto.videoId);
+    const payload = this.buildCourseWritePayload(
+      updateCourseDto,
+    ) as CourseUpdatePayload;
+
+    // Non-admin sửa course ở publish (đang live) hoặc approved (đã duyệt nội
+    // dung) → tạo change request chờ duyệt lại, course giữ nguyên trạng thái.
+    // Admin có toàn quyền: sửa trực tiếp mọi trạng thái (không cần change request).
+    const requiresChangeRequest =
+      course.status === CourseStatus.PUBLISH ||
+      course.status === CourseStatus.APPROVED;
+    if (requiresChangeRequest && !isAdmin) {
+      const prevData = this.snapshotPreviousData(course, payload);
+      // Overwrite chỉ áp dụng cho request course.update (tối đa 1 pending/course).
+      // Lesson change requests stack riêng theo từng thao tác nên không đụng vào.
+      const existing = await this.courseChangeRequestModel.findOne({
+        where: {
+          courseId: id,
+          status: CourseChangeRequestStatus.PENDING,
+          kind: CourseChangeRequestKind.COURSE_UPDATE,
+        },
+      });
+      if (existing) {
+        return await existing.update({
+          payload,
+          prevData,
+          requestedBy: requester.userId,
+        });
+      }
+      return await this.courseChangeRequestModel.create({
+        courseId: id,
+        requestedBy: requester.userId,
+        payload,
+        prevData,
+        kind: CourseChangeRequestKind.COURSE_UPDATE,
+        status: CourseChangeRequestStatus.PENDING,
+      });
+    }
+
+    // Sửa trực tiếp (admin mọi trạng thái, hoặc non-admin trên khóa chưa khóa nội
+    // dung) → GIỮ NGUYÊN status hiện tại, không ép về DRAFT. Status nào giữ status đó.
+    const wasPublished = course.status === CourseStatus.PUBLISH;
+    const updated = await course.update({ ...payload });
+
+    // Admin sửa trực tiếp course ĐÃ publish (không qua change request) → vẫn phải
+    // báo học viên đã enroll + chủ khóa (nếu admin sửa hộ). Course chưa publish
+    // chưa có học viên nên bỏ qua. Best-effort, không phá luồng update.
+    if (wasPublished) {
+      await this.notifyDirectCourseChange(
+        updated,
+        CourseChangeRequestKind.COURSE_UPDATE,
+        requester.userId,
       );
     }
-    await this.validateVideoId(updateCourseDto.videoId);
-    const coursePayload = this.buildCourseWritePayload(updateCourseDto);
-    return await course.update({
-      ...coursePayload,
-      status: CourseStatus.DRAFT,
+
+    return updated;
+  }
+
+  /**
+   * Public: gọi từ LessonsService khi admin sửa/thêm/xóa lesson TRỰC TIẾP (bypass
+   * change request) trên một khóa đã publish. Tự load course; no-op nếu course
+   * không tồn tại hoặc chưa publish (chưa có học viên). Best-effort.
+   */
+  async notifyLessonChangeDirect(
+    courseId: number,
+    kind: CourseChangeRequestKind,
+    editorUserId?: number,
+  ): Promise<void> {
+    const course = await this.courseModel.findByPk(courseId, {
+      attributes: ['id', 'name', 'userId', 'status'],
     });
+    if (!course || course.status !== CourseStatus.PUBLISH) {
+      return;
+    }
+    await this.notifyDirectCourseChange(course, kind, editorUserId);
+  }
+
+  /**
+   * Gửi notification khi nội dung một course ĐÃ publish bị sửa trực tiếp (admin
+   * bypass change request): học viên đang theo học nhận `course.updated` (copy
+   * tùy `kind`); chủ khóa nhận báo nếu người sửa không phải chính họ. Best-effort
+   * qua media_service.
+   */
+  private async notifyDirectCourseChange(
+    course: Course,
+    kind: CourseChangeRequestKind,
+    editorUserId?: number,
+  ): Promise<void> {
+    try {
+      const courseId = course.id;
+      const courseName =
+        (course as Course & { name?: string }).name ?? 'khóa học';
+      const redirectUrl = `/courses/${courseId}`;
+      const ownerId = (course as Course & { userId?: number }).userId;
+      const items: InternalNotificationItem[] = [];
+
+      // Chủ khóa học (khi admin sửa hộ — người sửa khác chủ khóa).
+      if (ownerId && ownerId !== editorUserId) {
+        const ownerCopy = this.buildOwnerDirectChangeCopy(kind, courseName);
+        items.push({
+          userId: ownerId,
+          eventType: COURSE_UPDATED_EVENT,
+          sseEventType: NOTIFY_CREATED_SSE_EVENT,
+          title: ownerCopy.title,
+          message: ownerCopy.message,
+          payload: { courseId, kind, redirectUrl },
+          sourceType: COURSE_SOURCE,
+          sourceId: courseId,
+        });
+      }
+
+      // Học viên còn theo học (loại trừ chủ khóa + người sửa để tránh trùng).
+      const enrolls = await this.enrollModel.findAll({
+        where: {
+          courseId,
+          status: { [Op.in]: [EnrollStatus.ACTIVE, EnrollStatus.COMPLETED] },
+        },
+        attributes: ['userId'],
+      });
+      const { title, message } = this.buildStudentUpdateCopy(kind, courseName);
+      const notifiedStudents = new Set<number>();
+      for (const enroll of enrolls) {
+        const studentId = enroll.userId;
+        if (
+          studentId === ownerId ||
+          studentId === editorUserId ||
+          notifiedStudents.has(studentId)
+        ) {
+          continue;
+        }
+        notifiedStudents.add(studentId);
+        items.push({
+          userId: studentId,
+          eventType: COURSE_UPDATED_EVENT,
+          sseEventType: NOTIFY_CREATED_SSE_EVENT,
+          title,
+          message,
+          payload: { courseId, kind, redirectUrl },
+          sourceType: COURSE_SOURCE,
+          sourceId: courseId,
+        });
+      }
+
+      await this.dispatchInternalNotifications(items);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[courses] failed to notify direct course update', err);
+    }
+  }
+
+  /**
+   * Tạo một lesson change request `pending` (gọi từ LessonsService khi course
+   * đã publish).
+   *
+   * - `lesson.create`: luôn tạo request mới (chưa có lesson đích để gom nhóm).
+   * - `lesson.update` / `lesson.delete`: GHI ĐÈ request pending cùng `(kind,
+   *   targetId)` nếu có — tránh stack nhiều request trùng thao tác trên cùng một
+   *   lesson, vốn sẽ bị admin áp dụng lặp lại (lần sau có thể ghi đè bằng payload
+   *   cũ hơn). Tối đa 1 pending mỗi (kind, lesson).
+   */
+  async createLessonChangeRequest(params: {
+    kind: CourseChangeRequestKind;
+    courseId: number;
+    targetId: number | null;
+    payload: LessonChangePayload;
+    prevData: LessonChangePayload | null;
+    requestedBy: number;
+  }): Promise<CourseChangeRequest> {
+    if (params.targetId !== null) {
+      const existing = await this.courseChangeRequestModel.findOne({
+        where: {
+          courseId: params.courseId,
+          kind: params.kind,
+          targetId: params.targetId,
+          status: CourseChangeRequestStatus.PENDING,
+        },
+      });
+      if (existing) {
+        return await existing.update({
+          payload: params.payload,
+          prevData: params.prevData,
+          requestedBy: params.requestedBy,
+        });
+      }
+    }
+
+    return await this.courseChangeRequestModel.create({
+      courseId: params.courseId,
+      requestedBy: params.requestedBy,
+      payload: params.payload,
+      prevData: params.prevData,
+      kind: params.kind,
+      targetId: params.targetId,
+      status: CourseChangeRequestStatus.PENDING,
+    });
+  }
+
+  /**
+   * Resolve khóa học chứa một lessonActivity: quiz → lessonActivity → lesson →
+   * course. Trả `null` nếu bất kỳ mắt xích nào không tồn tại. Dùng cho
+   * QuizzesService quyết định một thao tác quiz có cần đi qua change request hay
+   * không (course đã publish?) và ai là chủ khóa.
+   */
+  async findCourseByLessonActivityId(
+    lessonActivityId: number,
+  ): Promise<Course | null> {
+    const activity = await this.lessonActivityModel.findByPk(lessonActivityId, {
+      attributes: ['id', 'lessonId'],
+    });
+    if (!activity?.lessonId) return null;
+    const lesson = await this.lessonModel.findByPk(activity.lessonId, {
+      attributes: ['id', 'courseId'],
+    });
+    if (!lesson?.courseId) return null;
+    return await this.courseModel.findByPk(lesson.courseId);
+  }
+
+  /**
+   * Public: gọi từ QuizzesService khi admin sửa/thêm/xóa quiz TRỰC TIẾP (bypass
+   * change request) trên một khóa đã publish. No-op nếu course không tồn tại
+   * hoặc chưa publish. Best-effort.
+   */
+  async notifyQuizChangeDirect(
+    courseId: number,
+    kind: CourseChangeRequestKind,
+    editorUserId?: number,
+  ): Promise<void> {
+    const course = await this.courseModel.findByPk(courseId, {
+      attributes: ['id', 'name', 'userId', 'status'],
+    });
+    if (!course || course.status !== CourseStatus.PUBLISH) {
+      return;
+    }
+    await this.notifyDirectCourseChange(course, kind, editorUserId);
+  }
+
+  /**
+   * Dọn các pending request trỏ tới một quiz (quiz.update / quiz.delete) khi quiz
+   * đó bị xoá — tránh request mồ côi không áp dụng được. `exceptRequestId` chừa
+   * lại chính request đang duyệt.
+   */
+  private async purgeQuizChangeRequests(
+    quizId: number,
+    options: { exceptRequestId?: number; transaction?: Transaction } = {},
+  ): Promise<void> {
+    const where: WhereOptions = {
+      targetId: quizId,
+      status: CourseChangeRequestStatus.PENDING,
+      kind: {
+        [Op.in]: [
+          CourseChangeRequestKind.QUIZ_UPDATE,
+          CourseChangeRequestKind.QUIZ_DELETE,
+        ],
+      },
+    };
+    if (options.exceptRequestId) {
+      where.id = { [Op.ne]: options.exceptRequestId };
+    }
+    await this.courseChangeRequestModel.destroy({
+      where,
+      transaction: options.transaction,
+    });
+  }
+
+  /** Danh sách change request (admin), filter theo status + phân trang server-side. */
+  async listChangeRequests(params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: CourseChangeRequestView[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const page = this.parsePositiveInteger(params.page, 1);
+    const limit = this.parsePositiveInteger(params.limit, 20, 100);
+
+    const where: WhereOptions = {};
+    if (params.status) {
+      where.status = params.status;
+    }
+
+    const { rows, count } = await this.courseChangeRequestModel.findAndCountAll(
+      {
+        where,
+        order: [['id', 'DESC']],
+        limit,
+        offset: (page - 1) * limit,
+      },
+    );
+
+    return {
+      data: rows.map((row) => this.toChangeRequestView(row)),
+      total: count,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * Admin duyệt change request. `approved` → apply payload vào course
+   * (giữ nguyên `PUBLISH`) + ghi audit log; `rejected` → course không đổi.
+   */
+  async reviewChangeRequest(
+    requestId: number,
+    decision: 'approved' | 'rejected',
+    requester: RequesterContext,
+    note?: string,
+  ): Promise<{
+    changeRequest: CourseChangeRequestView;
+    course: Course | null;
+  }> {
+    const request = await this.courseChangeRequestModel.findByPk(requestId);
+    if (!request) {
+      throw new NotFoundException(`Change request ${requestId} not found`);
+    }
+    if (request.status !== CourseChangeRequestStatus.PENDING) {
+      throw new ConflictException('Change request is no longer pending');
+    }
+
+    if (decision === 'rejected') {
+      const rejected = await request.update({
+        status: CourseChangeRequestStatus.REJECTED,
+        reviewedBy: requester.userId,
+        reviewNote: note ?? null,
+      });
+
+      await this.auditLogsService.log({
+        actorUserId: requester.userId,
+        actorRole: requester.role,
+        action: 'course.change_request.reject',
+        targetType:
+          request.kind === CourseChangeRequestKind.COURSE_UPDATE
+            ? 'course'
+            : 'lesson',
+        targetId: request.targetId ?? request.courseId,
+        metadata: {
+          changeRequestId: requestId,
+          kind: request.kind,
+          courseId: request.courseId,
+        },
+        ip: requester.ip ?? null,
+        userAgent: requester.userAgent ?? null,
+      });
+
+      // Báo cho giảng viên biết request đã bị từ chối (best-effort).
+      await this.notifyChangeRequestRejected(rejected, note);
+
+      return {
+        changeRequest: this.toChangeRequestView(rejected),
+        course: null,
+      };
+    }
+
+    // Quiz change requests đi theo nhánh riêng (replay qua QuizzesService).
+    if (this.isQuizKind(request.kind)) {
+      return await this.approveQuizChangeRequest(request, requester, note);
+    }
+
+    // Lesson change requests đi theo nhánh riêng (áp dụng lên bảng lessons +
+    // đồng bộ duration/progress). `kind` null = row cũ → course.update.
+    if (
+      request.kind &&
+      request.kind !== CourseChangeRequestKind.COURSE_UPDATE
+    ) {
+      return await this.approveLessonChangeRequest(request, requester, note);
+    }
+
+    const course = await this.findOne(request.courseId);
+    const before = this.auditableCourseSnapshot(course);
+    // Làm tươi snapshot ngay trước khi apply để diff phản ánh đúng giá trị
+    // course tại thời điểm duyệt (đề phòng đã đổi so với lúc tạo request).
+    const prevData = this.snapshotPreviousData(course, request.payload);
+    const updatedCourse = await course.update(request.payload);
+    const approved = await request.update({
+      prevData,
+      status: CourseChangeRequestStatus.APPROVED,
+      reviewedBy: requester.userId,
+      reviewNote: note ?? null,
+    });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.approve',
+      targetType: 'course',
+      targetId: course.id,
+      before,
+      after: this.auditableCourseSnapshot(updatedCourse),
+      metadata: { changeRequestId: requestId },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    // Lưu noti + bắn SSE cho giảng viên và học viên (best-effort).
+    await this.notifyChangeRequestApproved(updatedCourse, approved);
+
+    return {
+      changeRequest: this.toChangeRequestView(approved),
+      course: updatedCourse,
+    };
+  }
+
+  /** Ảnh chụp giá trị lesson hiện tại cho đúng các field có trong `payload`. */
+  private snapshotLesson(
+    lesson: Lesson,
+    payload: LessonChangePayload,
+  ): LessonChangePayload {
+    const snapshot: Record<string, unknown> = {};
+    for (const key of Object.keys(payload)) {
+      snapshot[key] = lesson.get(key as keyof Lesson) ?? null;
+    }
+    return snapshot as LessonChangePayload;
+  }
+
+  /**
+   * Áp dụng thay đổi lesson của một change request đã duyệt vào bảng `lessons`.
+   * Trả về ảnh chụp giá trị CŨ (tươi tại thời điểm duyệt) cho các field trong
+   * payload để admin thấy đúng diff; `null` với `lesson.create` (chưa có giá trị cũ).
+   */
+  private async applyLessonChange(
+    request: CourseChangeRequest,
+    transaction: Transaction,
+  ): Promise<LessonChangePayload | null> {
+    if (request.kind === CourseChangeRequestKind.LESSON_CREATE) {
+      await this.lessonModel.create(
+        {
+          ...(request.payload as LessonChangePayload),
+          courseId: request.courseId,
+        },
+        { transaction },
+      );
+      return null;
+    }
+
+    if (!request.targetId) {
+      throw new BadRequestException(
+        'Lesson change request is missing the target lesson id',
+      );
+    }
+
+    const lesson = await this.lessonModel.findByPk(request.targetId, {
+      transaction,
+    });
+    if (!lesson || lesson.status === LessonStatus.REMOVED) {
+      throw new NotFoundException(
+        `Lesson with ID ${request.targetId} not found`,
+      );
+    }
+
+    const payload = request.payload as LessonChangePayload;
+    // Refresh snapshot ngay trước khi apply để diff phản ánh đúng giá trị lesson
+    // tại thời điểm duyệt (đề phòng lesson đã đổi so với lúc tạo request).
+    const prevData = this.snapshotLesson(lesson, payload);
+
+    if (request.kind === CourseChangeRequestKind.LESSON_DELETE) {
+      await lesson.update({ status: LessonStatus.REMOVED }, { transaction });
+      // Lesson đã bị xoá → dọn các pending request khác trỏ tới nó (giữ lại
+      // chính request đang duyệt để còn cập nhật status = approved).
+      await this.purgeLessonChangeRequests(lesson.id, {
+        exceptRequestId: request.id,
+        transaction,
+      });
+    } else {
+      await lesson.update(payload, { transaction });
+    }
+
+    return prevData;
+  }
+
+  /**
+   * Duyệt một lesson change request: áp thay đổi vào bảng `lessons` + đánh dấu
+   * request approved trong cùng transaction; sau khi commit mới đồng bộ duration
+   * và tiến độ enrollees (reconcile dùng transaction riêng nên phải chạy sau).
+   */
+  private async approveLessonChangeRequest(
+    request: CourseChangeRequest,
+    requester: RequesterContext,
+    note?: string,
+  ): Promise<{
+    changeRequest: CourseChangeRequestView;
+    course: Course | null;
+  }> {
+    // Đảm bảo course tồn tại trước khi áp dụng.
+    const course = await this.findOne(request.courseId);
+
+    let approved!: CourseChangeRequest;
+    await this.sequelize.transaction(async (transaction) => {
+      const prevData = await this.applyLessonChange(request, transaction);
+      approved = await request.update(
+        {
+          // Giữ prevData cũ cho lesson.create (null); cập nhật snapshot tươi cho
+          // lesson.update / lesson.delete.
+          ...(prevData !== null ? { prevData } : {}),
+          status: CourseChangeRequestStatus.APPROVED,
+          reviewedBy: requester.userId,
+          reviewNote: note ?? null,
+        },
+        { transaction },
+      );
+    });
+
+    await this.syncCourseDuration(request.courseId);
+    await this.enrollsService.reconcileCourseEnrollProgress(request.courseId);
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.approve',
+      targetType: 'lesson',
+      targetId: request.targetId ?? course.id,
+      metadata: {
+        changeRequestId: request.id,
+        kind: request.kind,
+        courseId: course.id,
+      },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    // Lưu noti + bắn SSE cho giảng viên và học viên (best-effort).
+    // Dùng `course` (đã load trước khi đổi) vì name/userId không bị lesson edit
+    // làm thay đổi.
+    await this.notifyChangeRequestApproved(course, approved);
+
+    return {
+      changeRequest: this.toChangeRequestView(approved),
+      // Trả về course đã refresh kèm danh sách lesson mới nhất cho FE.
+      course: await this.findOne(request.courseId),
+    };
+  }
+
+  /** true nếu `kind` là một thao tác quiz (quiz.create / update / delete). */
+  private isQuizKind(kind?: CourseChangeRequestKind | null): boolean {
+    return (
+      kind === CourseChangeRequestKind.QUIZ_CREATE ||
+      kind === CourseChangeRequestKind.QUIZ_UPDATE ||
+      kind === CourseChangeRequestKind.QUIZ_DELETE
+    );
+  }
+
+  /**
+   * Duyệt một quiz change request: replay thao tác qua QuizzesService (create /
+   * update / remove primitives — không kèm permission/published check), đánh dấu
+   * approved, ghi audit + gửi noti. Với quiz.delete: dọn các pending request
+   * khác trỏ tới quiz vừa xoá.
+   */
+  private async approveQuizChangeRequest(
+    request: CourseChangeRequest,
+    requester: RequesterContext,
+    note?: string,
+  ): Promise<{
+    changeRequest: CourseChangeRequestView;
+    course: Course | null;
+  }> {
+    // Đảm bảo course tồn tại trước khi áp dụng.
+    const course = await this.findOne(request.courseId);
+
+    await this.quizzesService.applyApprovedQuizChange(request);
+
+    if (
+      request.kind === CourseChangeRequestKind.QUIZ_DELETE &&
+      request.targetId
+    ) {
+      await this.purgeQuizChangeRequests(request.targetId, {
+        exceptRequestId: request.id,
+      });
+    }
+
+    const approved = await request.update({
+      status: CourseChangeRequestStatus.APPROVED,
+      reviewedBy: requester.userId,
+      reviewNote: note ?? null,
+    });
+
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.approve',
+      targetType: 'quiz',
+      targetId: request.targetId ?? course.id,
+      metadata: {
+        changeRequestId: request.id,
+        kind: request.kind,
+        courseId: course.id,
+      },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    // Lưu noti + bắn SSE cho giảng viên và học viên (best-effort). Dùng `course`
+    // đã load trước vì name/userId không bị quiz edit làm thay đổi.
+    await this.notifyChangeRequestApproved(course, approved);
+
+    return {
+      changeRequest: this.toChangeRequestView(approved),
+      course: await this.findOne(request.courseId),
+    };
   }
 
   async remove(id: number, requester?: RequesterContext): Promise<void> {
     const course = await this.findOne(id);
+    if (requester) {
+      const isAdmin = requester.role === this.ADMIN_ROLE;
+      const ownerId = (course as Course & { userId?: number }).userId;
+      if (!isAdmin && ownerId !== requester.userId) {
+        throw new ForbiddenException('You are not the owner of this course');
+      }
+    }
     const before = this.auditableCourseSnapshot(course);
+    // Course bị xoá (soft delete) → chỉ xoá các change request ĐANG PENDING của
+    // nó (không còn ý nghĩa gửi admin duyệt). Request đã approved/rejected GIỮ LẠI
+    // làm lịch sử — không cascade.
+    await this.courseChangeRequestModel.destroy({
+      where: { courseId: id, status: CourseChangeRequestStatus.PENDING },
+    });
+    // course.destroy() giờ là soft delete (paranoid) → set deleted_at.
     await course.destroy();
 
     if (requester) {
@@ -1562,6 +2581,26 @@ export class CoursesService {
 
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    // Publish course → publish luôn các quiz activity còn draft (draft → public)
+    // để học viên nộp bài được. Activity đã archived/removed/public giữ nguyên.
+    const lessonRows = await this.lessonModel.findAll({
+      where: { courseId: id },
+      attributes: ['id'],
+    });
+    const lessonIds = lessonRows.map((l) => l.id);
+    if (lessonIds.length) {
+      await this.lessonActivityModel.update(
+        { status: ActivityStatus.PUBLIC },
+        {
+          where: {
+            lessonId: { [Op.in]: lessonIds },
+            activityType: ActivityType.QUIZ,
+            status: ActivityStatus.DRAFT,
+          },
+        },
+      );
+    }
 
     if (requester) {
       await this.auditLogsService.log({
