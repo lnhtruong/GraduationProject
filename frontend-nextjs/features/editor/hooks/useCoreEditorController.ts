@@ -27,8 +27,8 @@ import {
 import {
   type VideoCompletedPayload,
   type VideoErrorPayload,
-} from "@/features/upload/api/upload.websocket";
-import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
+  createMediaUploadStream,
+} from "@/features/_shared/realtime/media-upload-stream";
 
 export interface CoreEditorControllerProps {
   disableUpload?: boolean;

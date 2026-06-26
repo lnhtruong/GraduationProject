@@ -3,7 +3,7 @@ import { courseStatsApi, feedStatsApi } from "./api";
 import { MOCK_COURSE_STATS, MOCK_FEED_CREATOR_STATS, MOCK_FEED_TRENDING } from "./mock";
 import type { StatPeriod } from "./types";
 
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_STATS === "true";
+const USE_MOCK = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_STATS === "true";
 
 export function useCourseStatsOverview() {
   return useQuery({

@@ -7,15 +7,50 @@
 
 import { API_URL } from "@/lib/env";
 import { authStorageHelper } from "@/store/auth";
-import type {
-  VideoCompletedPayload,
-  VideoErrorPayload,
-  VideoProgressPayload,
-} from "@/features/upload/api/upload.websocket";
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export interface VideoData {
+  videoId?: number;
+  url?: string;
+  type: string;
+  duration?: number;
+  name?: string;
+  job_id?: string;
+  jobId?: string;
+  srtUrl?: string;
+}
+
+export interface VideoProgressPayload {
+  videoId?: number;
+  progress?: number;
+  jobId?: string;
+  type?: string;
+  stage?: string;
+  status?: string;
+  timestamp: string;
+}
+
+export interface VideoCompletedPayload {
+  success: true;
+  data: VideoData;
+  timestamp: string;
+}
+
+export interface VideoErrorPayload {
+  success: false;
+  error?: {
+    id?: string;
+    message?: string;
+    reason?: string;
+  };
+  jobId?: string;
+  type?: string;
+  status?: string;
+  timestamp: string;
+}
 
 export const MEDIA_UPLOAD_STREAM_EVENTS = [
   "video:progress",

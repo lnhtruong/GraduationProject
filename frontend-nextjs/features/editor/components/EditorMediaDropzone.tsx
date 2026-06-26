@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
-import { type VideoCompletedPayload } from "@/features/upload/api/upload.websocket";
+import { type VideoCompletedPayload } from "@/features/_shared/realtime/media-upload-stream";
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
