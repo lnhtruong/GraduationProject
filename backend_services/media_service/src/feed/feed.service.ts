@@ -51,7 +51,7 @@ export class FeedService {
     private userModel: typeof User,
     private readonly redisService: RedisService,
     private readonly notificationService: NotificationService,
-  ) {}
+  ) { }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
@@ -533,7 +533,10 @@ export class FeedService {
       .map((item) => item.feedId);
   }
 
-  async getPublicTrending(limit?: number): Promise<{ data: FeedResponseItem[]; next_cursor: null }> {
+  async getPublicTrending(
+    cursor?: number,
+    limit?: number,
+  ): Promise<{ data: FeedResponseItem[]; next_cursor: number | null }> {
     const safeLimit = Number.isInteger(limit) && (limit as number) > 0
       ? Math.min(limit as number, this.TRENDING_MAX_LIMIT)
       : this.TRENDING_DEFAULT_LIMIT;
@@ -574,10 +577,52 @@ export class FeedService {
       }
     }
 
-    const pageIds = cachedIds.slice(0, safeLimit);
+    const cursorId = Number.isInteger(cursor) && (cursor as number) > 0
+      ? cursor as number
+      : undefined;
+    const pageIds = this.pageFeedIds(cachedIds, cursorId, safeLimit);
+
+    if (pageIds.length === 0) {
+      return { data: [], next_cursor: null };
+    }
+
     const statsByFeed = await this.getStatsOnly(pageIds);
     const data = await this.buildFeedResponse(pageIds, statsByFeed, new Set(), new Set());
-    return { data, next_cursor: null };
+    return {
+      data,
+      next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+    };
+  }
+
+  async getFeedById(
+    feedId: number,
+    userId?: number,
+  ): Promise<{ data: FeedResponseItem; next_cursor: number | null }> {
+    const statsAndInteractions = userId
+      ? await this.getStatsAndInteractions([feedId], userId)
+      : {
+        statsByFeed: await this.getStatsOnly([feedId]),
+        likedSet: new Set<number>(),
+        savedSet: new Set<number>(),
+      };
+
+    const data = await this.buildFeedResponse(
+      [feedId],
+      statsAndInteractions.statsByFeed,
+      statsAndInteractions.likedSet,
+      statsAndInteractions.savedSet,
+    );
+
+    const item = data[0];
+    if (!item) {
+      throw new NotFoundException('Feed item not found');
+    }
+
+    return {
+      data: item,
+      // next_cursor: item.feed_id,
+      next_cursor: null,
+    };
   }
 
   private async buildFeedResponse(
@@ -1417,7 +1462,7 @@ export class FeedService {
         } catch (err) {
           skipped += 1;
           // Swallow per-user errors so one bad profile doesn't abort the batch.
-          // eslint-disable-next-line no-console
+
           console.error('precompute failed for user', userId, err);
         }
       };

@@ -847,6 +847,7 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/:id', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',
