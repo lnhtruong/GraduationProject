@@ -2080,6 +2080,72 @@ export class CoursesService {
   }
 
   /** Danh sách change request (admin), filter theo status + phân trang server-side. */
+  async getCourseStatusStats(): Promise<{
+    pending: number;
+    approved: number;
+    rejected: number;
+  }> {
+    const results = await this.courseModel.findAll({
+      attributes: ['status', [fn('COUNT', col('id')), 'count']],
+      where: {
+        status: {
+          [Op.in]: [
+            CourseStatus.PENDING,
+            CourseStatus.APPROVED,
+            CourseStatus.REJECTED,
+          ],
+        },
+      },
+      group: ['status'],
+      raw: true,
+    });
+    const map: Record<string, number> = {};
+    for (const row of results as unknown as { status: string; count: string }[]) {
+      map[row.status] = Number(row.count);
+    }
+    return {
+      pending: map[CourseStatus.PENDING] ?? 0,
+      approved: map[CourseStatus.APPROVED] ?? 0,
+      rejected: map[CourseStatus.REJECTED] ?? 0,
+    };
+  }
+
+  async getChangeRequestStatusStats(): Promise<{
+    pending: number;
+    approved: number;
+    rejected: number;
+  }> {
+    const results = await this.courseChangeRequestModel.findAll({
+      attributes: ['status', [fn('COUNT', col('id')), 'count']],
+      group: ['status'],
+      raw: true,
+    });
+    const map: Record<string, number> = {};
+    for (const row of results as unknown as { status: string; count: string }[]) {
+      map[row.status] = Number(row.count);
+    }
+    return {
+      pending: map[CourseChangeRequestStatus.PENDING] ?? 0,
+      approved: map[CourseChangeRequestStatus.APPROVED] ?? 0,
+      rejected: map[CourseChangeRequestStatus.REJECTED] ?? 0,
+    };
+  }
+
+  private readonly changeRequestIncludes = [
+    {
+      model: Course,
+      as: 'course',
+      attributes: ['id', 'name', 'status'],
+      required: false,
+    },
+    {
+      model: User,
+      as: 'requester',
+      attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
+      required: false,
+    },
+  ];
+
   async listChangeRequests(params: {
     status?: string;
     page?: number;
@@ -2101,6 +2167,7 @@ export class CoursesService {
     const { rows, count } = await this.courseChangeRequestModel.findAndCountAll(
       {
         where,
+        include: this.changeRequestIncludes,
         order: [['id', 'DESC']],
         limit,
         offset: (page - 1) * limit,
@@ -2113,6 +2180,16 @@ export class CoursesService {
       page,
       limit,
     };
+  }
+
+  async getChangeRequest(id: number): Promise<CourseChangeRequestView> {
+    const request = await this.courseChangeRequestModel.findByPk(id, {
+      include: this.changeRequestIncludes,
+    });
+    if (!request) {
+      throw new NotFoundException(`Change request ${id} not found`);
+    }
+    return this.toChangeRequestView(request);
   }
 
   /**

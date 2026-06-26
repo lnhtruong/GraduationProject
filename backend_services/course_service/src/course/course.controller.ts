@@ -154,8 +154,34 @@ export class CoursesController {
     return this.coursesService.getCourseStatsOverview(id, userId, role);
   }
 
+  @Get('stats')
+  getCourseStatusStats(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    this.parseRequiredUserId(userIdHeader);
+    const role = Number(roleHeader);
+    if (role !== 1) {
+      throw new ForbiddenException('Admin permission required');
+    }
+    return this.coursesService.getCourseStatusStats();
+  }
+
   // Change requests — phải khai báo TRƯỚC route ':id' để 'change-requests'
   // không bị ParseIntPipe của GET/PATCH ':id' bắt nhầm.
+  @Get('change-requests/stats')
+  getChangeRequestStatusStats(
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    this.parseRequiredUserId(userIdHeader);
+    const role = Number(roleHeader);
+    if (role !== 1) {
+      throw new ForbiddenException('Admin permission required');
+    }
+    return this.coursesService.getChangeRequestStatusStats();
+  }
+
   @Get('change-requests')
   listChangeRequests(
     @Query('status') status?: string,
@@ -167,6 +193,11 @@ export class CoursesController {
       page: page !== undefined ? Number(page) : undefined,
       limit: limit !== undefined ? Number(limit) : undefined,
     });
+  }
+
+  @Get('change-requests/:requestId')
+  getChangeRequest(@Param('requestId', ParseIntPipe) requestId: number) {
+    return this.coursesService.getChangeRequest(requestId);
   }
 
   @Patch('change-requests/:requestId/review')

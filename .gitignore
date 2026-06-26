@@ -53,6 +53,23 @@ pids/
 *.pid
 *.pid.lock
 
+# PM2
+.pm2/
+
+# ESLint / Prettier cache
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# Test artifacts
+jest_html_reporters.html
+test-results/
+playwright-report/
+*.heapsnapshot
+
+# Turbo
+.turbo/
+
 # Python (deploy-model)
 __pycache__/
 *.py[cod]

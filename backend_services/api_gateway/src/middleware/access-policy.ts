@@ -195,6 +195,24 @@ const ACCESS_RULES: AccessRule[] = [
   // Change requests: rule cụ thể PHẢI đặt trước ':id' (first-match).
   {
     method: 'GET',
+    pattern: '/api/course/courses/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/change-requests/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/change-requests/:requestId',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
     pattern: '/api/course/courses/change-requests',
     access: 'roles',
     roles: [UserRole.ADMIN],

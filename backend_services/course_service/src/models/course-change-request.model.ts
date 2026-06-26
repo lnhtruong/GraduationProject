@@ -7,6 +7,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Course, CourseLevel } from './course.model';
+import { User } from 'src/users/user.model';
 import { ContentType, LessonStatus } from './lesson.model';
 
 export enum CourseChangeRequestStatus {
@@ -148,4 +149,7 @@ export class CourseChangeRequest extends Model {
 
   @BelongsTo(() => Course, { foreignKey: 'course_id', constraints: false })
   declare course?: Course;
+
+  @BelongsTo(() => User, { foreignKey: 'requested_by', constraints: false })
+  declare requester?: User;
 }
