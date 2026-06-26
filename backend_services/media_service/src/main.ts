@@ -30,18 +30,26 @@ class GlobalErrorLogger implements ExceptionFilter {
     if (req.url?.includes('/webhooks/') || status >= 400) {
       console.error(
         '[media-service ERR]',
-        req.method, req.url,
-        'status=', status,
-        'CL=', req.headers['content-length'],
-        'ct=', req.headers['content-type'],
-        'sig=', req.headers['upstash-signature'] ? 'present' : 'missing',
-        'msg=', message,
+        req.method,
+        req.url,
+        'status=',
+        status,
+        'CL=',
+        req.headers['content-length'],
+        'ct=',
+        req.headers['content-type'],
+        'sig=',
+        req.headers['upstash-signature'] ? 'present' : 'missing',
+        'msg=',
+        message,
       );
     }
 
-    res.status(status).json(
-      typeof message === 'object' ? message : { statusCode: status, message },
-    );
+    res
+      .status(status)
+      .json(
+        typeof message === 'object' ? message : { statusCode: status, message },
+      );
   }
 }
 
@@ -66,6 +74,24 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  if (process.env.NODE_ENV === 'development') {
+    const { SwaggerModule, DocumentBuilder } = await import('@nestjs/swagger');
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Media Service')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addSecurityRequirements({ bearer: [] })
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const INTERNAL = ['x-user-id','x-user-role','x-user-email','x-forwarded-for','user-agent'];
+    for (const path of Object.values((document.paths ?? {}) as Record<string, any>)) {
+      for (const op of Object.values(path as object) as any[]) {
+        if (op?.parameters) op.parameters = op.parameters.filter((p: any) => !(p.in === 'header' && INTERNAL.includes(p.name)));
+      }
+    }
+    SwaggerModule.setup('api-docs', app, document);
+  }
 
   const port = process.env.PORT || 8003;
   await app.listen(port, '0.0.0.0');

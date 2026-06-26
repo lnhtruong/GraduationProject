@@ -141,6 +141,56 @@ app.use((req, res, next) => {
   next();
 });
 
+// Swagger aggregator — chỉ bật khi NODE_ENV === 'development'
+if (process.env.NODE_ENV === 'development') {
+  const swaggerUi = require('swagger-ui-express');
+  const http = require('http');
+
+  const proxySwaggerJson = (serviceUrl: string, pathPrefix: string) => (req: Request, res: Response) => {
+    const target = new URL('/api-docs-json', serviceUrl);
+    http.get(target.toString(), (proxyRes: any) => {
+      let data = '';
+      proxyRes.on('data', (chunk: string) => { data += chunk; });
+      proxyRes.on('end', () => {
+        try {
+          const spec = JSON.parse(data);
+          if (spec.paths && pathPrefix) {
+            const rewritten: Record<string, unknown> = {};
+            for (const [path, val] of Object.entries(spec.paths)) {
+              rewritten[pathPrefix + path] = val;
+            }
+            spec.paths = rewritten;
+          }
+          spec.servers = [{ url: '/' }];
+          res.json(spec);
+        } catch { res.status(502).json({ error: 'Invalid JSON from service' }); }
+      });
+    }).on('error', () => res.status(503).json({ error: 'Service unavailable' }));
+  };
+
+  app.get('/swagger/auth/openapi.json', proxySwaggerJson(config.services.auth.url, '/api'));
+  app.get('/swagger/user/openapi.json', proxySwaggerJson(config.services.user.url, '/api'));
+  app.get('/swagger/course/openapi.json', proxySwaggerJson(config.services.course.url, '/api/course'));
+  app.get('/swagger/media/openapi.json', proxySwaggerJson(config.services.media.url, '/api/media'));
+  app.get('/swagger/payment/openapi.json', proxySwaggerJson(config.services.payment.url, '/api/payment'));
+  app.get('/swagger/inference/openapi.json', proxySwaggerJson(config.services.mascot_colab.url, '/api/mascot_colab'));
+
+  app.use('/swagger', swaggerUi.serve);
+  app.get('/swagger', swaggerUi.setup(undefined, {
+    explorer: true,
+    swaggerOptions: {
+      urls: [
+        { url: '/swagger/auth/openapi.json', name: 'Auth Service' },
+        { url: '/swagger/user/openapi.json', name: 'User Service' },
+        { url: '/swagger/course/openapi.json', name: 'Course Service' },
+        { url: '/swagger/media/openapi.json', name: 'Media Service' },
+        { url: '/swagger/payment/openapi.json', name: 'Payment Service' },
+        { url: '/swagger/inference/openapi.json', name: 'Inference Service' },
+      ],
+    },
+  }));
+}
+
 // Global authorization middleware
 app.use(authorizationMiddleware);
 

@@ -26,6 +26,27 @@ if command -v pm2 &> /dev/null; then
 fi
 
 # --- Build helpers -----------------------------------------------------------
+# node_modules chưa có, hoặc package.json/lockfile mới hơn node_modules → cần install.
+needs_install() {
+  local dir="$1"
+  [ -d "$dir/node_modules" ] || return 0
+  local lockfile
+  if [ -f "$dir/yarn.lock" ]; then lockfile="$dir/yarn.lock"
+  elif [ -f "$dir/package-lock.json" ]; then lockfile="$dir/package-lock.json"
+  else lockfile="$dir/package.json"
+  fi
+  [ "$dir/package.json" -nt "$dir/node_modules" ] || [ "$lockfile" -nt "$dir/node_modules" ]
+}
+
+run_install() {
+  local dir="$1"
+  if [ -f "$dir/yarn.lock" ]; then
+    ( cd "$dir" && yarn install --frozen-lockfile || yarn install )
+  else
+    ( cd "$dir" && npm install )
+  fi
+}
+
 # A service needs rebuilding when its compiled entry is missing, or any file
 # under src/ is newer than that entry (i.e. source changed since last build).
 needs_build() {
@@ -39,17 +60,25 @@ needs_build() {
 run_build() {
   local dir="$1"
   if [ -f "$dir/yarn.lock" ]; then
-    ( cd "$dir" && { [ -d node_modules ] || yarn install --frozen-lockfile || yarn install; } && yarn build )
+    ( cd "$dir" && yarn build )
   else
-    ( cd "$dir" && { [ -d node_modules ] || npm install; } && npm run build )
+    ( cd "$dir" && npm run build )
   fi
 }
 
-echo "Step 2: Building service dist/ if sources changed..."
+echo "Step 2: Installing dependencies and building services if needed..."
 # Enumerate apps declared in ecosystem.config.js as: name<TAB>cwd<TAB>script
 APPS=$(node -e 'const c=require("./ecosystem.config.js");for(const a of c.apps){process.stdout.write(`${a.name}\t${a.cwd}\t${a.script}\n`)}')
 while IFS=$'\t' read -r APP_NAME APP_CWD APP_SCRIPT; do
   [ -z "$APP_NAME" ] && continue
+
+  if needs_install "$APP_CWD"; then
+    echo "  ↻ $APP_NAME: package.json changed → installing dependencies..."
+    run_install "$APP_CWD"
+  else
+    echo "  ✓ $APP_NAME: node_modules up-to-date"
+  fi
+
   case "$APP_SCRIPT" in
     dist/*)
       OUT="$APP_CWD/$APP_SCRIPT"
@@ -68,6 +97,8 @@ while IFS=$'\t' read -r APP_NAME APP_CWD APP_SCRIPT; do
 done <<EOF
 $APPS
 EOF
+
+export NODE_ENV=development
 
 echo "Step 3: Starting/reloading backend services with PM2..."
 # startOrReload only touches apps declared in ecosystem.config.js — unrelated
@@ -145,7 +176,11 @@ echo "======================================================="
 echo "✅ API Gateway Deployment Successful!"
 echo "======================================================="
 echo "🌍 API Gateway Public URL: $GATEWAY_URL"
-echo "🌍 Health Check: $GATEWAY_URL/health"
+echo "🌍 Health Check:           $GATEWAY_URL/health"
+echo "📖 Swagger (local):        http://localhost:8000/swagger"
+echo "📖 Swagger (ngrok):        $GATEWAY_URL/swagger"
+echo "   └─ Dùng dropdown góc trên bên phải để chuyển service"
+echo "      Auth / User / Course / Media / Payment / Inference"
 echo "======================================================="
 
 # echo "Step 3: Updating Payment Service .env with ngrok URLs..."

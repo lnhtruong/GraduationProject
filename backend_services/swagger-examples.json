@@ -1,0 +1,206 @@
+{
+  "_comment": "Test data dựa theo seed — tất cả user dùng password: password",
+
+  "auth": {
+    "/auth/login": {
+      "post": { "email": "admin@graduation.local", "password": "password" }
+    },
+    "/auth/register": {
+      "post": { "email": "newuser@test.local", "password": "Test@123456", "firstName": "Nguyen", "lastName": "Van A" }
+    },
+    "/auth/google": {
+      "post": { "credential": "google_id_token_here" }
+    },
+    "/auth/validate": {
+      "post": { "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+    },
+    "/auth/issue-token": {
+      "post": { "userId": 2, "email": "teacher.english@graduation.local", "role": 3 }
+    },
+    "/auth/forgot-password": {
+      "post": { "email": "student.alex@graduation.local" }
+    },
+    "/auth/check-otp": {
+      "post": { "email": "student.alex@graduation.local", "otp": "123456", "newPassword": "NewPass@123" }
+    }
+  },
+
+  "user": {
+    "/users/{id}": {
+      "patch": { "firstName": "Alex", "lastName": "Nguyen", "avatarUrl": null }
+    },
+    "/users/lecturer-requests": {
+      "post": { "confirm": "Tôi có 3 năm kinh nghiệm giảng dạy tiếng Anh và muốn chia sẻ kiến thức." }
+    },
+    "/users/lecturer-requests/{id}/review": {
+      "patch": { "approve": true, "reviewNote": "Hồ sơ hợp lệ, chấp thuận." }
+    }
+  },
+
+  "course": {
+    "/courses": {
+      "post": {
+        "name": "Test Course",
+        "description": "Mô tả khoá học test",
+        "categories": ["Languages", "English"],
+        "level": "Beginner",
+        "language": "Vietnamese",
+        "price": 0
+      }
+    },
+    "/courses/{id}": {
+      "patch": { "name": "Updated Course Name", "price": 99000 }
+    },
+    "/courses/{id}/review": {
+      "post": { "status": "accepted" }
+    },
+    "/courses/change-requests/{requestId}/review": {
+      "patch": { "decision": "approved", "note": "Nội dung cập nhật hợp lệ." }
+    },
+    "/lessons": {
+      "post": {
+        "courseId": 1,
+        "title": "Bài 1: Giới thiệu TOEIC",
+        "contentType": "video",
+        "content": {},
+        "status": "active",
+        "description": "Bài học đầu tiên"
+      }
+    },
+    "/lessons/{id}": {
+      "patch": { "title": "Bài 1 (cập nhật)", "status": "active" }
+    },
+    "/lesson-activities": {
+      "post": {
+        "lessonId": 1,
+        "activityType": "quiz",
+        "title": "Kiểm tra bài 1",
+        "orderIndex": 1,
+        "status": "public"
+      }
+    },
+    "/lesson-activities/{id}": {
+      "patch": { "title": "Kiểm tra bài 1 (sửa)", "status": "public" }
+    },
+    "/lesson-progress": {
+      "post": { "courseId": 1, "lessonId": 1, "progress": "in_progress" }
+    },
+    "/lesson-progress/{id}": {
+      "patch": { "progress": "completed" }
+    },
+    "/lesson-progress/{id}/heartbeat": {
+      "patch": { "position": 30000 }
+    },
+    "/enroll": {
+      "post": { "courseId": 1 }
+    },
+    "/enroll/{id}": {
+      "patch": { "status": "completed" }
+    },
+    "/feedbacks": {
+      "post": {
+        "courseId": 1,
+        "rating": 5,
+        "reviewText": "Khoá học rất hay, giảng viên dạy rõ ràng!"
+      }
+    },
+    "/feedbacks/{id}": {
+      "patch": { "rating": 4, "reviewText": "Khoá học hay, cần thêm bài tập." }
+    },
+    "/feedback-reactions": {
+      "post": { "feedbackId": 1, "reactionType": "help_ful" }
+    },
+    "/carts/items": {
+      "post": { "courseId": 2 }
+    },
+    "/carts/items/{courseId}/save": {
+      "patch": { "saved": true }
+    },
+    "/wishlist": {
+      "post": { "courseId": 3 }
+    },
+    "/lessons/{lessonId}/discussions": {
+      "post": { "content": "Cho mình hỏi phần này có liên quan đến đề thi thật không?" }
+    },
+    "/discussions/{postId}": {
+      "patch": { "content": "Mình đã hiểu rồi, cảm ơn!" }
+    },
+    "/quizzes": {
+      "post": {
+        "lessonActivityId": 1,
+        "name": "Quiz: Grammar Basics",
+        "shuffleQuestion": true,
+        "shuffleOption": true,
+        "passingScore": 70,
+        "timeLimitMinutes": 15,
+        "isInVideo": false,
+        "questions": [
+          {
+            "quesType": "mcq",
+            "quesText": "Chọn đáp án đúng: ___ is a pen.",
+            "point": 1,
+            "orderIndex": 1,
+            "options": [
+              { "optionText": "This", "isCorrect": true },
+              { "optionText": "These", "isCorrect": false }
+            ]
+          }
+        ]
+      }
+    },
+    "/quizzes/{id}": {
+      "patch": { "name": "Quiz: Grammar Basics (v2)", "passingScore": 75 }
+    },
+    "/quizzes/{id}/filter-questions": {
+      "patch": { "keepQuestionIds": [1, 2, 3] }
+    },
+    "/quizzes/{id}/restore-questions": {
+      "post": { "questionIds": [4, 5] }
+    },
+    "/quizzes/ai": {
+      "post": {
+        "lessonActivityId": 1,
+        "videoId": 1,
+        "name": "Auto Quiz",
+        "numQuestions": 5,
+        "difficulty": "medium",
+        "language": "vi"
+      }
+    },
+    "/quiz-submissions": {
+      "post": {
+        "quizId": 1,
+        "answers": [{ "questionId": 1, "selectedOptionId": 1 }],
+        "timeSpentSeconds": 120
+      }
+    },
+    "/reports": {
+      "post": {
+        "targetType": "course",
+        "targetId": 1,
+        "reason": "Nội dung khoá học có thông tin sai lệch về ngữ pháp tiếng Anh."
+      }
+    },
+    "/reports/{id}/review": {
+      "patch": { "decision": "approved", "reviewNote": "Đã xác minh vi phạm.", "banTarget": false }
+    },
+    "/roadmaps": {
+      "post": { "name": "Lộ trình TOEIC 600+", "description": "Từ cơ bản đến nâng cao" }
+    },
+    "/roadmaps/{id}": {
+      "patch": { "name": "Lộ trình TOEIC 700+" }
+    },
+    "/roadmaps/{id}/courses": {
+      "post": { "courseId": 1, "orderIndex": 1, "status": "learning" }
+    },
+    "/roadmaps/{id}/courses/bulk": {
+      "post": { "courses": [{ "courseId": 1, "orderIndex": 1 }, { "courseId": 2, "orderIndex": 2 }] }
+    },
+    "/roadmaps/{id}/courses/reorder": {
+      "patch": { "courseIds": [2, 1, 3] }
+    },
+    "/roadmaps/{id}/courses/{courseId}": {
+      "patch": { "status": "finish" }
+    }
+  }
+}
