@@ -7,12 +7,10 @@ import { useProcessHighlight } from "../api/upload.hooks";
 import {
   createMediaUploadStream,
   type UploadStreamSubscription,
+  type VideoCompletedPayload,
+  type VideoErrorPayload,
+  type VideoProgressPayload,
 } from "@/features/_shared/realtime/media-upload-stream";
-import type {
-  VideoCompletedPayload,
-  VideoErrorPayload,
-  VideoProgressPayload,
-} from "../api/upload.websocket";
 import { useCreateProject } from "@/features/project/api/project.hooks";
 import { authStorageHelper } from "@/store/auth";
 import type {

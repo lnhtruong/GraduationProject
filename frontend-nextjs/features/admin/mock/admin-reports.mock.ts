@@ -1,7 +1,7 @@
 import type { Report } from "../types/report.types";
 
 
-export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_REPORT === "true";
+export const USE_MOCK = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_REPORT === "true";
 
 export const MOCK_REPORTS: Report[] = [
   {
