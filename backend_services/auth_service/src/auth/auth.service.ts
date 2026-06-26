@@ -353,6 +353,93 @@ export class AuthService {
     };
   }
 
+  buildGithubOAuthUrl(): string {
+    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+    const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+
+    if (!clientId || !redirectUri) {
+      throw new BadRequestException('GitHub OAuth is not configured');
+    }
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'user:email',
+    });
+
+    return `https://github.com/login/oauth/authorize?${params.toString()}`;
+  }
+
+  async githubCallback(code: string) {
+    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GITHUB_CLIENT_SECRET');
+    const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new BadRequestException('GitHub OAuth is not configured');
+    }
+
+    const tokenRes = await this.httpService.axiosRef.post(
+      'https://github.com/login/oauth/access_token',
+      { client_id: clientId, client_secret: clientSecret, code, redirect_uri: redirectUri },
+      { headers: { Accept: 'application/json' } },
+    );
+
+    const accessToken: string = tokenRes.data?.access_token;
+    if (!accessToken) {
+      throw new UnauthorizedException('Failed to get GitHub access token');
+    }
+
+    const profileRes = await this.httpService.axiosRef.get(
+      'https://api.github.com/user',
+      { headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'GraduationProject' } },
+    );
+
+    const profile = profileRes.data;
+    const githubId = String(profile.id);
+    let email: string | null = profile.email?.trim().toLowerCase() || null;
+
+    // GitHub có thể ẩn email — fetch thêm từ /user/emails
+    if (!email) {
+      try {
+        const emailsRes = await this.httpService.axiosRef.get(
+          'https://api.github.com/user/emails',
+          { headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'GraduationProject' } },
+        );
+        const primary = (emailsRes.data as Array<{ email: string; primary: boolean; verified: boolean }>)
+          ?.find((e) => e.primary && e.verified);
+        email = primary?.email?.trim().toLowerCase() || null;
+      } catch {
+        // email stays null
+      }
+    }
+
+    let user = await this.userModel.findOne({ where: { githubId } });
+
+    if (!user && email) {
+      user = await this.userModel.findOne({ where: { email } });
+      if (user) {
+        await user.update({ githubId });
+      }
+    }
+
+    if (!user) {
+      const nameParts = (profile.name || '').split(' ');
+      user = await this.userModel.create({
+        email: email ?? `github_${githubId}@noemail.local`,
+        password: null,
+        firstName: nameParts[0] || null,
+        lastName: nameParts.slice(1).join(' ') || null,
+        role: DEFAULT_USER_ROLE,
+        githubId,
+        emailVerified: !!email,
+        avatarUrl: profile.avatar_url || null,
+      });
+    }
+
+    return this.issueAuthTokens(user);
+  }
+
   private async issueAuthTokens(user: User) {
     const tokenPair = await this.jwtTokenService.generateTokenPair({
       userId: user.id,

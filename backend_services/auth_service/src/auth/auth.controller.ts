@@ -1,14 +1,17 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -27,7 +30,10 @@ import type { Response, Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -58,6 +64,42 @@ export class AuthController {
       await this.authService.googleLogin(googleLoginDto),
       res,
     );
+  }
+
+  @Get('github')
+  githubOAuth(@Res() res: Response) {
+    const url = this.authService.buildGithubOAuthUrl();
+    res.redirect(url);
+  }
+
+  @Get('github/callback')
+  async githubCallback(
+    @Query('code') code: string,
+    @Res() res: Response,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+
+    if (!code) {
+      return res.redirect(`${frontendUrl}/auth/oauth-callback?error=login_failed`);
+    }
+
+    try {
+      const result = await this.authService.githubCallback(code);
+      res.cookie(
+        COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+        result.refreshToken,
+        COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+      );
+      const userParam = encodeURIComponent(
+        Buffer.from(JSON.stringify(result.user)).toString('base64'),
+      );
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?accessToken=${result.accessToken}&user=${userParam}`,
+      );
+    } catch {
+      return res.redirect(`${frontendUrl}/auth/oauth-callback?error=login_failed`);
+    }
   }
 
   @Post('refresh')
