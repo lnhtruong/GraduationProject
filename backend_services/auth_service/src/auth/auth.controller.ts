@@ -73,7 +73,44 @@ export class AuthController {
   }
 
   @Get('github/callback')
-  async githubCallback(
+  async githubCallback(@Query('code') code: string, @Res() res: Response) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+
+    if (!code) {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+
+    try {
+      const result = await this.authService.githubCallback(code);
+      res.cookie(
+        COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+        result.refreshToken,
+        COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+      );
+      const userParam = encodeURIComponent(
+        Buffer.from(JSON.stringify(result.user)).toString('base64'),
+      );
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?accessToken=${result.accessToken}&user=${userParam}`,
+      );
+    } catch {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+  }
+
+  @Get('facebook')
+  facebookOAuth(@Res() res: Response) {
+    const url = this.authService.buildFacebookOAuthUrl();
+    res.redirect(url);
+  }
+
+  @Get('facebook/callback')
+  async facebookCallback(
     @Query('code') code: string,
     @Res() res: Response,
   ) {
@@ -85,7 +122,7 @@ export class AuthController {
     }
 
     try {
-      const result = await this.authService.githubCallback(code);
+      const result = await this.authService.facebookCallback(code);
       res.cookie(
         COOKIE_CONFIG.REFRESH_TOKEN_NAME,
         result.refreshToken,
