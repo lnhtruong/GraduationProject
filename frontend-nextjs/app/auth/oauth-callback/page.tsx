@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { syncAuthSession } from "@/lib/auth-session";
 import type { User } from "@/features/auth/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -40,5 +40,19 @@ export default function OAuthCallbackPage() {
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-muted-foreground">Đang đăng nhập...</p>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-muted-foreground">Đang đăng nhập...</p>
+        </div>
+      }
+    >
+      <OAuthCallbackContent />
+    </Suspense>
   );
 }

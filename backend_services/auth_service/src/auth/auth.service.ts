@@ -61,9 +61,13 @@ export class AuthService {
 
     if (existingUser) {
       if (!existingUser.password) {
-        throw new BadRequestException(
-          'This email is linked to Google sign-in. Please continue with Google.',
-        );
+        // Account created via OAuth — link password so user can also login with email
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const updates: Record<string, unknown> = { password: hashedPassword };
+        if (!existingUser.firstName && firstName) updates.firstName = firstName;
+        if (!existingUser.lastName && lastName) updates.lastName = lastName;
+        await existingUser.update(updates);
+        return { user: this.toAuthUserResponse(existingUser) };
       }
       throw new BadRequestException('User with this email already exists');
     }
@@ -375,13 +379,22 @@ export class AuthService {
     await this.redisService.del('oauth_state:' + state);
   }
 
-  async createOAuthSession(payload: { accessToken: string; user: object }): Promise<string> {
+  async createOAuthSession(payload: {
+    accessToken: string;
+    user: object;
+  }): Promise<string> {
     const nonce = crypto.randomBytes(32).toString('hex');
-    await this.redisService.set('oauth_session:' + nonce, JSON.stringify(payload), 120);
+    await this.redisService.set(
+      'oauth_session:' + nonce,
+      JSON.stringify(payload),
+      120,
+    );
     return nonce;
   }
 
-  async consumeOAuthSession(nonce: string): Promise<{ accessToken: string; user: object } | null> {
+  async consumeOAuthSession(
+    nonce: string,
+  ): Promise<{ accessToken: string; user: object } | null> {
     const raw = await this.redisService.get('oauth_session:' + nonce);
     if (!raw) return null;
     await this.redisService.del('oauth_session:' + nonce);
@@ -530,7 +543,12 @@ export class AuthService {
 
     const tokenRes = await this.httpService.axiosRef.post(
       'https://graph.facebook.com/v19.0/oauth/access_token',
-      new URLSearchParams({ client_id: appId, client_secret: appSecret, redirect_uri: redirectUri, code }).toString(),
+      new URLSearchParams({
+        client_id: appId,
+        client_secret: appSecret,
+        redirect_uri: redirectUri,
+        code,
+      }).toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
     );
 

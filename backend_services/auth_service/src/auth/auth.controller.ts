@@ -94,7 +94,10 @@ export class AuthController {
         result.refreshToken,
         COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
       );
-      const nonce = await this.authService.createOAuthSession({ accessToken: result.accessToken, user: result.user });
+      const nonce = await this.authService.createOAuthSession({
+        accessToken: result.accessToken,
+        user: result.user,
+      });
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
       );
@@ -133,7 +136,10 @@ export class AuthController {
         result.refreshToken,
         COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
       );
-      const nonce = await this.authService.createOAuthSession({ accessToken: result.accessToken, user: result.user });
+      const nonce = await this.authService.createOAuthSession({
+        accessToken: result.accessToken,
+        user: result.user,
+      });
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
       );
