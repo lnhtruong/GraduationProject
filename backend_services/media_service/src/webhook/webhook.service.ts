@@ -257,6 +257,15 @@ export class WebhookService {
 
         await row.reload();
 
+        const uploadContext = row.upload_context ?? {};
+        const courseId = this.parsePositiveInt(uploadContext.courseId);
+        const lessonId = this.parsePositiveInt(uploadContext.lessonId);
+        const redirectUrl = courseId && lessonId
+            ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
+            : courseId
+                ? `/instructor/courses/${courseId}`
+                : null;
+
         await this.notificationService.createAndEmit({
             userId: row.user_id,
             eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
@@ -267,10 +276,14 @@ export class WebhookService {
             sourceId: row.id,
             payload: {
                 videoId: row.id,
+                courseId: courseId ?? null,
+                lessonId: lessonId ?? null,
+                redirectUrl,
                 url,
                 type: VideoType.LONG,
                 duration: duration ?? undefined,
                 name: row.name ?? undefined,
+                purpose: typeof uploadContext.purpose === 'string' ? uploadContext.purpose : undefined,
             },
         });
 
@@ -917,7 +930,15 @@ export class WebhookService {
                                 },
                             ),
                         );
-                        const createdQuiz = (resp as { data: { id?: number; lessonActivityId?: number } }).data;
+                        const createdQuiz = (resp as {
+                            data: {
+                                id?: number;
+                                lessonActivityId?: number;
+                                lessonId?: number | null;
+                                courseId?: number | null;
+                                redirectUrl?: string | null;
+                            };
+                        }).data;
                         await this.notificationService.createAndEmit({
                             userId,
                             eventType: NotificationEventType.QUIZ_GENERATED,
@@ -929,6 +950,9 @@ export class WebhookService {
                                 jobId,
                                 quizId: createdQuiz.id,
                                 lessonActivityId: createdQuiz.lessonActivityId ?? lessonActivityId,
+                                lessonId: createdQuiz.lessonId ?? null,
+                                courseId: createdQuiz.courseId ?? null,
+                                redirectUrl: createdQuiz.redirectUrl ?? null,
                                 videoId: videoIdFromPayload,
                                 questionCount: quiz.questions.length,
                                 type: 'quiz',

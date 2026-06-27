@@ -490,6 +490,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                   {!isEdit && (
                     <VideoSelectionSection
                       isEdit={false}
+                      courseId={courseId}
                       videosLoading={videosLoading}
                       userVideos={userVideos}
                       selectedVideoId={field.value ?? null}
@@ -508,6 +509,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                   {isEdit && (
                     <VideoSelectionSection
                       isEdit={true}
+                      courseId={courseId}
                       videosLoading={videosLoading}
                       userVideos={userVideos}
                       selectedVideoId={field.value ?? null}

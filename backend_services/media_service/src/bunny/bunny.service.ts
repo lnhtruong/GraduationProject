@@ -19,6 +19,12 @@ type InitUploadBody = {
   meta?: Record<string, unknown>;
 };
 
+type VideoUploadContext = {
+  courseId?: number;
+  lessonId?: number;
+  purpose?: string;
+};
+
 @Injectable()
 export class BunnyService {
   private readonly apiBase = 'https://video.bunnycdn.com';
@@ -51,6 +57,33 @@ export class BunnyService {
     return createHash('sha256')
       .update(`${libraryId}${streamApiKey}${expiresAt}${videoId}`)
       .digest('hex');
+  }
+
+  private parsePositiveInt(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private buildUploadContext(meta?: Record<string, unknown>): VideoUploadContext | null {
+    if (!meta || typeof meta !== 'object') {
+      return null;
+    }
+
+    const courseId = this.parsePositiveInt(meta.courseId);
+    const lessonId = this.parsePositiveInt(meta.lessonId);
+    const purpose = typeof meta.purpose === 'string' && meta.purpose.trim()
+      ? meta.purpose.trim()
+      : undefined;
+
+    if (!courseId && !lessonId && !purpose) {
+      return null;
+    }
+
+    return {
+      ...(courseId ? { courseId } : {}),
+      ...(lessonId ? { lessonId } : {}),
+      ...(purpose ? { purpose } : {}),
+    };
   }
 
   async initUpload(body: InitUploadBody, userId: number | undefined) {
@@ -86,6 +119,7 @@ export class BunnyService {
         throw new InternalServerErrorException('Bunny did not return a valid video guid');
       }
 
+      const uploadContext = this.buildUploadContext(body?.meta);
       const videoRow = await this.videoModel.create({
         user_id: userId,
         type: VideoType.LONG,
@@ -95,6 +129,7 @@ export class BunnyService {
         duration: null,
         thumbnail: 'https://placehold.co/320x180/png?text=processing',
         srt_raw_url: null,
+        upload_context: uploadContext,
         job_id: null,
         image_id: null,
       });

@@ -33,6 +33,7 @@ interface Props {
     durationSeconds: number | null;
     fileName: string | null;
   }) => void;
+  courseId: number;
   lessonId?: number | null;
   isEdit?: boolean;
   onOpenCreateQuizModal?: () => void;
@@ -47,6 +48,7 @@ export function VideoSelectionSection({
   onVideoSelect,
   onRefreshVideos,
   onDraftVideoChange,
+  courseId,
   lessonId,
   isEdit = false,
   onOpenCreateQuizModal,
@@ -141,6 +143,8 @@ export function VideoSelectionSection({
       await startUpload({
         file,
         title: file.name,
+        courseId,
+        lessonId,
         onCompleted: async (videoId) => {
           await onRefreshVideos?.();
           onVideoSelect(videoId);

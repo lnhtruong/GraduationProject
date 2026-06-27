@@ -402,7 +402,9 @@ export class QuizzesService {
    *
    * Caller dự kiến: `media_service` webhook `handleAIResult` case `type=quiz`.
    */
-  async createFromAI(payload: CreateQuizFromAIDto): Promise<Quiz> {
+  async createFromAI(payload: CreateQuizFromAIDto): Promise<
+    Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null }
+  > {
     if (!payload.questions?.length) {
       throw new BadRequestException('questions[] is required and non-empty');
     }
@@ -428,7 +430,7 @@ export class QuizzesService {
 
     const lessonActivity = await this.lessonActivityModel.findByPk(
       lessonActivityId,
-      { attributes: ['id'] },
+      { attributes: ['id', 'lessonId'] },
     );
     if (!lessonActivity) {
       throw new NotFoundException(
@@ -441,7 +443,7 @@ export class QuizzesService {
     );
     this.assertQuizVideoTimestampConsistency(isInVideo, rows);
 
-    return await this.sequelize.transaction(async (transaction) => {
+    const quiz = await this.sequelize.transaction(async (transaction) => {
       const quiz = await this.quizModel.create(
         {
           lessonActivityId,
@@ -483,6 +485,20 @@ export class QuizzesService {
 
       return await this.findOne(quiz.id, { transaction });
     });
+
+    const course = await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
+    const lessonId = lessonActivity.lessonId ?? null;
+    const courseId = course?.id ?? null;
+    const redirectUrl = courseId && lessonId
+      ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
+      : null;
+
+    return {
+      ...quiz.toJSON(),
+      lessonId,
+      courseId,
+      redirectUrl,
+    } as Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null };
   }
 
   private isNewColabQuestionFormat(q: QuizQuestionFromAIDto): boolean {
