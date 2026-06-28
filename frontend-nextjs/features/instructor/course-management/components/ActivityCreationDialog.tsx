@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { X, Sparkles } from "lucide-react";
 
@@ -72,6 +73,7 @@ export function ActivityCreationDialog({
   userId,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activityTab, setActivityTab] = useState<"quiz" | "quiz-ai" | "assignment">("quiz");
   const [assignmentTitle, setAssignmentTitle] = useState("");
   const [quizMode, setQuizMode] = useState<"in_video" | "outside_video">(
@@ -86,6 +88,7 @@ export function ActivityCreationDialog({
   const [generatedQuizId, setGeneratedQuizId] = useState<number | null>(null);
   const [generatedActivityId, setGeneratedActivityId] = useState<number | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const finalizedActivityIdsRef = useRef<Set<number>>(new Set());
   const { data: lessonActivities } = useLessonActivitiesByLessonId(lessonId);
   const { data: lessonVideo } = useVideoById(lessonVideoId ?? null);
   const { data: inVideoQuizzes } = useQuizzesByLessonId(
@@ -124,7 +127,11 @@ export function ActivityCreationDialog({
       }
 
       // Clean up the draft activity if the user cancels AI generation or review
-      if ((view === "generating" || view === "review") && generatedActivityId) {
+      if (
+        (view === "generating" || view === "review") &&
+        generatedActivityId &&
+        !finalizedActivityIdsRef.current.has(generatedActivityId)
+      ) {
         try {
           await deleteLessonActivityMutation.mutateAsync(generatedActivityId);
         } catch (err) {
@@ -205,6 +212,7 @@ export function ActivityCreationDialog({
         createdBy: userId,
       });
 
+      finalizedActivityIdsRef.current.delete(createdActivity.id);
       setGeneratedActivityId(createdActivity.id);
 
       const jobResp = await generateQuizAIMutation.mutateAsync({
@@ -296,10 +304,11 @@ export function ActivityCreationDialog({
   };
 
   const handleCompleteReview = async () => {
-    if (generatedActivityId) {
+    const activityId = generatedActivityId;
+    if (activityId) {
       try {
         await updateLessonActivityMutation.mutateAsync({
-          id: generatedActivityId,
+          id: activityId,
           data: {
             description: "AI Quiz generated from lesson video", // Finalize description to show markers
             status: "public",
@@ -307,8 +316,23 @@ export function ActivityCreationDialog({
         });
       } catch (err) {
         console.error("Failed to finalize activity description:", err);
+        toast.error("Không thể lưu Quiz AI. Vui lòng thử lại.");
+        return;
       }
+      finalizedActivityIdsRef.current.add(activityId);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["instructor-lesson-activity", "lessonId", lessonId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "in_video", "all"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "after_video", "all"],
+        }),
+      ]);
     }
+    setGeneratedActivityId(null);
     toast.success("Đã lưu và hoàn tất Quiz AI!");
     handleOpenChange(false);
     router.refresh();

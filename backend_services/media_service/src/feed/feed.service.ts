@@ -2348,6 +2348,43 @@ export class FeedService {
     };
   }
 
+  private buildFeedRedirectUrl(feedId: number): string {
+    return `/newsfeed?videoId=${feedId}`;
+  }
+
+  private async notifyFeedLiked(userId: number, feed: HighlightFeed): Promise<void> {
+    try {
+      const feedWithCourse = await this.highlightFeedModel.findByPk(feed.id, {
+        include: [{ model: Course, attributes: ['id', 'userId'] }],
+      });
+      const feedOwnerId = feedWithCourse?.course?.userId;
+      if (feedOwnerId == null || feedOwnerId === userId) return;
+
+      const user = await this.userModel.findByPk(userId, {
+        attributes: ['id', 'firstName', 'lastName'],
+      });
+      const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+
+      await this.notificationService.createAndEmit({
+        userId: feedOwnerId,
+        eventType: NotificationEventType.FEED_LIKE_CREATED,
+        sseEventType: NotificationSseEventType.NOTIFY_CREATED,
+        title: 'New like on your feed',
+        message: fullName ? `${fullName} liked your post` : 'Someone liked your post',
+        sourceType: NotificationSourceType.FEED,
+        sourceId: feed.id,
+        payload: {
+          feedId: feed.id,
+          actorUserId: userId,
+          redirectUrl: this.buildFeedRedirectUrl(feed.id),
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[feed] failed to create like notification', err);
+    }
+  }
+
   async interactWithFeed(userId: number, feedId: number, type: FeedInteractionType) {
     const feed = await this.highlightFeedModel.findByPk(feedId);
     if (!feed || feed.status !== HighlightFeedStatus.ACTIVE) {
@@ -2383,6 +2420,9 @@ export class FeedService {
         await this.updateProfileAffinity(userId, feed, weight);
         await this.invalidateRecommendCache(userId, feed.course_id);
         await this.markUserInteracted(userId);
+        if (type === FeedInteractionType.LIKE) {
+          await this.notifyFeedLiked(userId, feed);
+        }
         return { type, active: true };
       }
     }
@@ -2510,6 +2550,7 @@ export class FeedService {
           parentCommentId: parentComment.id,
           actorUserId: userId,
           content: trimmedContent,
+          redirectUrl: this.buildFeedRedirectUrl(feedId),
         },
       });
     } else if (!parentComment) {
@@ -2533,6 +2574,7 @@ export class FeedService {
             commentId: comment.id,
             actorUserId: userId,
             content: trimmedContent,
+            redirectUrl: this.buildFeedRedirectUrl(feedId),
           },
         });
       }

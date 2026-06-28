@@ -502,6 +502,7 @@ export class WebhookService {
                 duration: duration ?? undefined,
                 name: resolvedName ?? undefined,
                 job_id: jobId,
+                redirectUrl: '/library',
             },
         });
 
@@ -1020,6 +1021,7 @@ export class WebhookService {
                         type: typeForSse,
                         duration: payload.duration ?? undefined,
                         status: 'completed',
+                        redirectUrl: '/library',
                     },
                 });
                 break;
@@ -1125,6 +1127,7 @@ export class WebhookService {
                 name: row.name,
                 type: row.type,
                 job_id: jobId,
+                redirectUrl: '/library',
             },
         });
 
