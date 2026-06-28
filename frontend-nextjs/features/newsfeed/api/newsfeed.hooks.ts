@@ -20,10 +20,12 @@ export function useNewsfeedFeed(
   limit = DEFAULT_FEED_LIMIT,
   searchTerm = "",
   courseId?: number,
+  isAuthenticated = true,
 ) {
   const normalizedSearchTerm = searchTerm.trim();
   const mode = normalizedSearchTerm ? "search" : "recommended";
-  const feedSignature = `${mode}:${limit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
+  const source = !normalizedSearchTerm && !isAuthenticated ? "trending" : mode;
+  const feedSignature = `${source}:${limit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
   const sessionIdRef = useRef<string | null>(null);
   const previousSignatureRef = useRef(feedSignature);
 
@@ -33,16 +35,23 @@ export function useNewsfeedFeed(
   }
 
   const query = useInfiniteQuery({
-    queryKey: newsfeedKeys.custom("feed", limit, mode, normalizedSearchTerm, courseId ?? "all"),
-    queryFn: ({ pageParam }) =>
-      newsfeedApi.getFeed({
-        cursor: Number(pageParam) || 0,
+    queryKey: newsfeedKeys.custom("feed", limit, source, normalizedSearchTerm, courseId ?? "all"),
+    queryFn: ({ pageParam }) => {
+      const cursor = Number(pageParam) || 0;
+
+      if (source === "trending") {
+        return newsfeedApi.getTrendingFeed({ cursor, limit });
+      }
+
+      return newsfeedApi.getFeed({
+        cursor,
         limit,
         mode,
         search: normalizedSearchTerm || undefined,
         courseId,
         sessionId: mode === "recommended" && sessionIdRef.current ? sessionIdRef.current : undefined,
-      }),
+      });
+    },
     enabled,
     staleTime: 45 * 1000,
     initialPageParam: 0,
@@ -65,6 +74,15 @@ export function useNewsfeedFeed(
     ...query,
     sessionId: mode === "recommended" ? sessionIdRef.current : null,
   };
+}
+
+export function useNewsfeedFeedDetail(feedId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: newsfeedKeys.custom("feed-detail", feedId),
+    queryFn: () => newsfeedApi.getFeedDetail(feedId as number),
+    enabled: enabled && feedId !== null,
+    staleTime: 30 * 1000,
+  });
 }
 
 export function useNewsfeedViewedFeeds(enabled = true) {

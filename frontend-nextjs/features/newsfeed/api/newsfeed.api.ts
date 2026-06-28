@@ -36,6 +36,10 @@ function parseFeedResponse(response: NewsfeedFeedResponse) {
   };
 }
 
+function parseFeedDetailResponse(response: NewsfeedRawItem | { data?: NewsfeedRawItem }) {
+  return "data" in response && response.data ? response.data : response as NewsfeedRawItem;
+}
+
 function normalizeMediaUrl(url?: string | null) {
   if (!url) {
     return "";
@@ -161,6 +165,37 @@ export const newsfeedApi = createApi({
       nextCursor,
       sessionId: resolvedSessionId,
     };
+  },
+
+  getTrendingFeed: async ({
+    cursor = 0,
+    limit = 8,
+  }: {
+    cursor?: number;
+    limit?: number;
+  }): Promise<NewsfeedFeedApiResponse> => {
+    const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(
+      withQueryPath(`${FEED_ENDPOINT}/trending`, {
+        cursor,
+        limit,
+      }),
+    );
+
+    const { items, nextCursor } = parseFeedResponse(data);
+
+    return {
+      items: items.map(mapFeedItem).filter((item) => Boolean(item.videoUrl)),
+      nextCursor,
+      sessionId: null,
+    };
+  },
+
+  getFeedDetail: async (feedId: number): Promise<NewsfeedItem> => {
+    const { data } = await apiHttpClient.get<NewsfeedRawItem | { data?: NewsfeedRawItem }>(
+      `${FEED_ENDPOINT}/${feedId}`,
+    );
+
+    return mapFeedItem(parseFeedDetailResponse(data));
   },
 
     getViewedFeeds: async (): Promise<{ items: NewsfeedItem[]; nextCursor: number | null }> => {
