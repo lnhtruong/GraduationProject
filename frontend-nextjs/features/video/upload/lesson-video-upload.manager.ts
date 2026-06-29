@@ -4,6 +4,8 @@ import { videoApi } from "../api/video.api";
 type StartUploadPayload = {
   file: File;
   title?: string;
+  courseId?: number | null;
+  lessonId?: number | null;
 };
 
 type UploadLifecycleHandlers = {
@@ -47,6 +49,11 @@ class LessonVideoUploadManager {
 
     const initResponse = await videoApi.initBunnyUpload({
       title: payload.title ?? payload.file.name,
+      meta: {
+        purpose: "lesson_video",
+        ...(payload.courseId ? { courseId: payload.courseId } : {}),
+        ...(payload.lessonId ? { lessonId: payload.lessonId } : {}),
+      },
     });
 
     this.activeVideoId = initResponse.videoId;

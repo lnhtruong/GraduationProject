@@ -1,6 +1,7 @@
 export const NotificationEventType = {
   FEED_COMMENT_CREATED: 'feed.comment.created',
   FEED_COMMENT_REPLY: 'feed.comment.reply',
+  FEED_LIKE_CREATED: 'feed.like.created',
   VIDEO_UPLOAD_COMPLETED: 'video.upload.completed',
   VIDEO_JOB_PROGRESS: 'video.job.progress',
   VIDEO_JOB_FAILED: 'video.job.failed',
@@ -23,6 +24,7 @@ export type NotificationEventType =
 
 
 export const NotificationSourceType = {
+  FEED: 'feed',
   FEED_COMMENT: 'feed_comment',
   VIDEO: 'video',
   VIDEO_JOB: 'video_job',
@@ -55,6 +57,7 @@ export type NotificationSseEventType =
 export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.FEED_COMMENT_CREATED,
   NotificationEventType.FEED_COMMENT_REPLY,
+  NotificationEventType.FEED_LIKE_CREATED,
   NotificationEventType.VIDEO_UPLOAD_COMPLETED,
   NotificationEventType.VIDEO_JOB_PROGRESS,
   NotificationEventType.VIDEO_JOB_FAILED,
@@ -73,6 +76,7 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
 ] as const;
 
 export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [
+  NotificationSourceType.FEED,
   NotificationSourceType.FEED_COMMENT,
   NotificationSourceType.VIDEO,
   NotificationSourceType.VIDEO_JOB,

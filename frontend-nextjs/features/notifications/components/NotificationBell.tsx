@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, User, Megaphone } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +21,6 @@ import {
   notificationKeys,
   useBulkUpdateNotifications,
   useMarkNotificationRead,
-  useMarkNotificationUnread,
   useNotificationsList,
   useUnreadNotifications,
 } from "../api/notification.hooks";
@@ -43,8 +43,49 @@ function formatRelativeTime(isoTime: string): string {
   return `${diffDays} ngày trước`;
 }
 
+function readNumber(value: unknown): number | null {
+  const numberValue = Number(value);
+  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function getNotificationRedirectUrl(
+  eventType: string,
+  payload: Record<string, unknown> | null,
+): string | null {
+  const redirectUrl = payload?.redirectUrl;
+  if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
+    return redirectUrl;
+  }
+
+  const feedId = readNumber(payload?.feedId);
+  if (feedId) return `/newsfeed?videoId=${feedId}`;
+
+  const courseId = readNumber(payload?.courseId);
+  const lessonId = readNumber(payload?.lessonId);
+  if (courseId && lessonId) return `/courses/${courseId}/learn?lessonId=${lessonId}`;
+  if (courseId) return `/courses/${courseId}`;
+
+  const normalizedEventType = eventType.toLowerCase();
+  if (
+    normalizedEventType.includes("upload") ||
+    normalizedEventType.includes("video.job") ||
+    normalizedEventType.includes("image")
+  ) {
+    return "/library";
+  }
+  if (
+    normalizedEventType.includes("lecturer_request") ||
+    normalizedEventType.includes("follow")
+  ) {
+    return "/profile";
+  }
+
+  return null;
+}
+
 export function NotificationBell({ className }: { className?: string }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const userId = user?.id ?? null;
 
@@ -54,7 +95,6 @@ export function NotificationBell({ className }: { className?: string }) {
   const notificationsQuery = useNotificationsList(userId, isAuthenticated, 5);
   const unreadQuery = useUnreadNotifications(userId, isAuthenticated, 20);
   const markReadMutation = useMarkNotificationRead();
-  const markUnreadMutation = useMarkNotificationUnread();
   const bulkMutation = useBulkUpdateNotifications();
 
   const notifications = useMemo(() => {
@@ -171,14 +211,23 @@ export function NotificationBell({ className }: { className?: string }) {
     await markReadMutation.mutateAsync({ id, is_read: true });
   };
 
-  const handleMarkAsUnread = async (id: number) => {
-    if (!userId) return;
-    await markUnreadMutation.mutateAsync(id);
-  };
-
   const handleMarkAllAsRead = async () => {
     if (!userId) return;
     await bulkMutation.mutateAsync({ is_read: true, all: true });
+  };
+
+  const handleNotificationSelect = async (
+    notificationId: number,
+    isRead: boolean,
+    redirectUrl: string | null,
+  ) => {
+    if (!isRead) {
+      await handleMarkAsRead(notificationId);
+    }
+    setOpen(false);
+    if (redirectUrl) {
+      router.push(redirectUrl);
+    }
   };
 
   if (!isAuthenticated || !userId) {
@@ -287,6 +336,10 @@ export function NotificationBell({ className }: { className?: string }) {
                                 )
                                   .toLowerCase()
                                   .includes("comment");
+                                const redirectUrl = getNotificationRedirectUrl(
+                                  String(notification.event_type ?? ""),
+                                  payload,
+                                );
                                 const actorRecord =
                                   payload &&
                                   typeof payload.actor === "object" &&
@@ -310,13 +363,11 @@ export function NotificationBell({ className }: { className?: string }) {
                                         : "bg-transparent",
                                     )}
                                     onSelect={() => {
-                                      if (!isRead) {
-                                        void handleMarkAsRead(notification.id);
-                                      } else {
-                                        void handleMarkAsUnread(
-                                          notification.id,
-                                        );
-                                      }
+                                      void handleNotificationSelect(
+                                        notification.id,
+                                        isRead,
+                                        redirectUrl,
+                                      );
                                     }}
                                   >
                                     <div className="relative mt-0.5 shrink-0">

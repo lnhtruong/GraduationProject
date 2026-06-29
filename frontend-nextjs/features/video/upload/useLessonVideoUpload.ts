@@ -32,6 +32,8 @@ export interface LessonVideoUploadSession {
 type StartUploadArgs = {
   file: File;
   title?: string;
+  courseId?: number | null;
+  lessonId?: number | null;
   onCompleted?: (videoId: number) => void;
 };
 
@@ -70,14 +72,14 @@ export function useLessonVideoUpload() {
   );
 
   const startUpload = useCallback(
-    async ({ file, title, onCompleted }: StartUploadArgs) => {
+    async ({ file, title, courseId, lessonId, onCompleted }: StartUploadArgs) => {
       if (session.status === "uploading" || session.status === "initializing") {
         throw new Error(
           "Đang có upload dở dang. Vui lòng chờ hoàn tất hoặc hủy.",
         );
       }
 
-      lastUploadArgsRef.current = { file, title, onCompleted };
+      lastUploadArgsRef.current = { file, title, courseId, lessonId, onCompleted };
 
       setSession({
         ...INITIAL_SESSION,
@@ -92,7 +94,7 @@ export function useLessonVideoUpload() {
       });
 
       await lessonVideoUploadManager.startUpload(
-        { file, title },
+        { file, title, courseId, lessonId },
         {
           onSessionInit: ({ videoId, bunnyVideoId, fileName, fileSize }) => {
             patchSession({
