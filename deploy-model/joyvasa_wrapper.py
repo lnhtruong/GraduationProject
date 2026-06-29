@@ -1,92 +1,57 @@
-#!/usr/bin/env python
-"""
-JoyVASA Wrapper for API integration
-Handles both human and animal portrait animation
+#!/usr/bin/env python3
+"""Direct JoyVASA CLI smoke test for the VPS API environment.
+
+This file is kept only for manual testing. The FastAPI service in main.py loads
+JoyVASA in-process and does not call this wrapper.
 """
 
-import os
-import sys
-import subprocess
 import argparse
+import os
 import shutil
+import sys
+import uuid
 from pathlib import Path
 
-# JoyVASA paths
-JOYVASA_PATH = Path("/opt/joyvasa/JoyVASA")
-CONDA_ENV = "/opt/conda/envs/joyvasa/bin/python"
 
-def main(args):
-    """Main function to run JoyVASA inference via subprocess"""
-    
-    # Ensure output directory exists
-    output_dir = Path(args.output_path).parent
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Build command - JoyVASA uses tyro arguments
-    cmd = [
-        CONDA_ENV,
-        str(JOYVASA_PATH / "inference.py"),
-        "--reference", args.ref_image_path,
-        "--audio", args.audio_path,
-        "--output-dir", str(output_dir),
-        "--animation-mode", args.animation_mode,
-    ]
-    
-    print(f"🎬 Generating {args.animation_mode} animation...")
-    print(f"   Image: {args.ref_image_path}")
-    print(f"   Audio: {args.audio_path}")
-    print(f"   Output dir: {output_dir}")
-    
-    # Run inference
-    result = subprocess.run(
-        cmd,
-        cwd=str(JOYVASA_PATH),
-        capture_output=True,
-        text=True
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run JoyVASA through deploy-model/main.py without subprocess inference")
+    parser.add_argument("-r", "--ref_image_path", required=True, help="Reference mascot image")
+    parser.add_argument("-a", "--audio_path", required=True, help="Driving audio")
+    parser.add_argument("-o", "--output_path", required=True, help="Output mp4 path")
+    parser.add_argument("--animation_mode", default="human", choices=["human", "animal"])
+    parser.add_argument("--quality_mode", default="fast", choices=["ultrafast", "fast", "balanced", "quality"])
+    parser.add_argument("--cfg_scale", type=float, default=None)
+    parser.add_argument("--driving_multiplier", type=float, default=None)
+    args = parser.parse_args()
+
+    repo_root = Path(__file__).resolve().parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    import main as api_main
+
+    os.makedirs(api_main.OUTPUT_DIR, exist_ok=True)
+    os.makedirs(api_main.TEMP_DIR, exist_ok=True)
+    os.makedirs(api_main.BG_CACHE_DIR, exist_ok=True)
+    api_main.app.state.joyvasa_pipelines = {}
+
+    job_id = f"cli_{uuid.uuid4().hex[:12]}"
+    raw_video = api_main.create_mascot_video(
+        job_id=job_id,
+        mascot_image_path=os.path.abspath(args.ref_image_path),
+        audio_path=os.path.abspath(args.audio_path),
+        animation_mode=args.animation_mode,
+        quality_mode=args.quality_mode,
+        cfg_scale=args.cfg_scale,
+        driving_multiplier=args.driving_multiplier,
     )
-    
-    if result.returncode != 0:
-        print(f"❌ Error: JoyVASA inference failed with code {result.returncode}")
-        print(f"STDERR: {result.stderr}")
-        sys.exit(result.returncode)
-    
-    # JoyVASA generates output in output_dir, find the latest video
-    video_files = sorted(output_dir.glob("*.mp4"), key=os.path.getmtime)
-    if video_files:
-        latest_video = video_files[-1]
-        # Move to desired output path if different
-        if str(latest_video) != args.output_path:
-            shutil.move(str(latest_video), args.output_path)
-        print(f"✓ Video generated: {args.output_path}")
-        return args.output_path
-    else:
-        print(f"⚠️  Warning: No output video found in {output_dir}")
-        return None
+
+    output_path = os.path.abspath(args.output_path)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    shutil.copy2(raw_video, output_path)
+    print(f"Video generated: {output_path}")
+    return 0
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="JoyVASA Wrapper")
-    parser.add_argument('-r', '--ref_image_path', type=str, required=True,
-                        help='Path to reference image')
-    parser.add_argument('-a', '--audio_path', type=str, required=True,
-                        help='Path to audio file')
-    parser.add_argument('-v', '--ref_video_path', type=str, default=None,
-                        help='Path to reference video (optional)')
-    parser.add_argument('--animation_mode', type=str, default='human',
-                        choices=['human', 'animal'],
-                        help='Animation mode: human or animal')
-    parser.add_argument('-o', '--output_path', type=str, default='output.mp4',
-                        help='Path to output video')
-    parser.add_argument('--inference_cfg_rate', type=float, default=2.5,
-                        help='CFG rate for inference')
-    parser.add_argument('--inference_steps', type=int, default=25,
-                        help='Number of inference steps')
-    parser.add_argument('--device', type=str, default='cuda',
-                        help='Device to use (cuda/cpu)')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Random seed')
-    
-    args = parser.parse_args()
-    
-    # Run inference
-    output_path = main(args)
-    sys.exit(0)
+    raise SystemExit(main())
