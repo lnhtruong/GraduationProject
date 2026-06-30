@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useInstructorCourseById } from "@/features/instructor/course-management/api/course-management.hooks";
 import { PageLoader } from "@/components/PageLoader";
@@ -14,6 +14,7 @@ interface CourseOwnerGuardProps {
 export function CourseOwnerGuard({ courseId, children }: CourseOwnerGuardProps) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   const {
     data: course,
@@ -25,7 +26,7 @@ export function CourseOwnerGuard({ courseId, children }: CourseOwnerGuardProps) 
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/signin");
+      router.push(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
       return;
     }
 

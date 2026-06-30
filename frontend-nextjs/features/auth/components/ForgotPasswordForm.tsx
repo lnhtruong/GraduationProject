@@ -17,13 +17,7 @@ import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
 import {
   Form,
   FormControl,
@@ -112,17 +106,17 @@ export function ForgotPasswordForm() {
   const isDisabled = form.formState.isSubmitting || isSuccess || isLocked;
 
   return (
-    <Card className="w-full max-w-md bg-card/95 backdrop-blur-xl border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 dark:ring-white/10">
-      <CardHeader className="space-y-1.5 pb-5 pt-6">
-        <CardTitle className="text-2xl font-bold text-center text-foreground tracking-tight">
+    <div className="w-full space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Quên mật khẩu?
-        </CardTitle>
-        <CardDescription className="text-center text-sm text-muted-foreground">
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Nhập email của bạn để nhận mã OTP
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="pb-6">
+      <div className="space-y-4">
         {isLocked && (
           <Alert variant="destructive" className="mb-4 py-2">
             <Clock className="h-4 w-4" />
@@ -206,7 +200,7 @@ export function ForgotPasswordForm() {
             Quay lại đăng nhập
           </Link>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

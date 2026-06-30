@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Menu, Mic, Search, Settings, User } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Menu, Mic, Search, Settings, User, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,7 @@ export function NewsfeedHeader({
   onSearchSubmit,
 }: NewsfeedHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
 
   return (
@@ -77,14 +78,30 @@ export function NewsfeedHeader({
               placeholder="Tìm kiếm"
               value={searchValue}
               onChange={(event) => onSearchValueChange(event.target.value)}
-              className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+              className="h-9 min-w-0 flex-1 border-0 bg-transparent dark:bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
             />
+            {searchValue && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSearchValueChange("");
+                }}
+                className="h-8 w-8 rounded-full text-muted-foreground hover:bg-accent/50 hover:text-foreground shrink-0 cursor-pointer"
+                aria-label="Xóa tìm kiếm"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               type="submit"
-              variant="secondary"
+              variant="ghost"
               size="icon"
               aria-label="Tìm kiếm"
-              className="h-full w-12 rounded-r-full rounded-l-none border-l border-border/60 bg-foreground text-background hover:bg-foreground/90 transition-colors"
+              className="h-full w-12 rounded-r-full rounded-l-none border-l border-border/60 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             >
               <Search className="h-5 w-5" />
             </Button>
@@ -175,7 +192,7 @@ export function NewsfeedHeader({
                 asChild
                 className="hidden rounded-full border border-border/70 bg-background/90 px-4 shadow-sm hover:bg-accent hover:text-accent-foreground sm:inline-flex"
               >
-                <Link href="/signin">Đăng nhập</Link>
+                <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
               </Button>
               <Button
                 variant="secondary"
@@ -183,7 +200,7 @@ export function NewsfeedHeader({
                 asChild
                 className="rounded-full px-4 shadow-sm"
               >
-                <Link href="/signup">Đăng ký</Link>
+                <Link href={`/signup?returnUrl=${encodeURIComponent(pathname)}`}>Đăng ký</Link>
               </Button>
             </>
           )}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Mic } from "lucide-react";
+import { Search, Mic, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,8 +56,24 @@ export function SearchBar({ placeholder = "Tìm kiếm khóa học...", classNam
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10 w-full pl-4 pr-[72px] rounded-full border border-border bg-background/50 focus-visible:bg-background focus-visible:ring-primary/50 text-sm outline-none transition-all"
+          className="h-10 w-full pl-4 pr-24 rounded-full border border-primary/30 dark:border-border/80 bg-background dark:bg-card shadow-sm focus-visible:bg-background dark:focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/30 dark:focus-visible:ring-primary/20 focus-visible:border-primary dark:focus-visible:border-primary/80 text-sm outline-none transition-all"
         />
+        {query && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setQuery("");
+            }}
+            className="absolute right-[68px] top-1/2 -translate-y-1/2 h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer"
+            aria-label="Xóa tìm kiếm"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           type="button"
           variant="ghost"

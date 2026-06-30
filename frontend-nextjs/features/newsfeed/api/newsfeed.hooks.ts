@@ -10,6 +10,8 @@ import { useEffect, useRef } from "react";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { newsfeedApi } from "./newsfeed.api";
 
+import { useAuthStore } from "@/store/auth";
+
 export const newsfeedKeys = createKeyFactory("newsfeed");
 
 const DEFAULT_FEED_LIMIT = 8;
@@ -20,12 +22,15 @@ export function useNewsfeedFeed(
   limit = DEFAULT_FEED_LIMIT,
   searchTerm = "",
   courseId?: number,
-  isAuthenticated = true,
+  isAuthenticatedParam?: boolean,
 ) {
+  const authState = useAuthStore((s) => s.isAuthenticated());
+  const isAuthenticated = typeof isAuthenticatedParam === "boolean" ? isAuthenticatedParam : authState;
   const normalizedSearchTerm = searchTerm.trim();
   const mode = normalizedSearchTerm ? "search" : "recommended";
   const source = !normalizedSearchTerm && !isAuthenticated ? "trending" : mode;
-  const feedSignature = `${source}:${limit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
+  const resolvedLimit = source === "trending" ? 20 : limit;
+  const feedSignature = `${source}:${resolvedLimit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
   const sessionIdRef = useRef<string | null>(null);
   const previousSignatureRef = useRef(feedSignature);
 
@@ -35,17 +40,17 @@ export function useNewsfeedFeed(
   }
 
   const query = useInfiniteQuery({
-    queryKey: newsfeedKeys.custom("feed", limit, source, normalizedSearchTerm, courseId ?? "all"),
+    queryKey: newsfeedKeys.custom("feed", resolvedLimit, source, normalizedSearchTerm, courseId ?? "all"),
     queryFn: ({ pageParam }) => {
       const cursor = Number(pageParam) || 0;
 
       if (source === "trending") {
-        return newsfeedApi.getTrendingFeed({ cursor, limit });
+        return newsfeedApi.getTrendingFeed({ cursor, limit: resolvedLimit });
       }
 
       return newsfeedApi.getFeed({
         cursor,
-        limit,
+        limit: resolvedLimit,
         mode,
         search: normalizedSearchTerm || undefined,
         courseId,
