@@ -59,7 +59,7 @@ export function LessonVideoQuizOverlay({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-5"
           >
             <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
               <div className="text-center">
@@ -177,7 +177,7 @@ export function LessonVideoQuizOverlay({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            className="absolute inset-0 z-45 flex items-center justify-center bg-black/40 p-3 sm:p-5"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-5"
           >
             <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
               <div className="text-center">
