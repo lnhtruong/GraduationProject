@@ -3,16 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, User, Megaphone } from "lucide-react";
+import { Bell, CheckCheck, User, Megaphone, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
-
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -21,11 +19,13 @@ import {
   notificationKeys,
   useBulkUpdateNotifications,
   useMarkNotificationRead,
+  useMarkNotificationUnread,
   useNotificationsList,
   useUnreadNotifications,
 } from "../api/notification.hooks";
 import { subscribeToUserNotifications } from "../lib/notification-stream";
 import { useAuthStore } from "@/store/auth";
+import type { NotificationItem, NotificationPayload } from "../types";
 import { LECTURER_REQUEST_KEYS } from "@/features/lecturer-requests/api/lecturer-requests.hooks";
 
 function formatRelativeTime(isoTime: string): string {
@@ -48,39 +48,101 @@ function readNumber(value: unknown): number | null {
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
 }
 
-function getNotificationRedirectUrl(
+function getRouteForNotification(
   eventType: string,
-  payload: Record<string, unknown> | null,
-): string | null {
-  const redirectUrl = payload?.redirectUrl;
+  payload: NotificationPayload | null,
+  isLecturer = false,
+): string {
+  const type = String(eventType || "").toLowerCase();
+  const data = payload || {};
+
+  // 1. Prioritize explicit redirect URL from backend
+  const redirectUrl = data.redirectUrl;
   if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
+    if (redirectUrl === "/newsfeed") {
+      const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
+      if (feedId) {
+        return `/newsfeed?videoId=${feedId}`;
+      }
+    }
     return redirectUrl;
   }
 
-  const feedId = readNumber(payload?.feedId);
-  if (feedId) return `/newsfeed?videoId=${feedId}`;
+  // 2. Specific event types mapping
+  if (type === "quiz.generated") {
+    return "/instructor/courses";
+  }
 
-  const courseId = readNumber(payload?.courseId);
-  const lessonId = readNumber(payload?.lessonId);
-  if (courseId && lessonId) return `/courses/${courseId}/learn?lessonId=${lessonId}`;
-  if (courseId) return `/courses/${courseId}`;
-
-  const normalizedEventType = eventType.toLowerCase();
   if (
-    normalizedEventType.includes("upload") ||
-    normalizedEventType.includes("video.job") ||
-    normalizedEventType.includes("image")
+    type.includes("upload") ||
+    type.includes("video.job") ||
+    type.includes("transcribe") ||
+    type.includes("image")
   ) {
     return "/library";
   }
-  if (
-    normalizedEventType.includes("lecturer_request") ||
-    normalizedEventType.includes("follow")
-  ) {
+
+  if (type === "lecturer_request.approved") {
+    return "/instructor/dashboard";
+  }
+
+  if (type === "lecturer_request.rejected") {
     return "/profile";
   }
 
-  return null;
+  if (
+    type === "course.change_request.approved" ||
+    type === "course.change_request.rejected"
+  ) {
+    return "/instructor/courses";
+  }
+
+  if (type === "instructor.follow.new" || type.includes("follow")) {
+    return "/instructor/analytics";
+  }
+
+  if (type === "feed.comment.created" || type === "feed.comment.reply") {
+    const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
+    if (feedId) {
+      return `/newsfeed?videoId=${feedId}`;
+    }
+    return "/newsfeed";
+  }
+
+  if (type === "discussion.reply.created") {
+    if (isLecturer) {
+      return "/instructor/qa";
+    }
+    const courseId = readNumber(data.courseId) || readNumber(data.course_id);
+    const lessonId = readNumber(data.lessonId) || readNumber(data.lesson_id);
+    if (courseId && lessonId) {
+      return `/courses/${courseId}/learn?lessonId=${lessonId}`;
+    }
+    if (courseId) {
+      return `/courses/${courseId}/learn`;
+    }
+    return "/my-courses";
+  }
+
+  // 3. Fallback checks by general payload fields if no specific event matched
+  const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
+  if (feedId) {
+    return `/newsfeed?videoId=${feedId}`;
+  }
+
+  const courseId = readNumber(data.courseId) || readNumber(data.course_id);
+  const lessonId = readNumber(data.lessonId) || readNumber(data.lesson_id);
+  if (courseId && lessonId) {
+    return `/courses/${courseId}/learn?lessonId=${lessonId}`;
+  }
+  if (courseId) {
+    return `/courses/${courseId}`;
+  }
+
+  if (typeof data.url === "string") {
+    return data.url;
+  }
+  return "/";
 }
 
 export function NotificationBell({ className }: { className?: string }) {
@@ -92,16 +154,32 @@ export function NotificationBell({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const isUpgradingRole = useRef(false);
 
-  const notificationsQuery = useNotificationsList(userId, isAuthenticated, 5);
+  const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+  const [deletedIds, setDeletedIds] = useState<number[]>([]);
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+
+  const notificationsQuery = useNotificationsList(
+    userId,
+    isAuthenticated,
+    5,
+    activeTab === "unread" ? false : undefined,
+  );
   const unreadQuery = useUnreadNotifications(userId, isAuthenticated, 20);
   const markReadMutation = useMarkNotificationRead();
+  const markUnreadMutation = useMarkNotificationUnread();
   const bulkMutation = useBulkUpdateNotifications();
 
   const notifications = useMemo(() => {
     return notificationsQuery.data?.pages.flatMap((page) => page.data) ?? [];
   }, [notificationsQuery.data]);
 
-  const visibleNotifications = useMemo(() => notifications, [notifications]);
+  const visibleNotifications = useMemo(() => {
+    return notifications.filter((it) => {
+      if (deletedIds.includes(it.id)) return false;
+      if (activeTab === "unread") return !it.is_read;
+      return true;
+    });
+  }, [notifications, deletedIds, activeTab]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const t = e.currentTarget as HTMLElement;
@@ -117,13 +195,10 @@ export function NotificationBell({ className }: { className?: string }) {
 
   function groupByDay(items: typeof notifications) {
     const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
 
     const groups: Record<string, typeof notifications> = {
-      Today: [],
-      Yesterday: [],
-      Earlier: [],
+      "Hôm nay": [],
+      "Trước đó": [],
     };
 
     items.forEach((it) => {
@@ -133,15 +208,9 @@ export function NotificationBell({ className }: { className?: string }) {
         d.getMonth() === today.getMonth() &&
         d.getDate() === today.getDate()
       ) {
-        groups.Today.push(it);
-      } else if (
-        d.getFullYear() === yesterday.getFullYear() &&
-        d.getMonth() === yesterday.getMonth() &&
-        d.getDate() === yesterday.getDate()
-      ) {
-        groups.Yesterday.push(it);
+        groups["Hôm nay"].push(it);
       } else {
-        groups.Earlier.push(it);
+        groups["Trước đó"].push(it);
       }
     });
 
@@ -216,18 +285,37 @@ export function NotificationBell({ className }: { className?: string }) {
     await bulkMutation.mutateAsync({ is_read: true, all: true });
   };
 
-  const handleNotificationSelect = async (
-    notificationId: number,
-    isRead: boolean,
-    redirectUrl: string | null,
-  ) => {
-    if (!isRead) {
-      await handleMarkAsRead(notificationId);
+  const toggleRead = async (notification: NotificationItem) => {
+    setActiveMenuId(null);
+    if (!userId) return;
+    try {
+      if (notification.is_read) {
+        await markUnreadMutation.mutateAsync(notification.id);
+        toast.success("Đã đánh dấu là chưa đọc");
+      } else {
+        await markReadMutation.mutateAsync({ id: notification.id, is_read: true });
+        toast.success("Đã đánh dấu là đã đọc");
+      }
+    } catch {
+      toast.error("Cập nhật trạng thái đọc thất bại");
+    }
+  };
+
+  const deleteLocal = (id: number) => {
+    setActiveMenuId(null);
+    setDeletedIds((prev) => [...prev, id]);
+    toast.success("Đã gỡ thông báo cục bộ");
+  };
+
+  const handleItemClick = async (notification: NotificationItem) => {
+    if (!userId) return;
+    if (!notification.is_read) {
+      await handleMarkAsRead(notification.id);
     }
     setOpen(false);
-    if (redirectUrl) {
-      router.push(redirectUrl);
-    }
+    const isLecturer = user?.role === 3;
+    const route = getRouteForNotification(notification.event_type, notification.payload, isLecturer);
+    router.push(route);
   };
 
   if (!isAuthenticated || !userId) {
@@ -257,10 +345,10 @@ export function NotificationBell({ className }: { className?: string }) {
 
       <DropdownMenuContent
         align="end"
-        className="w-95 p-0"
+        className="w-[calc(100vw-2rem)] sm:w-96 p-0"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-3">
           <DropdownMenuLabel className="p-0 text-base font-semibold">
             Thông báo
           </DropdownMenuLabel>
@@ -278,8 +366,34 @@ export function NotificationBell({ className }: { className?: string }) {
           ) : null}
         </div>
 
+        {/* Bộ lọc đầu trang kiểu Facebook */}
+        <div className="flex gap-2 px-4 pb-3 border-b border-border/40">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-semibold rounded-full transition-colors",
+              activeTab === "all"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            Tất cả
+          </button>
+          <button
+            onClick={() => setActiveTab("unread")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-semibold rounded-full transition-colors",
+              activeTab === "unread"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            Chưa đọc
+          </button>
+        </div>
+
         <ScrollArea
-          className="h-112.5"
+          className="h-[300px] sm:h-112.5"
           viewportProps={{ onScroll: handleScroll }}
         >
           <div className="flex flex-col">
@@ -336,10 +450,6 @@ export function NotificationBell({ className }: { className?: string }) {
                                 )
                                   .toLowerCase()
                                   .includes("comment");
-                                const redirectUrl = getNotificationRedirectUrl(
-                                  String(notification.event_type ?? ""),
-                                  payload,
-                                );
                                 const actorRecord =
                                   payload &&
                                   typeof payload.actor === "object" &&
@@ -354,21 +464,15 @@ export function NotificationBell({ className }: { className?: string }) {
                                       : null;
 
                                 return (
-                                  <DropdownMenuItem
+                                  <div
                                     key={notification.id}
                                     className={cn(
-                                      "relative flex cursor-pointer items-start gap-4 rounded-none border-b border-border/60 p-4 outline-none transition-colors hover:bg-muted/40 last:border-0",
+                                      "group relative flex cursor-pointer items-start gap-4 border-b border-border/60 p-4 transition-colors hover:bg-muted/40 last:border-0",
                                       !isRead
-                                        ? "bg-primary/10"
+                                        ? "bg-primary/5 dark:bg-primary/10"
                                         : "bg-transparent",
                                     )}
-                                    onSelect={() => {
-                                      void handleNotificationSelect(
-                                        notification.id,
-                                        isRead,
-                                        redirectUrl,
-                                      );
-                                    }}
+                                    onClick={() => handleItemClick(notification)}
                                   >
                                     <div className="relative mt-0.5 shrink-0">
                                       {payloadUrl ? (
@@ -444,7 +548,64 @@ export function NotificationBell({ className }: { className?: string }) {
                                         )}
                                       </p>
                                     </div>
-                                  </DropdownMenuItem>
+
+                                    {/* Action button kiểu Facebook */}
+                                    <div className="relative shrink-0 self-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full border border-border/40 hover:bg-background/80"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          setActiveMenuId(
+                                            activeMenuId === notification.id
+                                              ? null
+                                              : notification.id,
+                                          );
+                                        }}
+                                      >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+
+                                      {activeMenuId === notification.id && (
+                                        <>
+                                          <div
+                                            className="fixed inset-0 z-40 cursor-default"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              e.preventDefault();
+                                              setActiveMenuId(null);
+                                            }}
+                                          />
+                                          <div className="absolute right-0 top-9 z-50 min-w-[160px] rounded-md border border-border bg-popover py-1 shadow-md">
+                                            <button
+                                              className="flex w-full items-center px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted font-medium"
+                                              onClick={async (e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                await toggleRead(notification);
+                                              }}
+                                            >
+                                              {isRead
+                                                ? "Đánh dấu chưa đọc"
+                                                : "Đánh dấu đã đọc"}
+                                            </button>
+                                            <button
+                                              className="flex w-full items-center px-3 py-1.5 text-left text-xs text-destructive hover:bg-muted font-medium"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                deleteLocal(notification.id);
+                                              }}
+                                            >
+                                              Gỡ thông báo này
+                                            </button>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
                                 );
                               })}
                             </div>

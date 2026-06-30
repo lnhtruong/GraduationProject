@@ -56,7 +56,7 @@ import { useCartSummary } from "@/features/cart/api/cart.hooks";
 const LEARNER_NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Newsfeed", href: "/newsfeed" },
-  { label: "Video AI", href: "/upload" },
+  { label: "Tạo Short/Highlight", href: "/upload" },
 ];
 
 const TEACHER_NAV_ITEMS = [
@@ -127,13 +127,13 @@ export function Header() {
 
   return (
     <motion.header
-      className="sticky top-0 z-50 w-full border-b border-primary/50 bg-primary/85 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      className="sticky top-0 z-50 w-full border-b border-primary/20 dark:border-border/40 bg-primary/95 dark:bg-card/85 shadow-md backdrop-blur-xl"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
       <div className="flex h-16 w-full items-center justify-between gap-3 px-2 sm:px-3 lg:px-4">
-        <div className={cn("items-center gap-2 sm:gap-3", isDesktopSearchVisible ? "hidden md:flex" : "flex")}>
+        <div className={cn("items-center gap-2 sm:gap-3", isDesktopSearchVisible ? "hidden lg:flex" : "flex")}>
           {/* Logo and Title */}
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
             <Link
@@ -156,8 +156,8 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav
             className={cn(
-              "hidden items-center gap-1 rounded-xl border border-primary/20 bg-background/80 p-1 shadow-sm md:flex",
-              isDesktopSearchVisible ? "hidden" : "hidden md:flex",
+              "hidden items-center gap-1 rounded-xl border border-primary/20 bg-background/80 p-1 shadow-sm lg:flex",
+              isDesktopSearchVisible ? "hidden" : "hidden lg:flex",
             )}
           >
             {navItems.map((item) => {
@@ -173,9 +173,9 @@ export function Header() {
                   variant="ghost"
                   asChild
                   className={cn(
-                    "h-8 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                    "h-8 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-background/10 dark:hover:bg-primary/5",
                     isActive &&
-                      "bg-primary/15 text-primary shadow-sm ring-1 ring-primary/30",
+                      "bg-background/80 text-foreground dark:bg-primary/20 dark:text-primary shadow-sm ring-1 ring-primary/30",
                   )}
                 >
                   <Link href={item.href}>{item.label}</Link>
@@ -191,13 +191,13 @@ export function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-full border border-border/70 md:hidden"
+                  className="h-9 w-9 rounded-full border border-border/70 lg:hidden"
                   aria-label="Mở điều hướng"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52 md:hidden">
+              <DropdownMenuContent align="start" className="w-52 lg:hidden">
                 <DropdownMenuLabel>
                   {isTeacherMode ? "Teacher Navigation" : "Main Navigation"}
                 </DropdownMenuLabel>
@@ -213,10 +213,10 @@ export function Header() {
         </div>
 
         {/* Right Side Controls */}
-        <div className={cn("flex items-center justify-end gap-2", isDesktopSearchVisible ? "w-full md:w-auto" : "")}>
+        <div className={cn("flex items-center justify-end gap-2", isDesktopSearchVisible ? "w-full lg:w-auto" : "")}>
           {/* Search Form (Mobile & Desktop) */}
           {isDesktopSearchVisible && (
-            <div className="flex w-full items-center gap-1 md:ml-auto md:w-72 lg:w-96">
+            <div className="flex w-full items-center gap-1 lg:ml-auto lg:w-96">
               <SearchBar className="flex-1" />
               <Button
                 type="button"
@@ -242,10 +242,45 @@ export function Header() {
             </Button>
           )}
 
+          {!isDesktopSearchVisible && !isAuthenticated && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full border border-border/70"
+                  aria-label="Thay đổi giao diện"
+                >
+                  {theme === "light" ? (
+                    <Sun className="h-5 w-5" />
+                  ) : theme === "dark" ? (
+                    <Moon className="h-5 w-5" />
+                  ) : (
+                    <MonitorSmartphone className="h-5 w-5" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setTheme("light")} className="cursor-pointer">
+                  <Sun className="mr-2 h-4 w-4" />
+                  <span>Giao diện sáng</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")} className="cursor-pointer">
+                  <Moon className="mr-2 h-4 w-4" />
+                  <span>Giao diện tối</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")} className="cursor-pointer">
+                  <MonitorSmartphone className="mr-2 h-4 w-4" />
+                  <span>Giao diện thiết bị</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           {/* Cart icon — chỉ hiện khi không phải teacher mode */}
           {isAuthenticated && !isTeacherMode && (
             <div
-              className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
+              className={cn(isDesktopSearchVisible ? "hidden lg:flex" : "flex")}
             >
               <Button
                 variant="ghost"
@@ -270,13 +305,13 @@ export function Header() {
 
 
           {isAuthenticated ? (
-            <NotificationBell className="md:inline-flex" />
+            <NotificationBell className="lg:inline-flex" />
           ) : null}
 
           {/* Auth Section */}
           {isAuthenticated ? (
             <motion.div
-              className={cn(isDesktopSearchVisible ? "hidden md:block" : "block")}
+              className={cn(isDesktopSearchVisible ? "hidden lg:block" : "block")}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
@@ -401,7 +436,7 @@ export function Header() {
                           <span>Khóa học đã lưu</span>
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="md:hidden">
+                      <DropdownMenuItem asChild className="lg:hidden">
                         <Link href="/cart" className="cursor-pointer">
                           <ShoppingCart className="mr-2 h-4 w-4" />
                           <span>Giỏ hàng của tôi</span>
@@ -469,7 +504,7 @@ export function Header() {
             </motion.div>
           ) : (
             <motion.div
-              className={cn("flex items-center gap-2", isDesktopSearchVisible ? "hidden md:flex" : "flex")}
+              className={cn("flex items-center gap-2", isDesktopSearchVisible ? "hidden lg:flex" : "flex")}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
@@ -478,16 +513,12 @@ export function Header() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/signin">Đăng nhập</Link>
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button size="sm" asChild>
-                  <Link href="/signup">Đăng ký</Link>
+                <Button 
+                  size="sm" 
+                  asChild
+                  className="rounded-full bg-background text-foreground hover:bg-background/90 border border-border/70 dark:bg-transparent dark:text-primary dark:border dark:border-primary dark:hover:bg-primary/10 font-semibold px-4 shadow-sm"
+                >
+                  <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
                 </Button>
               </motion.div>
             </motion.div>

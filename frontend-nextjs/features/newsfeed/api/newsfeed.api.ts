@@ -138,22 +138,28 @@ export const newsfeedApi = createApi({
   }: {
     cursor?: number;
     limit?: number;
-    mode?: "recommended" | "search";
+    mode?: "recommended" | "search" | "trending";
     search?: string;
     courseId?: number;
     sessionId?: string | null;
     hashtag?: string;
   }): Promise<NewsfeedFeedApiResponse> => {
+    const isTrending = mode === "trending";
+    const endpoint = isTrending ? `${FEED_ENDPOINT}/trending` : FEED_ENDPOINT;
+    const queryParams = isTrending
+      ? { limit }
+      : {
+          cursor,
+          limit,
+          mode,
+          search,
+          courseId,
+          sessionId,
+          hashtag,
+        };
+
     const { data } = await apiHttpClient.get<NewsfeedFeedResponse>(
-      withQueryPath(FEED_ENDPOINT, {
-        cursor,
-        limit,
-        mode,
-        search,
-        courseId,
-        sessionId,
-        hashtag,
-      }),
+      withQueryPath(endpoint, queryParams),
     );
 
     const { items, nextCursor, sessionId: resolvedSessionId } = parseFeedResponse(data);

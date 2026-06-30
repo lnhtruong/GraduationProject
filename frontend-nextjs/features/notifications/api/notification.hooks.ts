@@ -104,14 +104,3 @@ export function useBulkUpdateNotifications() {
   });
 }
 
-export function useMarkAllNotificationsRead() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationKey: notificationKeys.custom("mark-all-read"),
-    mutationFn: () => notificationApi.bulkUpdateNotifications({ is_read: true, all: true }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.root });
-    },
-  });
-}
