@@ -1,4 +1,6 @@
 export type DiscussionStatus = "answered" | "unanswered";
+export type DiscussionSort = "newest" | "upvotes" | "active";
+
 
 export interface DiscussionAuthor {
   id: number;
@@ -11,11 +13,14 @@ export interface QuestionItem {
   id: number;
   lessonId: number;
   lessonTitle: string;
+  courseName?: string;
+  courseId?: number;
   content: string;
   upvotes: number;
   replyCount: number;
   createdAt: string;
   author: DiscussionAuthor;
+  hasInstructorReply?: boolean;
 }
 
 /** Reply (child post), from GET /course/lessons/:lessonId/discussions */
@@ -47,6 +52,9 @@ export interface CourseDiscussionsResponse {
   total: number;
   page: number;
   limit: number;
+  totalCount?: number;
+  unansweredTotal?: number;
+  answeredTotal?: number;
 }
 
 export interface LessonDiscussionsResponse {
