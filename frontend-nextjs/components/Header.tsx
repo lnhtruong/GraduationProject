@@ -63,7 +63,6 @@ const TEACHER_NAV_ITEMS = [
   { label: "Dashboard", href: "/instructor/dashboard" },
   { label: "Courses", href: "/instructor/courses" },
   { label: "Roadmaps", href: "/instructor/roadmaps" },
-  { label: "Shorts Feed", href: "/instructor/shorts" },
   { label: "Q&A", href: "/instructor/qa" },
   { label: "Analytics", href: "/instructor/analytics" },
 ];

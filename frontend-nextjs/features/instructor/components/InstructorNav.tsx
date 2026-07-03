@@ -21,7 +21,6 @@ import { NotificationBell } from "@/features/notifications/components/Notificati
 const NAV_TABS = [
   { label: "Dashboard", href: "/instructor/dashboard" },
   { label: "Courses", href: "/instructor/courses" },
-  { label: "Shorts Feed", href: "/instructor/shorts" },
   { label: "Q&A", href: "/instructor/qa" },
   { label: "Analytics", href: "/instructor/analytics" },
 ];
