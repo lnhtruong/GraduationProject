@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { QuizEditorQuestion } from "../../types";
 
@@ -92,17 +92,6 @@ export function QuestionList({
                 <p className="text-[11px] text-muted-foreground font-medium line-clamp-1 flex-1">
                   {question.prompt || "Chưa nhập nội dung..."}
                 </p>
-                
-                <div className="flex items-center gap-1 shrink-0">
-                  {question.options.some((o) => o.isCorrect) && (
-                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-white text-[8px] font-bold" title="Đã chọn đáp án đúng">
-                      ✓
-                    </span>
-                  )}
-                  <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
-                    {question.options.length}L
-                  </span>
-                </div>
               </div>
             </div>
           );

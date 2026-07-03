@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X } from "lucide-react";
+import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,8 @@ interface Props {
   videoDurationSeconds: number;
   videoLoading: boolean;
   timelineMarkers?: QuizTimelineMarker[];
+  isProcessing?: boolean;
+  thumbnailUrl?: string | null;
 }
 
 export function VideoPreview({
@@ -43,6 +46,8 @@ export function VideoPreview({
   videoDurationSeconds,
   videoLoading,
   timelineMarkers = [],
+  isProcessing = false,
+  thumbnailUrl,
 }: Props) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -53,6 +58,8 @@ export function VideoPreview({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredMarkerKey, setHoveredMarkerKey] = useState<string | null>(null);
+
+  const [isActivated, setIsActivated] = useState(false);
 
   const hlsRef = useRef<Hls | null>(null);
   const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
@@ -103,7 +110,7 @@ export function VideoPreview({
 
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || !isActivated) return;
 
     if (!videoUrl) {
       videoElement.removeAttribute("src");
@@ -144,6 +151,7 @@ export function VideoPreview({
             ...[...levels].reverse()
           ];
           setQualityLevels(sortedLevels);
+          videoElement.play().catch(() => {});
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
@@ -164,9 +172,11 @@ export function VideoPreview({
         });
       } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
         videoElement.src = videoUrl;
+        videoElement.play().catch(() => {});
       }
     } else {
       videoElement.src = videoUrl;
+      videoElement.play().catch(() => {});
       setQualityLevels([]);
       setCurrentQualityLevel(-1);
     }
@@ -184,7 +194,7 @@ export function VideoPreview({
         hlsRef.current = null;
       }
     };
-  }, [videoUrl]);
+  }, [videoUrl, isActivated]);
 
   const safeDuration = useMemo(() => {
     const fromVideo = Number(videoRef.current?.duration ?? 0);
@@ -300,31 +310,70 @@ export function VideoPreview({
     return Math.max(4, Math.min(96, raw));
   }, [hoveredMarker, safeDuration]);
 
-  return (
-    <Card className="border-border/60 shadow-sm">
-      <CardContent className="space-y-4 p-6">
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary">
-            <Clapperboard className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-base font-semibold">Trình phát video & timeline Quiz</p>
-            <p className="text-xs text-muted-foreground">
-              Phát video bài học và quản lý các mốc câu hỏi trắc nghiệm (Quiz) tích hợp trực tiếp trên timeline.
-            </p>
-          </div>
-        </div>
+  const tooltipTranslateX = useMemo(() => {
+    if (hoveredLeft < 25) {
+      const pct = (hoveredLeft - 4) / 21; // 0 to 1
+      const translate = -10 - 40 * pct;
+      return `${translate}%`;
+    }
+    if (hoveredLeft > 75) {
+      const pct = (hoveredLeft - 75) / 21; // 0 to 1
+      const translate = -50 - 40 * pct;
+      return `${translate}%`;
+    }
+    return "-50%";
+  }, [hoveredLeft]);
 
-        <div className="pt-2">
-          <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl bg-black">
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="pt-1">
+          <div className={cn(
+            "relative flex aspect-video w-full items-center justify-center rounded-xl",
+            videoUrl && !isProcessing ? "bg-muted/40 dark:bg-zinc-950 border border-border/50" : "bg-muted/20 border-2 border-dashed border-border/40"
+          )}>
             {videoLoading ? (
-              <div className="text-xs text-muted-foreground">
-                Đang tải video...
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span>Đang tải video...</span>
+              </div>
+            ) : isProcessing ? (
+              <div className="text-center text-muted-foreground px-4 flex flex-col items-center gap-2">
+                <div className="rounded-full bg-muted/60 p-3 text-muted-foreground/60 animate-pulse">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+                <p className="text-sm font-semibold text-foreground mt-1">Video đang được xử lý</p>
+                <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                  Video này đang được mã hóa và tối ưu hóa trên máy chủ. Trình phát và các tính năng thiết lập câu hỏi tương tác (Quiz) sẽ sẵn sàng sau khi quá trình xử lý hoàn tất.
+                </p>
+              </div>
+            ) : videoUrl && !isActivated ? (
+              <div
+                onClick={() => setIsActivated(true)}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black cursor-pointer group rounded-xl overflow-hidden"
+              >
+                {thumbnailUrl ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt="Video Preview"
+                    className="absolute inset-0 h-full w-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-zinc-950/90" />
+                )}
+                
+                {/* Big Glassmorphic Play Button */}
+                <div className="relative z-10 p-4 rounded-full bg-white/15 backdrop-blur-md text-white border border-white/20 shadow-2xl group-hover:scale-110 group-hover:bg-white/25 transition-all duration-200">
+                  <Play className="h-8 w-8 fill-white text-white translate-x-[2px]" />
+                </div>
+                <span className="relative z-10 text-xs font-semibold text-white/90 mt-3 tracking-wide drop-shadow-md group-hover:text-white transition-colors">
+                  Click để tải và xem trước video
+                </span>
               </div>
             ) : videoUrl ? (
               <video
                 ref={videoRef}
-                className="h-full w-full cursor-pointer"
+                className="h-full w-full object-cover cursor-pointer bg-transparent rounded-xl"
                 playsInline
                 preload="metadata"
                 onClick={handleTogglePlayback}
@@ -340,18 +389,18 @@ export function VideoPreview({
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <div className="text-center text-muted-foreground">
-                <p className="mb-2 text-sm">Chưa chọn video cho bài học này.</p>
-                <Link
-                  href="/upload"
-                  className="text-xs font-medium text-primary underline-offset-2 hover:underline"
-                >
-                  Hãy upload video trước
-                </Link>
+              <div className="text-center text-muted-foreground px-4 flex flex-col items-center gap-2">
+                <div className="rounded-full bg-muted/60 p-3 text-muted-foreground/60">
+                  <Clapperboard className="h-6 w-6" />
+                </div>
+                <p className="text-sm font-semibold text-foreground mt-1">Chưa chọn video cho bài học này</p>
+                <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                  Vui lòng tải lên file video mới ở khung phía trên hoặc chọn một video có sẵn từ thư viện của bạn để kích hoạt trình phát và thiết lập Quiz.
+                </p>
               </div>
             )}
 
-          {videoUrl && safeDuration > 0 ? (
+          {isActivated && videoUrl && safeDuration > 0 ? (
             <div className="absolute inset-x-2 bottom-2 z-20 rounded-lg border border-white/20 bg-black/60 px-2 py-2 backdrop-blur-sm sm:inset-x-3 sm:bottom-3 sm:px-2.5">
               <div className="flex items-center gap-2">
                 <button
@@ -391,7 +440,7 @@ export function VideoPreview({
                     onChange={(event) => {
                       handleSeekChange(Number(event.target.value));
                     }}
-                    className="relative z-10 h-4 w-full appearance-none bg-transparent"
+                    className="relative z-10 h-4 w-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:shadow-xs [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:shadow-xs [&::-moz-range-thumb]:border-0"
                   />
 
                   {timelineMarkers.map((marker, index) => {
@@ -410,7 +459,7 @@ export function VideoPreview({
                             : "border-black/60 bg-amber-300 hover:scale-110"
                         }`}
                         style={{
-                          left: `${Math.max(0.5, Math.min(99.5, left))}%`,
+                          left: `calc(${left}% - ${(left / 100) * 12}px + 6px)`,
                         }}
                         onMouseEnter={() =>
                           openMarkerTooltip(
@@ -425,6 +474,54 @@ export function VideoPreview({
                       />
                     );
                   })}
+
+                  {hoveredMarker ? (
+                    <div
+                      className="pointer-events-auto absolute bottom-full z-30 mb-4 w-62 max-w-[calc(100vw-3rem)] rounded-lg border border-border/70 bg-background/95 p-2.5 text-foreground shadow-lg transition-all duration-150"
+                      style={{
+                        left: `calc(${hoveredLeft}% - ${(hoveredLeft / 100) * 12}px + 6px)`,
+                        transform: `translateX(${tooltipTranslateX})`,
+                      }}
+                      onMouseEnter={clearTooltipHideTimeout}
+                      onMouseLeave={scheduleTooltipHide}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="line-clamp-1 text-xs font-semibold">
+                        {hoveredMarker.quizName}
+                      </p>
+                      <p className="line-clamp-1 text-[11px] text-muted-foreground mt-0.5">
+                        {hoveredMarker.questionText}
+                      </p>
+                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/40 pt-2">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          <Flag className="h-3 w-3 text-primary" />
+                          {hoveredMarker.timestampLabel}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            className="pointer-events-auto h-7 px-2.5 text-[11px] font-bold text-white bg-primary hover:bg-primary/90 rounded-md transition-all shadow-xs cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              seekTo(hoveredMarker.timestampSeconds);
+                            }}
+                          >
+                            Tới mốc
+                          </button>
+                          <button
+                            type="button"
+                            className="pointer-events-auto h-7 px-2.5 text-[11px] font-bold bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 rounded-md transition-all shadow-xs cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingMarker(hoveredMarker);
+                            }}
+                          >
+                            Sửa ngay
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <span className="w-12 shrink-0 text-right text-[11px] text-white/90 mr-1.5">
@@ -551,51 +648,13 @@ export function VideoPreview({
                 </DropdownMenu>
               </div>
 
-              {hoveredMarker ? (
-                <div
-                  className="pointer-events-auto absolute bottom-full z-30 mb-2 w-62 max-w-[calc(100vw-3rem)] -translate-x-1/2 rounded-lg border border-border/70 bg-background/95 p-2 text-foreground shadow-lg"
-                  style={{ left: `${hoveredLeft}%` }}
-                  onMouseEnter={clearTooltipHideTimeout}
-                  onMouseLeave={scheduleTooltipHide}
-                >
-                  <p className="line-clamp-1 text-xs font-semibold">
-                    {hoveredMarker.quizName}
-                  </p>
-                  <p className="line-clamp-1 text-[11px] text-muted-foreground">
-                    {hoveredMarker.questionText}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[11px]">
-                      <Flag className="h-3 w-3 text-primary" />
-                      {hoveredMarker.timestampLabel}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="pointer-events-auto h-7 px-2 text-[11px]"
-                        onClick={() => seekTo(hoveredMarker.timestampSeconds)}
-                      >
-                        Tới mốc
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="pointer-events-auto h-7 px-2 text-[11px]"
-                        onClick={() => setEditingMarker(hoveredMarker)}
-                      >
-                        Sửa ngay
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+
             </div>
           ) : null}
         </div>
       </div>
 
-      </CardContent>
+      </div>
 
       <Dialog
         open={Boolean(editingMarker)}
@@ -674,6 +733,6 @@ export function VideoPreview({
           </div>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }

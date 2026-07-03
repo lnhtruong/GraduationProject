@@ -10,6 +10,8 @@ import {
   BadgeCheck,
   Send,
   Rocket,
+  GraduationCap,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,31 +48,48 @@ function getLevelLabel(level: string) {
   return LEVEL_LABELS[level.toLowerCase()] ?? level;
 }
 
+function formatCourseDuration(duration: string) {
+  if (!duration) return "0 phút";
+  const parts = duration.split(":");
+  if (parts.length < 2) return duration;
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  
+  if (isNaN(hours) || isNaN(minutes)) return duration;
+  
+  const hLabel = hours > 0 ? `${hours} giờ ` : "";
+  const mLabel = minutes > 0 ? `${minutes} phút` : "";
+  return `${hLabel}${mLabel}`.trim() || "0 phút";
+}
+
 function StatusBadge({ status }: { status: CourseStatus }) {
   const config: Record<CourseStatus, { label: string; className: string }> = {
     publish: {
-      label: "Published",
+      label: "Đã xuất bản",
       className:
-        "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400",
+        "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-500/20",
     },
-    draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
+    draft: { 
+      label: "Bản nháp", 
+      className: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800" 
+    },
     pending: {
-      label: "Pending",
+      label: "Chờ duyệt",
       className:
-        "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400",
+        "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-500/20",
     },
     approved: {
-      label: "Approved",
+      label: "Đã duyệt",
       className:
-        "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+        "bg-sky-500/10 text-sky-600 border-sky-500/20 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-500/20",
     },
     rejected: {
-      label: "Rejected",
-      className: "bg-destructive/10 text-destructive",
+      label: "Từ chối",
+      className: "bg-rose-500/10 text-rose-600 border-rose-500/20 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-500/20",
     },
     banned: {
-      label: "Banned",
-      className: "bg-destructive text-destructive-foreground"
+      label: "Bị cấm",
+      className: "bg-red-600 text-white border-red-700"
     },
   };
   const { label, className } =
@@ -80,7 +99,7 @@ function StatusBadge({ status }: { status: CourseStatus }) {
       className: "bg-muted text-muted-foreground",
     };
   return (
-    <Badge variant="outline" className={cn("text-[11px]", className)}>
+    <Badge variant="outline" className={cn("text-[10px] font-bold rounded-full px-2.5 py-0.5", className)}>
       {label}
     </Badge>
   );
@@ -99,91 +118,122 @@ export function CourseManageCard({
     course.status === "approved" && Boolean(onPublishCourse);
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-linear-to-b from-background via-background to-muted/20 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
-      <div className="h-1 w-full bg-linear-to-r from-primary/70 via-amber-400/70 to-primary/20" />
-
-      <div className="flex flex-1 flex-col p-4">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="line-clamp-1 font-semibold">{course.name}</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            {canSubmitForReview ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2.5 gap-1.5"
-                onClick={() => onSubmitForReview?.(course.id)}
-                aria-label="Gửi duyệt khóa học"
-                title="Xin duyệt"
-                disabled={workflowLoading}
-              >
-                <Send className="h-3.5 w-3.5" />
-                Xin duyệt
-              </Button>
-            ) : null}
-            {canPublishCourse ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 w-7 border-emerald-200 p-0 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700"
-                onClick={() => onPublishCourse?.(course.id)}
-                aria-label="Publish khóa học"
-                title="Publish"
-                disabled={workflowLoading}
-              >
-                <Rocket className="h-3.5 w-3.5" />
-              </Button>
-            ) : null}
-            <StatusBadge status={course.status} />
-          </div>
+    <div className="group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_16px_36px_rgba(0,0,0,0.25)]">
+      {/* Aspect ratio cover image container */}
+      <div className="relative aspect-video w-full overflow-hidden border-b border-border/40 bg-muted/40 flex items-center justify-center">
+        {course.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={course.thumbnailUrl}
+            alt={course.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = "none";
+              const fallback = (e.target as HTMLElement).nextElementSibling;
+              if (fallback) fallback.classList.remove("hidden");
+            }}
+          />
+        ) : null}
+        
+        {/* Fallback layout */}
+        <div className={cn(
+          "absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-amber-500/5 flex flex-col items-center justify-center text-muted-foreground transition-transform duration-500 group-hover:scale-105",
+          course.thumbnailUrl ? "hidden" : ""
+        )}>
+          <GraduationCap className="h-10 w-10 text-primary/40 stroke-[1.5] mb-2" />
+          <span className="text-[10px] font-semibold tracking-wider uppercase opacity-60">LearnHub Course</span>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          {course.categories.slice(0, 3).map((category) => (
-            <Badge key={category} variant="secondary" className="text-[11px]">
-              {category}
-            </Badge>
-          ))}
+        {/* Absolute status badge at top-right */}
+        <div className="absolute right-3 top-3 z-10 backdrop-blur-md rounded-full shadow-sm">
+          <StatusBadge status={course.status} />
         </div>
 
-        <div className="mt-auto grid gap-2 rounded-xl border border-border/60 bg-background/70 p-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Clock3 className="h-3.5 w-3.5" />
-            {course.duration}
-          </span>
-          <span className="flex items-center gap-1">
-            <Languages className="h-3.5 w-3.5" />
-            {getLanguageLabel(course.language)}
-          </span>
-          <span className="flex items-center gap-1">
-            <BadgeCheck className="h-3.5 w-3.5" />
-            {getLevelLabel(course.level)}
-          </span>
-          <span className="flex items-center gap-1">
-            <BookOpen className="h-3.5 w-3.5" />
-            {course.price.toLocaleString("vi-VN")}đ
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-2">
-          <div className="flex items-center gap-2">
-            <Button size="sm" className="flex-1 gap-1.5" asChild>
-              <Link href={`/instructor/courses/${course.id}`}>
-                <FolderKanban className="h-3.5 w-3.5" />
-                Quản lý khóa học
-              </Link>
-            </Button>
+        {/* Absolute action buttons at top-left */}
+        <div className="absolute left-3 top-3 z-10 flex gap-1.5">
+          {canSubmitForReview && (
             <Button
               size="sm"
-              variant="outline"
-              className="h-8 w-8 border-destructive/30 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive"
-              onClick={() => onDelete(course.id)}
-              aria-label="Xóa khóa học"
+              className="h-8 rounded-full px-3 gap-1 text-[11px] font-bold bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all duration-200 cursor-pointer"
+              onClick={() => onSubmitForReview?.(course.id)}
+              disabled={workflowLoading}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Send className="h-3.5 w-3.5" />
+              Gửi duyệt
             </Button>
-          </div>
+          )}
+          {canPublishCourse && (
+            <Button
+              size="sm"
+              className="h-8 rounded-full px-3 gap-1 text-[11px] font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-all duration-200 cursor-pointer"
+              onClick={() => onPublishCourse?.(course.id)}
+              disabled={workflowLoading}
+            >
+              <Rocket className="h-3.5 w-3.5" />
+              Publish
+            </Button>
+          )}
+        </div>
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </div>
+
+      {/* Course metadata card content */}
+      <div className="flex flex-1 flex-col p-3.5">
+        {/* Category badges */}
+        <div className="mb-2.5 flex flex-wrap gap-1 min-h-[18px]">
+          {course.categories.length > 0 ? (
+            course.categories.slice(0, 2).map((category) => (
+              <Badge key={category} variant="secondary" className="text-[9px] font-medium px-1.5 py-0.1 border border-border/20 rounded-md">
+                {category}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="outline" className="text-[9px] font-medium px-1.5 py-0.1 opacity-50 rounded-md border-dashed">
+              Chưa phân loại
+            </Badge>
+          )}
+        </div>
+
+        {/* Title area (Locked to exactly 2 lines height) */}
+        <div className="mb-1 min-h-[32px]">
+          <h3 className="line-clamp-2 text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors" title={course.name}>
+            {course.name}
+          </h3>
+        </div>
+
+        {/* Inline metadata details (Udemy style) */}
+        <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5 mb-2 font-medium">
+          <span>{formatCourseDuration(course.duration)}</span>
+          <span className="text-muted-foreground/40">•</span>
+          <span>{getLevelLabel(course.level)}</span>
+          <span className="text-muted-foreground/40">•</span>
+          <span>{getLanguageLabel(course.language)}</span>
+        </div>
+
+        {/* Prominent Price Display */}
+        <div className="mb-3 font-bold text-sm text-primary">
+          {course.price > 0 ? `${course.price.toLocaleString("vi-VN")}đ` : "Miễn phí"}
+        </div>
+
+        {/* Action Button Row */}
+        <div className="mt-auto flex items-center gap-1.5">
+          <Button size="sm" className="flex-1 h-8 rounded-lg gap-1 text-xs font-bold shadow-xs transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer" asChild>
+            <Link href={`/instructor/courses/${course.id}`}>
+              <FolderKanban className="h-3.5 w-3.5" />
+              Quản lý
+            </Link>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 rounded-lg border-destructive/20 hover:border-destructive/40 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive active:scale-[0.96] transition-all cursor-pointer"
+            onClick={() => onDelete(course.id)}
+            aria-label="Xóa khóa học"
+            title="Xóa khóa học"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
     </div>

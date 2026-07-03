@@ -150,6 +150,7 @@ export function buildAfterLessonQuiz(
         .map((option: { id?: number }) => option.id)
         .filter((optionId): optionId is number => typeof optionId === "number"),
       answerIndex: resolveQuestionAnswerIndex(question),
+      passingScore: firstQuiz.passingScore ?? 70,
     }),
   );
 }

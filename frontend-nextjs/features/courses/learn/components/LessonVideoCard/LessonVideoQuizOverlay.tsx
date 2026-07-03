@@ -22,12 +22,14 @@ interface LessonVideoQuizOverlayProps {
     percent: number;
   } | null;
   afterLessonPassed: boolean;
+  afterLessonCorrectAnswers: Record<string, number>;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   nextLessonTitle?: string;
   onSelectAfterLessonAnswer: (questionId: string, optionIndex: number) => void;
   onSubmitAfterLessonQuiz: () => void;
   onAdvanceToNextLesson: () => void;
+  onRetryAfterLessonQuiz: () => void;
 }
 
 export function LessonVideoQuizOverlay({
@@ -43,12 +45,14 @@ export function LessonVideoQuizOverlay({
   afterLessonSubmitted,
   afterLessonScore,
   afterLessonPassed,
+  afterLessonCorrectAnswers,
   hasNextLesson,
   nextLessonCountdown,
   nextLessonTitle,
   onSelectAfterLessonAnswer,
   onSubmitAfterLessonQuiz,
   onAdvanceToNextLesson,
+  onRetryAfterLessonQuiz,
 }: LessonVideoQuizOverlayProps) {
   return (
     <>
@@ -59,9 +63,9 @@ export function LessonVideoQuizOverlay({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-5"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 sm:p-5 flex justify-center items-start"
           >
-            <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
+            <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-auto my-auto rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                   Kiểm tra nhanh
@@ -177,9 +181,9 @@ export function LessonVideoQuizOverlay({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-5"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 sm:p-5 flex justify-center items-start"
           >
-            <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-4 sm:mx-0 rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl max-h-[80vh] overflow-y-auto">
+            <div className="relative w-full sm:w-[92%] max-w-full sm:max-w-4xl mx-auto my-auto rounded-3xl border border-white/15 bg-slate-950/78 p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
               <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                   Kiểm tra nhanh
@@ -189,7 +193,7 @@ export function LessonVideoQuizOverlay({
                 </h3>
               </div>
 
-              <div className="mt-5 max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+              <div className="mt-5 space-y-4">
                 {afterLessonQuiz.length ? (
                   <>
                     {afterLessonQuiz.map((question, questionIndex) => (
@@ -200,9 +204,12 @@ export function LessonVideoQuizOverlay({
                         <div className="mt-4 space-y-3">
                           {question.options.map((option, optionIndex) => {
                             const isSelected = afterLessonAnswers[question.id] === optionIndex;
-                            const isCorrectAnswer = afterLessonSubmitted && question.answerIndex === optionIndex;
+                            const correctAnswerIndex = afterLessonCorrectAnswers[question.id] !== undefined
+                               ? afterLessonCorrectAnswers[question.id]
+                               : question.answerIndex;
+                            const isCorrectAnswer = afterLessonSubmitted && correctAnswerIndex === optionIndex;
                             const isWrongSelection =
-                              afterLessonSubmitted && isSelected && question.answerIndex !== optionIndex;
+                              afterLessonSubmitted && isSelected && correctAnswerIndex !== optionIndex;
 
                             let cardClasses =
                               "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
@@ -263,7 +270,7 @@ export function LessonVideoQuizOverlay({
                         {afterLessonScore ? (
                           <span
                             className={`flex items-center gap-1 text-xs ${
-                              afterLessonScore.percent >= 70 ? "text-success" : "text-destructive"
+                              afterLessonScore.percent >= (afterLessonQuiz[0]?.passingScore ?? 70) ? "text-success" : "text-destructive"
                             }`}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -292,6 +299,24 @@ export function LessonVideoQuizOverlay({
                           <span className="text-xs text-success-foreground/80">
                             {nextLessonTitle ?? "Đây là bài cuối của khóa học"}
                           </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {afterLessonScore && !afterLessonPassed ? (
+                      <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-white">
+                        <p className="font-semibold text-destructive">Chưa đạt điểm yêu cầu</p>
+                        <p className="mt-1 text-xs text-white/70">
+                          Bạn cần trả lời đúng tối thiểu {afterLessonQuiz[0]?.passingScore ?? 70}% câu hỏi để hoàn thành bài học này.
+                        </p>
+                        <div className="mt-2">
+                          <Button
+                            size="sm"
+                            className="bg-white/10 hover:bg-white/20 text-white border border-white/25 rounded-lg shadow-none"
+                            onClick={onRetryAfterLessonQuiz}
+                          >
+                            Làm lại bài kiểm tra
+                          </Button>
                         </div>
                       </div>
                     ) : null}

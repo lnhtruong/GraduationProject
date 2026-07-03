@@ -48,11 +48,17 @@ export function buildInitialLessonValues(
  * @param videoId Fallback ID for display
  * @returns Formatted title for display
  */
+export function cleanVideoTitle(title?: string | null): string {
+  if (!title) return "";
+  return title.trim();
+}
+
 export function getVideoCardTitle(
   title?: string | null,
   videoId?: number,
 ): string {
-  return title?.trim() || `Video #${videoId}`;
+  if (!title) return `Video #${videoId}`;
+  return title.trim();
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CoursesPage = dynamic(
@@ -17,5 +18,16 @@ const CoursesPage = dynamic(
 );
 
 export default function Page() {
-  return <CoursesPage />;
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      }
+    >
+      <CoursesPage />
+    </Suspense>
+  );
 }

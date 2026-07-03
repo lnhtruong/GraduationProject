@@ -157,12 +157,6 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
               />
             </div>
 
-            {state.isInVideo && defaultTimestamp ? (
-              <div className="flex items-center gap-1.5 text-xs text-primary font-medium mt-1.5 pl-1 select-none">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span>Quiz này được cấu hình xuất hiện ở mốc {defaultTimestamp} trong video.</span>
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -248,13 +242,13 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                     {question.options.map((option) => (
                       <div
                         key={option.id}
-                        className={`flex items-center gap-3 rounded-xl border p-2.5 transition-all duration-200 bg-background/60 focus-within:bg-background ${
+                        className={`flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-200 bg-background/60 focus-within:bg-background ${
                           option.isCorrect
                             ? "border-green-500/30 bg-green-500/[0.02] focus-within:border-green-500/50"
                             : "border-border/60 focus-within:border-primary/50"
                         }`}
                       >
-                        <Input
+                        <Textarea
                           value={option.label}
                           onChange={(event) =>
                             updateOption(question.id, option.id, (current) => ({
@@ -262,8 +256,9 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                               label: event.target.value,
                             }))
                           }
-                          className="h-9 border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 placeholder:text-muted-foreground/50 rounded-none"
+                          className="min-h-[38px] py-2 resize-none border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 placeholder:text-muted-foreground/50 rounded-none flex-1 min-w-0"
                           placeholder="Nhập nội dung câu trả lời..."
+                          rows={1}
                         />
 
                         {/* Styled Radio button */}
@@ -274,11 +269,12 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                               ...current,
                               options: current.options.map((item) => ({
                                 ...item,
+                                ...item,
                                 isCorrect: item.id === option.id,
                               })),
                             }))
                           }
-                          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 ${
+                          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 mt-0.5 ${
                             option.isCorrect
                               ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-sm"
                               : "bg-background border-border hover:bg-muted/40 text-muted-foreground"
@@ -299,7 +295,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                           type="button"
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors mt-0.5"
                           onClick={() => removeOption(question.id, option.id)}
                         >
                           <Trash2 className="h-4 w-4" />
