@@ -9,7 +9,11 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { InjectModel } from '@nestjs/sequelize';
 import * as bcrypt from 'bcrypt';
-import { OAuth2Client, TokenPayload as GoogleTokenPayload } from 'google-auth-library';
+import * as crypto from 'crypto';
+import {
+  OAuth2Client,
+  TokenPayload as GoogleTokenPayload,
+} from 'google-auth-library';
 import { User } from '../users/user.model';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -45,7 +49,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto) {
     const { email, password, firstName, lastName } = registerDto;
@@ -57,9 +61,13 @@ export class AuthService {
 
     if (existingUser) {
       if (!existingUser.password) {
-        throw new BadRequestException(
-          'This email is linked to Google sign-in. Please continue with Google.',
-        );
+        // Account created via OAuth — link password so user can also login with email
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const updates: Record<string, unknown> = { password: hashedPassword };
+        if (!existingUser.firstName && firstName) updates.firstName = firstName;
+        if (!existingUser.lastName && lastName) updates.lastName = lastName;
+        await existingUser.update(updates);
+        return { user: this.toAuthUserResponse(existingUser) };
       }
       throw new BadRequestException('User with this email already exists');
     }
@@ -244,7 +252,9 @@ export class AuthService {
       );
     }
 
-    const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
+    const user = await this.userModel.findOne({
+      where: { email: normalizedEmail },
+    });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
     }
@@ -336,7 +346,9 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    const user = await this.userModel.findOne({ where: { email: normalizedEmail } });
+    const user = await this.userModel.findOne({
+      where: { email: normalizedEmail },
+    });
     if (!user) {
       throw new BadRequestException('User with this email does not exist');
     }
@@ -351,6 +363,238 @@ export class AuthService {
     return {
       message: 'Password has been reset successfully',
     };
+  }
+
+  private async generateOAuthState(): Promise<string> {
+    const state = crypto.randomBytes(32).toString('hex');
+    await this.redisService.set('oauth_state:' + state, '1', 300);
+    return state;
+  }
+
+  private async verifyOAuthState(state: string): Promise<void> {
+    const value = await this.redisService.get('oauth_state:' + state);
+    if (!value) {
+      throw new UnauthorizedException('Invalid OAuth state');
+    }
+    await this.redisService.del('oauth_state:' + state);
+  }
+
+  async createOAuthSession(payload: {
+    accessToken: string;
+    user: object;
+  }): Promise<string> {
+    const nonce = crypto.randomBytes(32).toString('hex');
+    await this.redisService.set(
+      'oauth_session:' + nonce,
+      JSON.stringify(payload),
+      120,
+    );
+    return nonce;
+  }
+
+  async consumeOAuthSession(
+    nonce: string,
+  ): Promise<{ accessToken: string; user: object } | null> {
+    const raw = await this.redisService.get('oauth_session:' + nonce);
+    if (!raw) return null;
+    await this.redisService.del('oauth_session:' + nonce);
+    return JSON.parse(raw);
+  }
+
+  async buildGithubOAuthUrl(): Promise<string> {
+    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+    const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+
+    if (!clientId || !redirectUri) {
+      throw new BadRequestException('GitHub OAuth is not configured');
+    }
+
+    const state = await this.generateOAuthState();
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'user:email',
+      state,
+    });
+
+    return `https://github.com/login/oauth/authorize?${params.toString()}`;
+  }
+
+  async githubCallback(code: string, state: string) {
+    await this.verifyOAuthState(state);
+    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GITHUB_CLIENT_SECRET');
+    const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new BadRequestException('GitHub OAuth is not configured');
+    }
+
+    const tokenRes = await this.httpService.axiosRef.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        redirect_uri: redirectUri,
+      },
+      { headers: { Accept: 'application/json' } },
+    );
+
+    const accessToken: string = tokenRes.data?.access_token;
+    if (!accessToken) {
+      throw new UnauthorizedException('Failed to get GitHub access token');
+    }
+
+    const profileRes = await this.httpService.axiosRef.get(
+      'https://api.github.com/user',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Agent': 'GraduationProject',
+        },
+      },
+    );
+
+    const profile = profileRes.data;
+    const githubId = String(profile.id);
+    let email: string | null = profile.email?.trim().toLowerCase() || null;
+
+    // GitHub có thể ẩn email — fetch thêm từ /user/emails
+    if (!email) {
+      try {
+        const emailsRes = await this.httpService.axiosRef.get(
+          'https://api.github.com/user/emails',
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'User-Agent': 'GraduationProject',
+            },
+          },
+        );
+        const primary = (
+          emailsRes.data as Array<{
+            email: string;
+            primary: boolean;
+            verified: boolean;
+          }>
+        )?.find((e) => e.primary && e.verified);
+        email = primary?.email?.trim().toLowerCase() || null;
+      } catch {
+        // email stays null
+      }
+    }
+
+    let user = await this.userModel.findOne({ where: { githubId } });
+
+    if (!user && email) {
+      user = await this.userModel.findOne({ where: { email } });
+      if (user) {
+        await user.update({ githubId });
+      }
+    }
+
+    if (!user) {
+      const nameParts = (profile.name || '').split(' ');
+      user = await this.userModel.create({
+        email: email ?? `github_${githubId}@noemail.local`,
+        password: null,
+        firstName: nameParts[0] || null,
+        lastName: nameParts.slice(1).join(' ') || null,
+        role: DEFAULT_USER_ROLE,
+        githubId,
+        emailVerified: !!email,
+        avatarUrl: profile.avatar_url || null,
+      });
+    }
+
+    return this.issueAuthTokens(user);
+  }
+
+  async buildFacebookOAuthUrl(): Promise<string> {
+    const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+    const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
+
+    if (!appId || !redirectUri) {
+      throw new BadRequestException('Facebook OAuth is not configured');
+    }
+
+    const state = await this.generateOAuthState();
+    const params = new URLSearchParams({
+      client_id: appId,
+      redirect_uri: redirectUri,
+      scope: 'email,public_profile',
+      response_type: 'code',
+      state,
+    });
+
+    return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
+  }
+
+  async facebookCallback(code: string, state: string) {
+    await this.verifyOAuthState(state);
+    const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+    const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
+    const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
+
+    if (!appId || !appSecret || !redirectUri) {
+      throw new BadRequestException('Facebook OAuth is not configured');
+    }
+
+    const tokenRes = await this.httpService.axiosRef.post(
+      'https://graph.facebook.com/v19.0/oauth/access_token',
+      new URLSearchParams({
+        client_id: appId,
+        client_secret: appSecret,
+        redirect_uri: redirectUri,
+        code,
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
+
+    const accessToken: string = tokenRes.data?.access_token;
+    if (!accessToken) {
+      throw new UnauthorizedException('Failed to get Facebook access token');
+    }
+
+    const profileRes = await this.httpService.axiosRef.get(
+      'https://graph.facebook.com/v19.0/me',
+      {
+        params: {
+          fields: 'id,email,first_name,last_name,picture.type(large)',
+          access_token: accessToken,
+        },
+      },
+    );
+
+    const profile = profileRes.data;
+    const facebookId = String(profile.id);
+    const email: string | null = profile.email?.trim().toLowerCase() || null;
+    const avatarUrl: string | null = profile.picture?.data?.url || null;
+
+    let user = await this.userModel.findOne({ where: { facebookId } });
+
+    if (!user && email) {
+      user = await this.userModel.findOne({ where: { email } });
+      if (user) {
+        await user.update({ facebookId });
+      }
+    }
+
+    if (!user) {
+      user = await this.userModel.create({
+        email: email ?? `facebook_${facebookId}@noemail.local`,
+        password: null,
+        firstName: profile.first_name || null,
+        lastName: profile.last_name || null,
+        role: DEFAULT_USER_ROLE,
+        facebookId,
+        emailVerified: !!email,
+        avatarUrl,
+      });
+    }
+
+    return this.issueAuthTokens(user);
   }
 
   private async issueAuthTokens(user: User) {
