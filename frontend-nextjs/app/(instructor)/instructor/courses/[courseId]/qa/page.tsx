@@ -1,6 +1,6 @@
 import { use, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CourseQAPage } from "@/features/instructor/qa/components/CourseQAPage";
+import { CourseQAWorkspace } from "@/features/instructor/qa/components/CourseQAWorkspace";
 
 interface Props {
   params: Promise<{ courseId: string }>;
@@ -17,7 +17,7 @@ export default function Page({ params }: Props) {
         </div>
       }
     >
-      <CourseQAPage courseId={Number(courseId)} />
+      <CourseQAWorkspace courseId={Number(courseId)} />
     </Suspense>
   );
 }

@@ -133,4 +133,25 @@ export class DiscussionsController {
       status: statusVal,
     });
   }
+
+  @Get('instructor/discussions')
+  async listForInstructor(
+    @Headers('x-user-id') userIdHeader: string,
+    @Headers('x-user-role') roleHeader: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('courseId') courseId?: string,
+  ) {
+    const userId = parseUserId(userIdHeader);
+    const role = parseRole(roleHeader);
+    const statusVal: DiscussionStatus | undefined =
+      status === 'answered' || status === 'unanswered' ? status : undefined;
+    return this.service.listForInstructor(userId, role, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      status: statusVal,
+      courseId: courseId ? Number(courseId) : undefined,
+    });
+  }
 }

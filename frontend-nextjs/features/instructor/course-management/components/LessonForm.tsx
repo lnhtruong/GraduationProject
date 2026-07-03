@@ -47,7 +47,6 @@ import type { LessonFormVideoContext } from "../utils/draft-video.utils";
 import { cn } from "@/lib/utils";
 import { ActivitiesDisplay } from "./LessonForm/ActivitiesDisplay";
 import { LessonMetadataForm } from "./LessonForm/LessonMetadataForm";
-import { VideoPreview } from "./LessonForm/VideoPreview";
 import { VideoSelectionSection } from "./LessonForm/VideoSelectionSection";
 import { OutsideQuizEditorDialog } from "./LessonForm/OutsideQuizEditorDialog";
 import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
@@ -86,16 +85,10 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   const [draftVideoDurationSeconds, setDraftVideoDurationSeconds] =
     useState<number>(0);
   const [quizMode, setQuizMode] = useState<"in_video" | "outside_video">(
-    "outside_video",
+    "in_video",
   );
   const [quizTimestamp, setQuizTimestamp] = useState("00:00:00.000");
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-
-  const {
-    data: userVideos,
-    isLoading: videosLoading,
-    refetch: refetchUserVideos,
-  } = useVideosByUser("long", Boolean(user?.id) && !isEdit);
 
   const { data: activities, isLoading: activitiesLoading } =
     useLessonActivitiesByLessonId(lessonId, Boolean(lessonId));
@@ -123,6 +116,12 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
   const selectedVideoId = useWatch({ control, name: "videoId" }) ?? null;
 
+  const {
+    data: userVideos,
+    isLoading: videosLoading,
+    refetch: refetchUserVideos,
+  } = useVideosByUser("long", Boolean(user?.id && !selectedVideoId));
+
   const { data: selectedVideo, isLoading: videoLoading } = useVideoById(
     selectedVideoId,
     Boolean(selectedVideoId),
@@ -140,6 +139,11 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     draftDurationSeconds: draftVideoDurationSeconds,
     hasVideoId: Boolean(selectedVideoId),
   });
+
+  const isVideoProcessing = Boolean(
+    selectedVideo?.thumbnail === "processing" ||
+      (!activeVideoUrl && !videoLoading && !draftVideoBlobUrl && selectedVideoId)
+  );
 
   const timestampOptions = useMemo(
     () => generateTimestampOptions(activeVideoDurationSeconds),
@@ -341,7 +345,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
       toast.success("Đã tạo quiz");
       setShowQuizEditorModal(false);
-      setQuizMode("outside_video");
+      setQuizMode("in_video");
       setQuizTimestamp("00:00:00.000");
     } else {
       const quizPayload = createQuizPayload(
@@ -352,7 +356,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
       );
       setPendingQuizStates((current) => [...current, quizPayload]);
       setShowQuizEditorModal(false);
-      setQuizMode("outside_video");
+      setQuizMode("in_video");
       setQuizTimestamp("00:00:00.000");
       toast.info("Quiz sẽ được lưu khi bạn tạo bài học");
     }
@@ -503,6 +507,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                       onDraftVideoChange={handleDraftVideoChange}
                       onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
                       onUploadStateChange={setIsUploadingVideo}
+                      timelineMarkers={timelineMarkers}
+                      isProcessing={isVideoProcessing}
                     />
                   )}
 
@@ -523,6 +529,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                       lessonId={lessonId}
                       onOpenCreateQuizModal={() => setShowQuizEditorModal(true)}
                       onUploadStateChange={setIsUploadingVideo}
+                      timelineMarkers={timelineMarkers}
+                      isProcessing={isVideoProcessing}
                     />
                   )}
                 </div>
@@ -537,16 +545,6 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
           {pendingQuizStates.length} quiz đang chờ — sẽ lưu khi bạn tạo bài học.
         </p>
       ) : null}
-
-      {/* Video Preview */}
-      <VideoPreview
-        courseId={courseId}
-        lessonId={lessonId ?? 0}
-        videoUrl={activeVideoUrl}
-        videoDurationSeconds={activeVideoDurationSeconds}
-        videoLoading={videoLoading && !draftVideoBlobUrl}
-        timelineMarkers={timelineMarkers}
-      />
 
       {/* Activities Section */}
       {lessonId && (
@@ -592,7 +590,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                 size="icon"
                 onClick={() => {
                   setShowQuizEditorModal(false);
-                  setQuizMode("outside_video");
+                  setQuizMode("in_video");
                   setQuizTimestamp("00:00:00.000");
                 }}
                 className="absolute right-4 top-4 h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground z-20"
@@ -634,7 +632,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                 variant="outline"
                 onClick={() => {
                   setShowQuizEditorModal(false);
-                  setQuizMode("outside_video");
+                  setQuizMode("in_video");
                   setQuizTimestamp("00:00:00.000");
                 }}
                 className="h-9 text-xs font-semibold px-4"

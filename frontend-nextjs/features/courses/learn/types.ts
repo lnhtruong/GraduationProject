@@ -56,6 +56,7 @@ export interface AfterLessonQuizQuestion {
   options: string[];
   optionIds: number[];
   answerIndex: number | null;
+  passingScore?: number;
 }
 
 export interface ConfettiPiece {

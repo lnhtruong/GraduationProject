@@ -82,7 +82,6 @@ export function QuizEditor({
             onDescriptionChange={updateDescription}
             isInVideo={state.isInVideo}
             onIsInVideoChange={updateIsInVideo}
-            totalQuestions={state.questions.length}
           />
         </CardContent>
       </Card>

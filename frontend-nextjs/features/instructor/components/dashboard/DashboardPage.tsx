@@ -6,7 +6,8 @@ import { QuickActions } from "./QuickActions";
 import { RecentCourses } from "./RecentCourses";
 import { RecentQA } from "./RecentQA";
 import { useInstructorCourses, usePendingPublishCount } from "../../api/dashboard.hooks";
-import type { InstructorCourse } from "../../types";
+import { useInstructorDiscussions } from "../../qa/discussion.hooks";
+import type { InstructorCourse, RecentQAItem } from "../../types";
 import type { Course } from "@/features/courses/types";
 
 function mapCourseToInstructor(c: Course): InstructorCourse {
@@ -24,8 +25,14 @@ function mapCourseToInstructor(c: Course): InstructorCourse {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data: rawCourses = [], isLoading } = useInstructorCourses();
+  const { data: rawCourses = [], isLoading: isCoursesLoading } = useInstructorCourses();
+  const { data: unansweredData, isLoading: isUnansweredLoading } = useInstructorDiscussions({
+    status: "unanswered",
+    limit: 5,
+  });
   const pendingPublish = usePendingPublishCount();
+
+  const isLoading = isCoursesLoading || isUnansweredLoading;
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -35,8 +42,15 @@ export default function DashboardPage() {
 
   const courses: InstructorCourse[] = rawCourses.map(mapCourseToInstructor);
 
-  // unansweredQA: backend chưa có endpoint tổng hợp — hiển thị 0 cho đến khi có API
-  const unansweredQA = 0;
+  const unansweredQA = unansweredData?.total ?? 0;
+  const recentQAItems: RecentQAItem[] = (unansweredData?.data ?? []).map((q) => ({
+    id: q.id,
+    authorName: q.author.name,
+    courseName: q.courseName ?? "Khoá học",
+    content: q.content,
+    createdAt: q.createdAt,
+    needsReply: true,
+  }));
 
   return (
     <div className="space-y-8">
@@ -91,8 +105,7 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <RecentCourses courses={courses} />
-          {/* RecentQA: dữ liệu thật chờ API tổng hợp unanswered discussions từ backend */}
-          <RecentQA items={[]} />
+          <RecentQA items={recentQAItems} />
         </div>
       )}
     </div>

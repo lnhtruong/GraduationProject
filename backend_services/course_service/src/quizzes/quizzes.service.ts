@@ -889,12 +889,69 @@ export class QuizzesService {
   // cho học viên do trạng thái lesson activity quyết định (publish course hoặc
   // filter quiz mới chuyển activity sang public).
 
-  /**
-   * Xác thực quyền sửa quiz theo nguyên tắc 403 TRƯỚC 404: chỉ admin hoặc chủ
-   * khóa (course chứa lesson activity) mới được CRUD quiz; người khác — kể cả khi
-   * course/activity không tồn tại — nhận 403, không lộ tồn tại. Trả về courseId
-   * để gửi notification.
-   */
+  async isQuizOwnerOrAdmin(
+    requester: { userId?: number; role?: number },
+    options: { quizId?: number; lessonId?: number; lessonActivityId?: number },
+  ): Promise<boolean> {
+    if (requester?.role === ADMIN_ROLE) {
+      return true;
+    }
+
+    if (!requester?.userId) {
+      return false;
+    }
+
+    let courseId: number | null = null;
+
+    try {
+      const Lesson = this.sequelize.models.Lesson;
+
+      if (options.lessonId) {
+        const lesson = await Lesson.findByPk(options.lessonId, {
+          attributes: ['id', 'courseId'],
+        });
+        if (lesson) courseId = (lesson as any).courseId;
+      } else if (options.lessonActivityId) {
+        const activity = await this.lessonActivityModel.findByPk(options.lessonActivityId, {
+          attributes: ['id', 'lessonId'],
+        });
+        if (activity?.lessonId) {
+          const lesson = await Lesson.findByPk(activity.lessonId, {
+            attributes: ['id', 'courseId'],
+          });
+          if (lesson) courseId = (lesson as any).courseId;
+        }
+      } else if (options.quizId) {
+        const quiz = await this.quizModel.findByPk(options.quizId, {
+          attributes: ['id', 'lessonActivityId'],
+        });
+        if (quiz?.lessonActivityId) {
+          const activity = await this.lessonActivityModel.findByPk(quiz.lessonActivityId, {
+            attributes: ['id', 'lessonId'],
+          });
+          if (activity?.lessonId) {
+            const lesson = await Lesson.findByPk(activity.lessonId, {
+              attributes: ['id', 'courseId'],
+            });
+            if (lesson) courseId = (lesson as any).courseId;
+          }
+        }
+      }
+
+      if (!courseId) {
+        return false;
+      }
+
+      const Course = this.sequelize.models.Course;
+      const course = await Course.findByPk(courseId, {
+        attributes: ['id', 'userId'],
+      });
+      return (course as any)?.userId === requester.userId;
+    } catch (err) {
+      return false;
+    }
+  }
+
   private async resolveQuizCourseId(
     lessonActivityId: number,
     requester?: QuizRequester,

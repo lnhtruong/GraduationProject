@@ -544,12 +544,16 @@ export class DiscussionsService {
       status?: DiscussionStatus;
     } = {},
   ): Promise<{
-    data: (PostSnapshot & { lessonTitle: string; replyCount: number })[];
+    data: (PostSnapshot & { lessonTitle: string; replyCount: number; hasInstructorReply: boolean })[];
     total: number;
     page: number;
     limit: number;
+    totalCount?: number;
+    unansweredTotal?: number;
+    answeredTotal?: number;
   }> {
-    await this.assertInstructorOfCourse(courseId, userId, role);
+    const course = await this.assertInstructorOfCourse(courseId, userId, role);
+    const instructorId = course.userId;
 
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.min(100, Math.max(1, options.limit ?? 20));
@@ -573,11 +577,11 @@ export class DiscussionsService {
     const where: any = { lessonId: { [Op.in]: lessonIds }, parentId: null };
     if (options.status === 'answered') {
       where[Op.and] = literal(
-        '(SELECT COUNT(*) FROM discussion_posts r WHERE r.parent_id = `DiscussionPost`.`id`) > 0',
+        `EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${instructorId})`,
       );
     } else if (options.status === 'unanswered') {
       where[Op.and] = literal(
-        '(SELECT COUNT(*) FROM discussion_posts r WHERE r.parent_id = `DiscussionPost`.`id`) = 0',
+        `NOT EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${instructorId})`,
       );
     }
 
@@ -598,6 +602,7 @@ export class DiscussionsService {
 
     const rootIds = rows.map((r) => r.id);
     const replyCountById = new Map<number, number>();
+    const instructorRepliedIds = new Set<number>();
     if (rootIds.length) {
       const counts = (await this.postModel.findAll({
         where: { parentId: { [Op.in]: rootIds } },
@@ -608,14 +613,179 @@ export class DiscussionsService {
       for (const c of counts) {
         replyCountById.set(Number(c.parentId), Number(c.cnt));
       }
+
+      const replies = await this.postModel.findAll({
+        where: {
+          parentId: { [Op.in]: rootIds },
+          userId: instructorId,
+        },
+        attributes: ['parentId'],
+      });
+      for (const r of replies) {
+        if (r.parentId) {
+          instructorRepliedIds.add(r.parentId);
+        }
+      }
     }
 
     const data = rows.map((row) => ({
       ...this.serialise(row),
       lessonTitle: lessonTitleById.get(row.lessonId) ?? '',
       replyCount: replyCountById.get(row.id) ?? 0,
+      hasInstructorReply: instructorRepliedIds.has(row.id),
     }));
 
-    return { data, total: count, page, limit };
+    const totalCount = await this.postModel.count({
+      where: { lessonId: { [Op.in]: lessonIds }, parentId: null },
+    });
+    const unansweredTotal = await this.postModel.count({
+      where: {
+        lessonId: { [Op.in]: lessonIds },
+        parentId: null,
+        [Op.and]: literal(
+          `NOT EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${instructorId})`,
+        ),
+      },
+    });
+    const answeredTotal = totalCount - unansweredTotal;
+
+    return { data, total: count, page, limit, totalCount, unansweredTotal, answeredTotal };
+  }
+
+  async listForInstructor(
+    userId: number,
+    role: number,
+    options: {
+      page?: number;
+      limit?: number;
+      status?: DiscussionStatus;
+      courseId?: number;
+    } = {},
+  ): Promise<{
+    data: (PostSnapshot & { lessonTitle: string; replyCount: number; hasInstructorReply: boolean; courseName: string; courseId: number })[];
+    total: number;
+    page: number;
+    limit: number;
+    totalCount?: number;
+    unansweredTotal?: number;
+    answeredTotal?: number;
+  }> {
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options.limit ?? 20));
+    const offset = (page - 1) * limit;
+
+    const courseWhere: any = { userId };
+    if (options.courseId) {
+      courseWhere.id = options.courseId;
+    }
+    const courses = await this.courseModel.findAll({
+      where: courseWhere,
+      attributes: ['id', 'name'],
+    });
+    const courseNameById = new Map<number, string>(
+      courses.map((c) => [c.id, c.name]),
+    );
+    const courseIds = courses.map((c) => c.id);
+    if (courseIds.length === 0) {
+      return { data: [], total: 0, page, limit };
+    }
+
+    const lessons = await this.lessonModel.findAll({
+      where: { courseId: { [Op.in]: courseIds } },
+      attributes: ['id', 'title', 'courseId'],
+    });
+    const lessonTitleById = new Map<number, string>(
+      lessons.map((l) => [l.id, (l as any).title]),
+    );
+    const courseIdByLessonId = new Map<number, number>(
+      lessons.map((l) => [l.id, (l as any).courseId]),
+    );
+    const lessonIds = lessons.map((l) => l.id);
+    if (lessonIds.length === 0) {
+      return { data: [], total: 0, page, limit };
+    }
+
+    const where: any = { lessonId: { [Op.in]: lessonIds }, parentId: null };
+    if (options.status === 'answered') {
+      where[Op.and] = literal(
+        `EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${userId})`,
+      );
+    } else if (options.status === 'unanswered') {
+      where[Op.and] = literal(
+        `NOT EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${userId})`,
+      );
+    }
+
+    const { rows, count } = await this.postModel.findAndCountAll({
+      where,
+      include: [
+        {
+          model: this.userModel,
+          as: 'author',
+          attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+      subQuery: false,
+    });
+
+    const rootIds = rows.map((r) => r.id);
+    const replyCountById = new Map<number, number>();
+    const instructorRepliedIds = new Set<number>();
+    if (rootIds.length) {
+      const counts = (await this.postModel.findAll({
+        where: { parentId: { [Op.in]: rootIds } },
+        attributes: ['parentId', [literal('COUNT(*)'), 'cnt']],
+        group: ['parentId'],
+        raw: true,
+      })) as unknown as { parentId: number; cnt: string | number }[];
+      for (const c of counts) {
+        replyCountById.set(Number(c.parentId), Number(c.cnt));
+      }
+
+      const replies = await this.postModel.findAll({
+        where: {
+          parentId: { [Op.in]: rootIds },
+          userId: userId,
+        },
+        attributes: ['parentId'],
+      });
+      for (const r of replies) {
+        if (r.parentId) {
+          instructorRepliedIds.add(r.parentId);
+        }
+      }
+    }
+
+    const data = rows.map((row) => {
+      const courseId = courseIdByLessonId.get(row.lessonId) ?? 0;
+      const courseName = courseNameById.get(courseId) ?? '';
+      return {
+        ...this.serialise(row),
+        lessonTitle: lessonTitleById.get(row.lessonId) ?? '',
+        replyCount: replyCountById.get(row.id) ?? 0,
+        hasInstructorReply: instructorRepliedIds.has(row.id),
+        courseName,
+        courseId,
+      };
+    });
+
+    const totalCount = await this.postModel.count({
+      where: { lessonId: { [Op.in]: lessonIds }, parentId: null },
+    });
+    const unansweredTotal = await this.postModel.count({
+      where: {
+        lessonId: { [Op.in]: lessonIds },
+        parentId: null,
+        [Op.and]: literal(
+          `NOT EXISTS (SELECT 1 FROM discussion_posts r WHERE r.parent_id = \`DiscussionPost\`.\`id\` AND r.user_id = ${userId})`,
+        ),
+      },
+    });
+    const answeredTotal = totalCount - unansweredTotal;
+
+    return { data, total: count, page, limit, totalCount, unansweredTotal, answeredTotal };
   }
 }

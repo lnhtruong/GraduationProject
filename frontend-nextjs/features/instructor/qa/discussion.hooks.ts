@@ -8,6 +8,9 @@ const discussionKeys = {
     ["discussion", "course", courseId, params] as const,
   courseRoot: (courseId: number) => ["discussion", "course", courseId] as const,
   lesson: (lessonId: number) => ["discussion", "lesson", lessonId] as const,
+  instructor: (params: CourseDiscussionParams) =>
+    ["discussion", "instructor", params] as const,
+  instructorRoot: () => ["discussion", "instructor"] as const,
 };
 
 export function useCourseDiscussions(
@@ -39,6 +42,7 @@ export function useCreateReply(lessonId: number, courseId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: discussionKeys.lesson(lessonId) });
       qc.invalidateQueries({ queryKey: discussionKeys.courseRoot(courseId) });
+      qc.invalidateQueries({ queryKey: discussionKeys.instructorRoot() });
     },
     onError: () => {
       toast.error("Không thể gửi trả lời. Vui lòng thử lại.");
@@ -102,8 +106,18 @@ export function useToggleBestAnswer(lessonId: number, courseId: number) {
     },
 
     onSettled: () => {
+      // Only invalidate the lesson query — isBestAnswer only affects the
+      // expanded reply view. replyCount and hasInstructorReply are unchanged.
       qc.invalidateQueries({ queryKey: discussionKeys.lesson(lessonId) });
-      qc.invalidateQueries({ queryKey: discussionKeys.courseRoot(courseId) });
     },
+  });
+}
+
+export function useInstructorDiscussions(params: CourseDiscussionParams) {
+  return useQuery({
+    queryKey: discussionKeys.instructor(params),
+    queryFn: () => discussionApi.listForInstructor(params),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 }

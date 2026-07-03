@@ -29,6 +29,7 @@ interface Props {
     percent: number;
   } | null;
   afterLessonPassed: boolean;
+  afterLessonCorrectAnswers: Record<string, number>;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   isTransitioningNext: boolean;
@@ -60,6 +61,7 @@ interface Props {
   onSelectAfterLessonAnswer: (questionId: string, optionIndex: number) => void;
   onSubmitAfterLessonQuiz: () => void;
   onAdvanceToNextLesson: () => void;
+  onRetryAfterLessonQuiz: () => void;
   onSubmitInVideoQuiz: () => void;
   onJumpToQuizPoint: (point: InVideoQuizPoint) => void;
   onOverlayScrubClick: (event: MouseEvent<HTMLDivElement>) => void;
@@ -86,6 +88,7 @@ export function LessonVideoCard({
   afterLessonSubmitted,
   afterLessonScore,
   afterLessonPassed,
+  afterLessonCorrectAnswers,
   hasNextLesson,
   nextLessonCountdown,
   isTransitioningNext,
@@ -116,6 +119,7 @@ export function LessonVideoCard({
   onSelectAfterLessonAnswer,
   onSubmitAfterLessonQuiz,
   onAdvanceToNextLesson,
+  onRetryAfterLessonQuiz,
   onSubmitInVideoQuiz,
   onJumpToQuizPoint,
   onOverlayScrubClick,
@@ -213,12 +217,14 @@ export function LessonVideoCard({
         afterLessonSubmitted={afterLessonSubmitted}
         afterLessonScore={afterLessonScore}
         afterLessonPassed={afterLessonPassed}
+        afterLessonCorrectAnswers={afterLessonCorrectAnswers}
         hasNextLesson={hasNextLesson}
         nextLessonCountdown={nextLessonCountdown}
         nextLessonTitle={nextLessonTitle}
         onSelectAfterLessonAnswer={onSelectAfterLessonAnswer}
         onSubmitAfterLessonQuiz={onSubmitAfterLessonQuiz}
         onAdvanceToNextLesson={onAdvanceToNextLesson}
+        onRetryAfterLessonQuiz={onRetryAfterLessonQuiz}
       />
 
       {/* Transition & Up Next Overlays */}

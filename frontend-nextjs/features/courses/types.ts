@@ -1,3 +1,5 @@
+import type { Lesson as CourseLesson } from "../lessons/types";
+
 export type CourseLevel = "Beginner" | "Intermediate" | "Advanced";
 export type LessonContentType = "video" | "text" | "quiz" | "assignment";
 export type EnrollStatus = "active" | "completed" | "dropped";
@@ -160,6 +162,7 @@ export interface Course {
   status: CourseStatus;
   created_at?: string;
   updated_at?: string;
+  lessons?: CourseLesson[];
 }
 
 export interface CreateCoursePayload {
