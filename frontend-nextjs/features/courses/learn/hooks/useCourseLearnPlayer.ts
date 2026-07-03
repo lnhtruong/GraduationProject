@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type SyntheticEvent,
 } from "react";
+import { toast } from "sonner";
 import type { InstructorLesson } from "../../../instructor/course-management/types";
 import {
   buildConfettiPieces,
@@ -35,8 +36,12 @@ interface Props {
   selectedLessonProgressId?: number | null;
   persistedInVideoAnswers: Record<string, number>;
   persistedInVideoSubmitted: Record<string, boolean>;
+  persistedInVideoCorrectness: Record<string, boolean>;
   persistedAfterLessonAnswers: Record<string, number>;
   persistedAfterLessonSubmitted: boolean;
+  persistedAfterLessonScore: { correct: number; total: number; percent: number } | null;
+  persistedAfterLessonPassed: boolean;
+  persistedAfterLessonCorrectAnswers: Record<string, number>;
   loadingQuizSubmissions: boolean;
 }
 
@@ -55,8 +60,12 @@ export function useCourseLearnPlayer({
   selectedLessonProgressId,
   persistedInVideoAnswers,
   persistedInVideoSubmitted,
+  persistedInVideoCorrectness,
   persistedAfterLessonAnswers,
   persistedAfterLessonSubmitted,
+  persistedAfterLessonScore,
+  persistedAfterLessonPassed,
+  persistedAfterLessonCorrectAnswers,
   loadingQuizSubmissions,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -74,10 +83,17 @@ export function useCourseLearnPlayer({
   const [inVideoSubmitted, setInVideoSubmitted] = useState<
     Record<string, boolean>
   >({});
+  const [inVideoCorrectness, setInVideoCorrectness] = useState<
+    Record<string, boolean>
+  >(persistedInVideoCorrectness);
   const [afterLessonAnswers, setAfterLessonAnswers] = useState<
     Record<string, number>
   >({});
   const [afterLessonSubmitted, setAfterLessonSubmitted] = useState(false);
+  const [afterLessonCorrectAnswers, setAfterLessonCorrectAnswers] = useState<
+    Record<string, number>
+  >(persistedAfterLessonCorrectAnswers);
+  const [isRetaking, setIsRetaking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(selectedLessonDuration);
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
@@ -114,13 +130,23 @@ export function useCourseLearnPlayer({
     [inVideoSubmitted, persistedInVideoSubmitted],
   );
 
+  const effectiveInVideoCorrectness = useMemo(
+    () => ({ ...persistedInVideoCorrectness, ...inVideoCorrectness }),
+    [inVideoCorrectness, persistedInVideoCorrectness],
+  );
+
   const effectiveAfterLessonAnswers = useMemo(
     () => ({ ...persistedAfterLessonAnswers, ...afterLessonAnswers }),
     [afterLessonAnswers, persistedAfterLessonAnswers],
   );
 
   const effectiveAfterLessonSubmitted =
-    persistedAfterLessonSubmitted || afterLessonSubmitted;
+    !isRetaking && (persistedAfterLessonSubmitted || afterLessonSubmitted);
+
+  const effectiveAfterLessonCorrectAnswers = useMemo(
+    () => ({ ...persistedAfterLessonCorrectAnswers, ...afterLessonCorrectAnswers }),
+    [afterLessonCorrectAnswers, persistedAfterLessonCorrectAnswers],
+  );
 
   const effectiveDuration =
     videoDuration > 0 ? videoDuration : selectedLessonDuration;
@@ -155,47 +181,25 @@ export function useCourseLearnPlayer({
       ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
       : 0;
 
-  const afterLessonScore = useMemo(() => {
-    if (!effectiveAfterLessonSubmitted || !afterLessonQuiz.length) {
-      return null;
-    }
+  const afterLessonScore = effectiveAfterLessonSubmitted
+    ? persistedAfterLessonScore
+    : null;
 
-    let correct = 0;
-    for (const question of afterLessonQuiz) {
-      if (
-        question.answerIndex !== null &&
-        effectiveAfterLessonAnswers[question.id] === question.answerIndex
-      ) {
-        correct += 1;
-      }
-    }
-
-    return {
-      correct,
-      total: afterLessonQuiz.length,
-      percent: Math.round((correct / afterLessonQuiz.length) * 100),
-    };
-  }, [
-    afterLessonQuiz,
-    effectiveAfterLessonAnswers,
-    effectiveAfterLessonSubmitted,
-  ]);
-
-  const afterLessonPassed = Boolean(
-    afterLessonScore && afterLessonScore.percent >= 70,
-  );
+  const afterLessonPassed = effectiveAfterLessonSubmitted
+    ? persistedAfterLessonPassed
+    : false;
 
   const inVideoScore = useMemo(() => {
     if (!activeQuizPoint || !effectiveInVideoSubmitted[activeQuizPoint.id]) {
       return null;
     }
 
-    return (
-      activeQuizPoint.answerIndex !== null &&
-      effectiveInVideoAnswers[activeQuizPoint.id] ===
-        activeQuizPoint.answerIndex
-    );
-  }, [activeQuizPoint, effectiveInVideoAnswers, effectiveInVideoSubmitted]);
+    if (loadingQuizSubmissions) {
+      return null;
+    }
+
+    return effectiveInVideoCorrectness[activeQuizPoint.id] === true;
+  }, [activeQuizPoint, effectiveInVideoSubmitted, effectiveInVideoCorrectness, loadingQuizSubmissions]);
 
   const handleSelectLesson = useCallback(
     (lessonId: number) => {
@@ -480,7 +484,7 @@ export function useCourseLearnPlayer({
   const handleVideoEnded = useCallback(() => {
     setIsPlaying(false);
 
-    if (!afterLessonQuiz.length || effectiveAfterLessonSubmitted) {
+    if (!afterLessonQuiz.length || (effectiveAfterLessonSubmitted && afterLessonPassed)) {
       if (selectedLesson) {
         onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
       }
@@ -492,6 +496,7 @@ export function useCourseLearnPlayer({
   }, [
     afterLessonQuiz.length,
     effectiveAfterLessonSubmitted,
+    afterLessonPassed,
     onMarkLessonCompleted,
     selectedLesson,
     selectedLessonProgressId,
@@ -523,12 +528,21 @@ export function useCourseLearnPlayer({
       return;
     }
 
+    if (afterLessonQuiz.length > 0 && (!effectiveAfterLessonSubmitted || !afterLessonPassed)) {
+      toast.error(`Bạn cần đạt tối thiểu ${afterLessonQuiz[0]?.passingScore ?? 70}% câu hỏi đúng để hoàn thành bài học này!`);
+      setShowAfterLessonOverlay(true);
+      return;
+    }
+
     onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
 
     if (nextLesson) {
       handleSelectLesson(nextLesson.id);
     }
   }, [
+    afterLessonQuiz,
+    effectiveAfterLessonSubmitted,
+    afterLessonPassed,
     handleSelectLesson,
     nextLesson,
     onMarkLessonCompleted,
@@ -649,8 +663,11 @@ export function useCourseLearnPlayer({
       setActiveQuizPointId(null);
       setInVideoAnswers({});
       setInVideoSubmitted({});
+      setInVideoCorrectness({});
       setAfterLessonAnswers({});
       setAfterLessonSubmitted(false);
+      setAfterLessonCorrectAnswers({});
+      setIsRetaking(false);
       setCelebrationArmed(false);
       setShowAfterLessonOverlay(false);
       setConfettiPieces([]);
@@ -1003,12 +1020,20 @@ export function useCourseLearnPlayer({
     });
 
     setAfterLessonSubmitted(true);
+    setIsRetaking(false);
   }, [
     afterLessonQuiz,
     currentTime,
     effectiveAfterLessonAnswers,
     onSubmitQuizAttempt,
   ]);
+
+  const handleRetryAfterLessonQuiz = useCallback(() => {
+    setAfterLessonAnswers({});
+    setAfterLessonSubmitted(false);
+    setAfterLessonCorrectAnswers({});
+    setIsRetaking(true);
+  }, []);
 
   return {
     videoRef,
@@ -1028,6 +1053,7 @@ export function useCourseLearnPlayer({
     afterLessonSubmitted: effectiveAfterLessonSubmitted,
     afterLessonScore,
     afterLessonPassed,
+    afterLessonCorrectAnswers: effectiveAfterLessonCorrectAnswers,
     isQuizSolved,
     handleSelectLesson,
     handleTogglePlayback,
@@ -1040,6 +1066,7 @@ export function useCourseLearnPlayer({
     handleSeekChange,
     handleCompleteLesson,
     handleAdvanceToNextLesson,
+    handleRetryAfterLessonQuiz,
     playbackRate,
     handleSetPlaybackRate,
     volume,

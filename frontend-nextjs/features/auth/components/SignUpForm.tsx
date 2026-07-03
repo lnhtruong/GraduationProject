@@ -8,13 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
 import {
   Form,
   FormControl,
@@ -41,6 +35,7 @@ function getSafeReturnUrl(value: string | null): string | null {
 export default function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
   const { register: registerUser, googleLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -73,7 +68,7 @@ export default function SignUpForm() {
       setSuccess(true);
 
       setTimeout(() => {
-        router.push("/signin?registered=true");
+        router.push(returnUrl ? `/signin?registered=true&returnUrl=${encodeURIComponent(returnUrl)}` : "/signin?registered=true");
       }, 2000);
     } catch (err: unknown) {
       // Parse error message from backend
@@ -99,7 +94,6 @@ export default function SignUpForm() {
     try {
       await googleLogin({ credential });
 
-      const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
       let errorMessage = "Đăng nhập Google thất bại. Vui lòng thử lại.";
@@ -118,17 +112,17 @@ export default function SignUpForm() {
   };
 
   return (
-    <Card className="w-full max-w-md bg-card/95 backdrop-blur-xl border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 dark:ring-white/10">
-      <CardHeader className="space-y-1.5 pb-5 pt-6">
-        <CardTitle className="text-2xl font-bold text-center text-foreground tracking-tight">
+    <div className="w-full space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Tạo tài khoản
-        </CardTitle>
-        <CardDescription className="text-center text-sm text-muted-foreground">
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Tham gia LearnHub để bắt đầu hành trình học tập
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="pb-6">
+      <div className="space-y-4">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
@@ -309,14 +303,14 @@ export default function SignUpForm() {
           <div className="text-center text-sm text-muted-foreground pt-3 border-t border-border">
             Đã có tài khoản?{" "}
             <Link
-              href="/signin"
+              href={returnUrl ? `/signin?returnUrl=${encodeURIComponent(returnUrl)}` : "/signin"}
               className="text-primary hover:text-primary/80 hover:underline font-medium transition-all"
             >
               Đăng nhập ngay
             </Link>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

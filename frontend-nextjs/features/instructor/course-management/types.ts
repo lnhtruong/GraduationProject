@@ -32,6 +32,7 @@ export interface InstructorCourse {
   status: CourseStatus;
   created_at?: string;
   updated_at?: string;
+  lessons?: InstructorLesson[];
 }
 
 export interface InstructorLesson {

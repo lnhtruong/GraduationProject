@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
@@ -24,6 +24,7 @@ function formatCount(count: number): string {
 
 export function FollowButton({ instructorId }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated } = useAuthState();
   const { data: stats, isLoading } = useInstructorStats(instructorId);
   const followMutation = useFollowMutation(instructorId);
@@ -38,7 +39,7 @@ export function FollowButton({ instructorId }: Props) {
 
   function handleClick() {
     if (!isAuthenticated) {
-      router.push("/signin");
+      router.push(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
       return;
     }
     if (isFollowing) {

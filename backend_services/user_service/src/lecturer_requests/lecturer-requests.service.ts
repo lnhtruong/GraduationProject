@@ -188,6 +188,7 @@ export class LecturerRequestsService {
         requestId,
         approved,
         reviewNote: reviewNote ?? null,
+        redirectUrl: '/profile',
       },
       sourceType: 'lecturer_request',
       sourceId: requestId,

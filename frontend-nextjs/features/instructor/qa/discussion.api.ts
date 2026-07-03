@@ -3,6 +3,7 @@ import type {
   CourseDiscussionsResponse,
   DiscussionReply,
   DiscussionStatus,
+  DiscussionSort,
   LessonDiscussionsResponse,
 } from "./types";
 
@@ -11,6 +12,8 @@ export interface CourseDiscussionParams {
   limit?: number;
   lessonId?: number;
   status?: DiscussionStatus;
+  courseId?: number;
+  sort?: DiscussionSort;
 }
 
 function normaliseAuthor(raw: Record<string, unknown>) {
@@ -37,6 +40,7 @@ export const discussionApi = createApi({
     };
     if (params.lessonId) query.lessonId = params.lessonId;
     if (params.status) query.status = params.status;
+    if (params.sort) query.sort = params.sort;
 
     const { data } = await apiHttpClient.get(
       `/course/courses/${courseId}/discussions`,
@@ -48,6 +52,9 @@ export const discussionApi = createApi({
       total: (data.total ?? items.length) as number,
       page: (data.page ?? 1) as number,
       limit: (data.limit ?? 20) as number,
+      totalCount: data.totalCount as number | undefined,
+      unansweredTotal: data.unansweredTotal as number | undefined,
+      answeredTotal: data.answeredTotal as number | undefined,
       data: items.map((q) => ({
         id: q.id as number,
         lessonId: (q.lessonId ?? q.lesson_id) as number,
@@ -57,6 +64,9 @@ export const discussionApi = createApi({
         replyCount: (q.replyCount ?? q.reply_count ?? 0) as number,
         createdAt: normaliseDate(q.createdAt ?? q.created_at),
         author: normaliseAuthor(q.author as Record<string, unknown>),
+        hasInstructorReply: q.hasInstructorReply !== undefined 
+          ? Boolean(q.hasInstructorReply) 
+          : (q.has_instructor_reply !== undefined ? Boolean(q.has_instructor_reply) : undefined),
       })),
     };
   },
@@ -120,6 +130,48 @@ export const discussionApi = createApi({
       upvotes: (r.upvotes ?? 0) as number,
       createdAt: normaliseDate(r.createdAt ?? r.created_at),
       author: normaliseAuthor(r.author as Record<string, unknown>),
+    };
+  },
+
+  listForInstructor: async (
+    params: CourseDiscussionParams = {},
+  ): Promise<CourseDiscussionsResponse> => {
+    const query: Record<string, unknown> = {
+      page: params.page ?? 1,
+      limit: params.limit ?? 20,
+    };
+    if (params.status) query.status = params.status;
+    if (params.courseId) query.courseId = params.courseId;
+    if (params.sort) query.sort = params.sort;
+
+    const { data } = await apiHttpClient.get(
+      `/course/instructor/discussions`,
+      { params: query },
+    );
+
+    const items = (data.data ?? []) as Record<string, unknown>[];
+    return {
+      total: (data.total ?? items.length) as number,
+      page: (data.page ?? 1) as number,
+      limit: (data.limit ?? 20) as number,
+      totalCount: data.totalCount as number | undefined,
+      unansweredTotal: data.unansweredTotal as number | undefined,
+      answeredTotal: data.answeredTotal as number | undefined,
+      data: items.map((q) => ({
+        id: q.id as number,
+        lessonId: (q.lessonId ?? q.lesson_id) as number,
+        lessonTitle: ((q.lessonTitle ?? q.lesson_title ?? "") as string),
+        courseName: ((q.courseName ?? q.course_name ?? "") as string),
+        courseId: (q.courseId ?? q.course_id) as number | undefined,
+        content: ((q.content ?? "") as string),
+        upvotes: (q.upvotes ?? 0) as number,
+        replyCount: (q.replyCount ?? q.reply_count ?? 0) as number,
+        createdAt: normaliseDate(q.createdAt ?? q.created_at),
+        author: normaliseAuthor(q.author as Record<string, unknown>),
+        hasInstructorReply: q.hasInstructorReply !== undefined 
+          ? Boolean(q.hasInstructorReply) 
+          : (q.has_instructor_reply !== undefined ? Boolean(q.has_instructor_reply) : undefined),
+      })),
     };
   },
 });

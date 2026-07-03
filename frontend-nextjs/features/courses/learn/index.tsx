@@ -127,6 +127,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               afterLessonSubmitted={state.afterLessonSubmitted}
               afterLessonScore={state.afterLessonScore}
               afterLessonPassed={state.afterLessonPassed}
+              afterLessonCorrectAnswers={state.afterLessonCorrectAnswers}
               hasNextLesson={state.hasNextLesson}
               nextLessonCountdown={state.nextLessonCountdown}
               isTransitioningNext={state.isTransitioningNext}
@@ -158,6 +159,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               onSelectAfterLessonAnswer={state.onSelectAfterLessonAnswer}
               onSubmitAfterLessonQuiz={state.onSubmitAfterLessonQuiz}
               onAdvanceToNextLesson={state.handleAdvanceToNextLesson}
+              onRetryAfterLessonQuiz={state.handleRetryAfterLessonQuiz}
               onSubmitInVideoQuiz={state.handleSubmitInVideoQuiz}
               onJumpToQuizPoint={state.handleJumpToQuizPoint}
               onOverlayScrubClick={state.handleOverlayScrubClick}

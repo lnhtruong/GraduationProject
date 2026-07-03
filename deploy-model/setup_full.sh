@@ -1,400 +1,646 @@
 #!/bin/bash
+set -euo pipefail
 
-set -e
-
-echo "=========================================="
-echo "🚀 FULL DEPLOYMENT SETUP"
-echo "=========================================="
-echo "This script will install:"
-echo "  [A] JoyVASA (conda env + models)"
-echo "  [B] API Stack (Python venv + FastAPI)"
-echo ""
-echo "📦 Total size: ~8GB"
-echo "⏱️  Time: 20-30 minutes"
-echo ""
-echo "=========================================="
-echo ""
-
-# ============================================================================
-# PART A: JOYVASA SETUP
-# ============================================================================
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎭 PART A: JoyVASA Setup"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# Configuration
+APP_DIR="/opt/app"
 JOYVASA_DIR="/opt/joyvasa"
-CONDA_ENV="joyvasa"
+JOYVASA_REPO="${JOYVASA_DIR}/JoyVASA"
+VENV_DIR="/opt/venv"
+OUTPUT_DIR="/opt/outputs"
+TEMP_DIR="/opt/mascot_temp"
+BG_CACHE_DIR="/opt/mascot_bg_cache"
+MODEL_CACHE_DIR="/opt/models"
+SERVICE_NAME="highlight-api"
+PORT="${PORT:-1434}"
+PYTHON_BIN="${PYTHON_BIN:-python3.10}"
 
-# ============================================================================
-# A1: System dependencies
-# ============================================================================
-echo "📦 A1/5: Installing system dependencies..."
+REQUIRED_CUDA="12.1"
+REQUIRED_CUDA_MAJOR="12"
+REQUIRED_GCC_MAJOR="12"
+REQUIRED_PYTHON_MAJOR_MINOR="3.10"
+
+CUDA_HOME_TARGET="${CUDA_HOME:-/usr/local/cuda-${REQUIRED_CUDA}}"
+
+LOG_DIR="${LOG_DIR:-/var/log}"
+LOG_FILE="${LOG_FILE:-${LOG_DIR}/joyvasa_setup_$(date +%Y%m%d_%H%M%S).log}"
+WATCH_INTERVAL="${WATCH_INTERVAL:-20}"
+
+if [ "${EUID}" -ne 0 ]; then
+  echo "ERROR: Chay script bang root nhe. Vi du: sudo bash setup_full.sh"
+  exit 1
+fi
+
+mkdir -p "${LOG_DIR}" 2>/dev/null || true
+if ! touch "${LOG_FILE}" 2>/dev/null; then
+  LOG_FILE="/tmp/joyvasa_setup_$(date +%Y%m%d_%H%M%S).log"
+  touch "${LOG_FILE}"
+fi
+
+exec > >(tee -a "${LOG_FILE}") 2>&1
+
+trap 'code=$?; echo ""; echo "[FAILED] Setup loi tai line ${LINENO}, exit code ${code}"; echo "Log file: ${LOG_FILE}"; exit ${code}' ERR
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq 2>/dev/null || apt-get update
+export PIP_PROGRESS_BAR=on
+export PYTHONUNBUFFERED=1
+export MAX_JOBS="${MAX_JOBS:-2}"
 
-apt-get install -y --no-install-recommends \
-    build-essential git git-lfs wget curl \
-    ffmpeg python3.10 python3.10-dev python3.10-venv \
-    supervisor pkg-config \
-    libavformat-dev libavcodec-dev libavdevice-dev \
-    libavutil-dev libavfilter-dev libswscale-dev libswresample-dev \
-    2>&1 | grep -v "^W:" || true
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
 
-git lfs install
+step() {
+  echo ""
+  echo "================================================================"
+  log "$*"
+  echo "================================================================"
+}
 
-echo "✓ System dependencies installed"
+run() {
+  log "+ $*"
+  "$@"
+}
 
-# ============================================================================
-# A2: Miniconda
-# ============================================================================
-echo ""
-echo "🐍 A2/5: Setting up Miniconda..."
+cmd_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
 
-if [ ! -d "/opt/conda" ]; then
-    wget -q --show-progress -O /tmp/miniconda.sh \
-        https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash /tmp/miniconda.sh -b -p /opt/conda
-    rm /tmp/miniconda.sh
-fi
+ubuntu_distro_id() {
+  . /etc/os-release
+  echo "${ID}${VERSION_ID//./}"
+}
 
-export PATH="/opt/conda/bin:$PATH"
-echo 'export PATH="/opt/conda/bin:$PATH"' >> ~/.bashrc
+watch_dir_size() {
+  local label="$1"
+  local path="$2"
+  local child_pid="$3"
 
-/opt/conda/bin/conda config --set channel_priority flexible
-yes 2>/dev/null | /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true
-yes 2>/dev/null | /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true
+  while kill -0 "${child_pid}" 2>/dev/null; do
+    if [ -e "${path}" ]; then
+      log "[progress] ${label}: current size $(du -sh "${path}" 2>/dev/null | awk '{print $1}') at ${path}"
+    else
+      log "[progress] ${label}: waiting for ${path}"
+    fi
+    sleep "${WATCH_INTERVAL}"
+  done
+}
 
-echo "✓ Miniconda ready"
+run_with_size_watch() {
+  local label="$1"
+  local path="$2"
+  shift 2
 
-# ============================================================================
-# A3: JoyVASA environment
-# ============================================================================
-echo ""
-echo "🎨 A3/5: Creating JoyVASA environment (5-10 phút)..."
+  log "+ $*"
+  "$@" &
+  local cmd_pid=$!
 
-/opt/conda/bin/conda env remove -n ${CONDA_ENV} -y 2>/dev/null || true
+  watch_dir_size "${label}" "${path}" "${cmd_pid}" &
+  local watch_pid=$!
 
-echo "  Creating conda environment..."
-/opt/conda/bin/conda create -n ${CONDA_ENV} python=3.10 -y -q
+  set +e
+  wait "${cmd_pid}"
+  local code=$?
+  kill "${watch_pid}" 2>/dev/null || true
+  wait "${watch_pid}" 2>/dev/null || true
+  set -e
 
-echo "  Installing PyTorch..."
-/opt/conda/envs/${CONDA_ENV}/bin/pip install --no-cache-dir \
-    torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
-    --index-url https://download.pytorch.org/whl/cu121
+  if [ "${code}" -ne 0 ]; then
+    echo "ERROR: ${label} failed with exit code ${code}"
+    return "${code}"
+  fi
 
-echo "✓ PyTorch installed in conda env"
+  if [ -e "${path}" ]; then
+    log "[done] ${label}: final size $(du -sh "${path}" 2>/dev/null | awk '{print $1}') at ${path}"
+  else
+    log "[done] ${label}"
+  fi
+}
 
-# ============================================================================
-# A4: Clone & install dependencies
-# ============================================================================
-echo ""
-echo "📥 A4/5: Setting up JoyVASA (10-15 phút)..."
+apt_install_base_tools() {
+  step "Cai base tools de check/install moi thu"
 
-mkdir -p ${JOYVASA_DIR}
-cd ${JOYVASA_DIR}
+  run apt-get update
+  run apt-get install -y --no-install-recommends \
+    ca-certificates gnupg lsb-release software-properties-common \
+    build-essential cmake ninja-build pkg-config \
+    git git-lfs wget curl rsync \
+    ffmpeg supervisor \
+    libgl1 libglib2.0-0
+}
 
-if [ ! -d "JoyVASA" ]; then
-    echo "  Cloning JoyVASA..."
-    git clone https://github.com/jdh-algo/JoyVASA.git
-fi
+ensure_python310() {
+  step "Check Python ${REQUIRED_PYTHON_MAJOR_MINOR}"
 
-cd JoyVASA
+  if cmd_exists python3.10 && python3.10 - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.version_info[:2] == (3, 10) else 1)
+PY
+  then
+    log "OK: $(python3.10 --version)"
+  else
+    log "Python 3.10 chua co hoac sai version. Dang install python3.10..."
 
-echo ""
-echo "  Installing dependencies..."
+    if ! apt-get install -y --no-install-recommends python3.10 python3.10-dev python3.10-venv; then
+      log "Default apt khong co Python 3.10. Thu them deadsnakes PPA..."
+      run add-apt-repository -y ppa:deadsnakes/ppa
+      run apt-get update
+      run apt-get install -y --no-install-recommends python3.10 python3.10-dev python3.10-venv
+    fi
+  fi
 
-# Remove torch/xformers from requirements
-sed -i 's/^torch/#torch/g' requirements.txt 2>/dev/null || true
-sed -i 's/^xformers/#xformers/g' requirements.txt 2>/dev/null || true
+  python3.10 - <<'PY'
+import sys
+assert sys.version_info[:2] == (3, 10), sys.version
+print("Python OK:", sys.version.split()[0])
+PY
+}
 
-# Install main requirements
-/opt/conda/envs/${CONDA_ENV}/bin/pip install --no-cache-dir -r requirements.txt
+ensure_gcc12() {
+  step "Check GCC/G++ ${REQUIRED_GCC_MAJOR}"
 
-echo ""
-echo "  Installing xformers (5-15 phút)..."
-/opt/conda/envs/${CONDA_ENV}/bin/pip install --no-cache-dir \
-    xformers==0.0.23.post1 \
-    --index-url https://download.pytorch.org/whl/cu121
+  local need_install=0
 
-# Install additional deps
-/opt/conda/envs/${CONDA_ENV}/bin/pip install --no-cache-dir "huggingface_hub>=0.23.0,<1.0"
+  if ! cmd_exists gcc-12 || ! cmd_exists g++-12; then
+    need_install=1
+  fi
 
-echo "✓ Dependencies installed"
+  if [ "${need_install}" -eq 1 ]; then
+    log "gcc-12/g++-12 chua co. Dang install..."
 
-# Compile XPose (optional)
-echo ""
-echo "  Compiling XPose (optional)..."
-if [ -d "src/utils/dependencies/XPose/models/UniPose/ops" ]; then
-    cd src/utils/dependencies/XPose/models/UniPose/ops
-    /opt/conda/envs/${CONDA_ENV}/bin/python setup.py build install 2>&1 | \
-        grep -E "(Running|Compiling|Building|Finished)" || \
-        echo "⚠️  XPose compilation failed (OK for human-only mode)"
-    cd ${JOYVASA_DIR}/JoyVASA
+    if ! apt-get install -y --no-install-recommends gcc-12 g++-12; then
+      log "Default apt khong co GCC 12. Thu them ubuntu-toolchain-r/test PPA..."
+      run add-apt-repository -y ppa:ubuntu-toolchain-r/test
+      run apt-get update
+      run apt-get install -y --no-install-recommends gcc-12 g++-12
+    fi
+  fi
+
+  run update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120
+  run update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 120
+  run update-alternatives --set gcc /usr/bin/gcc-12
+  run update-alternatives --set g++ /usr/bin/g++-12
+
+  local gcc_major
+  local gxx_major
+
+  gcc_major="$(gcc -dumpversion | cut -d. -f1)"
+  gxx_major="$(g++ -dumpversion | cut -d. -f1)"
+
+  if [ "${gcc_major}" != "${REQUIRED_GCC_MAJOR}" ] || [ "${gxx_major}" != "${REQUIRED_GCC_MAJOR}" ]; then
+    echo "ERROR: GCC/G++ van sai version. gcc=$(gcc --version | head -1), g++=$(g++ --version | head -1)"
+    exit 1
+  fi
+
+  export CC=/usr/bin/gcc-12
+  export CXX=/usr/bin/g++-12
+
+  log "OK: $(gcc --version | head -1)"
+  log "OK: $(g++ --version | head -1)"
+}
+
+nvcc_release() {
+  local nvcc_bin="${1:-nvcc}"
+  "${nvcc_bin}" --version 2>/dev/null | sed -n 's/.*release \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1
+}
+
+find_cuda12_nvcc() {
+  local f
+  local rel
+
+  if [ -x "/usr/local/cuda-${REQUIRED_CUDA}/bin/nvcc" ]; then
+    echo "/usr/local/cuda-${REQUIRED_CUDA}/bin/nvcc"
+    return 0
+  fi
+
+  if cmd_exists nvcc; then
+    rel="$(nvcc_release nvcc || true)"
+    if [[ "${rel}" == 12.* ]]; then
+      command -v nvcc
+      return 0
+    fi
+  fi
+
+  for f in /usr/local/cuda-12*/bin/nvcc /usr/local/cuda/bin/nvcc; do
+    if [ -x "${f}" ]; then
+      rel="$(nvcc_release "${f}" || true)"
+      if [[ "${rel}" == 12.* ]]; then
+        echo "${f}"
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
+
+install_cuda121_toolkit_if_supported() {
+  step "Install CUDA Toolkit ${REQUIRED_CUDA} neu distro support"
+
+  local distro
+  distro="$(ubuntu_distro_id)"
+
+  case "${distro}" in
+    ubuntu2004|ubuntu2204)
+      log "Detected ${distro}. Dung NVIDIA apt repo cho CUDA ${REQUIRED_CUDA}."
+      ;;
+    *)
+      log "WARNING: May hien tai la ${distro}, khong auto install CUDA ${REQUIRED_CUDA} bang apt."
+      log "WARNING: Bo qua cai CUDA toolkit. Script se tiep tuc voi PyTorch cu121 wheel trong venv."
+      log "WARNING: Neu XPose custom ops can nvcc thi co the fail, nhung script se bo qua XPose va tiep tuc."
+      return 0
+      ;;
+  esac
+
+  local keyring_deb="/tmp/cuda-keyring.deb"
+  local keyring_base="https://developer.download.nvidia.com/compute/cuda/repos/${distro}/x86_64"
+
+  log "Tai cuda-keyring tu NVIDIA repo..."
+
+  if ! wget --progress=dot:giga -O "${keyring_deb}" "${keyring_base}/cuda-keyring_1.1-1_all.deb"; then
+    log "cuda-keyring_1.1-1 khong tai duoc, fallback sang 1.0-1..."
+    run wget --progress=dot:giga -O "${keyring_deb}" "${keyring_base}/cuda-keyring_1.0-1_all.deb"
+  fi
+
+  run dpkg -i "${keyring_deb}"
+  run apt-get update
+  run apt-get install -y --no-install-recommends cuda-toolkit-12-1
+
+  if [ -d "/usr/local/cuda-${REQUIRED_CUDA}" ]; then
+    run ln -sfn "/usr/local/cuda-${REQUIRED_CUDA}" /usr/local/cuda
+  fi
+}
+
+ensure_cuda12() {
+  step "Check CUDA/nvcc major ${REQUIRED_CUDA_MAJOR}, prefer ${REQUIRED_CUDA}"
+
+  local nvcc_bin=""
+  local current_release=""
+
+  if nvcc_bin="$(find_cuda12_nvcc 2>/dev/null)"; then
+    current_release="$(nvcc_release "${nvcc_bin}")"
+    CUDA_HOME_TARGET="$(dirname "$(dirname "${nvcc_bin}")")"
+
+    log "Found nvcc: ${nvcc_bin}"
+    log "nvcc release: ${current_release}"
+    log "OK: chap nhan CUDA ${current_release} vi cung major 12."
+  else
+    log "nvcc hien tai: MISSING hoac khong phai CUDA 12.x."
+    install_cuda121_toolkit_if_supported
+  fi
+
+  if nvcc_bin="$(find_cuda12_nvcc 2>/dev/null)"; then
+    current_release="$(nvcc_release "${nvcc_bin}")"
+    CUDA_HOME_TARGET="$(dirname "$(dirname "${nvcc_bin}")")"
+
+    export CUDA_HOME="${CUDA_HOME_TARGET}"
+    export CUDA_PATH="${CUDA_HOME_TARGET}"
+    export PATH="${CUDA_HOME_TARGET}/bin:${PATH}"
+    export LD_LIBRARY_PATH="${CUDA_HOME_TARGET}/lib64:${LD_LIBRARY_PATH:-}"
+
+    run ln -sfn "${CUDA_HOME_TARGET}" /usr/local/cuda || true
+
+    cat > /etc/profile.d/cuda-12-x.sh <<EOF_CUDA
+export CUDA_HOME=${CUDA_HOME_TARGET}
+export CUDA_PATH=${CUDA_HOME_TARGET}
+export PATH=${CUDA_HOME_TARGET}/bin:\$PATH
+export LD_LIBRARY_PATH=${CUDA_HOME_TARGET}/lib64:\${LD_LIBRARY_PATH:-}
+EOF_CUDA
+
+    log "OK: $(nvcc --version | tail -1)"
+    log "CUDA_HOME=${CUDA_HOME}"
+  else
+    log "WARNING: Khong tim thay nvcc CUDA 12.x sau khi check/install."
+    log "WARNING: Van tiep tuc setup vi PyTorch cu121 wheel co runtime rieng trong venv."
+
+    if [ -d "/usr/local/cuda" ]; then
+      CUDA_HOME_TARGET="/usr/local/cuda"
+    fi
+
+    export CUDA_HOME="${CUDA_HOME_TARGET}"
+    export CUDA_PATH="${CUDA_HOME_TARGET}"
+    export PATH="${PATH}"
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+  fi
+
+  if cmd_exists nvidia-smi; then
+    log "nvidia-smi:"
+    nvidia-smi || true
+  else
+    log "WARNING: Khong thay nvidia-smi. VPS/container co the chua expose GPU driver."
+  fi
+}
+
+ensure_system_versions() {
+  apt_install_base_tools
+  ensure_python310
+  ensure_gcc12
+  ensure_cuda12
+}
+
+ensure_venv_python310() {
+  step "Tao/kiem tra Python venv tai ${VENV_DIR}"
+
+  if [ -d "${VENV_DIR}" ]; then
+    local venv_py_version=""
+    venv_py_version="$("${VENV_DIR}/bin/python" - <<'PY' 2>/dev/null || true
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
+
+    if [ "${venv_py_version}" != "${REQUIRED_PYTHON_MAJOR_MINOR}" ]; then
+      log "Venv cu dang dung Python ${venv_py_version:-UNKNOWN}, xoa de tao lai bang Python ${REQUIRED_PYTHON_MAJOR_MINOR}."
+      rm -rf "${VENV_DIR}"
+    fi
+  fi
+
+  if [ ! -d "${VENV_DIR}" ]; then
+    run "${PYTHON_BIN}" -m venv "${VENV_DIR}"
+  fi
+
+  "${VENV_DIR}/bin/python" - <<'PY'
+import sys
+assert sys.version_info[:2] == (3, 10), sys.version
+print("Venv Python OK:", sys.version.split()[0])
+PY
+}
+
+echo "== JoyVASA VPS full setup (in-process API) =="
+echo "This installs JoyVASA and FastAPI into one venv: ${VENV_DIR}"
+echo "Required: CUDA major ${REQUIRED_CUDA_MAJOR}, prefer ${REQUIRED_CUDA}; GCC/G++ ${REQUIRED_GCC_MAJOR}; Python ${REQUIRED_PYTHON_MAJOR_MINOR}"
+echo "Log file: ${LOG_FILE}"
+
+ensure_system_versions
+
+git lfs install || true
+
+step "Tao folder deploy"
+run mkdir -p "${APP_DIR}" "${JOYVASA_DIR}" "${OUTPUT_DIR}" "${TEMP_DIR}" "${BG_CACHE_DIR}" "${MODEL_CACHE_DIR}"
+
+ensure_venv_python310
+
+step "Upgrade pip/setuptools/wheel"
+run "${VENV_DIR}/bin/python" -m pip install --upgrade pip setuptools wheel
+
+step "Clone/update JoyVASA repo"
+if [ ! -d "${JOYVASA_REPO}" ]; then
+  run_with_size_watch "Clone JoyVASA repo" "${JOYVASA_REPO}" \
+    git clone --progress https://github.com/jdh-algo/JoyVASA.git "${JOYVASA_REPO}"
 else
-    echo "⚠️  XPose source not found (OK for human-only mode)"
+  run git -C "${JOYVASA_REPO}" pull --ff-only || true
 fi
 
-# ============================================================================
-# A5: Download models
-# ============================================================================
-echo ""
-echo "📥 A5/5: Downloading models (~6GB, 10-15 phút)..."
-echo ""
+step "Lam sach JoyVASA requirements de tranh conflict package CUDA/PyTorch"
+REQ_CLEAN="/tmp/joyvasa_requirements_clean.txt"
 
-mkdir -p pretrained_weights
-cd ${JOYVASA_DIR}/JoyVASA/pretrained_weights
+python3.10 - "${JOYVASA_REPO}/requirements.txt" "${REQ_CLEAN}" <<'PY'
+import sys
+from pathlib import Path
 
-# Download models in parallel
-echo "  [1/5] JoyVASA checkpoint..."
-if [ ! -d "JoyVASA" ]; then
-    GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/jdh-algo/JoyVASA JoyVASA
+req = Path(sys.argv[1])
+out = Path(sys.argv[2])
+
+ignore = (
+    "torch", "torchvision", "torchaudio", "xformers", "numpy", "scipy", "pandas",
+    "protobuf", "onnxruntime", "onnxruntime-gpu", "cupy", "tensorflow", "jax",
+    "jaxlib", "transformers", "sentence-transformers", "accelerate", "peft",
+    "bitsandbytes", "triton", "gradio", "fastapi", "uvicorn", "cloudinary",
+    "pyngrok", "qstash", "rembg",
+)
+
+lines = []
+
+if req.exists():
+    for line in req.read_text(encoding="utf-8", errors="ignore").splitlines():
+        raw = line.strip()
+        lower = raw.lower()
+
+        if raw and not raw.startswith("#") and not any(pkg in lower for pkg in ignore):
+            lines.append(line)
+
+out.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+print(f"clean requirements: {len(lines)} lines -> {out}")
+PY
+
+step "Go package de conflict truoc khi cai stack JoyVASA"
+"${VENV_DIR}/bin/python" -m pip uninstall -y \
+  torch torchvision torchaudio xformers numpy scipy pandas protobuf \
+  onnxruntime onnxruntime-gpu rembg cupy cupy-cuda11x cupy-cuda12x \
+  tensorflow jax jaxlib transformers sentence-transformers accelerate peft \
+  bitsandbytes triton gradio || true
+
+step "Cai PyTorch CUDA 12.1 wheel"
+run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir \
+  torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 \
+  --index-url https://download.pytorch.org/whl/cu121
+
+step "Cai xformers CUDA 12.1 wheel"
+run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir \
+  xformers==0.0.27 \
+  --index-url https://download.pytorch.org/whl/cu121
+
+if [ -s "${REQ_CLEAN}" ]; then
+  step "Cai requirements con lai cua JoyVASA"
+  run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir -r "${REQ_CLEAN}"
+fi
+
+step "Cai package API + JoyVASA pinned versions"
+run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir \
+  numpy==1.26.4 scipy==1.13.1 pandas==2.2.2 protobuf==3.20.3 \
+  transformers==4.41.2 sentence-transformers==3.0.1 accelerate==0.31.0 peft==0.11.1 \
+  fastapi==0.111.0 'uvicorn[standard]==0.30.1' python-multipart==0.0.9 \
+  cloudinary==1.40.0 requests==2.32.3 qstash==2.0.1 \
+  pillow==10.3.0 opencv-python-headless==4.10.0.84 imageio==2.34.1 imageio-ffmpeg==0.5.1 \
+  librosa==0.10.2.post1 soundfile==0.12.1 onnxruntime==1.18.1 rembg==2.0.57 \
+  bitsandbytes==0.43.1 triton==2.3.1 huggingface_hub==0.23.4
+
+step "Force reinstall core scientific stack de tranh ABI conflict"
+run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir --force-reinstall \
+  numpy==1.26.4 scipy==1.13.1 pandas==2.2.2 protobuf==3.20.3 onnxruntime==1.18.1
+
+run "${VENV_DIR}/bin/python" -m pip install --no-cache-dir --no-deps --force-reinstall rembg==2.0.57
+
+step "Build XPose ops neu co nvcc"
+XPOSE_PATH="${JOYVASA_REPO}/src/utils/dependencies/XPose/models/UniPose/ops"
+
+if [ -d "${XPOSE_PATH}" ]; then
+  if cmd_exists nvcc; then
+    log "Building XPose ops bang GCC/G++ ${REQUIRED_GCC_MAJOR}, CUDA_HOME=${CUDA_HOME}, MAX_JOBS=${MAX_JOBS}..."
+    (
+      cd "${XPOSE_PATH}"
+      CUDA_HOME="${CUDA_HOME}" CUDA_PATH="${CUDA_PATH}" PATH="${CUDA_HOME}/bin:${PATH}" \
+      CC="${CC}" CXX="${CXX}" FORCE_CUDA=1 MAX_JOBS="${MAX_JOBS}" \
+      "${VENV_DIR}/bin/python" -m pip install --no-build-isolation .
+    ) || log "WARNING: XPose build failed. Human mode van co the chay; animal mode co the fail. Xem log: ${LOG_FILE}"
+  else
+    log "WARNING: Khong co nvcc, bo qua build XPose ops. Human mode van co the chay; animal mode co the fail."
+  fi
+else
+  log "Khong thay XPose ops path, bo qua."
+fi
+
+step "Download model weights"
+run mkdir -p "${JOYVASA_REPO}/pretrained_weights"
+cd "${JOYVASA_REPO}/pretrained_weights"
+
+if [ ! -d JoyVASA ]; then
+  run_with_size_watch "Download JoyVASA weights repo" "${JOYVASA_REPO}/pretrained_weights/JoyVASA" \
+    env GIT_LFS_SKIP_SMUDGE=1 git clone --progress https://huggingface.co/jdh-algo/JoyVASA JoyVASA
+
+  step "Git LFS pull JoyVASA weights"
+  (
     cd JoyVASA
-    git lfs pull
-    cd ..
-fi &
-PID1=$!
+    git lfs pull &
+    lfs_pid=$!
 
-echo "  [2/5] Chinese Hubert..."
-if [ ! -d "chinese-hubert-base" ]; then
-    git clone https://huggingface.co/TencentGameMate/chinese-hubert-base chinese-hubert-base
-fi &
-PID2=$!
+    while kill -0 "${lfs_pid}" 2>/dev/null; do
+      log "[progress] JoyVASA git-lfs weights: current size $(du -sh . 2>/dev/null | awk '{print $1}')"
+      sleep "${WATCH_INTERVAL}"
+    done
 
-echo "  [3/5] Wav2Vec2..."
-if [ ! -d "wav2vec2-base-960h" ]; then
-    git clone https://huggingface.co/facebook/wav2vec2-base-960h wav2vec2-base-960h
-fi &
-PID3=$!
+    wait "${lfs_pid}"
+  )
+else
+  log "JoyVASA weights folder da co, bo qua clone."
+fi
 
-wait $PID1 $PID2 $PID3
+if [ ! -d chinese-hubert-base ]; then
+  run_with_size_watch "Download chinese-hubert-base" "${JOYVASA_REPO}/pretrained_weights/chinese-hubert-base" \
+    git clone --progress https://huggingface.co/TencentGameMate/chinese-hubert-base chinese-hubert-base
+else
+  log "chinese-hubert-base da co, bo qua clone."
+fi
 
-echo "  [4/5] LivePortrait..."
-cd ${JOYVASA_DIR}/JoyVASA
-/opt/conda/envs/${CONDA_ENV}/bin/python << 'PYEOF'
+if [ ! -d wav2vec2-base-960h ]; then
+  run_with_size_watch "Download wav2vec2-base-960h" "${JOYVASA_REPO}/pretrained_weights/wav2vec2-base-960h" \
+    git clone --progress https://huggingface.co/facebook/wav2vec2-base-960h wav2vec2-base-960h
+else
+  log "wav2vec2-base-960h da co, bo qua clone."
+fi
+
+step "Download LivePortrait weights"
+cd "${JOYVASA_REPO}"
+
+"${VENV_DIR}/bin/python" - <<'PY' &
 from huggingface_hub import snapshot_download
-import os
 
-os.makedirs("pretrained_weights", exist_ok=True)
-
-print("  Downloading LivePortrait models...")
 snapshot_download(
     repo_id="KwaiVGI/LivePortrait",
     local_dir="pretrained_weights",
     local_dir_use_symlinks=False,
-    ignore_patterns=["*.git*", "README.md", "docs"]
+    ignore_patterns=["*.git*", "README.md", "docs"],
 )
-print("  ✓ LivePortrait downloaded")
-PYEOF
+PY
 
-echo "  [5/5] InsightFace..."
-mkdir -p pretrained_weights/insightface/models/buffalo_l
-cd pretrained_weights/insightface/models/buffalo_l
+liveportrait_pid=$!
 
-if [ ! -f "det_10g.onnx" ]; then
-    wget -q --show-progress https://huggingface.co/MonsterMMORPG/tools/resolve/main/det_10g.onnx
+while kill -0 "${liveportrait_pid}" 2>/dev/null; do
+  log "[progress] LivePortrait snapshot: current pretrained_weights size $(du -sh "${JOYVASA_REPO}/pretrained_weights" 2>/dev/null | awk '{print $1}')"
+  sleep "${WATCH_INTERVAL}"
+done
+
+wait "${liveportrait_pid}"
+
+step "Download insightface buffalo_l weights"
+run mkdir -p "${JOYVASA_REPO}/pretrained_weights/insightface/models/buffalo_l"
+cd "${JOYVASA_REPO}/pretrained_weights/insightface/models/buffalo_l"
+
+if [ ! -f det_10g.onnx ]; then
+  run wget --progress=dot:giga https://huggingface.co/MonsterMMORPG/tools/resolve/main/det_10g.onnx
+else
+  log "det_10g.onnx da co, bo qua."
 fi
 
-if [ ! -f "2d106det.onnx" ]; then
-    wget -q --show-progress https://huggingface.co/MonsterMMORPG/tools/resolve/main/2d106det.onnx
+if [ ! -f 2d106det.onnx ]; then
+  run wget --progress=dot:giga https://huggingface.co/MonsterMMORPG/tools/resolve/main/2d106det.onnx
+else
+  log "2d106det.onnx da co, bo qua."
 fi
 
-cd ${JOYVASA_DIR}/JoyVASA
+step "Tao symlink pretrained_weights"
+cd "${JOYVASA_REPO}/pretrained_weights"
+run ln -sfn chinese-hubert-base "TencentGameMate:chinese-hubert-base"
+run ln -sfn wav2vec2-base-960h "facebook:wav2vec2-base-960h"
 
-echo ""
-echo "✓ All models downloaded"
+step "Tao/cap nhat file .env"
+cat > "${APP_DIR}/.env" <<EOF_ENV
+# CLOUDINARY_CLOUD_NAME=
+# CLOUDINARY_API_KEY=
+# CLOUDINARY_API_SECRET=
+# QSTASH_TOKEN=
+JOYVASA_REPO_PATH=${JOYVASA_REPO}
+OUTPUT_DIR=${OUTPUT_DIR}
+TEMP_DIR=${TEMP_DIR}
+BG_CACHE_DIR=${BG_CACHE_DIR}
+JOYVASA_STARTUP_MODE=${JOYVASA_STARTUP_MODE:-fast}
+REMBG_FAST_MODEL=${REMBG_FAST_MODEL:-u2netp}
+REMBG_CLEAN_MODEL=${REMBG_CLEAN_MODEL:-isnet-general-use}
+LOAD_REMBG_ON_STARTUP=${LOAD_REMBG_ON_STARTUP:-false}
+HF_HOME=${MODEL_CACHE_DIR}
+TRANSFORMERS_CACHE=${MODEL_CACHE_DIR}
+TORCH_HOME=${MODEL_CACHE_DIR}
+CUDA_HOME=${CUDA_HOME}
+CUDA_PATH=${CUDA_PATH}
+PYTHONUNBUFFERED=1
+EOF_ENV
 
-# Fix model paths with symlinks
-echo ""
-echo "  Creating model path symlinks..."
-cd ${JOYVASA_DIR}/JoyVASA/pretrained_weights
-ln -sf chinese-hubert-base "TencentGameMate:chinese-hubert-base" 2>/dev/null || true
-ln -sf wav2vec2-base-960h "facebook:wav2vec2-base-960h" 2>/dev/null || true
-cd ${JOYVASA_DIR}/JoyVASA
-echo "✓ Model symlinks created"
-
-# Create wrapper script
-echo ""
-echo "  Creating wrapper script..."
-cat > ${JOYVASA_DIR}/joyvasa_wrapper.py << 'WRAPPER_EOF'
-#!/usr/bin/env python
-import sys, os, subprocess, shutil
-from argparse import ArgumentParser
-
-JOYVASA_DIR = '/opt/joyvasa/JoyVASA'
-JOYVASA_PYTHON = '/opt/conda/envs/joyvasa/bin/python'
-
-def main():
-    parser = ArgumentParser()
-    parser.add_argument("-r", "--ref_image_path", required=True)
-    parser.add_argument("-a", "--audio_path", required=True)
-    parser.add_argument("-o", "--output_path", required=True)
-    parser.add_argument("--animation_mode", default="human", choices=["human", "animal"])
-    args = parser.parse_args()
-
-    # Build command
-    cmd = [
-        JOYVASA_PYTHON,
-        os.path.join(JOYVASA_DIR, "inference.py"),
-        "--reference", args.ref_image_path,
-        "--audio", args.audio_path,
-        "--output-dir", "/tmp/joyvasa_output",
-        "--animation-mode", args.animation_mode
-    ]
-
-    # Run inference
-    result = subprocess.run(cmd, cwd=JOYVASA_DIR, capture_output=True, text=True)
-    
-    if result.returncode != 0:
-        print(f"ERROR: {result.stderr}", file=sys.stderr)
-        sys.exit(1)
-
-    # Move output
-    output_dir = "/tmp/joyvasa_output"
-    if os.path.exists(output_dir):
-        files = sorted([f for f in os.listdir(output_dir) if f.endswith('.mp4')])
-        if files:
-            shutil.move(os.path.join(output_dir, files[-1]), args.output_path)
-            print(f"✓ Video saved: {args.output_path}")
-        else:
-            print("ERROR: No output video found", file=sys.stderr)
-            sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-WRAPPER_EOF
-
-chmod +x ${JOYVASA_DIR}/joyvasa_wrapper.py
-
-echo "✓ Wrapper created"
-
-echo ""
-echo "✅ PART A COMPLETE: JoyVASA Ready!"
-echo ""
-
-# ============================================================================
-# PART B: API STACK SETUP
-# ============================================================================
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 PART B: API Stack Setup"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# ============================================================================
-# B1: Create virtual environment
-# ============================================================================
-echo "🐍 B1/3: Creating Python virtual environment..."
-rm -rf /opt/venv
-python3.10 -m venv /opt/venv
-echo "✓ Virtual environment created at /opt/venv"
-
-# ============================================================================
-# B2: Install API dependencies
-# ============================================================================
-echo ""
-echo "📥 B2/3: Installing API dependencies (5-10 phút)..."
-echo "  Installing PyTorch 2.1.2 + CUDA 12.1..."
-/opt/venv/bin/pip install --upgrade pip > /dev/null 2>&1
-/opt/venv/bin/pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
-  --index-url https://download.pytorch.org/whl/cu121 > /dev/null
-
-echo "  Installing FastAPI + ML dependencies..."
-/opt/venv/bin/pip install \
-  "numpy<2" \
-  fastapi==0.109.0 \
-  uvicorn[standard]==0.27.0 \
-  python-multipart==0.0.6 \
-  pillow==10.2.0 \
-  faster-whisper==1.0.0 \
-  sentence-transformers==2.3.1 \
-  transformers==4.39.2 \
-  accelerate==0.25.0 > /dev/null
-
-echo "✓ API dependencies installed"
-
-# ============================================================================
-# B3: Configure Supervisor
-# ============================================================================
-echo ""
-echo "🔧 B3/3: Configuring Supervisor..."
-
-mkdir -p /opt/app /opt/outputs /opt/models
-
-cat > /opt/app/.env << 'EOF'
-TRANSFORMERS_CACHE=/opt/models
-HF_HOME=/opt/models
-TORCH_HOME=/opt/models
-EOF
-
-# Stop existing supervisord
-pkill supervisord 2>/dev/null || true
-sleep 1
-
-# Start supervisord
-/usr/bin/supervisord -c /etc/supervisor/supervisord.conf
-sleep 2
-
-# Create highlight-api config
-cat > /etc/supervisor/conf.d/highlight-api.conf << 'EOFCONF'
-[program:highlight-api]
-command=/opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port 1434 --workers 1
-directory=/opt/app
+step "Tao/cap nhat supervisor service ${SERVICE_NAME}"
+cat > /etc/supervisor/conf.d/${SERVICE_NAME}.conf <<EOF_SUPERVISOR
+[program:${SERVICE_NAME}]
+command=${VENV_DIR}/bin/uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 1
+directory=${APP_DIR}
 user=root
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/highlight-api.err.log
-stdout_logfile=/var/log/highlight-api.out.log
-environment=PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/venv/bin:/opt/conda/bin",HF_HOME="/opt/models",TORCH_HOME="/opt/models",PYTHONUNBUFFERED="1"
+stdout_logfile=/var/log/${SERVICE_NAME}.out.log
+stderr_logfile=/var/log/${SERVICE_NAME}.err.log
+environment=PATH="${CUDA_HOME}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${VENV_DIR}/bin",LD_LIBRARY_PATH="${CUDA_HOME}/lib64",CUDA_HOME="${CUDA_HOME}",CUDA_PATH="${CUDA_PATH}",CC="/usr/bin/gcc-12",CXX="/usr/bin/g++-12",JOYVASA_REPO_PATH="${JOYVASA_REPO}",OUTPUT_DIR="${OUTPUT_DIR}",TEMP_DIR="${TEMP_DIR}",BG_CACHE_DIR="${BG_CACHE_DIR}",HF_HOME="${MODEL_CACHE_DIR}",TRANSFORMERS_CACHE="${MODEL_CACHE_DIR}",TORCH_HOME="${MODEL_CACHE_DIR}",PYTHONUNBUFFERED="1"
 stopasgroup=true
 killasgroup=true
 stopsignal=TERM
-stopwaitsecs=30
-EOFCONF
+stopwaitsecs=60
+EOF_SUPERVISOR
 
-supervisorctl reread
-supervisorctl update
+step "Reload supervisor"
+/usr/bin/supervisord -c /etc/supervisor/supervisord.conf 2>/dev/null || true
+run supervisorctl reread
+run supervisorctl update
 
-echo "✓ Supervisor configured"
+step "Verify final environment"
+log "python3.10: $(python3.10 --version)"
+log "gcc: $(gcc --version | head -1)"
+log "g++: $(g++ --version | head -1)"
+
+if cmd_exists nvcc; then
+  log "nvcc: $(nvcc --version | tail -1)"
+else
+  log "nvcc: MISSING"
+fi
+
+"${VENV_DIR}/bin/python" - <<'PY'
+import os
+import torch
+import numpy
+import scipy
+import onnxruntime
+
+print("torch", torch.__version__, "cuda", torch.cuda.is_available())
+print("torch cuda version", torch.version.cuda)
+print("numpy", numpy.__version__, "scipy", scipy.__version__)
+print("onnxruntime providers", onnxruntime.get_available_providers())
+print("CUDA_HOME", os.environ.get("CUDA_HOME"))
+
+if torch.cuda.is_available():
+    print("GPU", torch.cuda.get_device_name(0))
+PY
 
 echo ""
-echo "✅ PART B COMPLETE: API Stack Ready!"
-echo ""
+echo "== Done =="
+echo "Log file: ${LOG_FILE}"
+echo "Upload deploy-model/main.py to ${APP_DIR}/main.py, then run: supervisorctl restart ${SERVICE_NAME}"
+echo "Health check: curl http://localhost:${PORT}/"
+BASH
 
-# ============================================================================
-# FINAL SUMMARY
-# ============================================================================
-echo ""
-echo "=========================================="
-echo "✅ FULL DEPLOYMENT COMPLETE!"
-echo "=========================================="
-echo ""
-echo "📍 Installed Components:"
-echo "  [A] JoyVASA"
-echo "      - Conda env: ${CONDA_ENV}"
-echo "      - Path: ${JOYVASA_DIR}/JoyVASA"
-echo "      - Wrapper: ${JOYVASA_DIR}/joyvasa_wrapper.py"
-echo ""
-echo "  [B] API Stack"
-echo "      - Python venv: /opt/venv"
-echo "      - Service: highlight-api"
-echo "      - Port: 1434"
-echo ""
-echo "🔍 GPU Info:"
-/opt/venv/bin/python -c "import torch; print(f'  PyTorch: {torch.__version__}'); print(f'  CUDA: {torch.cuda.is_available()}'); print(f'  GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')" 2>/dev/null || echo "  (Python venv ready)"
-echo ""
-echo "📋 Next Steps:"
-echo "  1. Upload code files:"
-echo "     scp -P 2291 main.py root@n2.ckey.vn:/opt/app/"
-echo "     scp -P 2291 joyvasa_wrapper.py root@n2.ckey.vn:/opt/joyvasa/"
-echo ""
-echo "  2. Start API:"
-echo "     supervisorctl restart highlight-api"
-echo ""
-echo "  3. Test API:"
-echo "     curl http://localhost:1434/"
-echo ""
-echo "=========================================="
+sed -i 's/\r$//' ~/setup_full.sh
+chmod +x ~/setup_full.sh
+grep -n "Ubuntu 20.04/22.04" ~/setup_full.sh || echo "OK: khong con block cu Ubuntu 20.04/22.04"
+sudo WATCH_INTERVAL=5 bash ~/setup_full.sh

@@ -257,6 +257,12 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
   {
+    method: 'GET',
+    pattern: '/api/course/instructor/discussions',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
     method: 'POST',
     pattern: '/api/course/discussions/:postId/upvote',
     access: 'authenticated',
@@ -852,6 +858,7 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/:id', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',

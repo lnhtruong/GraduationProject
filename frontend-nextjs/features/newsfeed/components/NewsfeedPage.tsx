@@ -42,6 +42,15 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	}, [activeVideo?.id, setActiveVideoId]);
 
 	useEffect(() => {
+		if (activeVideo?.id) {
+			const url = new URL(window.location.href);
+			url.pathname = "/newsfeed";
+			url.searchParams.set("videoId", String(activeVideo.id));
+			window.history.replaceState(null, "", url.toString());
+		}
+	}, [activeVideo?.id]);
+
+	useEffect(() => {
 		if (activeVideo) {
 			const cleanTitle = activeVideo.title || activeVideo.caption || "Video ngắn";
 			document.title = `${cleanTitle} #shorts | LearnHub`;

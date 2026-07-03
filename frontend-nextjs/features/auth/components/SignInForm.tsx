@@ -42,6 +42,7 @@ export default function SignInForm() {
   const { login, googleLogin } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,7 +60,6 @@ export default function SignInForm() {
     try {
       await login(data);
 
-      const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
       // Parse error message from backend
@@ -84,7 +84,6 @@ export default function SignInForm() {
     try {
       await googleLogin({ credential });
 
-      const returnUrl = getSafeReturnUrl(searchParams.get("returnUrl"));
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
       let errorMessage = "Đăng nhập Google thất bại. Vui lòng thử lại.";
@@ -103,17 +102,17 @@ export default function SignInForm() {
   };
 
   return (
-    <Card className="w-full max-w-md bg-card/95 backdrop-blur-xl border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 dark:ring-white/10">
-      <CardHeader className="space-y-1.5 pb-5 pt-6">
-        <CardTitle className="text-2xl font-bold text-center text-foreground tracking-tight">
+    <div className="w-full space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Chào mừng trở lại
-        </CardTitle>
-        <CardDescription className="text-center text-sm text-muted-foreground">
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Đăng nhập vào tài khoản LearnHub của bạn
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="pb-6">
+      <div className="space-y-4">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
@@ -201,16 +200,16 @@ export default function SignInForm() {
 
         <SocialAuthRow onGoogleCredential={onGoogleLogin} />
 
-        <div className="mt-5 text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground pt-4">
           Chưa có tài khoản?{" "}
           <Link
-            href="/signup"
+            href={returnUrl ? `/signup?returnUrl=${encodeURIComponent(returnUrl)}` : "/signup"}
             className="text-primary hover:text-primary/80 hover:underline font-medium transition-all"
           >
             Đăng ký ngay
           </Link>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,88 +1,57 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 import { PageLoader } from "@/components/PageLoader";
+import AuthSlider from "@/components/AuthSlider";
 
-export const metadata: Metadata = {
-  title: "Authentication - LearnHub",
-  description: "Sign in or create your LearnHub account",
-};
-
-/**
- * Auth Layout
- * Spotlight layout: Professional, tech-focused with a subtle brand glow
- */
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-background">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[-10%] h-150 w-200 -translate-x-1/2 select-none"
-      >
-        <div className="absolute inset-0 rounded-full bg-primary/20 blur-[120px] dark:bg-primary/10" />
-      </div>
-
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 select-none bg-grid-slate-900/[0.04] mask-[radial-gradient(ellipse_at_center,black_50%,transparent_100%)] dark:bg-grid-slate-100/[0.02]"
-      />
-
-      <div className="container relative z-10 mx-auto px-4 pt-8">
-        <Link href="/" className="inline-flex items-center gap-2 group">
-          <div className="relative flex items-center justify-center transition-transform group-hover:scale-105">
-            <Image
-              src="/logo.png"
-              alt="LearnHub Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-              priority
-            />
+    <div className="flex min-h-screen w-full bg-background overflow-hidden">
+      {/* LEFT PANEL: Form & Branding */}
+      <div className="flex w-full flex-col justify-center p-8 sm:p-12 lg:w-[50%] bg-gradient-to-br from-background to-muted/25 dark:from-slate-900 dark:to-slate-950 z-10 min-h-screen overflow-y-auto">
+        {/* Middle: Auth Children with Centered Logo */}
+        <div className="flex flex-col items-center justify-center py-12 max-w-sm mx-auto w-full">
+          {/* Centered Logo */}
+          <div className="mb-8">
+            <Link href="/" className="flex flex-col items-center gap-2.5 group">
+              <Image
+                src="/logo.png"
+                alt="LearnHub Logo"
+                width={52}
+                height={52}
+                className="object-contain transition-transform group-hover:scale-105"
+                priority
+              />
+              <span className="text-2xl font-bold text-primary tracking-tight font-display">
+                LearnHub
+              </span>
+            </Link>
           </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold text-primary tracking-tight">
-              LearnHub
-            </span>
-          </div>
-        </Link>
-      </div>
 
-      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-          <Suspense fallback={<PageLoader />}>{children}</Suspense>
-        </div>
-      </div>
-
-      <div className="container relative z-10 mx-auto px-4 py-6">
-        <div className="flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
-          <p>© 2026 LearnHub. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link
-              href="/terms"
-              className="hover:text-primary transition-colors"
-            >
-              Terms
-            </Link>
-            <Link
-              href="/privacy"
-              className="hover:text-primary transition-colors"
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/support"
-              className="hover:text-primary transition-colors"
-            >
-              Support
-            </Link>
+          <div className="w-full">
+            <Suspense fallback={<PageLoader />}>{children}</Suspense>
           </div>
         </div>
+      </div>
+
+      {/* RIGHT PANEL: Brand Showcase & Interactive Slider Mockups */}
+      <div className="hidden lg:flex lg:w-[50%] relative overflow-hidden flex-col justify-center p-12 bg-gradient-to-br from-muted/25 to-background dark:from-slate-950 dark:to-slate-900 border-l border-border/20">
+        {/* Radial Glow in the background */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/10 blur-[100px] dark:bg-primary/5" />
+          <div className="absolute inset-0 bg-grid-slate-900/[0.02] dark:bg-grid-white/[0.01]" />
+        </div>
+
+        {/* Middle: Mockup Display with Motion Slider */}
+        <AuthSlider />
       </div>
     </div>
   );
 }
+

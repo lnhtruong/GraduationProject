@@ -102,6 +102,13 @@ export class Video extends Model {
   })
   declare srt_raw_url: string | null;
 
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    field: 'upload_context',
+  })
+  declare upload_context: Record<string, unknown> | null;
+
   @BelongsTo(() => MascotImage)
   image?: MascotImage;
 }

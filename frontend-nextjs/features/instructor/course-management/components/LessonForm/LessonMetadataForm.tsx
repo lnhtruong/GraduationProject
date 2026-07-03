@@ -21,7 +21,7 @@ export function LessonMetadataForm({
   return (
     <div className="mb-4 space-y-4">
       <div className="grid gap-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
           Tên bài học <span className="text-destructive">*</span>
         </Label>
         <Input
@@ -38,7 +38,7 @@ export function LessonMetadataForm({
       </div>
 
       <div className="grid gap-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
           Mô tả ngắn <span className="text-destructive">*</span>
         </Label>
         <Textarea

@@ -9,6 +9,7 @@ import {
 import type { AfterLessonQuizQuestion } from "../utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface AfterLessonQuizScore {
   correct: number;
@@ -95,19 +96,25 @@ export function AfterLessonQuizCard({
                           : "border-border/60 bg-card text-foreground hover:border-primary/30 hover:bg-muted/60";
 
                       return (
-                        <Button
+                        <button
                           key={`${question.id}-${optionIndex}`}
-                          variant="outline"
-                          className={`justify-start rounded-2xl border ${optionClass}`}
+                          disabled={submitted}
+                          className={cn(
+                            "flex min-w-0 w-full items-center gap-3 rounded-2xl border-2 p-3 text-left text-sm transition-all duration-200",
+                            optionClass,
+                            submitted ? "cursor-not-allowed opacity-80" : "cursor-pointer"
+                          )}
                           onClick={() =>
                             onSelectAnswer(question.id, optionIndex)
                           }
                         >
-                          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/5 text-[10px] font-semibold text-current">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/5 text-[10px] font-semibold text-current">
                             {String.fromCharCode(65 + optionIndex)}
                           </span>
-                          {option}
-                        </Button>
+                          <span className="flex-1 min-w-0 break-words font-medium">
+                            {option}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>

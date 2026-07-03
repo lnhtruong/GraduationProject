@@ -68,13 +68,57 @@ export class FollowsService {
         eventType: INSTRUCTOR_FOLLOW_EVENT,
         title: 'Bạn có người theo dõi mới',
         message: `${followerName} đã theo dõi bạn`,
-        payload: { followerId, followerName },
+        payload: { followerId, followerName, redirectUrl: '/profile' },
         sourceType: INSTRUCTOR_FOLLOW_SOURCE,
         sourceId: followerId,
+      });
+      await this.dispatchFollowNotificationToMedia({
+        instructorId,
+        followerId,
+        followerName,
       });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('[follows] failed to create follow notification', err);
+    }
+  }
+
+  private async dispatchFollowNotificationToMedia(input: {
+    instructorId: number;
+    followerId: number;
+    followerName: string;
+  }): Promise<void> {
+    const mediaServiceUrl = process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
+    const secret = process.env.INTERNAL_SERVICE_SECRET;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (secret) headers['x-internal-secret'] = secret;
+
+    const body = {
+      userId: input.instructorId,
+      eventType: INSTRUCTOR_FOLLOW_EVENT,
+      sseEventType: 'notify:created',
+      title: 'Bạn có người theo dõi mới',
+      message: `${input.followerName} đã theo dõi bạn`,
+      payload: {
+        followerId: input.followerId,
+        followerName: input.followerName,
+        redirectUrl: '/profile',
+      },
+      sourceType: INSTRUCTOR_FOLLOW_SOURCE,
+      sourceId: input.followerId,
+    };
+
+    const res = await fetch(`${mediaServiceUrl}/notifications/internal`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`media notification failed (${res.status}): ${text}`);
     }
   }
 

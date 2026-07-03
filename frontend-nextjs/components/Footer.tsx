@@ -24,7 +24,7 @@ export default function Footer() {
                 href="/upload"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Video AI
+                Tạo Short/Highlight
               </Link>
               <Link
                 href="/courses"

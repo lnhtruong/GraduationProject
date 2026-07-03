@@ -51,7 +51,7 @@ export class FeedService {
     private userModel: typeof User,
     private readonly redisService: RedisService,
     private readonly notificationService: NotificationService,
-  ) {}
+  ) { }
 
   private readonly ADMIN_ROLE = 1;
   private readonly LECTURER_ROLE = 3;
@@ -533,7 +533,10 @@ export class FeedService {
       .map((item) => item.feedId);
   }
 
-  async getPublicTrending(limit?: number): Promise<{ data: FeedResponseItem[]; next_cursor: null }> {
+  async getPublicTrending(
+    cursor?: number,
+    limit?: number,
+  ): Promise<{ data: FeedResponseItem[]; next_cursor: number | null }> {
     const safeLimit = Number.isInteger(limit) && (limit as number) > 0
       ? Math.min(limit as number, this.TRENDING_MAX_LIMIT)
       : this.TRENDING_DEFAULT_LIMIT;
@@ -574,10 +577,52 @@ export class FeedService {
       }
     }
 
-    const pageIds = cachedIds.slice(0, safeLimit);
+    const cursorId = Number.isInteger(cursor) && (cursor as number) > 0
+      ? cursor as number
+      : undefined;
+    const pageIds = this.pageFeedIds(cachedIds, cursorId, safeLimit);
+
+    if (pageIds.length === 0) {
+      return { data: [], next_cursor: null };
+    }
+
     const statsByFeed = await this.getStatsOnly(pageIds);
     const data = await this.buildFeedResponse(pageIds, statsByFeed, new Set(), new Set());
-    return { data, next_cursor: null };
+    return {
+      data,
+      next_cursor: data.length === safeLimit ? data[data.length - 1].feed_id : null,
+    };
+  }
+
+  async getFeedById(
+    feedId: number,
+    userId?: number,
+  ): Promise<{ data: FeedResponseItem; next_cursor: number | null }> {
+    const statsAndInteractions = userId
+      ? await this.getStatsAndInteractions([feedId], userId)
+      : {
+        statsByFeed: await this.getStatsOnly([feedId]),
+        likedSet: new Set<number>(),
+        savedSet: new Set<number>(),
+      };
+
+    const data = await this.buildFeedResponse(
+      [feedId],
+      statsAndInteractions.statsByFeed,
+      statsAndInteractions.likedSet,
+      statsAndInteractions.savedSet,
+    );
+
+    const item = data[0];
+    if (!item) {
+      throw new NotFoundException('Feed item not found');
+    }
+
+    return {
+      data: item,
+      // next_cursor: item.feed_id,
+      next_cursor: null,
+    };
   }
 
   private async buildFeedResponse(
@@ -1417,7 +1462,7 @@ export class FeedService {
         } catch (err) {
           skipped += 1;
           // Swallow per-user errors so one bad profile doesn't abort the batch.
-          // eslint-disable-next-line no-console
+
           console.error('precompute failed for user', userId, err);
         }
       };
@@ -2303,6 +2348,43 @@ export class FeedService {
     };
   }
 
+  private buildFeedRedirectUrl(feedId: number): string {
+    return `/newsfeed?videoId=${feedId}`;
+  }
+
+  private async notifyFeedLiked(userId: number, feed: HighlightFeed): Promise<void> {
+    try {
+      const feedWithCourse = await this.highlightFeedModel.findByPk(feed.id, {
+        include: [{ model: Course, attributes: ['id', 'userId'] }],
+      });
+      const feedOwnerId = feedWithCourse?.course?.userId;
+      if (feedOwnerId == null || feedOwnerId === userId) return;
+
+      const user = await this.userModel.findByPk(userId, {
+        attributes: ['id', 'firstName', 'lastName'],
+      });
+      const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+
+      await this.notificationService.createAndEmit({
+        userId: feedOwnerId,
+        eventType: NotificationEventType.FEED_LIKE_CREATED,
+        sseEventType: NotificationSseEventType.NOTIFY_CREATED,
+        title: 'New like on your feed',
+        message: fullName ? `${fullName} liked your post` : 'Someone liked your post',
+        sourceType: NotificationSourceType.FEED,
+        sourceId: feed.id,
+        payload: {
+          feedId: feed.id,
+          actorUserId: userId,
+          redirectUrl: this.buildFeedRedirectUrl(feed.id),
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[feed] failed to create like notification', err);
+    }
+  }
+
   async interactWithFeed(userId: number, feedId: number, type: FeedInteractionType) {
     const feed = await this.highlightFeedModel.findByPk(feedId);
     if (!feed || feed.status !== HighlightFeedStatus.ACTIVE) {
@@ -2338,6 +2420,9 @@ export class FeedService {
         await this.updateProfileAffinity(userId, feed, weight);
         await this.invalidateRecommendCache(userId, feed.course_id);
         await this.markUserInteracted(userId);
+        if (type === FeedInteractionType.LIKE) {
+          await this.notifyFeedLiked(userId, feed);
+        }
         return { type, active: true };
       }
     }
@@ -2465,6 +2550,7 @@ export class FeedService {
           parentCommentId: parentComment.id,
           actorUserId: userId,
           content: trimmedContent,
+          redirectUrl: this.buildFeedRedirectUrl(feedId),
         },
       });
     } else if (!parentComment) {
@@ -2488,6 +2574,7 @@ export class FeedService {
             commentId: comment.id,
             actorUserId: userId,
             content: trimmedContent,
+            redirectUrl: this.buildFeedRedirectUrl(feedId),
           },
         });
       }

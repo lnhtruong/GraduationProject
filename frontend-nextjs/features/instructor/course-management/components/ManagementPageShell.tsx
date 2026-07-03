@@ -9,12 +9,13 @@ import {
 
 interface Props {
   title: string;
-  description: string;
+  description?: ReactNode;
   breadcrumbs: CourseManagementBreadcrumbItem[];
   leadingAction?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   noCard?: boolean;
+  thumbnailUrl?: string | null;
 }
 
 export function ManagementPageShell({
@@ -25,6 +26,7 @@ export function ManagementPageShell({
   action,
   children,
   noCard = false,
+  thumbnailUrl,
 }: Props) {
   return (
     <div className="space-y-5">
@@ -34,6 +36,7 @@ export function ManagementPageShell({
         breadcrumbs={breadcrumbs}
         leadingAction={leadingAction}
         action={action}
+        thumbnailUrl={thumbnailUrl}
       />
 
       {noCard ? (

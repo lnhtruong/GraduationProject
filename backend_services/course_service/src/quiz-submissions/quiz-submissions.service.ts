@@ -460,12 +460,17 @@ export class QuizSubmissionsService {
       score += snapshot.point;
     }
 
-    const maxScore = questions.reduce(
+    const isPartialGrading = quiz.isInVideo === true;
+    const gradedQuestions = isPartialGrading
+      ? questions.filter((q) => seenQuestionIds.has(q.id))
+      : questions;
+
+    const maxScore = gradedQuestions.reduce(
       (sum, q) => sum + this.toPoints(q.point),
       0,
     );
 
-    const totalQuestions = questions.length;
+    const totalQuestions = gradedQuestions.length;
     const correctCount = answerSnapshots.filter((a) => a.isCorrect).length;
 
     const percent =

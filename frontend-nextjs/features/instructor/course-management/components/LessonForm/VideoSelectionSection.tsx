@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, Clapperboard, NotebookText, Trash2 } from "lucide-react";
+import { Loader2, Upload, Clapperboard, NotebookText, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
 import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
 import { useVideoById } from "@/features/video/api/video.hooks";
 import { getVideoCardTitle, formatDuration } from "../../utils/lesson-form.utils";
+import { VideoPreview } from "./VideoPreview";
+import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
 
 interface Video {
   id: number;
@@ -33,11 +35,51 @@ interface Props {
     durationSeconds: number | null;
     fileName: string | null;
   }) => void;
+  courseId: number;
   lessonId?: number | null;
   isEdit?: boolean;
   onOpenCreateQuizModal?: () => void;
   onPendingCreateQuiz?: () => void;
   onUploadStateChange?: (isUploading: boolean) => void;
+  timelineMarkers?: QuizTimelineMarker[];
+  isProcessing?: boolean;
+}
+
+function VideoThumbnail({
+  thumbnail,
+  title,
+}: {
+  thumbnail?: string | null;
+  title: string;
+}) {
+  const [error, setError] = useState(false);
+
+  if (thumbnail === "processing") {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-xs text-muted-foreground bg-muted/20 animate-pulse">
+        <Loader2 className="h-4.5 w-4.5 animate-spin text-primary" />
+        <span>Đang xử lý video...</span>
+      </div>
+    );
+  }
+
+  if (error || !thumbnail) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60 bg-muted/40">
+        <Clapperboard className="h-5 w-5 text-muted-foreground/40" />
+        <span>Không có ảnh thu nhỏ</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={thumbnail}
+      alt={title}
+      onError={() => setError(true)}
+      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+    />
+  );
 }
 
 export function VideoSelectionSection({
@@ -47,11 +89,14 @@ export function VideoSelectionSection({
   onVideoSelect,
   onRefreshVideos,
   onDraftVideoChange,
+  courseId,
   lessonId,
   isEdit = false,
   onOpenCreateQuizModal,
   onPendingCreateQuiz,
   onUploadStateChange,
+  timelineMarkers = [],
+  isProcessing = false,
 }: Props) {
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string | null>(null);
@@ -61,6 +106,24 @@ export function VideoSelectionSection({
   const selectedUploadVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
   onDraftVideoChangeRef.current = onDraftVideoChange;
+
+  // Video Library Pagination
+  const PAGE_SIZE = 6;
+  const [page, setPage] = useState(1);
+  const totalItems = userVideos?.length ?? 0;
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const displayedVideos = useMemo(() => {
+    if (!userVideos) return [];
+    const startIndex = (page - 1) * PAGE_SIZE;
+    return userVideos.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [userVideos, page]);
 
 
   const {
@@ -141,6 +204,8 @@ export function VideoSelectionSection({
       await startUpload({
         file,
         title: file.name,
+        courseId,
+        lessonId,
         onCompleted: async (videoId) => {
           await onRefreshVideos?.();
           onVideoSelect(videoId);
@@ -194,36 +259,26 @@ export function VideoSelectionSection({
   const durationSec = previewDuration ?? selectedVideo?.duration ?? null;
   const formattedDur = formatDuration(durationSec);
 
-
   let statusText = "";
   if (previewBlobUrl) {
-    if (session.status === "completed") {
-      statusText = "Đã tải lên";
-    } else if (session.status === "uploading" || session.status === "initializing") {
+    if (session.status === "uploading" || session.status === "initializing") {
       statusText = "Đang tải lên...";
     } else if (session.status === "failed") {
       statusText = "Lỗi tải lên";
-    } else {
+    } else if (session.status !== "completed") {
       statusText = "Đang chuẩn bị";
     }
-  } else if (selectedVideoId) {
-    statusText = "Từ thư viện";
   }
 
   const showStatus = session.status !== "idle";
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 min-w-0">
       {/* Header section (only show if not active video or if we want labels) */}
       <div className="flex items-center justify-between gap-2">
         <Label className="text-sm font-semibold text-foreground/90">
           {hasActiveVideo ? "Video bài học đã chọn" : "Chọn video bài học"}
         </Label>
-        {!hasActiveVideo && !!userVideos?.length ? (
-          <Badge variant="outline" className="bg-background px-2.5 py-0.5 text-[11px] font-normal text-muted-foreground shadow-sm">
-            {userVideos.length} video trong thư viện
-          </Badge>
-        ) : null}
       </div>
 
       <input
@@ -235,7 +290,7 @@ export function VideoSelectionSection({
       />
 
       {hasActiveVideo ? (
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm transition hover:shadow-md">
             {/* Header info */}
             <div className="flex items-center gap-3 border-b border-border/60 bg-muted/40 px-4 py-3">
@@ -243,7 +298,7 @@ export function VideoSelectionSection({
                 <Clapperboard className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="truncate text-sm font-semibold text-foreground">
+                <h4 className="line-clamp-2 text-sm font-semibold text-foreground leading-snug break-words">
                   {videoName}
                 </h4>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -258,6 +313,20 @@ export function VideoSelectionSection({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Inline Video Player Preview */}
+            <div className="p-4 border-t border-border/50 bg-background/50">
+              <VideoPreview
+                courseId={courseId}
+                lessonId={lessonId ?? 0}
+                videoUrl={videoUrl}
+                videoDurationSeconds={durationSec ?? 0}
+                videoLoading={videosLoading}
+                timelineMarkers={timelineMarkers}
+                isProcessing={isProcessing}
+                thumbnailUrl={selectedVideo?.thumbnail}
+              />
             </div>
 
 
@@ -404,9 +473,16 @@ export function VideoSelectionSection({
 
           {/* Library Grid */}
           <div className="space-y-3 pt-2">
-            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Hoặc chọn từ thư viện của bạn
-            </h5>
+            <div className="flex items-center gap-2">
+              <h5 className="text-xs font-semibold text-muted-foreground">
+                Hoặc chọn từ thư viện của bạn
+              </h5>
+              {!!userVideos?.length && (
+                <Badge variant="secondary" className="h-4.5 px-1.5 text-[9px] font-medium leading-none bg-muted text-muted-foreground rounded-md">
+                  {userVideos.length}
+                </Badge>
+              )}
+            </div>
 
             {videosLoading ? (
               <div className="flex items-center justify-center rounded-xl border border-dashed border-border/80 p-8 text-xs text-muted-foreground bg-muted/10">
@@ -414,59 +490,85 @@ export function VideoSelectionSection({
                 Đang tải thư viện video...
               </div>
             ) : userVideos?.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {userVideos.map((video) => {
-                  const isSelected = selectedVideoId === video.id;
-                  const durLabel = formatDuration(video.duration);
-                  return (
-                    <button
-                      key={video.id}
-                      type="button"
-                      onClick={() => onVideoSelect(video.id)}
-                      className={`group relative overflow-hidden rounded-xl border text-left bg-card transition-all duration-200 hover:shadow-sm ${
-                        isSelected
-                          ? "border-primary ring-2 ring-primary/20 shadow-sm"
-                          : "border-border/80 hover:border-primary/40"
-                      }`}
-                    >
-                      <div className="relative aspect-video bg-muted/40 overflow-hidden">
-                        {video.thumbnail ? (
-                          <Image
-                            src={video.thumbnail}
-                            alt={getVideoCardTitle(video.name, video.id)}
-                            width={480}
-                            height={270}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {displayedVideos.map((video: Video) => {
+                    const isSelected = selectedVideoId === video.id;
+                    const durLabel = formatDuration(video.duration);
+                    return (
+                      <button
+                        key={video.id}
+                        type="button"
+                        onClick={() => onVideoSelect(video.id)}
+                        className={`group relative overflow-hidden rounded-xl border text-left bg-card transition-all duration-200 hover:shadow-sm ${
+                          isSelected
+                            ? "border-primary ring-2 ring-primary/20 shadow-sm"
+                            : "border-border/80 hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="relative aspect-video bg-muted/40 overflow-hidden">
+                          <VideoThumbnail
+                            thumbnail={video.thumbnail}
+                            title={getVideoCardTitle(video.name, video.id)}
                           />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                            <Clapperboard className="h-5 w-5 text-muted-foreground/60" />
-                            <span>Không có ảnh thu nhỏ</span>
-                          </div>
-                        )}
-                        {durLabel !== "--:--" && (
-                          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white tracking-wide leading-none shadow-sm">
-                            {durLabel}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1.5 p-3">
-                        <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground/90 group-hover:text-primary transition-colors">
-                          {getVideoCardTitle(video.name, video.id)}
-                        </p>
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                          <span>{video.created_at ? new Date(video.created_at).toLocaleDateString("vi-VN") : ""}</span>
-                          {isSelected && (
-                            <Badge variant="default" className="h-4.5 px-1.5 text-[9px] font-medium leading-none">
-                              Đã chọn
-                            </Badge>
+                          {durLabel !== "--:--" && (
+                            <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white tracking-wide leading-none shadow-sm">
+                              {durLabel}
+                            </span>
                           )}
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        <div className="space-y-1.5 p-3">
+                          <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground/90 group-hover:text-primary transition-colors">
+                            {getVideoCardTitle(video.name, video.id)}
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>{video.created_at ? new Date(video.created_at).toLocaleDateString("vi-VN") : ""}</span>
+                            {isSelected && (
+                              <Badge variant="default" className="h-4.5 px-1.5 text-[9px] font-medium leading-none">
+                                Đã chọn
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t border-border/40 mt-4 pt-3">
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      Hiển thị {Math.min((page - 1) * PAGE_SIZE + 1, totalItems)}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} video
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg cursor-pointer"
+                        disabled={page <= 1}
+                        onClick={() => setPage(page - 1)}
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </Button>
+                      <span className="min-w-[50px] text-center text-[11px] font-semibold text-muted-foreground">
+                        Trang {page} / {totalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg cursor-pointer"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage(page + 1)}
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-muted-foreground bg-muted/10">
                 Thư viện chưa có video nào. Hãy tải lên video đầu tiên của bạn ở trên.

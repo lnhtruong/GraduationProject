@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const QAPage = dynamic(
-  () => import("@/features/instructor/components/qa/QAPage"),
+const InstructorQAWorkspace = dynamic(
+  () => import("@/features/instructor/components/qa/InstructorQAWorkspace"),
   {
     ssr: false,
     loading: () => (
@@ -17,5 +17,5 @@ const QAPage = dynamic(
 );
 
 export default function Page() {
-  return <QAPage />;
+  return <InstructorQAWorkspace />;
 }
