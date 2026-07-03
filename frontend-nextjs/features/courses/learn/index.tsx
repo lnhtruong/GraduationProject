@@ -93,7 +93,7 @@ export default function CourseLearnPage({ courseId }: Props) {
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
         <div className="mb-5 flex items-center gap-3 text-muted-foreground">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs sm:text-sm">
-            <Link href="/courses" className="whitespace-nowrap hover:text-foreground transition-colors">
+            <Link href="/courses/search" className="whitespace-nowrap hover:text-foreground transition-colors">
               Khóa học
             </Link>
             <span className="opacity-60 select-none">›</span>

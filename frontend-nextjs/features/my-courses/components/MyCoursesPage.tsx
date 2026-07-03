@@ -128,7 +128,7 @@ export function MyCoursesPage() {
                 Bạn chưa đăng ký tham gia khóa học nào. Hãy bắt đầu nâng cấp bản thân ngay hôm nay bằng cách khám phá các khóa học chất lượng cao của chúng tôi.
               </p>
               <Button asChild size="lg" className="rounded-full px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md shadow-primary/20 transition-all hover:scale-102 hover:shadow-lg hover:shadow-primary/30">
-                <Link href="/courses">Khám phá khóa học ngay</Link>
+                <Link href="/courses/search">Khám phá khóa học ngay</Link>
               </Button>
             </div>
           </div>

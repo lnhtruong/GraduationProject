@@ -113,7 +113,7 @@ export default function PaymentSuccessPage() {
             </Button>
           ) : (
             <Button asChild>
-              <Link href="/courses">
+              <Link href="/courses/search">
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Xem khoá học khác
               </Link>
