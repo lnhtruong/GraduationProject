@@ -51,7 +51,7 @@ export interface NewsfeedFeedStatsItem {
 	};
 }
 
-export interface NewsfeedFeedDetailStatsResponse extends NewsfeedFeedStatsItem {}
+export type NewsfeedFeedDetailStatsResponse = NewsfeedFeedStatsItem;
 
 export interface NewsfeedVideoData {
 	id: number;

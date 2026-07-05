@@ -131,7 +131,7 @@ export function useCreateDiscussionMutation(lessonId: number) {
             );
           } else {
             // Replace in replies
-            const parentRootId = (savedPost as any).parentRootId ?? newPostPayload.parentId;
+            const parentRootId = savedPost.parentRootId ?? newPostPayload.parentId;
             updatedData = page.data.map((root: DiscussionPostRecord) => {
               if (root.id === parentRootId) {
                 return {

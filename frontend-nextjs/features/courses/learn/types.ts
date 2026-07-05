@@ -112,6 +112,7 @@ export interface DiscussionPostRecord {
   id: number;
   lessonId: number;
   parentId: number | null;
+  parentRootId?: number | null;
   content: string;
   isBestAnswer: boolean;
   upvotes: number;
