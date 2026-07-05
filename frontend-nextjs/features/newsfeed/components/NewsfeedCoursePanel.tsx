@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 import { useBuyNow } from "@/features/payment/api/payment.hooks";
@@ -154,6 +155,10 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	);
 
 	const roadmaps = useMemo(() => getRoadmapList(roadmapQuery.data), [roadmapQuery.data]);
+	const safeCourseDescription = useMemo(
+		() => sanitizeHtml(video.course.description),
+		[video.course.description],
+	);
 
 	const activeRoadmap = useMemo(() => {
 		if (!roadmaps.length) {
@@ -242,7 +247,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 						</h3>
 						<div
 							className="mt-3 max-w-none text-sm leading-7 text-muted-foreground"
-							dangerouslySetInnerHTML={{ __html: video.course.description }}
+							dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
 						/>
 					</div>
 

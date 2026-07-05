@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/select";
 import { formatDuration, formatPrice } from "@/features/courses/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -138,6 +139,14 @@ export default function CourseOverviewPage({ courseId }: Props) {
       return bySearch && byStatus;
     });
   }, [lessons, search, statusFilter]);
+  const safeCourseDescription = useMemo(
+    () =>
+      sanitizeHtml(
+        course?.description,
+        "<p>Chưa có mô tả chi tiết cho khóa học này.</p>",
+      ),
+    [course?.description],
+  );
 
   const totalPages = Math.max(
     1,
@@ -419,11 +428,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
               <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed pl-5.5">
                 <div
                   className="course-overview-description"
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      course.description?.trim() ||
-                      "<p className='italic opacity-60'>Chưa có mô tả chi tiết cho khóa học này.</p>",
-                  }}
+                  dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
                 />
               </div>
             </div>
