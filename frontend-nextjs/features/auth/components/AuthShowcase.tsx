@@ -41,7 +41,7 @@ const SLIDES = [
               </div>
             </div>
             <div className="px-3 py-1.5 rounded-2xl bg-card/95 border border-border text-[10px] text-foreground max-w-[80%] text-center shadow-md leading-relaxed">
-              "Chào bạn! Mình có thể giúp gì cho bạn trong bài giảng hôm nay?"
+              &quot;Chào bạn! Mình có thể giúp gì cho bạn trong bài giảng hôm nay?&quot;
             </div>
           </div>
 

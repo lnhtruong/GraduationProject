@@ -1,11 +1,5 @@
-import type { Metadata } from "next";
-import { BrowseCoursesPage } from "@/features/courses/components/BrowseCoursesPage";
-
-export const metadata: Metadata = {
-  title: "Khoá học — LearnHub",
-  description: "Khám phá và tìm kiếm các khoá học AI phù hợp với bạn",
-};
+import { redirect } from "next/navigation";
 
 export default function CoursesPage() {
-  return <BrowseCoursesPage />;
+  redirect("/courses/search");
 }

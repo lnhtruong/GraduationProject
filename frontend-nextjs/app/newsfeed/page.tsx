@@ -33,10 +33,10 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 
 	if (rawVideoId) {
 		return {
-			title: "Xem video ngắn #shorts | LearnHub",
+			title: "Xem video ngắn #shorts",
 			description: "Xem các bài học ngắn, sinh động trên bảng tin LearnHub.",
 			openGraph: {
-				title: "Xem video ngắn #shorts | LearnHub",
+				title: "Xem video ngắn #shorts",
 				description: "Xem các bài học ngắn, sinh động trên bảng tin LearnHub.",
 				images: ["/logo.png"],
 			},
@@ -44,10 +44,10 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 	}
 
 	return {
-		title: "Bảng tin bài học ngắn | LearnHub",
+		title: "Bảng tin bài học ngắn",
 		description: "Khám phá các video bài học ngắn hấp dẫn trên LearnHub.",
 		openGraph: {
-			title: "Bảng tin bài học ngắn | LearnHub",
+			title: "Bảng tin bài học ngắn",
 			description: "Khám phá các video bài học ngắn hấp dẫn trên LearnHub.",
 			images: ["/logo.png"],
 		},

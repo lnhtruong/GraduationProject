@@ -90,7 +90,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
 
       {/* ── Hero header ────────────────────────────────────────── */}
       <section className="relative overflow-hidden border-b border-border/40 py-10 lg:py-14">

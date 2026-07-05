@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-export const metadata = { title: "Bài học — Teacher Mode" };
+export const metadata = { title: "Bài học - Chế độ giảng viên" };
 
 interface Props {
   params: Promise<{ courseId: string }>;

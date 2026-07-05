@@ -1,19 +1,9 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import RoadmapListPage from "@/features/instructor/roadmap-management/RoadmapList";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const RoadmapListPage = dynamic(
-  () => import("@/features/instructor/roadmap-management/RoadmapList"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Lộ trình giảng viên",
+  "Quản lý các lộ trình học tập định hướng cho học viên.",
 );
 
 export default function Page() {

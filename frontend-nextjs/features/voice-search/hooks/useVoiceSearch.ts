@@ -1,12 +1,58 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface UseVoiceSearchOptions {
   onResult?: (transcript: string, isFinal: boolean) => void;
   onEnd?: (finalTranscript: string) => void;
   onError?: (error: string) => void;
   lang?: string;
+}
+
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  readonly isFinal: boolean;
+  readonly length: number;
+  item(index: number): SpeechRecognitionAlternativeLike;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionResultListLike {
+  readonly length: number;
+  item(index: number): SpeechRecognitionResultLike;
+  [index: number]: SpeechRecognitionResultLike;
+}
+
+interface SpeechRecognitionEventLike extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultListLike;
+}
+
+interface SpeechRecognitionErrorEventLike extends Event {
+  readonly error: string;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
 }
 
 export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
@@ -16,13 +62,12 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef("");
   const onResultRef = useRef(onResult);
   const onEndRef = useRef(onEnd);
   const onErrorRef = useRef(onError);
 
-  // Sync callbacks and transcript values to refs to avoid stale closures
   useEffect(() => {
     onResultRef.current = onResult;
     onEndRef.current = onEnd;
@@ -36,80 +81,79 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const speechWindow = window as SpeechRecognitionWindow;
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
-      setIsSupported(true);
-      const rec = new SpeechRecognition();
-      rec.continuous = false;
-      rec.interimResults = true;
-      rec.lang = lang;
-
-      rec.onstart = () => {
-        setIsListening(true);
-        setError(null);
-        setTranscript("");
-        transcriptRef.current = "";
-      };
-
-      rec.onresult = (event: any) => {
-        let interimTranscript = "";
-        let finalTranscript = "";
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcriptSegment = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcriptSegment;
-          } else {
-            interimTranscript += transcriptSegment;
-          }
-        }
-
-        const currentTranscript = finalTranscript || interimTranscript;
-        setTranscript(currentTranscript);
-        transcriptRef.current = currentTranscript;
-
-        if (onResultRef.current) {
-          onResultRef.current(currentTranscript, finalTranscript !== "");
-        }
-      };
-
-      rec.onerror = (event: any) => {
-        console.error("Speech recognition error", event.error);
-        let errorMsg = "Đã xảy ra lỗi trong quá trình thu âm.";
-        if (event.error === "not-allowed") {
-          errorMsg = "Không có quyền truy cập micro. Vui lòng cho phép quyền truy cập micro trong cài đặt trình duyệt.";
-        } else if (event.error === "no-speech") {
-          errorMsg = "Không nghe thấy tiếng nói. Vui lòng thử lại.";
-        }
-        setError(errorMsg);
-        setIsListening(false);
-        if (onErrorRef.current) {
-          onErrorRef.current(errorMsg);
-        }
-      };
-
-      rec.onend = () => {
-        setIsListening(false);
-        if (onEndRef.current && transcriptRef.current.trim()) {
-          onEndRef.current(transcriptRef.current.trim());
-        }
-      };
-
-      recognitionRef.current = rec;
-    } else {
+    if (!SpeechRecognition) {
       setIsSupported(false);
+      return;
     }
 
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // Ignore errors during abort
+    setIsSupported(true);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = lang;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setError(null);
+      setTranscript("");
+      transcriptRef.current = "";
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcriptSegment = result[0]?.transcript ?? "";
+        if (result.isFinal) {
+          finalTranscript += transcriptSegment;
+        } else {
+          interimTranscript += transcriptSegment;
         }
       }
+
+      const currentTranscript = finalTranscript || interimTranscript;
+      setTranscript(currentTranscript);
+      transcriptRef.current = currentTranscript;
+      onResultRef.current?.(currentTranscript, finalTranscript !== "");
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      let errorMessage = "Đã xảy ra lỗi trong quá trình thu âm.";
+      if (event.error === "not-allowed") {
+        errorMessage =
+          "Không có quyền truy cập micro. Vui lòng cho phép quyền truy cập micro trong cài đặt trình duyệt.";
+      } else if (event.error === "no-speech") {
+        errorMessage = "Không nghe thấy tiếng nói. Vui lòng thử lại.";
+      }
+
+      setError(errorMessage);
+      setIsListening(false);
+      onErrorRef.current?.(errorMessage);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      if (transcriptRef.current.trim()) {
+        onEndRef.current?.(transcriptRef.current.trim());
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      try {
+        recognition.abort();
+      } catch {
+        // Ignore abort errors during cleanup.
+      }
+      recognitionRef.current = null;
     };
   }, [lang]);
 

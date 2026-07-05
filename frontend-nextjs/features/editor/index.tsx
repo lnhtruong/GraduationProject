@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { Monitor, UploadCloud } from "lucide-react";
 import CoreEditor from "@/features/editor/components/CoreEditor";
 import type { ExternalEditorPanelBindings } from "@/features/editor/types";
 import { useStudioSession } from "@/features/editor/hooks/useStudioSession";
@@ -91,7 +92,27 @@ export default function Editor() {
   } = useStudioSession();
 
   return (
-    <div className="relative flex min-h-screen w-full bg-background text-foreground">
+    <>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground lg:hidden">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Monitor className="h-7 w-7" />
+          </div>
+          <h1 className="mt-5 text-xl font-bold">Studio chỉnh sửa cần màn hình lớn</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Trình chỉnh sửa video có timeline, preview và nhiều bảng công cụ nên hiện chỉ hỗ trợ tốt trên desktop hoặc laptop.
+          </p>
+          <a
+            href="/upload"
+            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+          >
+            <UploadCloud className="h-4 w-4" />
+            Tải video lên
+          </a>
+        </div>
+      </div>
+
+      <div className="relative hidden min-h-screen w-full bg-background text-foreground lg:flex">
       {!isSidebarCollapsed && (
         <div
           className="fixed inset-y-0 left-14 right-0 z-40 bg-black/35 backdrop-blur-[1px] transition-opacity"
@@ -150,6 +171,7 @@ export default function Editor() {
           </div>
         </main>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

@@ -5,10 +5,16 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { newsfeedApi } from "./newsfeed.api";
+import type {
+  NewsfeedActionType,
+  NewsfeedFeedApiResponse,
+  NewsfeedItem,
+} from "../types";
 
 import { useAuthStore } from "@/store/auth";
 
@@ -199,7 +205,23 @@ export function useNewsfeedCommentDetail(
   });
 }
 
-function applyInteraction(item: any, variables: any, data: any) {
+type NewsfeedInteractType = Exclude<NewsfeedActionType, "course" | "comment">;
+
+interface NewsfeedInteractVariables {
+  feedId: number;
+  type: NewsfeedInteractType;
+}
+
+interface NewsfeedInteractResponse {
+  type: NewsfeedInteractType;
+  active: boolean;
+}
+
+function applyInteraction(
+  item: NewsfeedItem,
+  variables: NewsfeedInteractVariables,
+  data: NewsfeedInteractResponse,
+): NewsfeedItem {
   const updatedItem = { ...item };
   if (variables.type === "like") {
     const wasLiked = item.isLiked;
@@ -235,15 +257,15 @@ export function useNewsfeedInteractMutation() {
     mutationFn: newsfeedApi.interactFeed,
     onSuccess: (data, variables) => {
       // 1. Update infinite feed caches
-      queryClient.setQueriesData<any>(
+      queryClient.setQueriesData<InfiniteData<NewsfeedFeedApiResponse>>(
         { queryKey: ["newsfeed", "feed"] },
-        (oldData: any) => {
+        (oldData) => {
           if (!oldData || !oldData.pages) return oldData;
           return {
             ...oldData,
-            pages: oldData.pages.map((page: any) => ({
+            pages: oldData.pages.map((page) => ({
               ...page,
-              items: page.items.map((item: any) => {
+              items: page.items.map((item) => {
                 if (item.feedId === variables.feedId) {
                   return applyInteraction(item, variables, data);
                 }
@@ -256,13 +278,13 @@ export function useNewsfeedInteractMutation() {
 
       // 2. Update regular feed caches (saved / viewed)
       const updateRegularFeedQuery = (key: string) => {
-        queryClient.setQueriesData<any>(
+        queryClient.setQueriesData<NewsfeedFeedApiResponse>(
           { queryKey: ["newsfeed", key] },
-          (oldData: any) => {
+          (oldData) => {
             if (!oldData || !Array.isArray(oldData.items)) return oldData;
             return {
               ...oldData,
-              items: oldData.items.map((item: any) => {
+              items: oldData.items.map((item) => {
                 if (item.feedId === variables.feedId) {
                   return applyInteraction(item, variables, data);
                 }

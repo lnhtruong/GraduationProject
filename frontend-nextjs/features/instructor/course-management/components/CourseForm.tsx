@@ -46,6 +46,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { CourseFormValues, InstructorCourse } from "../types";
 import { formatMonthYear } from "@/features/courses/utils";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 const RichTextBoxCKE = dynamic(
   () => import("@/components/RichTextBoxCKE").then((mod) => mod.RichTextBoxCKE),
@@ -91,7 +92,13 @@ export function CourseForm({ course, onSave }: Props) {
 
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setPortalTarget(document.getElementById("course-form-actions-portal"));
+    const frame = window.requestAnimationFrame(() => {
+      setPortalTarget(document.getElementById("course-form-actions-portal"));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,8 +160,11 @@ export function CourseForm({ course, onSave }: Props) {
       } else {
         toast.error("Không nhận được URL ảnh từ máy chủ.");
       }
-    } catch (error: any) {
-      const errMsg = error?.message || String(error) || "Lỗi không xác định";
+    } catch (error: unknown) {
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : String(error || "Lỗi không xác định");
       toast.error(`Tải ảnh lên thất bại: ${errMsg}`);
     }
   };
@@ -185,6 +195,10 @@ export function CourseForm({ course, onSave }: Props) {
     }
     return html;
   })();
+  const safePreviewDescriptionHtml = useMemo(
+    () => sanitizeHtml(previewDescriptionHtml),
+    [previewDescriptionHtml],
+  );
 
   useEffect(() => {
     if (filledAt) return;
@@ -202,7 +216,13 @@ export function CourseForm({ course, onSave }: Props) {
       levelValue !== "Beginner";
 
     if (hasInput) {
-      setFilledAt(new Date().toISOString());
+      const frame = window.requestAnimationFrame(() => {
+        setFilledAt(new Date().toISOString());
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
     }
   }, [
     categoriesValue.length,
@@ -292,7 +312,7 @@ export function CourseForm({ course, onSave }: Props) {
         <div className="rounded-lg border border-border/60 bg-muted/30 p-3 max-h-48 overflow-y-auto">
           <div
             className="course-preview-html text-sm text-muted-foreground"
-            dangerouslySetInnerHTML={{ __html: previewDescriptionHtml }}
+            dangerouslySetInnerHTML={{ __html: safePreviewDescriptionHtml }}
           />
         </div>
 

@@ -1,21 +1,11 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import AdminCoursesPage from "@/features/admin/components/courses/AdminCoursesPage";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const AdminCoursesPage = dynamic(
-  () => import("@/features/admin/components/courses/AdminCoursesPage"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Quản lý khóa học",
+  "Kiểm duyệt và quản trị danh sách khóa học trên LearnHub.",
 );
 
-export default function AdminCoursesRoute() {
+export default function Page() {
   return <AdminCoursesPage />;
 }

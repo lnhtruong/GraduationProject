@@ -1,24 +1,11 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import AdminLecturerRequestsPage from "@/features/lecturer-requests/components/admin/AdminLecturerRequestsPage";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const AdminLecturerRequestsPage = dynamic(
-  () =>
-    import(
-      "@/features/lecturer-requests/components/admin/AdminLecturerRequestsPage"
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Yêu cầu giảng viên",
+  "Duyệt hồ sơ nâng cấp giảng viên và quản lý quy trình xét duyệt.",
 );
 
-export default function AdminLecturerRequestsRoute() {
+export default function Page() {
   return <AdminLecturerRequestsPage />;
 }

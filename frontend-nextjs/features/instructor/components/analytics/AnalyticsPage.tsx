@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
             <div>
               <h1 className="text-xl font-bold tracking-tight">Thống kê</h1>
               <p className="text-sm text-muted-foreground">
-                Tổng quan hiệu suất khóa học và nội dung Shorts Feed
+                Tổng quan hiệu suất khóa học và nội dung Feed
               </p>
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function AnalyticsPage() {
               className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
               <TrendingUp className="h-3.5 w-3.5" />
-              Shorts Feed
+              Feed
             </TabsTrigger>
             <TabsTrigger
               value="trending"
@@ -343,7 +343,7 @@ export default function AnalyticsPage() {
           </div>
         </TabsContent>
 
-        {/* ── Tab: Shorts Feed ── */}
+        {/* ── Tab: Feed ── */}
         <TabsContent value="feed" className="mt-0 space-y-4">
           <TabSummaryRow
             isLoading={feedLoading}

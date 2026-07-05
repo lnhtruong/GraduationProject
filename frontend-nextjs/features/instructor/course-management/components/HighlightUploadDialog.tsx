@@ -56,7 +56,7 @@ export function HighlightUploadDialog({
       // from the dependency list to avoid re-running this effect repeatedly
       // when those handlers are recreated. The only dependency that matters
       // here is `open`.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+       
       cancel();
       setFile(null);
     }
