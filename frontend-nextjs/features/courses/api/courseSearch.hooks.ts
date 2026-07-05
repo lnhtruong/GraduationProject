@@ -15,10 +15,11 @@ export function useSearchCourses(params: SearchCoursesParams = {}) {
   });
 }
 
-export function useCourseCategories() {
+export function useCourseCategories(enabled = true) {
   return useQuery({
     queryKey: courseSearchKeys.categories,
     queryFn: () => courseSearchApi.getCategories(),
+    enabled,
     staleTime: 5 * 60 * 1000, // Categories don't change often
   });
 }
