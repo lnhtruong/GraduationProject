@@ -45,7 +45,7 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
   const isCompleted = enrollment?.status === "completed";
 
   return (
-    <div id="course-enroll-cta" className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.13)]">
+    <div data-course-enroll-cta className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.13)]">
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden bg-zinc-900">
         {course.thumbnailUrl ? (

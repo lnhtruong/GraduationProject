@@ -43,6 +43,22 @@ type StatusFilter =
 
 const PAGE_SIZE = 4;
 
+function getWorkflowErrorMessage(error: unknown, fallback: string) {
+  const responseMessage = (error as {
+    response?: { data?: { message?: unknown } };
+  }).response?.data?.message;
+
+  if (typeof responseMessage === "string" && responseMessage.trim()) {
+    return responseMessage;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export default function CoursesPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -180,8 +196,15 @@ export default function CoursesPage() {
   const publishCourseMutation = usePublishCourse();
 
   const handleDelete = async (id: number) => {
-    await deleteCourseMutation.mutateAsync(id);
-    toast.success("Đã xóa khóa học");
+    setActiveWorkflowCourseId(id);
+    try {
+      await deleteCourseMutation.mutateAsync(id);
+      toast.success("Đã xóa khóa học");
+    } catch (error) {
+      toast.error(getWorkflowErrorMessage(error, "Xóa khóa học thất bại"));
+    } finally {
+      setActiveWorkflowCourseId(null);
+    }
   };
 
   const handleSubmitForReview = async (id: number) => {
@@ -190,9 +213,7 @@ export default function CoursesPage() {
       await submitCourseForReviewMutation.mutateAsync(id);
       toast.success("Đã gửi duyệt khóa học");
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Gửi duyệt khóa học thất bại";
-      toast.error(message);
+      toast.error(getWorkflowErrorMessage(error, "Gửi duyệt khóa học thất bại"));
     } finally {
       setActiveWorkflowCourseId(null);
     }
@@ -204,9 +225,7 @@ export default function CoursesPage() {
       await publishCourseMutation.mutateAsync(id);
       toast.success("Đã publish khóa học");
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Publish khóa học thất bại";
-      toast.error(message);
+      toast.error(getWorkflowErrorMessage(error, "Publish khóa học thất bại"));
     } finally {
       setActiveWorkflowCourseId(null);
     }

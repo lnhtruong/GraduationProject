@@ -43,7 +43,19 @@ export function CourseContentAccordion({
         action: {
           label: "Đăng ký ngay",
           onClick: () => {
-            document.getElementById("course-enroll-cta")?.scrollIntoView({ behavior: "smooth" });
+            const ctas = Array.from(
+              document.querySelectorAll<HTMLElement>("[data-course-enroll-cta]"),
+            );
+            const target =
+              ctas.find((element) => element.getClientRects().length > 0) ??
+              ctas[0];
+
+            if (target) {
+              target.scrollIntoView({ behavior: "smooth", block: "center" });
+              return;
+            }
+
+            router.push(`/courses/${courseId}#course-enroll-cta`);
           },
         },
       });

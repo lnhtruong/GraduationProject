@@ -2,16 +2,11 @@
 
 import Link from "next/link";
 import {
-  BookOpen,
   Trash2,
   FolderKanban,
-  Clock3,
-  Languages,
-  BadgeCheck,
   Send,
   Rocket,
   GraduationCap,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +27,8 @@ interface Props {
 const LANGUAGE_LABELS: Record<string, string> = {
   vi: "Tiếng Việt",
   en: "Tiếng Anh",
+  vietnamese: "Tiếng Việt",
+  english: "Tiếng Anh",
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -48,18 +45,39 @@ function getLevelLabel(level: string) {
   return LEVEL_LABELS[level.toLowerCase()] ?? level;
 }
 
-function formatCourseDuration(duration: string) {
-  if (!duration) return "0 phút";
-  const parts = duration.split(":");
-  if (parts.length < 2) return duration;
-  const hours = parseInt(parts[0], 10);
-  const minutes = parseInt(parts[1], 10);
-  
-  if (isNaN(hours) || isNaN(minutes)) return duration;
-  
-  const hLabel = hours > 0 ? `${hours} giờ ` : "";
-  const mLabel = minutes > 0 ? `${minutes} phút` : "";
-  return `${hLabel}${mLabel}`.trim() || "0 phút";
+function formatCourseDuration(duration: string | number | null | undefined) {
+  if (duration === null || duration === undefined || duration === "") {
+    return "0 phút";
+  }
+
+  let totalSeconds = 0;
+  if (typeof duration === "number") {
+    totalSeconds = Number.isFinite(duration) ? Math.max(0, duration) : 0;
+  } else {
+    const normalized = duration.trim();
+    if (/^\d+(\.\d+)?$/.test(normalized)) {
+      totalSeconds = Number(normalized);
+    } else {
+      const parts = normalized.split(":");
+      if (parts.length >= 2) {
+        const hours = Number(parts[0]);
+        const minutes = Number(parts[1]);
+        const seconds = Number(parts[2]?.split(".")[0] ?? 0);
+        if ([hours, minutes, seconds].every(Number.isFinite)) {
+          totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        }
+      }
+    }
+  }
+
+  const safeSeconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+  if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
+  if (hours > 0) return `${hours} giờ`;
+  if (minutes > 0) return `${minutes} phút`;
+  return "0 phút";
 }
 
 function StatusBadge({ status }: { status: CourseStatus }) {
@@ -229,6 +247,7 @@ export function CourseManageCard({
             variant="outline"
             className="h-8 w-8 rounded-lg border-destructive/20 hover:border-destructive/40 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive active:scale-[0.96] transition-all cursor-pointer"
             onClick={() => onDelete(course.id)}
+            disabled={workflowLoading}
             aria-label="Xóa khóa học"
             title="Xóa khóa học"
           >

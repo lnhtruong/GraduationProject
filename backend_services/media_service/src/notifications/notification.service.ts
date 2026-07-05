@@ -185,7 +185,10 @@ export class NotificationService {
 
     const rows = await this.notificationModel.findAll({
       where,
-      order: [['id', 'DESC']],
+      order: [
+        ['created_at', 'DESC'],
+        ['id', 'DESC'],
+      ],
       limit: safeLimit,
     });
 

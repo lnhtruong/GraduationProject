@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CourseHeroSection } from "./components/CourseHeroSection";
@@ -10,6 +10,7 @@ import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { useAuthStore } from "@/store/auth";
 import { useEnrollmentCheck } from "../api/enrollment.api";
 import { useCourseDetail } from "../api/courseDetail.api";
@@ -23,18 +24,18 @@ import { useIsInWishlist, useToggleWishlistMutation } from "@/features/wishlist/
 
 function DescriptionSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  const safeDescription = useMemo(() => sanitizeHtml(text), [text]);
   if (!text) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Mô tả khoá học</h2>
       <div className="relative">
-        <p
+        <div
           className={`whitespace-pre-line text-sm leading-relaxed text-muted-foreground ${
             expanded ? "" : "line-clamp-5"
           }`}
-        >
-          {text}
-        </p>
+          dangerouslySetInnerHTML={{ __html: safeDescription }}
+        />
         {!expanded && (
           <div className="pointer-events-none absolute bottom-0 h-12 w-full bg-gradient-to-t from-background to-transparent" />
         )}

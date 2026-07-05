@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { User } from 'src/users/user.model';
+import { CourseStatus } from 'src/models/course.model';
 import { TransactionItem } from 'src/models/transaction-item.model';
 import {
   PaymentTransaction,
@@ -51,6 +52,7 @@ export class AdminRevenueService {
       thisMonthStart: this.formatSqlDateTime(thisMonthStart),
       nextMonthStart: this.formatSqlDateTime(nextMonthStart),
       lastMonthStart: this.formatSqlDateTime(lastMonthStart),
+      publishedStatus: CourseStatus.PUBLISH,
     };
 
     const [summaryRows, statusRows, topCourseRows, topInstructorRows] =
@@ -70,6 +72,9 @@ export class AdminRevenueService {
             COUNT(DISTINCT t.id) AS paidOrders,
             COUNT(ti.id) AS coursesSold
           FROM transaction_items ti
+          INNER JOIN courses c
+            ON c.id = ti.course_id
+            AND c.status = :publishedStatus
           INNER JOIN transactions t
             ON t.id = ti.transaction_id
             AND t.status = 'paid'
@@ -96,6 +101,7 @@ export class AdminRevenueService {
           INNER JOIN transaction_items ti ON ti.course_id = c.id
           INNER JOIN transactions t
             ON t.id = ti.transaction_id AND t.status = 'paid'
+          WHERE c.status = :publishedStatus
           GROUP BY c.id, c.name, c.user_id
           ORDER BY revenue DESC, c.id ASC
           LIMIT ${TOP_LIMIT}
@@ -113,6 +119,7 @@ export class AdminRevenueService {
           INNER JOIN transaction_items ti ON ti.course_id = c.id
           INNER JOIN transactions t
             ON t.id = ti.transaction_id AND t.status = 'paid'
+          WHERE c.status = :publishedStatus
           GROUP BY c.user_id
           ORDER BY revenue DESC, c.user_id ASC
           LIMIT ${TOP_LIMIT}
@@ -174,6 +181,7 @@ export class AdminRevenueService {
     const replacements = {
       from: this.formatSqlDateTime(range.from),
       toExclusive: this.formatSqlDateTime(toExclusive),
+      publishedStatus: CourseStatus.PUBLISH,
     };
 
     const rows = await this.sequelize.query<Record<string, unknown>>(
@@ -183,6 +191,9 @@ export class AdminRevenueService {
           COALESCE(SUM(ti.price), 0) AS revenue,
           COUNT(DISTINCT t.id) AS orderCount
         FROM transaction_items ti
+        INNER JOIN courses c
+          ON c.id = ti.course_id
+          AND c.status = :publishedStatus
         INNER JOIN transactions t
           ON t.id = ti.transaction_id
           AND t.status = 'paid'
@@ -218,6 +229,7 @@ export class AdminRevenueService {
     const replacements = {
       from: this.formatSqlDateTime(range.from),
       toExclusive: this.formatSqlDateTime(toExclusive),
+      publishedStatus: CourseStatus.PUBLISH,
     };
 
     const rows = await this.sequelize.query<Record<string, unknown>>(
@@ -228,7 +240,9 @@ export class AdminRevenueService {
           ON t.id = ti.transaction_id
           AND t.status = 'paid'
           AND t.paid_at IS NOT NULL
-        INNER JOIN courses c ON c.id = ti.course_id
+        INNER JOIN courses c
+          ON c.id = ti.course_id
+          AND c.status = :publishedStatus
         WHERE t.paid_at >= :from AND t.paid_at < :toExclusive
       `,
       { type: QueryTypes.SELECT, replacements },

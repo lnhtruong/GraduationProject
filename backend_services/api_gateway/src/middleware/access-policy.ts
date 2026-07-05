@@ -335,7 +335,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'DELETE',
     pattern: '/api/course/courses/:id',
     access: 'roles',
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'POST',

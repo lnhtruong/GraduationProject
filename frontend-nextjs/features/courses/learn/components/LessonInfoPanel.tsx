@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Flag } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { ReportDialog } from "@/features/reports/components/ReportDialog";
 
 interface Props {
@@ -39,27 +39,14 @@ export function LessonInfoPanel({
     ? `${instructor.firstName?.[0] ?? ""}${instructor.lastName?.[0] ?? ""}`.trim().toUpperCase() || "GI"
     : "GI";
 
-  const linkify = (text?: string) => {
-    if (!text) return "";
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline font-semibold break-all"
-          >
-            {part}
-          </a>
-        );
-      }
-      return part;
-    });
-  };
+  const safeLessonDescription = useMemo(
+    () =>
+      sanitizeHtml(
+        lessonDescription,
+        "Bài học này chưa có mô tả chi tiết. Bạn có thể xem video và làm quiz để tiếp tục lộ trình.",
+      ),
+    [lessonDescription],
+  );
 
   return (
     <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
@@ -111,11 +98,10 @@ export function LessonInfoPanel({
           </div>
         </div>
 
-        <div className="pt-4 border-t border-border/60 text-sm leading-6 text-muted-foreground whitespace-pre-line">
-          {lessonDescription?.trim()
-            ? linkify(lessonDescription)
-            : "Bài học này chưa có mô tả chi tiết. Bạn có thể xem video và làm quiz để tiếp tục lộ trình."}
-        </div>
+        <div
+          className="pt-4 border-t border-border/60 text-sm leading-6 text-muted-foreground whitespace-pre-line"
+          dangerouslySetInnerHTML={{ __html: safeLessonDescription }}
+        />
       </CardContent>
 
       <ReportDialog

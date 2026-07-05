@@ -40,6 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { CourseStatusBadge } from "../CourseStatusBadge";
 import {
@@ -50,7 +51,7 @@ import {
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: "Sơ cấp",
@@ -472,6 +473,10 @@ interface Props {
 export function AdminCourseReviewModal({ course, open, onClose, onReviewed }: Props) {
   const approve = useApproveCourse();
   const reject = useRejectCourse();
+  const safeDescription = useMemo(
+    () => sanitizeHtml(course?.description),
+    [course?.description],
+  );
 
   // Fetch lessons here too (React Query deduplicates — no extra API call)
   // to show a warning in the footer when there are missing video URLs.
@@ -564,9 +569,10 @@ export function AdminCourseReviewModal({ course, open, onClose, onReviewed }: Pr
 
                 {/* Mô tả */}
                 {course.description && (
-                  <p className="mb-4 rounded-xl bg-muted/30 px-4 py-3 text-sm leading-relaxed text-foreground/80">
-                    {course.description}
-                  </p>
+                  <div
+                    className="mb-4 rounded-xl bg-muted/30 px-4 py-3 text-sm leading-relaxed text-foreground/80"
+                    dangerouslySetInnerHTML={{ __html: safeDescription }}
+                  />
                 )}
 
                 {/* Meta pills */}

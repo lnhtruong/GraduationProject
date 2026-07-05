@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Bookmark,
   Ellipsis,
@@ -37,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
 import type { NewsfeedItem } from "../types";
 import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
@@ -86,7 +88,7 @@ interface NewsfeedVideoCardProps {
   onPlaybackRateChange: (rate: NewsfeedPlaybackRate) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
-  onOpenShare: (url: string) => void;
+  onOpenShare: (feedId: number, url: string) => void;
 }
 
 export function NewsfeedVideoCard({
@@ -107,6 +109,7 @@ export function NewsfeedVideoCard({
 
   const isGlobalPaused = useNewsfeedUiStore((state) => state.isGlobalPaused);
   const setGlobalPaused = useNewsfeedUiStore((state) => state.setGlobalPaused);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
   const [isMuted, setIsMuted] = useState(false);
@@ -131,24 +134,31 @@ export function NewsfeedVideoCard({
   });
 
   useEffect(() => {
-    setIsLiked(video.isLiked);
+    const timer = window.setTimeout(() => setIsLiked(video.isLiked), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.isLiked]);
 
   useEffect(() => {
-    setIsSaved(video.isSaved);
+    const timer = window.setTimeout(() => setIsSaved(video.isSaved), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.isSaved]);
 
   useEffect(() => {
-    setLocalLikeCount(video.stats.likes);
+    const timer = window.setTimeout(() => setLocalLikeCount(video.stats.likes), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.stats.likes]);
 
   useEffect(() => {
-    setLocalSaveCount(video.stats.saves);
+    const timer = window.setTimeout(() => setLocalSaveCount(video.stats.saves), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.stats.saves]);
 
   useEffect(() => {
-    setIsCaptionExpanded(false);
-    setIsOverlayHidden(false);
+    const timer = window.setTimeout(() => {
+      setIsCaptionExpanded(false);
+      setIsOverlayHidden(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId]);
 
   useEffect(() => {
@@ -220,18 +230,30 @@ export function NewsfeedVideoCard({
 
     return segments;
   }, [fullCaptionSegments]);
-  const fullCaptionText = useMemo(
-    () => fullCaptionSegments.map((segment) => segment.text).join(" "),
-    [fullCaptionSegments],
-  );
-  const collapsedCaptionText = useMemo(
-    () => collapsedCaptionSegments.map((segment) => segment.text).join(" "),
-    [collapsedCaptionSegments],
-  );
-  const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
-
   const displayStats = video.stats;
   const volumePercent = isMuted ? 0 : volume * 100;
+
+  const requireAuth = useCallback(
+    (message: string) => {
+      if (isAuthenticated) {
+        return true;
+      }
+
+      const returnUrl =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/newsfeed";
+
+      toast.info(message, {
+        action: {
+          label: "Đăng nhập",
+          onClick: () => router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`),
+        },
+      });
+      return false;
+    },
+    [isAuthenticated, router],
+  );
 
   const handleHashtagClick = useCallback(
     (tag: string) => {
@@ -246,6 +268,16 @@ export function NewsfeedVideoCard({
 
   const toggleInteraction = useCallback(
     async (type: "like" | "save") => {
+      if (
+        !requireAuth(
+          type === "like"
+            ? "Bạn cần đăng nhập để thích video."
+            : "Bạn cần đăng nhập để lưu video.",
+        )
+      ) {
+        return;
+      }
+
       const isCurrentlyActive = type === "like" ? isLiked : isSaved;
       const nextActiveState = !isCurrentlyActive;
 
@@ -288,7 +320,7 @@ export function NewsfeedVideoCard({
         }
       }
     },
-    [isLiked, isSaved, likeMutation, saveMutation, video.feedId],
+    [isLiked, isSaved, likeMutation, requireAuth, saveMutation, video.feedId],
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -332,13 +364,13 @@ export function NewsfeedVideoCard({
 
     if (!isActive) {
       element.pause();
-      setIsPaused(true);
+      window.setTimeout(() => setIsPaused(true), 0);
       return;
     }
 
     if (isGlobalPaused) {
       element.pause();
-      setIsPaused(true);
+      window.setTimeout(() => setIsPaused(true), 0);
     } else {
       const tryPlay = async () => {
         await element.play();
@@ -847,7 +879,10 @@ export function NewsfeedVideoCard({
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             onClick={(event) => {
               event.stopPropagation();
-              onOpenShare(`${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`);
+              onOpenShare(
+                video.feedId,
+                `${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`,
+              );
             }}
           >
             <Share2 className="h-5 w-5" />

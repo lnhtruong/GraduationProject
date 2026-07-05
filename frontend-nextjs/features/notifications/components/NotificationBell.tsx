@@ -174,11 +174,18 @@ export function NotificationBell({ className }: { className?: string }) {
   }, [notificationsQuery.data]);
 
   const visibleNotifications = useMemo(() => {
-    return notifications.filter((it) => {
-      if (deletedIds.includes(it.id)) return false;
-      if (activeTab === "unread") return !it.is_read;
-      return true;
-    });
+    return notifications
+      .filter((it) => {
+        if (deletedIds.includes(it.id)) return false;
+        if (activeTab === "unread") return !it.is_read;
+        return true;
+      })
+      .sort((a, b) => {
+        const byDate =
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (Number.isFinite(byDate) && byDate !== 0) return byDate;
+        return b.id - a.id;
+      });
   }, [notifications, deletedIds, activeTab]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {

@@ -60,7 +60,7 @@ interface NewsfeedVideoFeedProps {
   onPrev: () => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
-  onOpenShare: (url: string) => void;
+  onOpenShare: (feedId: number, url: string) => void;
   className?: string;
 }
 
@@ -83,19 +83,19 @@ export function NewsfeedVideoFeed({
   const cancelScrollRef = useRef<(() => void) | null>(null);
   const onNextRef = useRef(onNext);
   const onPrevRef = useRef(onPrev);
-  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>("1");
+  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>(() => {
+    if (typeof window === "undefined") {
+      return "1";
+    }
+
+    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
+    return storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate) ? storedPlaybackRate : "1";
+  });
 
   useEffect(() => {
     onNextRef.current = onNext;
     onPrevRef.current = onPrev;
   }, [onNext, onPrev]);
-
-  useEffect(() => {
-    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
-    if (storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate)) {
-      setPlaybackRate(storedPlaybackRate);
-    }
-  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY, playbackRate);

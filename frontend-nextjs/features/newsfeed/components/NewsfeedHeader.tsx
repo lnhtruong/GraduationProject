@@ -195,7 +195,7 @@ export function NewsfeedHeader({
                 variant="ghost"
                 size="sm"
                 asChild
-                className="hidden rounded-full border border-border/70 bg-background/90 px-4 shadow-sm hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+                className="inline-flex rounded-full border border-border/70 bg-background/90 px-3 shadow-sm hover:bg-accent hover:text-accent-foreground sm:px-4"
               >
                 <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
               </Button>
@@ -203,7 +203,7 @@ export function NewsfeedHeader({
                 variant="secondary"
                 size="sm"
                 asChild
-                className="rounded-full px-4 shadow-sm"
+                className="hidden rounded-full px-4 shadow-sm sm:inline-flex"
               >
                 <Link href={`/signup?returnUrl=${encodeURIComponent(pathname)}`}>Đăng ký</Link>
               </Button>

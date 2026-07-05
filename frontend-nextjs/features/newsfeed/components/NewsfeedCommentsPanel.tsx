@@ -1,11 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, MessageCircleReply, SendHorizonal } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthStore } from "@/store/auth";
 import {
   useCreateNewsfeedComment,
   useNewsfeedCommentDetail,
@@ -102,6 +105,8 @@ function CommentThread({
   onCancelReply,
   onSubmitReply,
   isSubmitting,
+  isAuthenticated,
+  onAuthRequired,
   sortOrder,
 }: {
   feedId: number;
@@ -111,6 +116,8 @@ function CommentThread({
   onCancelReply: () => void;
   onSubmitReply: (originCmt: number, content: string) => Promise<void>;
   isSubmitting: boolean;
+  isAuthenticated: boolean;
+  onAuthRequired: () => void;
   sortOrder: CommentSortOrder;
 }) {
   const [replyContent, setReplyContent] = useState("");
@@ -125,10 +132,19 @@ function CommentThread({
 
   const isReplying = replyTargetId === comment.id;
   const replyCount = comment.total_nested_cmt ?? replies.length;
-  const canSubmitReply = replyContent.trim().length > 0 && replyContent.trim().length <= 1000 && !isSubmitting;
+  const canSubmitReply =
+    isAuthenticated &&
+    replyContent.trim().length > 0 &&
+    replyContent.trim().length <= 1000 &&
+    !isSubmitting;
 
   const handleSubmitReply = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isAuthenticated) {
+      onAuthRequired();
+      return;
+    }
+
     if (!isReplying || !canSubmitReply) {
       return;
     }
@@ -175,6 +191,10 @@ function CommentThread({
               type="button"
               className="inline-flex items-center gap-1 transition hover:text-foreground"
               onClick={() => {
+                if (!isAuthenticated) {
+                  onAuthRequired();
+                  return;
+                }
                 if (isReplying) {
                   onCancelReply();
                   setReplyContent("");
@@ -265,6 +285,8 @@ export function NewsfeedCommentsPanel({
   viewerName,
   sortOrder,
 }: NewsfeedCommentsPanelProps) {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const [content, setContent] = useState("");
   const [replyTargetId, setReplyTargetId] = useState<number | null>(null);
   const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -272,12 +294,27 @@ export function NewsfeedCommentsPanel({
   const commentsQuery = useNewsfeedComments(feedId, Boolean(feedId));
   const createCommentMutation = useCreateNewsfeedComment();
 
+  const requireAuth = () => {
+    const returnUrl =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}`
+        : "/newsfeed";
+
+    toast.info("Bạn cần đăng nhập để bình luận.", {
+      action: {
+        label: "Đăng nhập",
+        onClick: () => router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`),
+      },
+    });
+  };
+
   const comments = useMemo(
     () => sortCommentsByOrder(commentsQuery.data?.pages.flatMap((page) => page.items) ?? [], sortOrder),
     [commentsQuery.data?.pages, sortOrder],
   );
 
   const canSubmit =
+    isAuthenticated &&
     Boolean(feedId) &&
     content.trim().length > 0 &&
     content.trim().length <= 1000 &&
@@ -285,6 +322,11 @@ export function NewsfeedCommentsPanel({
 
   const submitComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isAuthenticated) {
+      requireAuth();
+      return;
+    }
+
     if (!feedId || !canSubmit) {
       return;
     }
@@ -321,6 +363,8 @@ export function NewsfeedCommentsPanel({
                 });
               }}
               isSubmitting={createCommentMutation.isPending}
+              isAuthenticated={isAuthenticated}
+              onAuthRequired={requireAuth}
               sortOrder={sortOrder}
             />
           ))}
@@ -368,8 +412,13 @@ export function NewsfeedCommentsPanel({
             ref={commentTextareaRef}
             value={content}
             onChange={(event) => setContent(event.target.value)}
+            onFocus={() => {
+              if (!isAuthenticated) {
+                requireAuth();
+              }
+            }}
             onInput={(event) => autosizeTextarea(event.currentTarget)}
-            placeholder={`Bình luận với tên ${viewerName}...`}
+            placeholder={isAuthenticated ? `Bình luận với tên ${viewerName}...` : "Đăng nhập để bình luận..."}
             maxLength={1000}
             rows={1}
             className="min-h-10 max-h-[120px] resize-none overflow-y-auto border-border/70 bg-background/80"

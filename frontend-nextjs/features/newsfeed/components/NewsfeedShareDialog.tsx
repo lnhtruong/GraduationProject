@@ -5,7 +5,6 @@ import {
   Copy,
   Link as LinkIcon,
   Mail,
-  MessageCircle,
   SendHorizonal,
   Share2,
 } from "lucide-react";
@@ -21,23 +20,45 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const SHARE_CHANNELS = [
-  { id: "facebook", label: "Facebook", icon: Share2 },
-  { id: "messenger", label: "Messenger", icon: MessageCircle },
-  { id: "whatsapp", label: "WhatsApp", icon: SendHorizonal },
-  { id: "x", label: "X", icon: Share2 },
-  { id: "email", label: "Email", icon: Mail },
+  {
+    id: "facebook",
+    label: "Facebook",
+    icon: Share2,
+    buildUrl: (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    icon: SendHorizonal,
+    buildUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(url)}`,
+  },
+  {
+    id: "x",
+    label: "X",
+    icon: Share2,
+    buildUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`,
+  },
+  {
+    id: "email",
+    label: "Email",
+    icon: Mail,
+    buildUrl: (url: string) =>
+      `mailto:?subject=${encodeURIComponent("Video học trên LearnHub")}&body=${encodeURIComponent(url)}`,
+  },
 ];
 
 interface NewsfeedShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   url: string;
+  onShareRecorded?: () => void;
 }
 
 export function NewsfeedShareDialog({
   open,
   onOpenChange,
   url,
+  onShareRecorded,
 }: NewsfeedShareDialogProps) {
   const [copied, setCopied] = useState(false);
 
@@ -45,10 +66,18 @@ export function NewsfeedShareDialog({
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      onShareRecorded?.();
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setCopied(false);
     }
+  };
+
+  const handleShareChannel = (buildUrl: (url: string) => string) => {
+    const targetUrl = buildUrl(url);
+    onShareRecorded?.();
+
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -61,13 +90,14 @@ export function NewsfeedShareDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SHARE_CHANNELS.map((channel) => {
             const Icon = channel.icon;
             return (
               <button
                 key={channel.id}
                 type="button"
+                onClick={() => handleShareChannel(channel.buildUrl)}
                 className="flex flex-col items-center gap-2 rounded-2xl border border-border/70 bg-muted/40 px-3 py-3 text-xs font-medium transition hover:border-primary/40 hover:bg-primary/5"
               >
                 <Icon className="h-5 w-5" />

@@ -1,15 +1,9 @@
-import { BookOpenCheck, Bookmark, Clock3, Compass } from "lucide-react";
+import { Bookmark, Clock3, Compass } from "lucide-react";
 
 export const SIDEBAR_ITEMS = [
   { id: "top", label: "Nổi bật", icon: Compass, href: "/newsfeed" },
   { id: "history", label: "Lịch sử", icon: Clock3, href: "/newsfeed/history" },
   { id: "saved", label: "Đã lưu", icon: Bookmark, href: "/newsfeed/saved" },
-  {
-    id: "subscriptions",
-    label: "Khóa học",
-    icon: BookOpenCheck,
-    href: "/courses/search",
-  },
 ];
 
 export function getInitials(name?: string | null) {

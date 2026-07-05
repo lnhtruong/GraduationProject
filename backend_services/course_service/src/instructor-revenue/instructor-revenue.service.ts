@@ -6,7 +6,7 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Course } from 'src/models/course.model';
+import { Course, CourseStatus } from 'src/models/course.model';
 import { TransactionItem } from 'src/models/transaction-item.model';
 import {
   PaymentTransaction,
@@ -72,6 +72,7 @@ export class InstructorRevenueService {
       thisMonthStart: this.formatSqlDateTime(thisMonthStart),
       nextMonthStart: this.formatSqlDateTime(nextMonthStart),
       lastMonthStart: this.formatSqlDateTime(lastMonthStart),
+      publishedStatus: CourseStatus.PUBLISH,
     };
 
     const [summaryRows, courseRows] = await Promise.all([
@@ -94,6 +95,7 @@ export class InstructorRevenueService {
           INNER JOIN courses c
             ON c.id = ti.course_id
             AND c.user_id = :instructorId
+            AND c.status = :publishedStatus
         `,
         {
           type: QueryTypes.SELECT,
@@ -128,6 +130,7 @@ export class InstructorRevenueService {
             ON t.id = ti.transaction_id
             AND t.status = 'paid'
           WHERE c.user_id = :instructorId
+            AND c.status = :publishedStatus
           GROUP BY c.id, c.name
           ORDER BY allTime DESC, c.id ASC
         `,
@@ -186,6 +189,7 @@ export class InstructorRevenueService {
       instructorId,
       from: this.formatSqlDateTime(range.from),
       toExclusive: this.formatSqlDateTime(toExclusive),
+      publishedStatus: CourseStatus.PUBLISH,
     };
 
     if (query.includeCourses) {
@@ -205,6 +209,7 @@ export class InstructorRevenueService {
           INNER JOIN courses c
             ON c.id = ti.course_id
             AND c.user_id = :instructorId
+            AND c.status = :publishedStatus
           WHERE t.paid_at >= :from AND t.paid_at < :toExclusive
           GROUP BY date, c.id, c.name
           ORDER BY date ASC, revenue DESC, c.id ASC
@@ -276,6 +281,7 @@ export class InstructorRevenueService {
         INNER JOIN courses c
           ON c.id = ti.course_id
           AND c.user_id = :instructorId
+          AND c.status = :publishedStatus
         WHERE t.paid_at >= :from AND t.paid_at < :toExclusive
         GROUP BY date
         ORDER BY date ASC
@@ -322,6 +328,7 @@ export class InstructorRevenueService {
       where: {
         id: courseId,
         userId: instructorId,
+        status: CourseStatus.PUBLISH,
       },
     });
 

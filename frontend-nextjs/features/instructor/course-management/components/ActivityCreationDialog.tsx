@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Sparkles } from "lucide-react";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -48,8 +48,10 @@ import { ActivityDialogFooter } from "./ActivityCreationDialog/ActivityDialogFoo
 import { AssignmentForm } from "./ActivityCreationDialog/AssignmentForm";
 import { InvalidVideoWarning } from "./ActivityCreationDialog/InvalidVideoWarning";
 import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
-import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
-import { inferenceHttpClient } from "@/features/_shared/api-factories";
+import {
+  createMediaUploadStream,
+  type UploadStreamSubscription,
+} from "@/features/_shared/realtime/media-upload-stream";
 
 interface Props {
   open: boolean;
@@ -60,6 +62,10 @@ interface Props {
   draftVideoBlobUrl?: string | null;
   draftVideoDurationSeconds?: number;
   userId?: number;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export function ActivityCreationDialog({
@@ -87,7 +93,6 @@ export function ActivityCreationDialog({
   const [stage, setStage] = useState("");
   const [generatedQuizId, setGeneratedQuizId] = useState<number | null>(null);
   const [generatedActivityId, setGeneratedActivityId] = useState<number | null>(null);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const finalizedActivityIdsRef = useRef<Set<number>>(new Set());
   const { data: lessonActivities } = useLessonActivitiesByLessonId(lessonId);
   const { data: lessonVideo } = useVideoById(lessonVideoId ?? null);
@@ -103,7 +108,7 @@ export function ActivityCreationDialog({
   const deleteLessonActivityMutation = useDeleteLessonActivity();
   const createQuizMutation = useCreateQuiz();
   const generateQuizAIMutation = useGenerateQuizAIMutation();
-  const sseRef = useRef<any>(null);
+  const sseRef = useRef<UploadStreamSubscription | null>(null);
 
   const { url: activeVideoUrl, durationSeconds: activeVideoDurationSeconds, hasVideoSource } =
     resolveActiveVideoSource({
@@ -143,7 +148,6 @@ export function ActivityCreationDialog({
       setStage("");
       setGeneratedQuizId(null);
       setGeneratedActivityId(null);
-      setActiveJobId(null);
     }
     onOpenChange(val);
   };
@@ -232,7 +236,6 @@ export function ActivityCreationDialog({
       });
 
       const jobId = jobResp.jobId;
-      setActiveJobId(jobId);
       setStage("Đang gửi yêu cầu sinh câu hỏi...");
       setView("generating");
 
@@ -251,7 +254,6 @@ export function ActivityCreationDialog({
             toast.error(`Sinh quiz thất bại: ${payload.error?.message || "Lỗi từ worker"}`);
             setView("create");
             setStage("");
-            setActiveJobId(null);
 
           }
         },
@@ -266,7 +268,6 @@ export function ActivityCreationDialog({
               setView("create");
             }
             setStage("");
-            setActiveJobId(null);
             if (sseRef.current) {
               sseRef.current.close();
               sseRef.current = null;
@@ -277,8 +278,8 @@ export function ActivityCreationDialog({
       }, { userId });
 
 
-    } catch (err: any) {
-      toast.error(err?.message || "Đã xảy ra lỗi khi tạo yêu cầu sinh quiz.");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Không thể tạo yêu cầu sinh quiz."));
     }
   };
 
@@ -299,7 +300,6 @@ export function ActivityCreationDialog({
     setView("create");
     setStage("");
     setGeneratedActivityId(null);
-    setActiveJobId(null);
     toast.info("Đã hủy và loại bỏ hoạt động Quiz AI đang sinh.");
   };
 
@@ -340,12 +340,12 @@ export function ActivityCreationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className={cn(
+      <DialogContent showCloseButton={false} className={cn(
         "h-[90vh] w-[96vw] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-all duration-300",
         view === "review" ? "sm:max-w-5xl" : "!max-w-2xl"
       )}>
         <div className="flex h-full min-h-0 flex-col">
-          <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 text-left sm:px-6">
+          <DialogHeader className="sticky top-0 z-20 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 pr-14 text-left sm:px-6 sm:pr-16">
             <DialogTitle className="text-xl font-bold">
               {view === "review" ? "Duyệt bộ câu hỏi AI" : "Tạo hoạt động mới"}
             </DialogTitle>
@@ -354,6 +354,16 @@ export function ActivityCreationDialog({
                 ? "Kiểm tra và tinh chỉnh các câu hỏi được sinh bằng trí tuệ nhân tạo trước khi áp dụng." 
                 : "Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học."}
             </DialogDescription>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => void handleOpenChange(false)}
+              className="absolute right-3 top-3 z-30 h-9 w-9 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground sm:right-5"
+              aria-label="Đóng"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </DialogHeader>
 
           <div className={cn(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -60,6 +60,29 @@ function normalizeCaption(value?: string): string | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
+}
+
+function getCreateFeedErrorMessage(error: unknown): string {
+  const responseMessage = (error as {
+    response?: { data?: { message?: unknown } };
+  }).response?.data?.message;
+
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.toLowerCase().includes("already in feed")
+  ) {
+    return "Video này đã có trên feed. Vui lòng chọn highlight khác.";
+  }
+
+  if (typeof responseMessage === "string" && responseMessage.trim()) {
+    return responseMessage;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Không thể tạo feed. Vui lòng thử lại.";
 }
 
 function getVideoThumbnail(video: CourseFeedCandidateVideo): string | null {
@@ -185,17 +208,31 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
 
   const onSubmit = async (values: FeedFormValues) => {
     const videoId = Number(values.videoId);
-    await createFeedMutation.mutateAsync({
-      video_id: videoId,
-      course_id: courseId,
-      title: values.title.trim(),
-      caption: normalizeCaption(values.caption),
-      hashtags: values.hashtags,
-    });
+    if (!Number.isInteger(videoId) || videoId <= 0) {
+      toast.error("Vui lòng chọn một video để tạo feed.");
+      return;
+    }
 
-    toast.success("Đã thêm feed vào course");
-    router.push(`/instructor/courses/${courseId}/feed`);
-    router.refresh();
+    if (feedVideoIds.has(videoId)) {
+      toast.error("Video này đã có trên feed. Vui lòng chọn highlight khác.");
+      return;
+    }
+
+    try {
+      await createFeedMutation.mutateAsync({
+        video_id: videoId,
+        course_id: courseId,
+        title: values.title.trim(),
+        caption: normalizeCaption(values.caption),
+        hashtags: values.hashtags,
+      });
+
+      toast.success("Đã thêm video vào feed");
+      router.push(`/instructor/courses/${courseId}/feed`);
+      router.refresh();
+    } catch (error) {
+      toast.error(getCreateFeedErrorMessage(error));
+    }
   };
 
   if (courseLoading) {
