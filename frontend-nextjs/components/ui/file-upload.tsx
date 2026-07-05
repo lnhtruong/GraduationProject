@@ -391,6 +391,53 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
       }
     }, [value, defaultValue, isControlled, store]);
 
+    const onFilesUpload = React.useCallback(
+      async (files: File[]) => {
+        try {
+          for (const file of files) {
+            store.dispatch({ variant: "SET_PROGRESS", file, progress: 0 });
+          }
+
+          if (propsRef.current.onUpload) {
+            await propsRef.current.onUpload(files, {
+              onProgress: (file, progress) => {
+                store.dispatch({
+                  variant: "SET_PROGRESS",
+                  file,
+                  progress: Math.min(Math.max(0, progress), 100),
+                });
+              },
+              onSuccess: (file) => {
+                store.dispatch({ variant: "SET_SUCCESS", file });
+              },
+              onError: (file, error) => {
+                store.dispatch({
+                  variant: "SET_ERROR",
+                  file,
+                  error: error.message ?? "Tải lên thất bại",
+                });
+              },
+            });
+          } else {
+            for (const file of files) {
+              store.dispatch({ variant: "SET_SUCCESS", file });
+            }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Tải lên thất bại";
+          for (const file of files) {
+            store.dispatch({
+              variant: "SET_ERROR",
+              file,
+              error: errorMessage,
+            });
+          }
+        }
+      },
+      [store, propsRef],
+    );
+
     const onFilesChange = React.useCallback(
       (originalFiles: File[]) => {
         if (propsRef.current.disabled) return;
@@ -518,54 +565,7 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
           }
         }
       },
-      [store, isControlled, propsRef],
-    );
-
-    const onFilesUpload = React.useCallback(
-      async (files: File[]) => {
-        try {
-          for (const file of files) {
-            store.dispatch({ variant: "SET_PROGRESS", file, progress: 0 });
-          }
-
-          if (propsRef.current.onUpload) {
-            await propsRef.current.onUpload(files, {
-              onProgress: (file, progress) => {
-                store.dispatch({
-                  variant: "SET_PROGRESS",
-                  file,
-                  progress: Math.min(Math.max(0, progress), 100),
-                });
-              },
-              onSuccess: (file) => {
-                store.dispatch({ variant: "SET_SUCCESS", file });
-              },
-              onError: (file, error) => {
-                store.dispatch({
-                  variant: "SET_ERROR",
-                  file,
-                  error: error.message ?? "Upload failed",
-                });
-              },
-            });
-          } else {
-            for (const file of files) {
-              store.dispatch({ variant: "SET_SUCCESS", file });
-            }
-          }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Upload failed";
-          for (const file of files) {
-            store.dispatch({
-              variant: "SET_ERROR",
-              file,
-              error: errorMessage,
-            });
-          }
-        }
-      },
-      [store, propsRef.current.onUpload],
+      [store, isControlled, propsRef, onFilesUpload],
     );
 
     const onInputChange = React.useCallback(
@@ -608,7 +608,7 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
                 onChange={onInputChange}
               />
               <span id={labelId} className="sr-only">
-                {label ?? "File upload"}
+                {label ?? "Tải tệp lên"}
               </span>
             </RootPrimitive>
           </FileUploadContext.Provider>
@@ -819,8 +819,8 @@ const FileUploadList = React.forwardRef<HTMLDivElement, FileUploadListProps>(
 
     const context = useFileUploadContext(LIST_NAME);
 
-    const shouldRender =
-      forceMount || useStore((state) => state.files.size > 0);
+    const hasFiles = useStore((state) => state.files.size > 0);
+    const shouldRender = forceMount || hasFiles;
 
     if (!shouldRender) return null;
 
@@ -906,12 +906,12 @@ const FileUploadItem = React.forwardRef<HTMLDivElement, FileUploadItemProps>(
     if (!fileState) return null;
 
     const statusText = fileState.error
-      ? `Error: ${fileState.error}`
+      ? `Lỗi: ${fileState.error}`
       : fileState.status === "uploading"
-        ? `Uploading: ${fileState.progress}% complete`
+        ? `Đang tải lên: ${fileState.progress}%`
         : fileState.status === "success"
-          ? "Upload complete"
-          : "Ready to upload";
+          ? "Tải lên hoàn tất"
+          : "Sẵn sàng tải lên";
 
     const ItemPrimitive = asChild ? Slot : "div";
 
@@ -1259,7 +1259,8 @@ const FileUploadClear = React.forwardRef<
     [store, propsRef],
   );
 
-  const shouldRender = forceMount || useStore((state) => state.files.size > 0);
+  const hasFiles = useStore((state) => state.files.size > 0);
+  const shouldRender = forceMount || hasFiles;
 
   if (!shouldRender) return null;
 

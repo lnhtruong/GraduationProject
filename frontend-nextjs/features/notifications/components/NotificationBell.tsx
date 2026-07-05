@@ -250,7 +250,7 @@ export function NotificationBell({ className }: { className?: string }) {
               }
 
               toast.success(
-                "Chúc mừng! Bạn đã trở thành Giảng viên. Hãy bật Teacher Mode để bắt đầu.",
+                "Chúc mừng! Bạn đã trở thành Giảng viên. Hãy bật Chế độ giảng viên để bắt đầu.",
                 { duration: 8000 },
               );
 

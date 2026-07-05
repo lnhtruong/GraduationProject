@@ -214,14 +214,14 @@ export default function AdminCoursesPage() {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => { setSearch(searchInput); setCoursePage(1); }, SEARCH_DEBOUNCE_MS);
     return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [searchInput]);
 
   useEffect(() => {
     if (crSearchDebounceRef.current) clearTimeout(crSearchDebounceRef.current);
     crSearchDebounceRef.current = setTimeout(() => { setCrSearch(crSearchInput); setCrPage(1); }, SEARCH_DEBOUNCE_MS);
     return () => { if (crSearchDebounceRef.current) clearTimeout(crSearchDebounceRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [crSearchInput]);
 
   const handlePriceChange = (range: [number, number]) => {

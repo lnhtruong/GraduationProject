@@ -17,7 +17,6 @@ import {
   GraduationCap,
   ShieldCheck,
   Heart,
-  Repeat,
   LayoutDashboard,
   Sun,
   Moon,
@@ -28,7 +27,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +41,6 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
 
 import { SearchBar } from "@/components/SearchBar";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
@@ -54,17 +51,17 @@ import { useUiModeStore } from "@/store/ui-mode";
 import { useCartSummary } from "@/features/cart/api/cart.hooks";
 
 const LEARNER_NAV_ITEMS = [
-  { label: "Home", href: "/" },
+  { label: "Trang chủ", href: "/" },
   { label: "Newsfeed", href: "/newsfeed" },
-  { label: "Tạo Short/Highlight", href: "/upload" },
+  { label: "Tạo Highlight", href: "/upload" },
 ];
 
 const TEACHER_NAV_ITEMS = [
-  { label: "Dashboard", href: "/instructor/dashboard" },
-  { label: "Courses", href: "/instructor/courses" },
-  { label: "Roadmaps", href: "/instructor/roadmaps" },
-  { label: "Q&A", href: "/instructor/qa" },
-  { label: "Analytics", href: "/instructor/analytics" },
+  { label: "Tổng quan", href: "/instructor/dashboard" },
+  { label: "Khóa học", href: "/instructor/courses" },
+  { label: "Lộ trình", href: "/instructor/roadmaps" },
+  { label: "Hỏi đáp", href: "/instructor/qa" },
+  { label: "Phân tích", href: "/instructor/analytics" },
 ];
 
 export function Header() {
@@ -74,7 +71,6 @@ export function Header() {
   const { viewMode, setViewMode } = useUiModeStore();
   const { theme, setTheme } = useTheme();
   const [isDesktopSearchVisible, setIsDesktopSearchVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
@@ -198,7 +194,7 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52 lg:hidden">
                 <DropdownMenuLabel>
-                  {isTeacherMode ? "Teacher Navigation" : "Main Navigation"}
+                  {isTeacherMode ? "Điều hướng giảng viên" : "Điều hướng chính"}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {navItems.map((item) => (
@@ -222,7 +218,7 @@ export function Header() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsDesktopSearchVisible(false)}
-                aria-label="Close search"
+                aria-label="Đóng tìm kiếm"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -235,7 +231,7 @@ export function Header() {
               size="icon"
               className="rounded-full border border-border/70"
               onClick={() => setIsDesktopSearchVisible(true)}
-              aria-label="Toggle search"
+              aria-label="Mở tìm kiếm"
             >
               <Search className="h-5 w-5" />
             </Button>
@@ -360,7 +356,7 @@ export function Header() {
                           className="cursor-pointer text-primary focus:bg-primary/5 focus:text-primary font-semibold"
                         >
                           <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-                          <span>{pathname.startsWith("/admin") ? "LearnHub" : "Admin Studio"}</span>
+                          <span>{pathname.startsWith("/admin") ? "LearnHub" : "Quản trị"}</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -388,7 +384,7 @@ export function Header() {
                   {/* Contextual Menu Items */}
                   {isTeacherMode ? (
                     <>
-                      {/* Teacher View */}
+                      {/* Chế độ giảng viên */}
                       <DropdownMenuItem asChild>
                         <Link href="/instructor/dashboard" className="cursor-pointer">
                           <LayoutDashboard className="mr-2 h-4 w-4" />

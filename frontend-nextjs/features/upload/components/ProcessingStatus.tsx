@@ -181,9 +181,6 @@ export default function ProcessingStatus({
   stage,
   progressPercent,
 }: ProcessingStatusProps) {
-  // Don't render if idle
-  if (status === "idle") return null;
-
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
 
@@ -205,6 +202,9 @@ export default function ProcessingStatus({
 
   // Smoothly crawl toward targetProgress instead of jumping to it
   const displayProgress = useAnimatedProgress(targetProgress);
+
+  // Don't render if idle
+  if (status === "idle") return null;
 
   // Icon color based on status
   const iconColor =

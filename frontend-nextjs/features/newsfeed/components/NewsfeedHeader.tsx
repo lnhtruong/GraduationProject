@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { Menu, Mic, Search, Settings, User, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, Mic, Search, User, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,9 +40,14 @@ export function NewsfeedHeader({
   onSearchValueChange,
   onSearchSubmit,
 }: NewsfeedHeaderProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
+  const handleSubmit = (value: string) => {
+    onSearchSubmit(value);
+    setIsMobileSearchOpen(false);
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
@@ -70,7 +75,7 @@ export function NewsfeedHeader({
             className="flex h-12 flex-1 items-center gap-2 overflow-hidden rounded-full border border-border/70 bg-muted/75 pl-4 pr-0 shadow-sm transition-colors focus-within:border-primary/40 focus-within:bg-background"
             onSubmit={(event) => {
               event.preventDefault();
-              onSearchSubmit(searchValue);
+              handleSubmit(searchValue);
             }}
           >
             <Search className="h-4 w-4 flex-none text-muted-foreground" />
@@ -78,19 +83,19 @@ export function NewsfeedHeader({
               placeholder="Tìm kiếm"
               value={searchValue}
               onChange={(event) => onSearchValueChange(event.target.value)}
-              className="h-9 min-w-0 flex-1 border-0 bg-transparent dark:bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+              className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
             />
             {searchValue && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                   onSearchValueChange("");
                 }}
-                className="h-8 w-8 rounded-full text-muted-foreground hover:bg-accent/50 hover:text-foreground shrink-0 cursor-pointer"
+                className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                 aria-label="Xóa tìm kiếm"
               >
                 <X className="h-4 w-4" />
@@ -101,7 +106,7 @@ export function NewsfeedHeader({
               variant="ghost"
               size="icon"
               aria-label="Tìm kiếm"
-              className="h-full w-12 rounded-r-full rounded-l-none border-l border-border/60 text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+              className="h-full w-12 rounded-l-none rounded-r-full border-l border-border/60 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
             >
               <Search className="h-5 w-5" />
             </Button>
@@ -112,7 +117,7 @@ export function NewsfeedHeader({
             size="icon"
             aria-label="Tìm bằng giọng nói"
             onClick={() => setIsVoiceSearchOpen(true)}
-            className="h-12 w-12 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground shrink-0 cursor-pointer"
+            className="h-12 w-12 shrink-0 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
           >
             <Mic className="h-5 w-5" />
           </Button>
@@ -122,9 +127,18 @@ export function NewsfeedHeader({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={isMobileSearchOpen ? "Đóng tìm kiếm" : "Mở tìm kiếm"}
+            onClick={() => setIsMobileSearchOpen((open) => !open)}
+            className="inline-flex h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground md:hidden"
+          >
+            {isMobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label="Tìm bằng giọng nói"
             onClick={() => setIsVoiceSearchOpen(true)}
-            className="inline-flex md:hidden h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+            className="inline-flex h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground md:hidden"
           >
             <Mic className="h-5 w-5" />
           </Button>
@@ -135,55 +149,46 @@ export function NewsfeedHeader({
             onOpenChange={setIsVoiceSearchOpen}
             onSearch={(query) => {
               onSearchValueChange(query);
-              onSearchSubmit(query);
+              handleSubmit(query);
             }}
           />
+
           {isAuthenticated ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={undefined} />
-                      <AvatarFallback className="text-xs font-semibold">
-                        {userInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    {userName ? userName : "Tài khoản"}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Hồ sơ</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Cài đặt</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      void onLogout();
-                    }}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <span>Đăng xuất</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={undefined} />
+                    <AvatarFallback className="text-xs font-semibold">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>{userName ? userName : "Tài khoản"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Hồ sơ</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    void onLogout();
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <span>Đăng xuất</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               <Button
@@ -206,6 +211,40 @@ export function NewsfeedHeader({
           )}
         </div>
       </div>
+
+      {isMobileSearchOpen && (
+        <form
+          className="absolute left-3 right-3 top-[calc(100%+0.5rem)] flex h-12 items-center gap-2 rounded-2xl border border-border/70 bg-background p-2 shadow-lg md:hidden"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSubmit(searchValue);
+          }}
+        >
+          <Search className="h-4 w-4 flex-none text-muted-foreground" />
+          <Input
+            autoFocus
+            placeholder="Tìm video, khóa học..."
+            value={searchValue}
+            onChange={(event) => onSearchValueChange(event.target.value)}
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
+          />
+          {searchValue && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Xóa tìm kiếm"
+              onClick={() => onSearchValueChange("")}
+              className="h-8 w-8 rounded-full"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          <Button type="submit" size="sm" className="h-8 rounded-xl px-3">
+            Tìm
+          </Button>
+        </form>
+      )}
     </header>
   );
 }

@@ -21,7 +21,7 @@ const useCloudinaryUploadBase = createMutationHooks<
   },
   {
     onSuccess: () => {
-      toast.success("Upload successful");
+      toast.success("Tải lên thành công");
     },
   },
 );
@@ -33,7 +33,7 @@ export function useCloudinaryDirectUpload(
   return useCloudinaryUploadBase({
     onError: (error: Error) => {
       console.error("[useCloudinaryDirectUpload] Error:", error);
-      toast.error("Upload failed. Please try again.");
+      toast.error("Tải lên thất bại. Vui lòng thử lại.");
     },
   });
 }

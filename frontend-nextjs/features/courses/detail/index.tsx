@@ -51,7 +51,7 @@ function DescriptionSection({ text }: { text: string }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <div className="bg-muted/30 px-4 py-16">
         <div className="container mx-auto max-w-7xl space-y-4">
           <Skeleton className="h-8 w-3/4" />
@@ -224,7 +224,7 @@ export default function CourseDetail({ courseId }: Props) {
       </div>
 
       {/* ── Mobile bottom CTA bar ───────────────────────── */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
         {enrollment ? (
           <>
             <span className="text-sm font-medium text-primary">{enrollment.progress ?? 0}% hoàn thành</span>
