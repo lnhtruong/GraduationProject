@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useInstructorCourseById,
-  useLessonsByCourseId,
   useQuizzesByLessonId,
 } from "../../../instructor/course-management/api/course-management.hooks";
 import { useVideoById } from "../../../video/api/video.hooks";
+import { useCourseInstructor } from "../../api/courseDetail.api";
 import {
   useLessonProgressByCourseId,
   useLessonProgressHeartbeat,
@@ -35,6 +35,11 @@ export function useCourseLearnData(courseId: number) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
@@ -43,22 +48,27 @@ export function useCourseLearnData(courseId: number) {
     user?.id,
   );
 
-  // enrollmentSettled: true khi store đã hydrate VÀ query đã chạy xong (không còn loading).
-  // Khi userId chưa có (store chưa hydrate), query bị disabled → isLoading=false ngay
-  // nhưng ta cần !!user?.id để đảm bảo store đã sẵn sàng trước khi đánh giá kết quả.
-  const enrollmentSettled = !!user?.id && !enrollmentLoading;
+  // enrollmentSettled: true when store has hydrated, user is authenticated, and enrollment query finished.
+  const enrollmentSettled = hydrated && isAuthenticated && !enrollmentLoading;
 
   useEffect(() => {
-    if (!enrollmentSettled) return;
-    if (!isAuthenticated || enrollment == null) {
+    if (!hydrated) return;
+
+    if (!isAuthenticated) {
+      router.replace(`/courses/${courseId}`);
+      return;
+    }
+
+    if (enrollmentSettled && enrollment == null) {
       router.replace(`/courses/${courseId}`);
     }
-  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, router]);
+  }, [courseId, enrollment, enrollmentSettled, isAuthenticated, hydrated, router]);
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  const { data: lessonsRaw, isLoading: lessonsLoading } =
-    useLessonsByCourseId(courseId);
+  const { data: instructor } = useCourseInstructor(course?.userId);
+  const lessonsRaw = course?.lessons;
+  const lessonsLoading = courseLoading;
 
   const lessons = useMemo(
     () =>
@@ -215,7 +225,7 @@ export function useCourseLearnData(courseId: number) {
         // assumptions about player timing, but returning the result makes
         // the mutation-based cache updated and available synchronously.
         return saved;
-      } catch (e) {
+      } catch {
         // noop: leave reconciliation to react-query
       }
     })();
@@ -248,11 +258,13 @@ export function useCourseLearnData(courseId: number) {
   const { data: inVideoQuizzes } = useQuizzesByLessonId(
     selectedLesson?.id ?? null,
     "in_video",
+    "public",
     Boolean(selectedLesson?.id),
   );
   const { data: afterVideoQuizzes } = useQuizzesByLessonId(
     selectedLesson?.id ?? null,
     "after_video",
+    "public",
     Boolean(selectedLesson?.id),
   );
 
@@ -296,6 +308,7 @@ export function useCourseLearnData(courseId: number) {
   const persistedInVideoState = useMemo(() => {
     const answers: Record<string, number> = {};
     const submitted: Record<string, boolean> = {};
+    const correctness: Record<string, boolean> = {};
 
     for (const point of inVideoQuizPoints) {
       const submissions = quizSubmissionsByQuizId.get(point.quizId) ?? [];
@@ -317,26 +330,28 @@ export function useCourseLearnData(courseId: number) {
 
         answers[point.id] = matchedOptionIndex;
         submitted[point.id] = true;
+        correctness[point.id] = matchedAnswer.isCorrect;
         break;
       }
     }
 
-    return { answers, submitted };
+    return { answers, submitted, correctness };
   }, [inVideoQuizPoints, quizSubmissionsByQuizId]);
 
   const persistedAfterLessonState = useMemo(() => {
     const firstQuiz = afterLessonQuiz[0];
     if (!firstQuiz) {
-      return { answers: {}, submitted: false };
+      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {} };
     }
 
     const submissions = quizSubmissionsByQuizId.get(firstQuiz.quizId) ?? [];
     const latestSubmission = submissions[0];
     if (!latestSubmission) {
-      return { answers: {}, submitted: false };
+      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {} };
     }
 
     const answers: Record<string, number> = {};
+    const correctAnswers: Record<string, number> = {};
     for (const question of afterLessonQuiz) {
       const matchedAnswer = latestSubmission.answers?.find(
         (answer) => answer.questionId === question.questionId,
@@ -351,9 +366,30 @@ export function useCourseLearnData(courseId: number) {
       if (matchedOptionIndex >= 0) {
         answers[question.id] = matchedOptionIndex;
       }
+
+      const correctOptionIndex = question.optionIds.findIndex(
+        (optionId) => optionId === matchedAnswer.correctOptionId,
+      );
+      if (correctOptionIndex >= 0) {
+        correctAnswers[question.id] = correctOptionIndex;
+      }
     }
 
-    return { answers, submitted: Object.keys(answers).length > 0 };
+    const correctCount = latestSubmission.answers?.filter((a) => a.isCorrect).length ?? 0;
+    const totalQuestions = latestSubmission.answers?.length ?? afterLessonQuiz.length;
+    const percent = latestSubmission.percent ?? (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0);
+
+    return {
+      answers,
+      submitted: true,
+      score: {
+        correct: correctCount,
+        total: totalQuestions,
+        percent,
+      },
+      passed: latestSubmission.passed === true,
+      correctAnswers,
+    };
   }, [afterLessonQuiz, quizSubmissionsByQuizId]);
 
   const completedLessonCount =
@@ -376,12 +412,16 @@ export function useCourseLearnData(courseId: number) {
 
   const totalQuizMarkers = inVideoQuizPoints.length;
   const currentLessonDurationLabel = formatTime(selectedLessonDuration);
+  const isQuizQueriesLoading = useMemo(
+    () => quizSubmissionQueries.some((query) => query.isLoading || query.isFetching),
+    [quizSubmissionQueries],
+  );
   const progressSyncing =
     lessonProgressLoading ||
     lessonProgressFetching ||
     lessonProgressUpdating ||
     quizSubmissionSubmitting ||
-    quizSubmissionQueries.some((query) => query.isLoading || query.isFetching);
+    isQuizQueriesLoading;
 
   const submitQuizAttempt = useCallback(
     (payload: SubmitQuizPayload) => {
@@ -425,6 +465,7 @@ export function useCourseLearnData(courseId: number) {
 
   return {
     course,
+    instructor,
     courseLoading,
     enrollmentSettled,
     lessons,
@@ -451,6 +492,7 @@ export function useCourseLearnData(courseId: number) {
     totalQuizMarkers,
     currentLessonDurationLabel,
     progressSyncing,
+    isQuizQueriesLoading,
     handleSelectLesson,
     markLessonCompleted,
     sendHeartbeat,

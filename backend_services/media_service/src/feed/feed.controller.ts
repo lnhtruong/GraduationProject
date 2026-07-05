@@ -176,9 +176,13 @@ export class FeedController {
   }
 
   @Get('trending')
-  async getPublicTrending(@Query('limit') limit?: string) {
+  async getPublicTrending(
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const cursorId = cursor ? Number(cursor) : undefined;
     const limitNum = limit ? Number(limit) : undefined;
-    return this.feedService.getPublicTrending(limitNum);
+    return this.feedService.getPublicTrending(cursorId, limitNum);
   }
 
   /**
@@ -209,6 +213,18 @@ export class FeedController {
       throw new BadRequestException('limit must be a positive integer');
     }
     return this.feedService.getTrendingHashtags(days, limit);
+  }
+
+  @Get(':id')
+  async getFeedById(
+    @Param('id', ParseIntPipe) feedId: number,
+    @Headers('x-user-id') userIdHeader?: string,
+  ) {
+    const userId = userIdHeader ? Number(userIdHeader) : undefined;
+    return this.feedService.getFeedById(
+      feedId,
+      Number.isInteger(userId) && (userId as number) > 0 ? userId : undefined,
+    );
   }
 
   @Get('stats/creator')

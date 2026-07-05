@@ -1,19 +1,9 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import CoursesPage from "@/features/instructor/components/courses/CoursesPage";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const CoursesPage = dynamic(
-  () => import("@/features/instructor/components/courses/CoursesPage"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Khóa học của giảng viên",
+  "Quản lý danh sách khóa học, trạng thái xuất bản và nội dung giảng dạy.",
 );
 
 export default function Page() {

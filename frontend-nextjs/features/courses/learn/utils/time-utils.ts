@@ -33,7 +33,13 @@ export function parseDurationToSeconds(
 
 export function formatTime(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds));
-  const mm = Math.floor(safe / 60);
+  const hh = Math.floor(safe / 3600);
+  const mm = Math.floor((safe % 3600) / 60);
   const ss = safe % 60;
+
+  if (hh > 0) {
+    return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  }
   return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
@@ -14,6 +14,7 @@ interface WishlistButtonProps {
 
 export function WishlistButton({ courseId, className }: WishlistButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated } = useAuthState();
   const inWishlist = useIsInWishlist(courseId);
   const { mutate: toggleWishlist, isPending } = useToggleWishlistMutation();
@@ -23,7 +24,7 @@ export function WishlistButton({ courseId, className }: WishlistButtonProps) {
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      router.push("/signin");
+      router.push(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
       return;
     }
 
@@ -38,7 +39,7 @@ export function WishlistButton({ courseId, className }: WishlistButtonProps) {
               description: "Xem tại Khóa học đã lưu",
               action: {
                 label: "Xem ngay",
-                onClick: () => router.push("/library/wishlist"),
+                onClick: () => router.push("/wishlist"),
               },
             });
           }

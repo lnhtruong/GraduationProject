@@ -21,22 +21,79 @@ export interface CategorySummary {
 
 export interface SearchCoursesResult {
   courses: CourseCardData[];
+  categories: CategorySummary[];
   total: number;
   page: number;
   totalPages: number;
 }
 
-export function mapSearchCourseToCardData(item: any): CourseCardData {
+interface SearchCourseApiItem {
+  id: number;
+  name?: string | null;
+  instructorName?: string | null;
+  instructorAvatar?: string | null;
+  avgRating?: number | string | null;
+  reviewCount?: number | string | null;
+  enrollCount?: number | string | null;
+  price?: number | null;
+  categories?: unknown;
+  thumbnailUrl?: string | null;
+  video?: {
+    thumbnail?: string | null;
+  } | null;
+  level?: string | null;
+}
+
+interface SearchCoursesApiResponse {
+  data?: SearchCourseApiItem[];
+  categories?: CategorySummary[];
+  total?: number;
+  page?: number;
+  totalPages?: number;
+}
+
+function normalizeCategories(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : [value];
+    } catch {
+      return [value];
+    }
+  }
+
+  return [];
+}
+
+function toNullableNumber(value: number | string | null | undefined): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function mapSearchCourseToCardData(item: SearchCourseApiItem): CourseCardData {
+  const categories = normalizeCategories(item.categories);
+  const price = toNullableNumber(item.price);
+
   return {
     id: item.id,
     title: item.name ?? "",
     instructorName: item.instructorName ?? null,
     instructorAvatar: item.instructorAvatar ?? null,
-    avgRating: item.avgRating ?? null,
-    reviewCount: item.reviewCount ?? null,
-    enrolledCount: item.enrollCount ?? null,
-    price: item.price === 0 ? null : (item.price ?? null),
-    category: null, // Search API does not return categories inside the projected fields
+    avgRating: toNullableNumber(item.avgRating),
+    reviewCount: toNullableNumber(item.reviewCount),
+    enrolledCount: toNullableNumber(item.enrollCount),
+    price: price === 0 ? null : price,
+    category: categories[0] ?? null,
     thumbnailUrl: item.thumbnailUrl ?? item.video?.thumbnail ?? null,
     level: item.level ?? null,
   };
@@ -70,12 +127,13 @@ export const courseSearchApi = {
       }
     });
 
-    const { data } = await apiHttpClient.get<any>(
+    const { data } = await apiHttpClient.get<SearchCoursesApiResponse>(
       `/course/courses/search?${searchParams.toString()}`
     );
 
     return {
       courses: (data.data ?? []).map(mapSearchCourseToCardData),
+      categories: Array.isArray(data.categories) ? data.categories : [],
       total: data.total ?? 0,
       page: data.page ?? 1,
       totalPages: data.totalPages ?? 1,

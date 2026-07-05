@@ -9,11 +9,11 @@ import { useMascotJob } from "../api/mascot.hooks";
 import type { MascotParams } from "../types";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
-import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
-import type {
-  VideoCompletedPayload,
-  VideoErrorPayload,
-} from "@/features/upload/api/upload.websocket";
+import {
+  createMediaUploadStream,
+  type VideoCompletedPayload,
+  type VideoErrorPayload,
+} from "@/features/_shared/realtime/media-upload-stream";
 
 export function useMascot() {
   // ============================================================================

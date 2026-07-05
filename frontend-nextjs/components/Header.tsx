@@ -1,75 +1,92 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
-  Search,
-  ShoppingCart,
-  X,
-  Menu,
-  User,
-  LogOut,
-  Settings,
-  FolderOpen,
   BookOpen,
+  Briefcase,
   GraduationCap,
-  ShieldCheck,
   Heart,
+  LayoutDashboard,
+  Library,
+  LogOut,
+  Menu,
+  MonitorPlay,
+  MonitorSmartphone,
+  Moon,
+  Search,
+  ShieldCheck,
+  ShoppingCart,
+  Sun,
+  User,
+  X,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
-
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { SearchBar } from "@/components/SearchBar";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
-import { useUiModeStore } from "@/store/ui-mode";
 import { useCartSummary } from "@/features/cart/api/cart.hooks";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
+import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
+import { cn } from "@/lib/utils";
+import { useUiModeStore } from "@/store/ui-mode";
 
 const LEARNER_NAV_ITEMS = [
-  { label: "Home", href: "/" },
+  { label: "Trang chủ", href: "/" },
   { label: "Newsfeed", href: "/newsfeed" },
-  { label: "Video AI", href: "/upload" },
+  { label: "Tạo Highlight", href: "/upload" },
 ];
 
 const TEACHER_NAV_ITEMS = [
-  { label: "Dashboard", href: "/instructor/dashboard" },
-  { label: "Courses", href: "/instructor/courses" },
-  { label: "Roadmaps", href: "/instructor/roadmaps" },
-  { label: "Shorts Feed", href: "/instructor/shorts" },
-  { label: "Q&A", href: "/instructor/qa" },
-  { label: "Analytics", href: "/instructor/analytics" },
+  { label: "Tổng quan", href: "/instructor/dashboard" },
+  { label: "Khóa học", href: "/instructor/courses" },
+  { label: "Lộ trình", href: "/instructor/roadmaps" },
+  { label: "Hỏi đáp", href: "/instructor/qa" },
+  { label: "Phân tích", href: "/instructor/analytics" },
 ];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const { viewMode, setViewMode } = useUiModeStore();
-  const [isDesktopSearchVisible, setIsDesktopSearchVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+  const { theme, setTheme } = useTheme();
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
-  const shouldFetchCartSummary = pathname === "/cart";
+  const shouldHideHeaderSearch = pathname.startsWith("/courses/search");
+  const shouldFetchCartSummary = isAuthenticated && !isTeacherMode;
   const { data: cartSummary } = useCartSummary(shouldFetchCartSummary);
-  const cartCount = isAuthenticated ? (cartSummary?.itemCount ?? 0) : 0;
+  const cartCount = cartSummary?.itemCount ?? 0;
+
+  const navItems = useMemo(() => {
+    if (isTeacherMode) return TEACHER_NAV_ITEMS;
+
+    return isAuthenticated
+      ? [
+          ...LEARNER_NAV_ITEMS,
+          { label: "Học của tôi", href: "/my-courses" },
+        ]
+      : LEARNER_NAV_ITEMS;
+  }, [isAuthenticated, isTeacherMode]);
 
   useEffect(() => {
     if (
@@ -81,345 +98,321 @@ export function Header() {
     }
   }, [pathname, canUseTeacherMode, setViewMode]);
 
-  const navItems = isTeacherMode ? TEACHER_NAV_ITEMS : LEARNER_NAV_ITEMS;
-
   useEffect(() => {
-    if (isDesktopSearchVisible && desktopSearchInputRef.current) {
-      desktopSearchInputRef.current.focus();
-    }
-  }, [isDesktopSearchVisible]);
+    const frame = window.requestAnimationFrame(() => {
+      setIsMobileSearchOpen(false);
+    });
 
-  const getUserInitials = () => {
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [pathname]);
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+    user?.email ||
+    "Người dùng";
+
+  const userInitials = (() => {
     if (user?.firstName && user?.lastName) {
       return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
     }
-    if (user?.email) {
-      return user.email[0].toUpperCase();
-    }
-    return "U";
+
+    return (user?.email?.[0] ?? "U").toUpperCase();
+  })();
+
+  const switchMode = () => {
+    const nextMode = isTeacherMode ? "learner" : "teacher";
+    setViewMode(nextMode);
+    router.push(nextMode === "teacher" ? "/instructor/dashboard" : "/");
   };
 
-  const getUserDisplayName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user?.firstName) {
-      return user.firstName;
-    }
-    return user?.email || "User";
-  };
-
-  const handleLogout = () => {
-    logout();
-  };
+  const ThemeIcon =
+    theme === "light" ? Sun : theme === "dark" ? Moon : MonitorSmartphone;
 
   return (
-    <motion.header
-      className="sticky top-0 z-50 w-full border-b border-primary/50 bg-primary/85 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-    >
-      <div className="flex h-16 w-full items-center justify-between gap-3 px-2 sm:px-3 lg:px-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Logo and Title */}
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-            <Link
-              href="/"
-              className="mr-1 flex items-center gap-2 rounded-lg px-1 py-1"
+    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/92 shadow-xs backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
+      <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-3 px-3 sm:px-5 lg:px-8">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/60"
+        >
+          <Image
+            src="/logo.png"
+            alt="LearnHub"
+            width={42}
+            height={42}
+            priority
+            className="h-10 w-10 rounded-xl"
+          />
+          <div className="hidden leading-tight sm:block">
+            <p className="text-base font-extrabold tracking-tight text-foreground">
+              LearnHub
+            </p>
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Học tập thông minh
+            </p>
+          </div>
+        </Link>
+
+        <nav className="hidden items-center gap-1 lg:flex">
+          {navItems.map((item) => {
+            const active = isActivePath(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "rounded-full px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  active && "bg-primary/10 text-primary",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {!shouldHideHeaderSearch ? (
+          <div className="hidden min-w-[280px] flex-1 justify-center px-2 lg:flex">
+            <SearchBar
+              className="max-w-xl"
+              placeholder="Tìm khóa học, giảng viên, chủ đề..."
+            />
+          </div>
+        ) : (
+          <div className="hidden flex-1 lg:block" />
+        )}
+
+        <div className="ml-auto flex items-center gap-2">
+          {!shouldHideHeaderSearch ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full border border-border/70 lg:hidden"
+              onClick={() => setIsMobileSearchOpen((value) => !value)}
+              aria-label={isMobileSearchOpen ? "Đóng tìm kiếm" : "Mở tìm kiếm"}
             >
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                width={44}
-                height={44}
-                className="rounded"
-              />
-              <span className="hidden text-base font-semibold tracking-tight sm:inline">
-                LearnHub
-              </span>
-            </Link>
-          </motion.div>
+              {isMobileSearchOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Search className="h-5 w-5" />
+              )}
+            </Button>
+          ) : null}
 
-          {/* Desktop Navigation */}
-          <nav
-            className={cn(
-              "hidden items-center gap-1 rounded-xl border border-primary/20 bg-background/80 p-1 shadow-sm md:flex",
-              isDesktopSearchVisible ? "hidden" : "hidden md:flex",
-            )}
-          >
-            {navItems.map((item) => {
-              const isActive =
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
+          {isAuthenticated && !isTeacherMode ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="relative hidden h-10 w-10 rounded-full border border-border/70 sm:inline-flex"
+            >
+              <Link href="/cart" aria-label="Giỏ hàng">
+                <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                ) : null}
+              </Link>
+            </Button>
+          ) : null}
 
-              return (
-                <Button
-                  key={item.href}
-                  variant="ghost"
-                  asChild
-                  className={cn(
-                    "h-8 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:text-foreground",
-                    isActive &&
-                      "bg-primary/15 text-primary shadow-sm ring-1 ring-primary/30",
-                  )}
-                >
+          {isAuthenticated ? <NotificationBell className="hidden sm:inline-flex" /> : null}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full border border-border/70"
+                aria-label="Đổi giao diện"
+              >
+                <ThemeIcon className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Giao diện</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={theme === "system"}
+                onCheckedChange={() => setTheme("system")}
+              >
+                <MonitorSmartphone className="mr-2 h-4 w-4" />
+                Theo thiết bị
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={theme === "light"}
+                onCheckedChange={() => setTheme("light")}
+              >
+                <Sun className="mr-2 h-4 w-4" />
+                Sáng
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={theme === "dark"}
+                onCheckedChange={() => setTheme("dark")}
+              >
+                <Moon className="mr-2 h-4 w-4" />
+                Tối
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full border border-border/70 lg:hidden"
+                aria-label="Mở điều hướng"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 lg:hidden">
+              <DropdownMenuLabel>Điều hướng</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {navItems.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
                   <Link href={item.href}>{item.label}</Link>
-                </Button>
-              );
-            })}
-          </nav>
+                </DropdownMenuItem>
+              ))}
+              {isAuthenticated && !isTeacherMode ? (
+                <DropdownMenuItem asChild>
+                  <Link href="/cart">
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Giỏ hàng của tôi
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Mobile Navigation */}
-          {!isDesktopSearchVisible && (
+          {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full border border-border/70 md:hidden"
-                  aria-label="Mở điều hướng"
+                  className="h-10 gap-2 rounded-full border border-border/70 px-1.5 pr-3"
                 >
-                  <Menu className="h-5 w-5" />
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.avatarUrl ?? undefined} alt={displayName} />
+                    <AvatarFallback>{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden max-w-28 truncate text-sm font-semibold lg:inline">
+                    {displayName}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52 md:hidden">
+              <DropdownMenuContent align="end" className="w-72">
                 <DropdownMenuLabel>
-                  {isTeacherMode ? "Teacher Navigation" : "Main Navigation"}
+                  <div className="space-y-1">
+                    <p className="truncate text-sm font-semibold">{displayName}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {getRoleName(user?.role ?? 0)}
+                    </p>
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {navItems.map((item) => (
-                  <DropdownMenuItem key={item.href} asChild>
-                    <Link href={item.href}>{item.label}</Link>
+
+                {user?.role === ROLES.ADMIN ? (
+                  <DropdownMenuItem asChild>
+                    <Link href={pathname.startsWith("/admin") ? "/" : "/admin"}>
+                      <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
+                      {pathname.startsWith("/admin") ? "Về LearnHub" : "Quản trị"}
+                    </Link>
                   </DropdownMenuItem>
-                ))}
+                ) : null}
+
+                {canUseTeacherMode ? (
+                  <DropdownMenuItem onClick={switchMode}>
+                    <MonitorPlay className="mr-2 h-4 w-4 text-primary" />
+                    {isTeacherMode ? "Chế độ học viên" : "LearnHub Studio"}
+                  </DropdownMenuItem>
+                ) : null}
+
+                <DropdownMenuSeparator />
+                {isTeacherMode ? (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/instructor/dashboard">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Bảng điều khiển
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/instructor/courses">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Quản lý khóa học
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/library">
+                        <Library className="mr-2 h-4 w-4" />
+                        Thư viện media
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my-courses">
+                        <GraduationCap className="mr-2 h-4 w-4" />
+                        Học tập của tôi
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/workspace">
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        Workspace của tôi
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/wishlist">
+                        <Heart className="mr-2 h-4 w-4" />
+                        Khóa học đã lưu
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Hồ sơ
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void logout()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-        </div>
-
-        {/* Right Side Controls */}
-        <div className={cn("flex items-center justify-end gap-2")}>
-          {/* Desktop Search Form */}
-          {isDesktopSearchVisible && (
-            <div className="ml-auto hidden items-center gap-1 md:flex md:w-72 lg:w-96">
-              <SearchBar className="flex-1" />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsDesktopSearchVisible(false)}
-                aria-label="Close search"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-          )}
-
-          {!isDesktopSearchVisible && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden rounded-full border border-border/70 md:inline-flex"
-              onClick={() => setIsDesktopSearchVisible(true)}
-              aria-label="Toggle search"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-          )}
-
-          {/* Cart icon — chỉ hiện khi không phải teacher mode */}
-          {isAuthenticated && !isTeacherMode && (
-            <div
-              className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative rounded-full border border-border/70"
-                asChild
-              >
-                <Link href="/cart" aria-label="Giỏ hàng">
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                      {cartCount > 9 ? "9+" : cartCount}
-                    </span>
-                  )}
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          <div
-            className={cn(isDesktopSearchVisible ? "hidden md:flex" : "flex")}
-          >
-            <ThemeToggle />
-          </div>
-
-          {isAuthenticated ? (
-            <NotificationBell className="md:inline-flex" />
-          ) : null}
-
-          {/* Auth Section */}
-          {isAuthenticated ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <motion.div
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Button
-                      variant="ghost"
-                      className="relative h-9 w-9 rounded-full border border-border/70"
-                    >
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage
-                          src={user?.avatarUrl ?? undefined}
-                          alt={getUserDisplayName()}
-                        />
-                        <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </motion.div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {getUserDisplayName()}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user?.email}
-                      </p>
-                      <p className="text-[10px] leading-none text-muted-foreground/50">
-                        {getRoleName(user?.role ?? 0)}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/workspace" className="cursor-pointer">
-                      <FolderOpen className="mr-2 h-4 w-4" />
-                      <span>Không gian làm việc</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/library" className="cursor-pointer">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      <span>Thư viện video & ảnh</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/library/wishlist" className="cursor-pointer">
-                      <Heart className="mr-2 h-4 w-4" />
-                      <span>Khóa học đã lưu</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  {/* Admin Panel — chỉ hiện với ADMIN */}
-                  {user?.role === ROLES.ADMIN && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="cursor-pointer">
-                          <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-                          <span className="font-medium text-primary">
-                            Admin Panel
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {/* Teacher Mode — chỉ hiện với LECTURER và ADMIN */}
-                  {canAccessInstructor(user?.role) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={(event) => event.preventDefault()}
-                        className="mx-1.5 my-1 flex w-[calc(100%-0.75rem)] cursor-default items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 focus:bg-primary/10"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <GraduationCap className="mt-0.5 h-4 w-4 text-primary" />
-                          <div className="leading-tight">
-                            <p className="text-sm font-semibold text-primary">
-                              Teacher Mode
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Chuyển sang không gian giảng viên
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={isTeacherMode}
-                          onCheckedChange={(checked) => {
-                            setViewMode(checked ? "teacher" : "learner");
-                            router.push(
-                              checked ? "/instructor/dashboard" : "/",
-                            );
-                          }}
-                          aria-label="Teacher mode switch"
-                        />
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Hồ sơ</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Cài đặt</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Đăng xuất</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </motion.div>
           ) : (
-            <motion.div
-              className="flex items-center gap-2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/signin">Đăng nhập</Link>
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button size="sm" asChild>
-                  <Link href="/signup">Đăng ký</Link>
-                </Button>
-              </motion.div>
-            </motion.div>
+            <Button asChild className="h-10 rounded-full px-5 font-bold">
+              <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>
+                Đăng nhập
+              </Link>
+            </Button>
           )}
         </div>
       </div>
-    </motion.header>
+
+      {isMobileSearchOpen && !shouldHideHeaderSearch ? (
+        <div className="border-t border-border/70 px-3 py-3 lg:hidden">
+          <SearchBar
+            className="max-w-none"
+            placeholder="Tìm khóa học, giảng viên, chủ đề..."
+          />
+        </div>
+      ) : null}
+    </header>
   );
 }

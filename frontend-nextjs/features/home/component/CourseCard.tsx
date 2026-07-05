@@ -1,11 +1,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { GraduationCap, Star, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CourseCardData } from "@/features/_shared/course-card.types";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
+};
 
 interface CourseCardProps {
   course: CourseCardData;
@@ -28,7 +34,7 @@ export function CourseCard({ course }: CourseCardProps) {
       : Number(course.enrolledCount);
 
   return (
-    <div className="group relative h-full">
+    <motion.div className="group relative h-full" variants={itemVariants}>
       {/* WishlistButton nằm ngoài Link để tránh nested interactive elements */}
       <WishlistButton
         courseId={course.id}
@@ -124,6 +130,6 @@ export function CourseCard({ course }: CourseCardProps) {
         </CardContent>
       </Card>
       </Link>
-    </div>
+    </motion.div>
   );
 }

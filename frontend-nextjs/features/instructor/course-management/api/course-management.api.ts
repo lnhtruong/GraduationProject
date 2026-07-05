@@ -102,6 +102,8 @@ function toCoursePayload(payload: CourseFormValues) {
 }
 
 function toQuizPayload(payload: QuizEditorState) {
+  const fallbackTimestamp = payload.questions.find((q) => q.videoTimestamp?.trim())?.videoTimestamp?.trim() || "00:00:00.000";
+
   return {
     lessonActivityId: payload.lessonActivityId as number,
     name: payload.title,
@@ -118,7 +120,7 @@ function toQuizPayload(payload: QuizEditorState) {
         question.options.find((option) => option.isCorrect)?.label ?? "",
       orderIndex: index + 1,
       videoTimestamp: payload.isInVideo
-        ? question.videoTimestamp?.trim() || undefined
+        ? question.videoTimestamp?.trim() || fallbackTimestamp
         : undefined,
       options: question.options.map((option, optionIndex) => ({
         optionText: option.label,

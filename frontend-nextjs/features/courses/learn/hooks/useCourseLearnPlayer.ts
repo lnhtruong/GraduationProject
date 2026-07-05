@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type SyntheticEvent,
 } from "react";
+import { toast } from "sonner";
 import type { InstructorLesson } from "../../../instructor/course-management/types";
 import {
   buildConfettiPieces,
@@ -35,8 +36,13 @@ interface Props {
   selectedLessonProgressId?: number | null;
   persistedInVideoAnswers: Record<string, number>;
   persistedInVideoSubmitted: Record<string, boolean>;
+  persistedInVideoCorrectness: Record<string, boolean>;
   persistedAfterLessonAnswers: Record<string, number>;
   persistedAfterLessonSubmitted: boolean;
+  persistedAfterLessonScore: { correct: number; total: number; percent: number } | null;
+  persistedAfterLessonPassed: boolean;
+  persistedAfterLessonCorrectAnswers: Record<string, number>;
+  loadingQuizSubmissions: boolean;
 }
 
 export function useCourseLearnPlayer({
@@ -54,8 +60,13 @@ export function useCourseLearnPlayer({
   selectedLessonProgressId,
   persistedInVideoAnswers,
   persistedInVideoSubmitted,
+  persistedInVideoCorrectness,
   persistedAfterLessonAnswers,
   persistedAfterLessonSubmitted,
+  persistedAfterLessonScore,
+  persistedAfterLessonPassed,
+  persistedAfterLessonCorrectAnswers,
+  loadingQuizSubmissions,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
@@ -72,10 +83,17 @@ export function useCourseLearnPlayer({
   const [inVideoSubmitted, setInVideoSubmitted] = useState<
     Record<string, boolean>
   >({});
+  const [inVideoCorrectness, setInVideoCorrectness] = useState<
+    Record<string, boolean>
+  >(persistedInVideoCorrectness);
   const [afterLessonAnswers, setAfterLessonAnswers] = useState<
     Record<string, number>
   >({});
   const [afterLessonSubmitted, setAfterLessonSubmitted] = useState(false);
+  const [afterLessonCorrectAnswers, setAfterLessonCorrectAnswers] = useState<
+    Record<string, number>
+  >(persistedAfterLessonCorrectAnswers);
+  const [isRetaking, setIsRetaking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(selectedLessonDuration);
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
@@ -89,6 +107,9 @@ export function useCourseLearnPlayer({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
+  const [currentQualityLevel, setCurrentQualityLevel] = useState<number>(-1);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
   const lastVolumeRef = useRef(1);
   const pendingResumePositionRef = useRef<number | null>(null);
   const lastHeartbeatAtRef = useRef<number>(0);
@@ -109,13 +130,23 @@ export function useCourseLearnPlayer({
     [inVideoSubmitted, persistedInVideoSubmitted],
   );
 
+  const effectiveInVideoCorrectness = useMemo(
+    () => ({ ...persistedInVideoCorrectness, ...inVideoCorrectness }),
+    [inVideoCorrectness, persistedInVideoCorrectness],
+  );
+
   const effectiveAfterLessonAnswers = useMemo(
     () => ({ ...persistedAfterLessonAnswers, ...afterLessonAnswers }),
     [afterLessonAnswers, persistedAfterLessonAnswers],
   );
 
   const effectiveAfterLessonSubmitted =
-    persistedAfterLessonSubmitted || afterLessonSubmitted;
+    !isRetaking && (persistedAfterLessonSubmitted || afterLessonSubmitted);
+
+  const effectiveAfterLessonCorrectAnswers = useMemo(
+    () => ({ ...persistedAfterLessonCorrectAnswers, ...afterLessonCorrectAnswers }),
+    [afterLessonCorrectAnswers, persistedAfterLessonCorrectAnswers],
+  );
 
   const effectiveDuration =
     videoDuration > 0 ? videoDuration : selectedLessonDuration;
@@ -150,47 +181,25 @@ export function useCourseLearnPlayer({
       ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
       : 0;
 
-  const afterLessonScore = useMemo(() => {
-    if (!effectiveAfterLessonSubmitted || !afterLessonQuiz.length) {
-      return null;
-    }
+  const afterLessonScore = effectiveAfterLessonSubmitted
+    ? persistedAfterLessonScore
+    : null;
 
-    let correct = 0;
-    for (const question of afterLessonQuiz) {
-      if (
-        question.answerIndex !== null &&
-        effectiveAfterLessonAnswers[question.id] === question.answerIndex
-      ) {
-        correct += 1;
-      }
-    }
-
-    return {
-      correct,
-      total: afterLessonQuiz.length,
-      percent: Math.round((correct / afterLessonQuiz.length) * 100),
-    };
-  }, [
-    afterLessonQuiz,
-    effectiveAfterLessonAnswers,
-    effectiveAfterLessonSubmitted,
-  ]);
-
-  const afterLessonPassed = Boolean(
-    afterLessonScore && afterLessonScore.percent >= 70,
-  );
+  const afterLessonPassed = effectiveAfterLessonSubmitted
+    ? persistedAfterLessonPassed
+    : false;
 
   const inVideoScore = useMemo(() => {
     if (!activeQuizPoint || !effectiveInVideoSubmitted[activeQuizPoint.id]) {
       return null;
     }
 
-    return (
-      activeQuizPoint.answerIndex !== null &&
-      effectiveInVideoAnswers[activeQuizPoint.id] ===
-        activeQuizPoint.answerIndex
-    );
-  }, [activeQuizPoint, effectiveInVideoAnswers, effectiveInVideoSubmitted]);
+    if (loadingQuizSubmissions) {
+      return null;
+    }
+
+    return effectiveInVideoCorrectness[activeQuizPoint.id] === true;
+  }, [activeQuizPoint, effectiveInVideoSubmitted, effectiveInVideoCorrectness, loadingQuizSubmissions]);
 
   const handleSelectLesson = useCallback(
     (lessonId: number) => {
@@ -211,10 +220,13 @@ export function useCourseLearnPlayer({
 
   const handleJumpToQuizPoint = useCallback(
     (point: InVideoQuizPoint) => {
-      seekVideoTo(point.timestamp, true);
-      setActiveQuizPointId(point.id);
+      const solved = isQuizSolved(point);
+      seekVideoTo(point.timestamp, solved ? false : true);
+      if (!solved) {
+        setActiveQuizPointId(point.id);
+      }
     },
-    [seekVideoTo],
+    [seekVideoTo, isQuizSolved],
   );
 
   const handleTogglePlayback = useCallback(() => {
@@ -280,15 +292,44 @@ export function useCourseLearnPlayer({
     }
   }, []);
 
-  const handleToggleFullscreen = useCallback(() => {
+  const handleToggleFullscreen = useCallback(async () => {
     const videoContainer = videoRef.current?.parentElement;
+    const video = videoRef.current;
+    const orientation = window.screen?.orientation as any;
 
     if (!document.fullscreenElement) {
-      void videoContainer?.requestFullscreen().catch(() => {});
+      try {
+        if (videoContainer?.requestFullscreen) {
+          await videoContainer.requestFullscreen();
+          if (orientation?.lock) {
+            await orientation.lock("landscape").catch(() => {});
+          }
+        } else if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+          (video as any).webkitEnterFullscreen();
+        }
+      } catch (err) {
+        console.warn("Standard fullscreen failed, trying webkitEnterFullscreen:", err);
+        if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+          try {
+            (video as any).webkitEnterFullscreen();
+          } catch (e) {
+            console.error("webkitEnterFullscreen failed too:", e);
+          }
+        }
+      }
       return;
     }
 
-    void document.exitFullscreen().catch(() => {});
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        if (orientation?.unlock) {
+          orientation.unlock();
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi exit fullscreen:", err);
+    }
   }, []);
 
   const handleSeekBackward = useCallback(() => {
@@ -298,6 +339,29 @@ export function useCourseLearnPlayer({
   const handleSeekForward = useCallback(() => {
     seekVideoTo(currentTime + 10);
   }, [currentTime, seekVideoTo]);
+
+  const handleTogglePictureInPicture = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled) {
+        await video.requestPictureInPicture();
+      }
+    } catch (error) {
+      console.error("Lỗi khi chuyển đổi chế độ Picture-in-Picture:", error);
+    }
+  }, []);
+
+  const handleQualityLevelsLoaded = useCallback((levels: { id: number; name: string }[]) => {
+    setQualityLevels(levels);
+  }, []);
+
+  const handleSetQualityLevel = useCallback((levelId: number) => {
+    setCurrentQualityLevel(levelId);
+  }, []);
 
   const handleVideoKeyDown = useCallback(
     (event: KeyboardEvent<HTMLVideoElement>) => {
@@ -322,6 +386,10 @@ export function useCourseLearnPlayer({
           event.preventDefault();
           handleToggleFullscreen();
           break;
+        case "KeyP":
+          event.preventDefault();
+          void handleTogglePictureInPicture();
+          break;
         default:
           break;
       }
@@ -332,6 +400,7 @@ export function useCourseLearnPlayer({
       handleToggleFullscreen,
       handleToggleMute,
       handleTogglePlayback,
+      handleTogglePictureInPicture,
     ],
   );
 
@@ -347,7 +416,7 @@ export function useCourseLearnPlayer({
     };
   }, []);
 
-  // Global keyboard shortcuts: handle when video isn't focused (Space, Arrows, M, F)
+  // Global keyboard shortcuts: handle when video isn't focused (Space, Arrows, M, F, P)
   useEffect(() => {
     const isTypingInInput = (el: EventTarget | null) => {
       if (!el || !(el instanceof Element)) return false;
@@ -382,6 +451,10 @@ export function useCourseLearnPlayer({
           ev.preventDefault();
           handleToggleFullscreen();
           break;
+        case "KeyP":
+          ev.preventDefault();
+          void handleTogglePictureInPicture();
+          break;
         default:
           break;
       }
@@ -395,6 +468,7 @@ export function useCourseLearnPlayer({
     handleToggleFullscreen,
     handleToggleMute,
     handleTogglePlayback,
+    handleTogglePictureInPicture,
   ]);
 
   useEffect(() => {
@@ -410,7 +484,7 @@ export function useCourseLearnPlayer({
   const handleVideoEnded = useCallback(() => {
     setIsPlaying(false);
 
-    if (!afterLessonQuiz.length || effectiveAfterLessonSubmitted) {
+    if (!afterLessonQuiz.length || (effectiveAfterLessonSubmitted && afterLessonPassed)) {
       if (selectedLesson) {
         onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
       }
@@ -422,23 +496,28 @@ export function useCourseLearnPlayer({
   }, [
     afterLessonQuiz.length,
     effectiveAfterLessonSubmitted,
+    afterLessonPassed,
     onMarkLessonCompleted,
     selectedLesson,
     selectedLessonProgressId,
   ]);
 
   const handleVideoMetadataLoaded = useCallback(
-    (duration: number) => {
-      if (!Number.isFinite(duration) || duration <= 0) {
-        return;
+    (duration: number, aspectRatio?: number) => {
+      if (Number.isFinite(duration) && duration > 0) {
+        setVideoDuration(duration);
       }
 
-      setVideoDuration(duration);
+      if (aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0) {
+        setVideoAspectRatio(aspectRatio);
+      }
 
-      const pendingResumePosition = pendingResumePositionRef.current;
-      if (pendingResumePosition !== null && pendingResumePosition > 0) {
-        seekVideoTo(pendingResumePosition, true);
-        pendingResumePositionRef.current = null;
+      if (Number.isFinite(duration) && duration > 0) {
+        const pendingResumePosition = pendingResumePositionRef.current;
+        if (pendingResumePosition !== null && pendingResumePosition > 0) {
+          seekVideoTo(pendingResumePosition, true);
+          pendingResumePositionRef.current = null;
+        }
       }
     },
     [seekVideoTo],
@@ -449,12 +528,21 @@ export function useCourseLearnPlayer({
       return;
     }
 
+    if (afterLessonQuiz.length > 0 && (!effectiveAfterLessonSubmitted || !afterLessonPassed)) {
+      toast.error(`Bạn cần đạt tối thiểu ${afterLessonQuiz[0]?.passingScore ?? 70}% câu hỏi đúng để hoàn thành bài học này!`);
+      setShowAfterLessonOverlay(true);
+      return;
+    }
+
     onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
 
     if (nextLesson) {
       handleSelectLesson(nextLesson.id);
     }
   }, [
+    afterLessonQuiz,
+    effectiveAfterLessonSubmitted,
+    afterLessonPassed,
     handleSelectLesson,
     nextLesson,
     onMarkLessonCompleted,
@@ -575,13 +663,19 @@ export function useCourseLearnPlayer({
       setActiveQuizPointId(null);
       setInVideoAnswers({});
       setInVideoSubmitted({});
+      setInVideoCorrectness({});
       setAfterLessonAnswers({});
       setAfterLessonSubmitted(false);
+      setAfterLessonCorrectAnswers({});
+      setIsRetaking(false);
       setCelebrationArmed(false);
       setShowAfterLessonOverlay(false);
       setConfettiPieces([]);
       setNextLessonCountdown(null);
       setPlaybackRate(1);
+      setQualityLevels([]);
+      setCurrentQualityLevel(-1);
+      setVideoAspectRatio(null);
 
       if (videoRef.current) {
         videoRef.current.playbackRate = 1;
@@ -624,7 +718,7 @@ export function useCourseLearnPlayer({
   }, [isPlaying, onHeartbeat, selectedLesson, selectedLessonProgressId]);
 
   useEffect(() => {
-    if (activeQuizPointId) {
+    if (activeQuizPointId || loadingQuizSubmissions) {
       return;
     }
 
@@ -641,11 +735,31 @@ export function useCourseLearnPlayer({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeQuizPointId, currentTime, inVideoQuizPoints, isQuizSolved]);
+  }, [activeQuizPointId, currentTime, inVideoQuizPoints, isQuizSolved, loadingQuizSubmissions]);
+
+  useEffect(() => {
+    if (!activeQuizPointId || !activeQuizPoint) {
+      return;
+    }
+    if (inVideoSubmitted[activeQuizPoint.id]) {
+      return;
+    }
+    if (persistedInVideoSubmitted[activeQuizPoint.id]) {
+      setActiveQuizPointId(null);
+      window.requestAnimationFrame(() => {
+        void videoRef.current?.play().catch(() => {});
+      });
+    }
+  }, [activeQuizPointId, activeQuizPoint, persistedInVideoSubmitted, inVideoSubmitted]);
 
   const handleTimeUpdate = useCallback(
     (event: SyntheticEvent<HTMLVideoElement>) => {
       const currentVideoTime = event.currentTarget.currentTime;
+      if (loadingQuizSubmissions) {
+        setCurrentTime(currentVideoTime);
+        setLastVideoTime(currentVideoTime);
+        return;
+      }
 
       const skippedQuiz = inVideoQuizPoints.find(
         (point) =>
@@ -680,7 +794,7 @@ export function useCourseLearnPlayer({
       setCurrentTime(currentVideoTime);
       setLastVideoTime(currentVideoTime);
     },
-    [inVideoQuizPoints, isQuizSolved, lastVideoTime],
+    [inVideoQuizPoints, isQuizSolved, lastVideoTime, loadingQuizSubmissions],
   );
 
   const handleOverlayScrubClick = useCallback(
@@ -697,7 +811,7 @@ export function useCourseLearnPlayer({
 
       const baseTime = videoRef.current?.currentTime ?? currentTime;
       const skippedQuiz =
-        targetTime > baseTime
+        !loadingQuizSubmissions && targetTime > baseTime
           ? inVideoQuizPoints.find(
               (point) =>
                 point.timestamp > baseTime &&
@@ -725,6 +839,7 @@ export function useCourseLearnPlayer({
       inVideoQuizPoints,
       isQuizSolved,
       seekVideoTo,
+      loadingQuizSubmissions,
     ],
   );
 
@@ -736,7 +851,7 @@ export function useCourseLearnPlayer({
 
       const baseTime = videoRef.current?.currentTime ?? currentTime;
       const skippedQuiz =
-        nextTime > baseTime
+        !loadingQuizSubmissions && nextTime > baseTime
           ? inVideoQuizPoints.find(
               (point) =>
                 point.timestamp > baseTime &&
@@ -753,7 +868,7 @@ export function useCourseLearnPlayer({
 
       seekVideoTo(nextTime);
     },
-    [currentTime, inVideoQuizPoints, isQuizSolved, seekVideoTo],
+    [currentTime, inVideoQuizPoints, isQuizSolved, seekVideoTo, loadingQuizSubmissions],
   );
 
   useEffect(() => {
@@ -905,12 +1020,20 @@ export function useCourseLearnPlayer({
     });
 
     setAfterLessonSubmitted(true);
+    setIsRetaking(false);
   }, [
     afterLessonQuiz,
     currentTime,
     effectiveAfterLessonAnswers,
     onSubmitQuizAttempt,
   ]);
+
+  const handleRetryAfterLessonQuiz = useCallback(() => {
+    setAfterLessonAnswers({});
+    setAfterLessonSubmitted(false);
+    setAfterLessonCorrectAnswers({});
+    setIsRetaking(true);
+  }, []);
 
   return {
     videoRef,
@@ -930,6 +1053,7 @@ export function useCourseLearnPlayer({
     afterLessonSubmitted: effectiveAfterLessonSubmitted,
     afterLessonScore,
     afterLessonPassed,
+    afterLessonCorrectAnswers: effectiveAfterLessonCorrectAnswers,
     isQuizSolved,
     handleSelectLesson,
     handleTogglePlayback,
@@ -942,6 +1066,7 @@ export function useCourseLearnPlayer({
     handleSeekChange,
     handleCompleteLesson,
     handleAdvanceToNextLesson,
+    handleRetryAfterLessonQuiz,
     playbackRate,
     handleSetPlaybackRate,
     volume,
@@ -950,7 +1075,13 @@ export function useCourseLearnPlayer({
     handleToggleMute,
     handleVolumeChange,
     handleToggleFullscreen,
+    handleTogglePictureInPicture,
     handleVideoKeyDown,
+    qualityLevels,
+    currentQualityLevel,
+    videoAspectRatio,
+    onQualityLevelsLoaded: handleQualityLevelsLoaded,
+    onSetQualityLevel: handleSetQualityLevel,
     onSelectInVideoAnswer,
     onSelectAfterLessonAnswer,
     onSubmitAfterLessonQuiz: handleSubmitAfterLessonQuiz,
@@ -959,5 +1090,6 @@ export function useCourseLearnPlayer({
     setIsPlaying,
     setCurrentTime,
     setLastVideoTime,
+    setIsFullscreen,
   };
 }

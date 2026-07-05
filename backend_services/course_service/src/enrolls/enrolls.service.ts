@@ -131,6 +131,9 @@ export class EnrollsService {
       updates.status = EnrollStatus.COMPLETED;
       updates.completedAt = enroll.completedAt ?? new Date();
     }
+    // Học viên đã COMPLETED thì GIỮ NGUYÊN mốc hoàn thành: thêm lesson mới (sau
+    // khi approve change request) chỉ cập nhật progress %, không hạ về active và
+    // không xoá completedAt (giữ chứng nhận đã hoàn thành cho học viên).
 
     await enroll.update(updates, { transaction });
   }

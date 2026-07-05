@@ -9,6 +9,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Flag,
+  Wallet,
+  GraduationCap,
   ArrowLeft,
   LogOut,
 } from "lucide-react";
@@ -27,6 +29,16 @@ const NAV_ITEMS = [
     icon: BookOpen,
   },
   { label: "Người dùng", href: "/admin/users", icon: Users },
+  {
+    label: "Doanh thu",
+    href: "/admin/revenue",
+    icon: Wallet,
+  },
+  {
+    label: "Yêu cầu Giảng viên",
+    href: "/admin/lecturer-requests",
+    icon: GraduationCap,
+  },
   {
     label: "Báo cáo vi phạm",
     href: "/admin/reports",

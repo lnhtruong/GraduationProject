@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.982 0.002 95);
   --foreground: oklch(0.1296 0.0274 261.6924);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.1296 0.0274 261.6924);
@@ -37,9 +37,14 @@
   --sidebar-accent-foreground: oklch(0.3015 0.0572 282.4176);
   --sidebar-border: oklch(0.9115 0.0216 285.9625);
   --sidebar-ring: oklch(0.5417 0.179 288.0332);
-  --font-sans: Inter, sans-serif;
+  --font-sans:
+    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Liberation Sans", sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
+  --font-display:
+    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Liberation Sans", sans-serif;
   --radius: 0.75rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -70,11 +75,11 @@
 }
 
 .dark {
-  --background: oklch(0 0 0);
+  --background: oklch(0.08 0.005 260);
   --foreground: oklch(0.9728 0.0054 95.0993);
-  --card: oklch(0.2439 0.0097 88.7854);
+  --card: oklch(0.13 0.008 260);
   --card-foreground: oklch(0.9728 0.0054 95.0993);
-  --popover: oklch(0.2439 0.0097 88.7854);
+  --popover: oklch(0.13 0.008 260);
   --popover-foreground: oklch(0.9728 0.0054 95.0993);
   --primary: oklch(0.849 0.1433 90.5285);
   --primary-foreground: oklch(0.1838 0.0052 67.497);
@@ -104,9 +109,14 @@
   --sidebar-accent-foreground: oklch(0.9185 0.0257 285.8834);
   --sidebar-border: oklch(0.3261 0.0597 282.5832);
   --sidebar-ring: oklch(0.7162 0.1597 290.3962);
-  --font-sans: Inter, sans-serif;
+  --font-sans:
+    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Liberation Sans", sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
+  --font-display:
+    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Liberation Sans", sans-serif;
   --radius: 0.75rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -173,6 +183,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
+  --font-display: var(--font-display);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -194,8 +205,30 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
     letter-spacing: var(--tracking-normal);
+    text-rendering: optimizeLegibility;
+    font-synthesis-weight: none;
   }
+  h1, h2, h3 {
+    font-family: var(--font-display, var(--font-sans));
+  }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 25%,
+    color-mix(in oklch, var(--color-muted) 60%, var(--color-muted-foreground)) 50%,
+    var(--color-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
 }
 
 /* Blob animations for auth pages */
@@ -402,4 +435,50 @@
 .system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button,
 .system-ckeditor .ck.ck-dropdown__panel .ck.ck-list__item .ck-button .ck-button__label {
   color: var(--popover-foreground) !important;
+}
+
+/* Fullscreen mobile rotation fallback */
+.fullscreen-active:fullscreen,
+.fullscreen-active:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  background-color: black !important;
+}
+
+.fullscreen-active .video-player-inner {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+  background-color: black !important;
+}
+
+@media (orientation: portrait) {
+  .fullscreen-active:fullscreen .video-player-inner,
+  .fullscreen-active:-webkit-full-screen .video-player-inner {
+    width: 100vh !important;
+    height: 100vw !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    background-color: black !important;
+  }
+}
+
+/* Fix browser autofill background-color and text-color to align with light/dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-foreground) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--color-background) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }

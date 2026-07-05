@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { NotebookText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { LessonForm } from "./components/LessonForm";
@@ -102,31 +102,31 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
 
   return (
     <ManagementPageShell
-      title={isEdit ? "Chỉnh sửa bài học" : "Tạo bài học mới"}
+      title={isEdit ? (lesson?.title || "Bài học") : "Tạo bài học mới"}
       noCard
-      description="Thiết lập nội dung bài học theo đúng thứ tự của khóa học."
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name, href: `/instructor/courses/${course.id}` },
-        { label: isEdit ? "Chỉnh sửa bài học" : "Tạo mới bài học" },
+        { label: isEdit ? (lesson?.title || "Bài học") : "Tạo mới bài học" },
       ]}
       action={
         <div className="flex flex-wrap items-center gap-2">
-          <div id="lesson-form-actions-portal" className="flex items-center gap-2" />
-
           {isEdit ? (
             <Button
               onClick={() => setActivityDialogOpen(true)}
-              className="h-10 text-xs"
+              variant="outline"
+              className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all"
             >
-              <Sparkles className="mr-2 h-4 w-4" />
+              <NotebookText className="h-4 w-4 text-primary" />
               Tạo hoạt động
             </Button>
           ) : null}
+
+          <div id="lesson-form-actions-portal" className="flex items-center gap-2" />
           <Button
             variant="outline"
             onClick={() => router.back()}
-            className="h-10 text-xs"
+            className="h-10 text-xs font-semibold rounded-xl gap-1.5 shadow-sm transition-all"
           >
             Quay lại
           </Button>

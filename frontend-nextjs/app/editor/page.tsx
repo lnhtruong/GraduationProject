@@ -1,11 +1,11 @@
-import { Suspense } from "react";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
 import Editor from "@/features/editor";
-import { PageLoader } from "@/components/PageLoader";
 
-export default function EditorPage() {
-  return (
-    <Suspense fallback={<PageLoader message="Đang tải trình chỉnh sửa..." />}>
-      <Editor />
-    </Suspense>
-  );
+export const metadata = buildPrivatePageMetadata(
+  "Trình chỉnh sửa video",
+  "Chỉnh sửa video học tập, mascot và tài nguyên sáng tạo trong LearnHub.",
+);
+
+export default function Page() {
+  return <Editor />;
 }

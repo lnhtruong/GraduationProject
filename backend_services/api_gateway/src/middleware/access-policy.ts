@@ -34,6 +34,11 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'POST', pattern: '/api/auth/register', access: 'public' },
   { method: 'POST', pattern: '/api/auth/login', access: 'public' },
   { method: 'POST', pattern: '/api/auth/google', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/github', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/github/callback', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/oauth-session', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/facebook', access: 'public' },
+  { method: 'GET', pattern: '/api/auth/facebook/callback', access: 'public' },
   { method: 'POST', pattern: '/api/auth/refresh', access: 'public' },
   { method: 'POST', pattern: '/api/auth/forgot-password', access: 'public' },
   { method: 'POST', pattern: '/api/auth/check-otp', access: 'public' },
@@ -47,6 +52,7 @@ const ACCESS_RULES: AccessRule[] = [
   },
 
   // User service
+  { method: 'GET', pattern: '/api/users/me', access: 'authenticated' },
   { method: 'GET', pattern: '/api/users/profile', access: 'authenticated' },
   // Audit logs — admin only. Must precede /api/users/:id matcher.
   {
@@ -129,6 +135,32 @@ const ACCESS_RULES: AccessRule[] = [
     roles: [UserRole.ADMIN],
   },
 
+  // Admin revenue analytics (admin only)
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/summary',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/timeseries',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/by-category',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/admin/revenue/transactions',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+
   // Instructor revenue
   {
     method: 'GET',
@@ -169,6 +201,24 @@ const ACCESS_RULES: AccessRule[] = [
   // Change requests: rule cụ thể PHẢI đặt trước ':id' (first-match).
   {
     method: 'GET',
+    pattern: '/api/course/courses/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/change-requests/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/courses/change-requests/:requestId',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
+  {
+    method: 'GET',
     pattern: '/api/course/courses/change-requests',
     access: 'roles',
     roles: [UserRole.ADMIN],
@@ -204,6 +254,12 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'GET',
     pattern: '/api/course/courses/:courseId/discussions',
+    access: 'roles',
+    roles: [UserRole.ADMIN, UserRole.LECTURER],
+  },
+  {
+    method: 'GET',
+    pattern: '/api/course/instructor/discussions',
     access: 'roles',
     roles: [UserRole.ADMIN, UserRole.LECTURER],
   },
@@ -297,7 +353,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'POST',
     pattern: '/api/course/courses/:id/publish',
     access: 'roles',
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'POST',
@@ -803,6 +859,7 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/:id', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {
     method: 'POST',

@@ -2,7 +2,7 @@ import type { Course } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
 import type { InstructorUser } from "../api/admin-courses.api";
 
-export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_ADMIN_REVIEW === "true";
+export const USE_MOCK = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK_ADMIN_REVIEW === "true";
 
 export const MOCK_ADMIN_COURSES: Course[] = [
   // ── HAPPY PATH ────────────────────────────────────────────────────────────

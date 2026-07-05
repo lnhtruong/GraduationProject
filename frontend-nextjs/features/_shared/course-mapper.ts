@@ -1,7 +1,5 @@
 import type { CourseCardData } from "./course-card.types";
 
-const PLACEHOLDER_THUMBNAIL = "https://placehold.co/320x180/png?text=thumbnail";
-
 function parseNullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -23,7 +21,7 @@ export type CourseRaw = {
   price: number;
   userId: number;
   status: string;
-  video?: { thumbnail?: string | null } | null;
+  thumbnailUrl?: string | null;
   // Có sau khi backend bổ sung (xem README ## API Requirements):
   instructor?: {
     id?: number;
@@ -48,10 +46,7 @@ export function mapCourseRaw(raw: CourseRaw): CourseCardData {
     ? (raw.categories as { name: string }[])
     : [];
 
-  const thumbnail =
-    raw.video?.thumbnail && raw.video.thumbnail !== PLACEHOLDER_THUMBNAIL
-      ? raw.video.thumbnail
-      : null;
+  const thumbnail = raw.thumbnailUrl ?? null;
 
   const inst = raw.instructor;
   const instructorName = inst

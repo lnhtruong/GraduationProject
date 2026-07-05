@@ -1,88 +1,87 @@
 "use client";
 
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { usePendingPublishCount, useInstructorCourses } from "../../api/dashboard.hooks";
+import { useInstructorDiscussions } from "../../qa/discussion.hooks";
+import type { Course } from "@/features/courses/types";
+import type { InstructorCourse, RecentQAItem } from "../../types";
 import { QuickActions } from "./QuickActions";
 import { RecentCourses } from "./RecentCourses";
 import { RecentQA } from "./RecentQA";
-import { useInstructorCourses, usePendingPublishCount } from "../../api/dashboard.hooks";
-import type { InstructorCourse } from "../../types";
-import type { Course } from "@/features/courses/types";
 
-function mapCourseToInstructor(c: Course): InstructorCourse {
+function mapCourseToInstructor(course: Course): InstructorCourse {
   return {
-    id: c.id,
-    name: c.name,
-    description: c.description,
-    thumbnailUrl: (c as unknown as { thumbnailUrl?: string }).thumbnailUrl,
-    status: c.status as InstructorCourse["status"],
+    id: course.id,
+    name: course.name,
+    description: course.description,
+    thumbnailUrl: (course as unknown as { thumbnailUrl?: string }).thumbnailUrl,
+    status: course.status as InstructorCourse["status"],
     lessonCount: 0,
     studentCount: 0,
-    updatedAt: c.updated_at ?? c.created_at ?? new Date().toISOString(),
+    updatedAt: course.updated_at ?? course.created_at ?? new Date().toISOString(),
   };
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data: rawCourses = [], isLoading } = useInstructorCourses();
+  const { data: rawCourses = [], isLoading: isCoursesLoading } = useInstructorCourses();
+  const { data: unansweredData, isLoading: isUnansweredLoading } = useInstructorDiscussions({
+    status: "unanswered",
+    limit: 5,
+  });
   const pendingPublish = usePendingPublishCount();
 
-  const today = new Date().toLocaleDateString("en-US", {
+  const isLoading = isCoursesLoading || isUnansweredLoading;
+  const today = new Date().toLocaleDateString("vi-VN", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 
   const courses: InstructorCourse[] = rawCourses.map(mapCourseToInstructor);
-
-  // unansweredQA: backend chưa có endpoint tổng hợp — hiển thị 0 cho đến khi có API
-  const unansweredQA = 0;
+  const unansweredQA = unansweredData?.total ?? 0;
+  const recentQAItems: RecentQAItem[] = (unansweredData?.data ?? []).map((question) => ({
+    id: question.id,
+    authorName: question.author.name,
+    courseName: question.courseName ?? "Khóa học",
+    content: question.content,
+    createdAt: question.createdAt,
+    needsReply: true,
+  }));
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <p className="mb-1 text-sm text-muted-foreground">
-          {today} · Teacher Mode
+          {today} · Chế độ giảng viên
         </p>
         <h1 className="text-2xl font-bold">
-          Welcome back,{" "}
-          <span className="text-primary">
-            {user?.firstName ?? "Instructor"}!
-          </span>{" "}
-          👋
+          Chào mừng trở lại,{" "}
+          <span className="text-primary">{user?.firstName ?? "giảng viên"}</span>
         </h1>
         {(unansweredQA > 0 || pendingPublish > 0) && (
           <p className="mt-1 text-sm text-muted-foreground">
-            You have{" "}
+            Bạn có{" "}
             {unansweredQA > 0 && (
-              <a
-                href="/instructor/qa"
-                className="font-medium text-primary underline"
-              >
-                {unansweredQA} unanswered question
-                {unansweredQA > 1 ? "s" : ""}
-              </a>
+              <Link href="/instructor/qa" className="font-medium text-primary underline">
+                {unansweredQA} câu hỏi chưa phản hồi
+              </Link>
             )}
-            {unansweredQA > 0 && pendingPublish > 0 && " and "}
+            {unansweredQA > 0 && pendingPublish > 0 && " và "}
             {pendingPublish > 0 && (
-              <a
-                href="/instructor/courses"
-                className="font-medium text-primary underline"
-              >
-                {pendingPublish} course
-                {pendingPublish > 1 ? "s" : ""} ready to publish
-              </a>
+              <Link href="/instructor/courses" className="font-medium text-primary underline">
+                {pendingPublish} khóa học sẵn sàng xuất bản
+              </Link>
             )}
             .
           </p>
         )}
       </div>
 
-      {/* Quick Actions */}
       <QuickActions />
 
-      {/* Recent grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Skeleton className="h-56 rounded-xl" />
@@ -91,8 +90,7 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <RecentCourses courses={courses} />
-          {/* RecentQA: dữ liệu thật chờ API tổng hợp unanswered discussions từ backend */}
-          <RecentQA items={[]} />
+          <RecentQA items={recentQAItems} />
         </div>
       )}
     </div>

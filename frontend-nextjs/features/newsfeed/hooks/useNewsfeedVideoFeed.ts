@@ -1,19 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNewsfeedFeed } from "../api/newsfeed.hooks";
+import { useAuthStore } from "@/store/auth";
+import { useNewsfeedFeed, useNewsfeedFeedDetail } from "../api/newsfeed.hooks";
 import { shouldPrefetchNewsfeedPage } from "./useNewsfeedFeedStrategy";
-
-// Cửa sổ throttle dùng chung cho mọi nguồn điều hướng (scroll, vuốt, phím, nút):
-// mỗi thao tác chỉ chuyển đúng 1 video, dù lặp nhanh đến đâu.
-const NEWSFEED_NAV_COOLDOWN_MS = 620;
+import { NEWSFEED_NAV_COOLDOWN_MS } from "../constants";
 
 function uniqueByFeedId<T extends { feedId: number }>(items: T[]) {
   return items.filter((item, index, list) => list.findIndex((candidate) => candidate.feedId === item.feedId) === index);
 }
 
 export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVideoId?: number | null) {
-  const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm, undefined, isAuthenticated);
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
   const appliedInitialVideoIdRef = useRef<number | null>(null);
@@ -41,12 +40,24 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     return true;
   }, []);
 
-  const videos = useMemo(
-    () =>
-      uniqueByFeedId(
-        feedQuery.data?.pages.flatMap((page) => page.items).filter((item) => Boolean(item.videoUrl)) ?? [],
-      ),
+  const feedItems = useMemo(
+    () => feedQuery.data?.pages.flatMap((page) => page.items).filter((item) => Boolean(item.videoUrl)) ?? [],
     [feedQuery.data?.pages],
+  );
+
+  const hasInitialVideo = useMemo(
+    () => initialVideoId != null && feedItems.some((item) => item.feedId === initialVideoId || item.id === initialVideoId),
+    [feedItems, initialVideoId],
+  );
+
+  const detailQuery = useNewsfeedFeedDetail(
+    initialVideoId ?? null,
+    enabled && initialVideoId != null && !hasInitialVideo,
+  );
+
+  const videos = useMemo(
+    () => uniqueByFeedId([...(detailQuery.data ? [detailQuery.data] : []), ...feedItems]),
+    [detailQuery.data, feedItems],
   );
 
   const totalVideos = videos.length;
@@ -204,8 +215,8 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     isFetchingNextPage,
     endReached: totalVideos > 0 && safeIndex === totalVideos - 1 && !hasMore,
     isLoading: feedQuery.isLoading,
-    isFetching: feedQuery.isFetching,
-    error: feedQuery.error,
+    isFetching: feedQuery.isFetching || detailQuery.isFetching,
+    error: feedQuery.error ?? detailQuery.error,
     refetch: feedQuery.refetch,
     fetchNextPage: feedQuery.fetchNextPage,
     goNext,

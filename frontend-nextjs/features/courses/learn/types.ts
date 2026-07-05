@@ -56,6 +56,7 @@ export interface AfterLessonQuizQuestion {
   options: string[];
   optionIds: number[];
   answerIndex: number | null;
+  passingScore?: number;
 }
 
 export interface ConfettiPiece {
@@ -111,13 +112,15 @@ export interface DiscussionPostRecord {
   id: number;
   lessonId: number;
   parentId: number | null;
+  parentRootId?: number | null;
   content: string;
   isBestAnswer: boolean;
   upvotes: number;
+  voted?: boolean;
   createdAt: string;
   updatedAt: string;
   author: DiscussionAuthorSnapshot;
-  replies: DiscussionPostRecord[];
+  replies?: DiscussionPostRecord[];
 }
 
 export interface DiscussionListResponse {

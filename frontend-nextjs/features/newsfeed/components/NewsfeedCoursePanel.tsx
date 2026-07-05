@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 import { useBuyNow } from "@/features/payment/api/payment.hooks";
@@ -41,41 +42,7 @@ const LEVEL_META: Record<
 	Advanced: { label: LEVEL_LABELS.Advanced, icon: Sparkles },
 };
 
-function formatCoursePrice(price: number) {
-	return price > 0 ? `${price.toLocaleString("vi-VN")} VND` : "Miễn phí";
-}
-
-function formatDurationLabel(duration?: string | null) {
-	if (!duration) {
-		return "--";
-	}
-
-	const normalized = duration.trim();
-	const timeMatch = normalized.match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
-	if (timeMatch) {
-		const hours = Number(timeMatch[1] ?? 0);
-		const minutes = Number(timeMatch[2] ?? 0);
-		const seconds = Number(timeMatch[3] ?? 0);
-		const totalMinutes = hours * 60 + minutes;
-		return `${totalMinutes}p${String(seconds).padStart(2, "0")}s`;
-	}
-
-	const minutesMatch = normalized.match(/^(\d+)\s*(?:phút|phut|p|m)(?:\s*(\d+)\s*(?:giây|giay|s))?$/i);
-	if (minutesMatch) {
-		const minutes = Number(minutesMatch[1] ?? 0);
-		const seconds = Number(minutesMatch[2] ?? 0);
-		return `${minutes}p${String(seconds).padStart(2, "0")}s`;
-	}
-
-	const secondsOnly = Number(normalized);
-	if (Number.isFinite(secondsOnly) && secondsOnly >= 0) {
-		const minutes = Math.floor(secondsOnly / 60);
-		const seconds = Math.floor(secondsOnly % 60);
-		return `${minutes}p${String(seconds).padStart(2, "0")}s`;
-	}
-
-	return normalized;
-}
+import { formatCoursePrice, formatDurationLabel } from "../utils/format";
 
 function sortRoadmapCourses(courses: RoadmapCourse[]) {
 	return [...courses].sort((left, right) => {
@@ -188,6 +155,10 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	);
 
 	const roadmaps = useMemo(() => getRoadmapList(roadmapQuery.data), [roadmapQuery.data]);
+	const safeCourseDescription = useMemo(
+		() => sanitizeHtml(video.course.description),
+		[video.course.description],
+	);
 
 	const activeRoadmap = useMemo(() => {
 		if (!roadmaps.length) {
@@ -276,7 +247,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 						</h3>
 						<div
 							className="mt-3 max-w-none text-sm leading-7 text-muted-foreground"
-							dangerouslySetInnerHTML={{ __html: video.course.description }}
+							dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
 						/>
 					</div>
 

@@ -16,16 +16,32 @@ import {
   Search,
   Filter,
   Trash2,
+  Send,
+  Rocket,
+  ShieldAlert,
+  Play,
+  FileText,
+  XCircle,
+  Coins,
+  MoreVertical,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
   useDeleteLesson,
   useInstructorCourseById,
-  useLessonsByCourseId,
   usePublishCourse,
   useSubmitCourseForReview,
 } from "./api/course-management.hooks";
@@ -40,6 +56,8 @@ import {
 } from "@/components/ui/select";
 import { formatDuration, formatPrice } from "@/features/courses/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { sanitizeHtml } from "@/lib/sanitize-html";
+import { cn } from "@/lib/utils";
 
 interface Props {
   courseId: number;
@@ -51,7 +69,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
 
   const toSeconds = (duration?: number | string | null) => {
     if (typeof duration === "number" && Number.isFinite(duration)) {
-      // Existing lesson forms store duration in minutes.
       return Math.max(0, Math.round(duration * 60));
     }
 
@@ -83,8 +100,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
 
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  const { data: lessons, isLoading: lessonsLoading } =
-    useLessonsByCourseId(courseId);
+  const lessons = course?.lessons;
+  const lessonsLoading = courseLoading;
   const { user } = useAuth();
   const deleteLessonMutation = useDeleteLesson();
   const submitForReviewMutation = useSubmitCourseForReview();
@@ -122,6 +139,14 @@ export default function CourseOverviewPage({ courseId }: Props) {
       return bySearch && byStatus;
     });
   }, [lessons, search, statusFilter]);
+  const safeCourseDescription = useMemo(
+    () =>
+      sanitizeHtml(
+        course?.description,
+        "<p>Chưa có mô tả chi tiết cho khóa học này.</p>",
+      ),
+    [course?.description],
+  );
 
   const totalPages = Math.max(
     1,
@@ -140,8 +165,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
     setCurrentPage(1);
   };
 
-  const isAdmin = user?.role === 1;
-
   const handleCourseStatusAction = async () => {
     if (!course) {
       return;
@@ -155,11 +178,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
       }
 
       if (course.status === "approved") {
-        if (!isAdmin) {
-          toast.info("Khóa học đã được duyệt, chờ admin publish");
-          return;
-        }
-
         await publishCourseMutation.mutateAsync(course.id);
         toast.success("Đã publish khóa học");
       }
@@ -169,6 +187,62 @@ export default function CourseOverviewPage({ courseId }: Props) {
       toast.error(message);
     }
   };
+
+  function getStatusBadge(status: string) {
+    const config: Record<string, { label: string; className: string }> = {
+      publish: {
+        label: "Đã xuất bản",
+        className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-500/20",
+      },
+      draft: { 
+        label: "Bản nháp", 
+        className: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800",
+      },
+      pending: {
+        label: "Chờ duyệt",
+        className: "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-500/20",
+      },
+      approved: {
+        label: "Đã duyệt",
+        className: "bg-sky-500/10 text-sky-600 border-sky-500/20 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-500/20",
+      },
+      rejected: {
+        label: "Từ chối",
+        className: "bg-rose-500/10 text-rose-600 border-rose-500/20 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-500/20",
+      },
+    };
+    
+    const norm = String(status).toLowerCase();
+    const item = config[norm] ?? { label: status, className: "bg-muted text-muted-foreground" };
+    return (
+      <Badge variant="outline" className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-md", item.className)}>
+        {item.label}
+      </Badge>
+    );
+  }
+
+  function getLessonStatusBadge(status: string) {
+    const norm = String(status).toLowerCase();
+    if (norm === "active") {
+      return (
+        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-medium px-2 py-0.2 rounded-md">
+          Đang hoạt động
+        </Badge>
+      );
+    }
+    if (norm === "blocked") {
+      return (
+        <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/20 text-[10px] font-medium px-2 py-0.2 rounded-md">
+          Tạm khóa
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="bg-zinc-100 text-zinc-600 border-zinc-200 text-[10px] font-medium px-2 py-0.2 rounded-md">
+        {status}
+      </Badge>
+    );
+  }
 
   if (courseLoading) {
     return (
@@ -205,331 +279,347 @@ export default function CourseOverviewPage({ courseId }: Props) {
     );
   }
 
+  // Create clean metadata & actions bar for the top header description
+  const headerDescription = (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-0.5">
+      {getStatusBadge(course.status)}
+      {Array.isArray(course.categories) && course.categories.map((category) => (
+        <span key={category} className="text-xs text-primary font-bold hover:underline cursor-pointer">
+          #{category}
+        </span>
+      ))}
+    </div>
+  );
+
   return (
     <ManagementPageShell
       title={course.name}
-      description="Theo dõi tổng quan khóa học và quản lý bài học ngay trong một màn hình."
+      description={headerDescription}
       breadcrumbs={[
         { label: "Quản lý khóa học", href: "/instructor/courses" },
         { label: course.name },
       ]}
+      noCard={true}
+      thumbnailUrl={course.thumbnailUrl}
       action={
-        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={`/instructor/courses/${course.id}/qa`}>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Q&A
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={`/instructor/courses/${course.id}/feed`}>
-              <Clapperboard className="mr-2 h-4 w-4" />
-              Quản lý feed
-            </Link>
-          </Button>
-          <Button asChild className="w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Main course operation workflow button */}
+          {course.status === "draft" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-3.5 rounded-xl shadow-xs cursor-pointer flex-1 sm:flex-initial justify-center"
+              disabled={submitForReviewMutation.isPending}
+              onClick={() => {
+                void handleCourseStatusAction();
+              }}
+            >
+              <ClipboardCheck className="mr-1.5 h-3.5 w-3.5 text-primary" />
+              {submitForReviewMutation.isPending ? "Đang gửi..." : "Gửi duyệt"}
+            </Button>
+          )}
+          {course.status === "pending" && (
+            <Button type="button" size="sm" variant="outline" className="h-9 px-3.5 rounded-xl shadow-xs cursor-not-allowed opacity-75 flex-1 sm:flex-initial justify-center" disabled>
+              <ShieldAlert className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+              Chờ duyệt
+            </Button>
+          )}
+          {course.status === "approved" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-3.5 rounded-xl shadow-xs cursor-pointer border-emerald-500/30 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 flex-1 sm:flex-initial justify-center"
+              disabled={publishCourseMutation.isPending}
+              onClick={() => {
+                void handleCourseStatusAction();
+              }}
+            >
+              <Rocket className="mr-1.5 h-3.5 w-3.5" />
+              {publishCourseMutation.isPending ? "Đang chạy..." : "Xuất bản"}
+            </Button>
+          )}
+
+          <Button asChild size="sm" className="h-9 px-3.5 rounded-xl shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer flex-1 sm:flex-initial justify-center">
             <Link href={`/instructor/courses/${course.id}/edit`}>
-              <PencilLine className="mr-2 h-4 w-4" />
+              <PencilLine className="mr-1.5 h-3.5 w-3.5" />
               Sửa khóa học
             </Link>
           </Button>
+
+          {/* Three-dots menu for extra teaching tools */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-xl shadow-xs cursor-pointer hover:bg-muted/80 text-muted-foreground hover:text-foreground shrink-0 border-border/60 justify-center items-center"
+              >
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Công cụ dạy học</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl border border-border/50 bg-popover p-1 shadow-md">
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                Công cụ dạy học
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-border/40" />
+              <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2.5 py-2 text-sm focus:bg-accent focus:text-accent-foreground text-foreground">
+                <Link href={`/instructor/courses/${course.id}/qa`} className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <span>Diễn đàn Hỏi & Đáp (Q&A)</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2.5 py-2 text-sm focus:bg-accent focus:text-accent-foreground text-foreground">
+                <Link href={`/instructor/courses/${course.id}/feed`} className="flex items-center gap-2">
+                  <Clapperboard className="h-4 w-4 text-primary" />
+                  <span>Bản tin khóa học (Feed)</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       }
     >
-      <div className="space-y-5 p-3 sm:space-y-5 sm:p-4 lg:p-5">
-        <div className="grid gap-4 lg:grid-cols-12">
-          <Card className="border-border/60 bg-linear-to-br from-background via-background to-muted/20 lg:col-span-12">
-            <CardContent className="space-y-5 p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Tổng quan khóa học
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold">{course.name}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {String(course.status).toUpperCase()}
-                  </Badge>
-                  {course.status === "draft" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={submitForReviewMutation.isPending}
-                      onClick={() => {
-                        void handleCourseStatusAction();
-                      }}
-                    >
-                      {submitForReviewMutation.isPending
-                        ? "Đang gửi duyệt..."
-                        : "Gửi duyệt khóa học"}
-                    </Button>
-                  )}
-                  {course.status === "pending" && (
-                    <Button type="button" size="sm" disabled>
-                      Đang chờ admin duyệt
-                    </Button>
-                  )}
-                  {course.status === "approved" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={!isAdmin || publishCourseMutation.isPending}
-                      onClick={() => {
-                        void handleCourseStatusAction();
-                      }}
-                    >
-                      {publishCourseMutation.isPending
-                        ? "Đang publish..."
-                        : isAdmin
-                          ? "Publish khóa học"
-                          : "Đã duyệt, chờ publish"}
-                    </Button>
-                  )}
-                </div>
+      <div className="mt-1">
+        {/* SECTION 2: Unified Content Area (Description & Lessons list inside a single card) */}
+        <Card className="border-border/50 bg-linear-to-br from-background via-card to-primary/5 shadow-xs rounded-2xl overflow-hidden">
+          
+          {/* Card syllabus title header */}
+          <div className="relative border-b border-border/40 px-5 py-3.5 bg-card/40 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">
+                Chi tiết học trình
+              </p>
+              <h2 className="mt-0.5 text-base font-bold text-foreground">
+                Giới thiệu khóa học và các bài giảng vận hành
+              </h2>
+            </div>
+
+            {/* Metadata (Lessons, Duration, Price) in main card header */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border/50 bg-muted/40 text-muted-foreground font-semibold">
+                <BookOpen className="h-3.5 w-3.5 text-primary" />
+                <span>{lessonCount} bài học ({readyLessons} hoạt động)</span>
               </div>
 
-              <div className="max-w-3xl rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/50 bg-muted/40 text-muted-foreground font-semibold">
+                <Clock3 className="h-3.5 w-3.5 text-primary" />
+                <span>{formatDuration(avgLessonSeconds) || "0 phút"}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/50 bg-muted/40 text-muted-foreground font-semibold">
+                <Coins className="h-3.5 w-3.5 text-primary" />
+                <span>{course.price === 0 ? "Miễn phí" : formatPrice(course.price)}</span>
+              </div>
+            </div>
+          </div>
+
+          <CardContent className="p-5 sm:p-6 space-y-6">
+            
+
+            {/* Sub-section: Course description */}
+            <div className="space-y-3 pb-6 border-b border-border/30">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-primary" />
+                Giới thiệu khóa học
+              </h3>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed pl-5.5">
                 <div
-                  className="course-overview-description prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-a:text-primary"
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      course.description?.trim() ||
-                      "<p>Chưa có mô tả cho khóa học này.</p>",
-                  }}
+                  className="course-overview-description"
+                  dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
                 />
               </div>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  {
-                    label: "Bài học",
-                    value: lessonCount,
-                    icon: BookOpen,
-                  },
-                  {
-                    label: "Đang active",
-                    value: readyLessons,
-                    icon: BadgeCheck,
-                  },
-                  {
-                    label: "Trung bình / bài",
-                    value: formatDuration(avgLessonSeconds),
-                    icon: Clock3,
-                  },
-                  {
-                    label: "Giá bán",
-                    value: formatPrice(course.price),
-                    icon: ArrowUpRight,
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-xl border border-border/60 bg-background p-3"
-                  >
-                    <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-1.5 text-primary">
-                      <item.icon className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {item.label}
-                    </p>
-                    <p className="text-base font-semibold">{item.value}</p>
-                  </div>
-                ))}
+             {/* Sub-section: Curriculum & Lessons management */}
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  Bài giảng của khóa học
+                </h3>
+                <Button asChild size="sm" className="h-8 sm:h-8.5 rounded-xl shadow-xs cursor-pointer text-xs">
+                  <Link href={`/instructor/courses/${course.id}/lessons/new`}>
+                    <CirclePlus className="mr-1 sm:mr-1.5 h-3.5 sm:h-4 w-3.5 sm:w-4" />
+                    Thêm bài học
+                  </Link>
+                </Button>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {Array.isArray(course.categories) &&
-                course.categories.length ? (
-                  course.categories.map((category) => (
-                    <Badge
-                      key={category}
-                      variant="secondary"
-                      className="text-[11px]"
-                    >
-                      {category}
-                    </Badge>
-                  ))
+              {/* Toolbar */}
+              <div className="flex flex-row gap-2 rounded-xl border border-border/40 bg-muted/10 p-2 sm:p-3 items-center">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Tìm bài học..."
+                    className="pl-9 h-9.5 border-border/80 rounded-xl bg-background text-xs sm:text-sm"
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                    <Filter className="h-3 w-3" />
+                    Lọc:
+                  </span>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => {
+                      setStatusFilter(value as LessonStatusFilter);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-28 sm:w-36 bg-background rounded-xl h-9 text-xs sm:text-sm">
+                      <SelectValue placeholder="Trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả</SelectItem>
+                      <SelectItem value="active">Đang hoạt động</SelectItem>
+                      <SelectItem value="blocked">Tạm khóa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Lessons Grid list */}
+              <div className="space-y-3 pt-1">
+                {lessonsLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                  </div>
+                ) : paginatedLessons.length ? (
+                  paginatedLessons.map((lesson, index) => {
+                    const isLessonActive = String(lesson.status).toLowerCase() === "active";
+                    
+                    return (
+                      <div
+                        key={lesson.id}
+                        className={cn(
+                          "rounded-xl border border-border/50 bg-background/60 hover:bg-muted/10 p-3.5 sm:p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 border-l-4",
+                          isLessonActive ? "border-l-emerald-500" : "border-l-rose-500"
+                        )}
+                      >
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 rounded-md">
+                              Bài {(safeCurrentPage - 1) * LESSONS_PER_PAGE + index + 1}
+                            </Badge>
+                            {getLessonStatusBadge(lesson.status)}
+                            {lesson.contentType === "video" ? (
+                              <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 rounded-md flex items-center gap-1 opacity-70">
+                                <Play className="h-2.5 w-2.5" />
+                                Video
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 rounded-md flex items-center gap-1 opacity-70">
+                                <FileText className="h-2.5 w-2.5" />
+                                Tài liệu
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground font-semibold">
+                              {formatDuration(toSeconds(lesson.duration))}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-foreground leading-snug truncate">
+                            {lesson.title}
+                          </h4>
+                          {lesson.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {lesson.description}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Lesson Action buttons */}
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <Button asChild size="sm" variant="outline" className="h-8 rounded-lg text-xs cursor-pointer">
+                            <Link
+                              href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
+                            >
+                              Chỉnh sửa
+                            </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg cursor-pointer"
+                            onClick={() => {
+                              void handleDeleteLesson(lesson.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
-                  <Badge variant="outline" className="text-[11px]">
-                    Chưa có danh mục
-                  </Badge>
+                  <div className="rounded-2xl border border-dashed border-border/50 bg-muted/5 px-6 py-10 text-center flex flex-col items-center justify-center gap-2">
+                    <div className="rounded-full bg-muted p-3 text-muted-foreground/60">
+                      <BookOpen className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-bold text-foreground mt-1">Chưa có bài học nào</p>
+                    <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                      {search || statusFilter !== "all" 
+                        ? "Không tìm thấy bài học nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm hiện tại."
+                        : "Khóa học này hiện chưa được thiết lập bài giảng. Nhấn nút Thêm bài học để bắt đầu xây dựng giáo trình."}
+                    </p>
+                  </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        <div className="gap-5">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Danh sách bài học</h2>
-                <p className="text-sm text-muted-foreground">
-                  Quản lý toàn bộ bài học ngay tại đây: tìm kiếm, lọc, thêm, sửa
-                  và xóa.
-                </p>
-              </div>
-              <Button asChild className="hidden sm:inline-flex">
-                <Link href={`/instructor/courses/${course.id}/lessons/new`}>
-                  <CirclePlus className="mr-2 h-4 w-4" />
-                  Thêm bài học
-                </Link>
-              </Button>
-            </div>
-
-            <Button asChild className="w-full sm:hidden">
-              <Link href={`/instructor/courses/${course.id}/lessons/new`}>
-                <CirclePlus className="mr-2 h-4 w-4" />
-                Thêm bài học
-              </Link>
-            </Button>
-
-            <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-3 sm:p-4 md:flex-row md:items-center md:justify-between">
-              <div className="relative w-full md:max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm bài học theo tên hoặc mô tả..."
-                  className="pl-9"
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Filter className="h-3.5 w-3.5" />
-                  Lọc:
-                </span>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => {
-                    setStatusFilter(value as LessonStatusFilter);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger size="sm" className="w-44 bg-background">
-                    <SelectValue placeholder="Trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {lessonsLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-24 w-full rounded-2xl" />
-                  <Skeleton className="h-24 w-full rounded-2xl" />
-                </div>
-              ) : paginatedLessons.length ? (
-                paginatedLessons.map((lesson, index) => (
-                  <div
-                    key={lesson.id}
-                    className="rounded-2xl border border-border/60 bg-background p-3 transition-colors hover:border-primary/30 sm:p-4"
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[11px]">
-                            Bài{" "}
-                            {(safeCurrentPage - 1) * LESSONS_PER_PAGE +
-                              index +
-                              1}
-                          </Badge>
-                          <Badge variant="secondary" className="text-[11px]">
-                            {String(lesson.status)}
-                          </Badge>
-                          <span className="text-sm font-medium">
-                            {lesson.title}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {lesson.description ?? "Chưa có mô tả"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDuration(toSeconds(lesson.duration))} •{" "}
-                          {lesson.contentType}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                          <Link
-                            href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
-                          >
-                            Sửa bài học
-                          </Link>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => {
-                            void handleDeleteLesson(lesson.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+              {/* Syllabus Pagination */}
+              {filteredLessons.length > LESSONS_PER_PAGE && (
+                <div className="flex flex-col gap-3 rounded-xl border border-border/40 bg-muted/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Hiển thị {(safeCurrentPage - 1) * LESSONS_PER_PAGE + 1} -{" "}
+                    {Math.min(
+                      safeCurrentPage * LESSONS_PER_PAGE,
+                      filteredLessons.length,
+                    )}{" "}
+                    / {filteredLessons.length} bài học
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 rounded-lg cursor-pointer"
+                      disabled={safeCurrentPage === 1}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, safeCurrentPage - 1))
+                      }
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs font-semibold text-muted-foreground min-w-[50px] text-center">
+                      Trang {safeCurrentPage}/{totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 rounded-lg cursor-pointer"
+                      disabled={safeCurrentPage === totalPages}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))
+                      }
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-                  Không có bài học nào phù hợp bộ lọc hiện tại.
                 </div>
               )}
-            </div>
 
-            {filteredLessons.length > LESSONS_PER_PAGE ? (
-              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-                <p className="text-sm text-muted-foreground">
-                  Hiển thị {(safeCurrentPage - 1) * LESSONS_PER_PAGE + 1} -{" "}
-                  {Math.min(
-                    safeCurrentPage * LESSONS_PER_PAGE,
-                    filteredLessons.length,
-                  )}{" "}
-                  / {filteredLessons.length} bài học
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={safeCurrentPage === 1}
-                    onClick={() =>
-                      setCurrentPage(Math.max(1, safeCurrentPage - 1))
-                    }
-                  >
-                    <ChevronLeft className="mr-1 h-4 w-4" />
-                    Trước
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Trang {safeCurrentPage}/{totalPages}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={safeCurrentPage === totalPages}
-                    onClick={() =>
-                      setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))
-                    }
-                  >
-                    Sau
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <style jsx global>{`

@@ -9,10 +9,17 @@ export function formatDuration(seconds?: number | null): string {
   if (!seconds || seconds <= 0) {
     return "--:--";
   }
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  const safe = Math.max(0, Math.floor(seconds));
+  const hh = Math.floor(safe / 3600);
+  const mm = Math.floor((safe % 3600) / 60);
+  const ss = safe % 60;
+
+  if (hh > 0) {
+    return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  }
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
+
 
 /**
  * Build initial values for lesson form
@@ -41,11 +48,17 @@ export function buildInitialLessonValues(
  * @param videoId Fallback ID for display
  * @returns Formatted title for display
  */
+export function cleanVideoTitle(title?: string | null): string {
+  if (!title) return "";
+  return title.trim();
+}
+
 export function getVideoCardTitle(
   title?: string | null,
   videoId?: number,
 ): string {
-  return title?.trim() || `Video #${videoId}`;
+  if (!title) return `Video #${videoId}`;
+  return title.trim();
 }
 
 /**

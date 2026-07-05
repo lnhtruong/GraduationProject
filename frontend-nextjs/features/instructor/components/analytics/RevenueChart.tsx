@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Brush,
 } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import type { TimeseriesItem } from "../../revenue/types";
@@ -36,13 +37,16 @@ function formatDateLabel(date: string): string {
 interface Props {
   data: TimeseriesItem[];
   isLoading?: boolean;
+  showBrush?: boolean;
 }
 
-export function RevenueChart({ data, isLoading }: Props) {
+export function RevenueChart({ data, isLoading, showBrush }: Props) {
+  const chartH = showBrush ? "h-[296px]" : "h-[240px]";
+
   if (isLoading) {
     return (
-      <div className="flex h-[240px] items-center justify-center">
-        <div className="flex gap-1.5 items-end h-24">
+      <div className={`flex ${chartH} items-center justify-center`}>
+        <div className="flex h-24 items-end gap-1.5">
           {[40, 70, 50, 90, 60, 80, 45].map((h, i) => (
             <div
               key={i}
@@ -57,7 +61,7 @@ export function RevenueChart({ data, isLoading }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-[240px] flex-col items-center justify-center gap-2 text-center">
+      <div className={`flex ${chartH} flex-col items-center justify-center gap-2 text-center`}>
         <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu</p>
         <p className="text-xs text-muted-foreground/60">
           Chọn khoảng thời gian hoặc chờ giao dịch đầu tiên
@@ -66,8 +70,13 @@ export function RevenueChart({ data, isLoading }: Props) {
     );
   }
 
+  const hasBrush = showBrush && data.length > 8;
+  // Default Brush window: show last 12 data points
+  const brushStart = hasBrush ? Math.max(0, data.length - 12) : undefined;
+  const brushEnd = hasBrush ? data.length - 1 : undefined;
+
   return (
-    <ChartContainer config={chartConfig} className="h-[240px] w-full">
+    <ChartContainer config={chartConfig} className={`${chartH} w-full`}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -107,6 +116,18 @@ export function RevenueChart({ data, isLoading }: Props) {
             maxBarSize={48}
             opacity={0.9}
           />
+          {hasBrush && (
+            <Brush
+              dataKey="date"
+              height={28}
+              stroke="var(--border)"
+              fill="var(--muted)"
+              tickFormatter={formatDateLabel}
+              travellerWidth={6}
+              startIndex={brushStart}
+              endIndex={brushEnd}
+            />
+          )}
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>

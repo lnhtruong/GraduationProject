@@ -1,5 +1,5 @@
 import { apiHttpClient } from "@/features/_shared/api-factories";
-import type { DiscussionListResponse } from "../types";
+import type { DiscussionListResponse, DiscussionPostRecord } from "../types";
 
 export interface LessonDiscussionsParams {
   lessonId: number;
@@ -37,12 +37,12 @@ export const discussionApi = {
   createForLesson: async (
     lessonId: number,
     payload: { content: string; parentId?: number | null },
-  ) => {
-    const { data } = await apiHttpClient.post(
+  ): Promise<DiscussionPostRecord> => {
+    const { data } = await apiHttpClient.post<DiscussionPostRecord>(
       `/course/lessons/${lessonId}/discussions`,
       payload,
     );
-    return data as any;
+    return data;
   },
   toggleUpvote: async (postId: number) => {
     const { data } = await apiHttpClient.post(

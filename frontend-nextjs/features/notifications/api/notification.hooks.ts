@@ -104,12 +104,3 @@ export function useBulkUpdateNotifications() {
   });
 }
 
-export function useMarkAllNotificationsRead() {
-  const bulkMutation = useBulkUpdateNotifications();
-
-  return useMutation({
-    mutationKey: notificationKeys.custom("mark-all-read"),
-    mutationFn: async () =>
-      bulkMutation.mutateAsync({ is_read: true, all: true }),
-  });
-}

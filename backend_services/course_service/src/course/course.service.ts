@@ -19,6 +19,7 @@ import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   LessonActivity,
   ActivityStatus,
+  ActivityType,
 } from 'src/models/lesson-activity.model';
 import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
@@ -31,7 +32,6 @@ import {
   CourseUpdatePayload,
   ChangeRequestPayload,
   LessonChangePayload,
-  QuizChangePayload,
 } from 'src/models/course-change-request.model';
 import { EnrollsService } from 'src/enrolls/enrolls.service';
 import { QuizzesService } from 'src/quizzes/quizzes.service';
@@ -1405,7 +1405,12 @@ export class CoursesService {
     ] as unknown as Order;
   }
 
-  async findOne(id: number): Promise<Course> {
+  async findOne(
+    id: number,
+    requesterUserId?: number,
+    requesterRole?: number,
+    enforceStatusCheck = false,
+  ): Promise<Course> {
     const course = await this.courseModel.findByPk(id, {
       include: this.buildCourseDetailInclude(),
       order: this.buildCourseDetailOrder(),
@@ -1416,6 +1421,30 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
+
+    const isAdmin = requesterRole === this.ADMIN_ROLE;
+    const isOwner = requesterUserId === course.userId;
+
+    if (enforceStatusCheck && course.status !== CourseStatus.PUBLISH) {
+      if (!isAdmin && !isOwner) {
+        throw new ForbiddenException(
+          'You do not have permission to access this course',
+        );
+      }
+    }
+
+    if (!isAdmin && !isOwner) {
+      if (course.lessons) {
+        for (const lesson of course.lessons) {
+          if (lesson.lessonActivities) {
+            lesson.lessonActivities = lesson.lessonActivities.filter(
+              (activity) => activity.status === ActivityStatus.PUBLIC,
+            );
+          }
+        }
+      }
+    }
+
     return course;
   }
 
@@ -1825,14 +1854,10 @@ export class CoursesService {
       });
     }
 
-    // Admin sửa course đã publish → giữ nguyên publish. Còn lại (draft/pending/
-    // approved...) → đưa về DRAFT để đi lại quy trình duyệt.
+    // Sửa trực tiếp (admin mọi trạng thái, hoặc non-admin trên khóa chưa khóa nội
+    // dung) → GIỮ NGUYÊN status hiện tại, không ép về DRAFT. Status nào giữ status đó.
     const wasPublished = course.status === CourseStatus.PUBLISH;
-    const nextStatus = wasPublished ? CourseStatus.PUBLISH : CourseStatus.DRAFT;
-    const updated = await course.update({
-      ...payload,
-      status: nextStatus,
-    });
+    const updated = await course.update({ ...payload });
 
     // Admin sửa trực tiếp course ĐÃ publish (không qua change request) → vẫn phải
     // báo học viên đã enroll + chủ khóa (nếu admin sửa hộ). Course chưa publish
@@ -2008,50 +2033,6 @@ export class CoursesService {
   }
 
   /**
-   * Tạo (hoặc ghi đè) một quiz change request `pending` — gọi từ QuizzesService
-   * khi course đã publish. Cùng quy ước với lesson:
-   * - `quiz.create`: luôn tạo mới (chưa có quiz đích để gom nhóm).
-   * - `quiz.update` / `quiz.delete`: ghi đè request pending cùng (kind, targetId)
-   *   nếu có — tối đa 1 pending mỗi (kind, quiz).
-   */
-  async createQuizChangeRequest(params: {
-    kind: CourseChangeRequestKind;
-    courseId: number;
-    targetId: number | null;
-    payload: QuizChangePayload;
-    prevData: QuizChangePayload | null;
-    requestedBy: number;
-  }): Promise<CourseChangeRequest> {
-    if (params.targetId !== null) {
-      const existing = await this.courseChangeRequestModel.findOne({
-        where: {
-          courseId: params.courseId,
-          kind: params.kind,
-          targetId: params.targetId,
-          status: CourseChangeRequestStatus.PENDING,
-        },
-      });
-      if (existing) {
-        return await existing.update({
-          payload: params.payload,
-          prevData: params.prevData,
-          requestedBy: params.requestedBy,
-        });
-      }
-    }
-
-    return await this.courseChangeRequestModel.create({
-      courseId: params.courseId,
-      requestedBy: params.requestedBy,
-      payload: params.payload,
-      prevData: params.prevData,
-      kind: params.kind,
-      targetId: params.targetId,
-      status: CourseChangeRequestStatus.PENDING,
-    });
-  }
-
-  /**
    * Public: gọi từ QuizzesService khi admin sửa/thêm/xóa quiz TRỰC TIẾP (bypass
    * change request) trên một khóa đã publish. No-op nếu course không tồn tại
    * hoặc chưa publish. Best-effort.
@@ -2099,6 +2080,72 @@ export class CoursesService {
   }
 
   /** Danh sách change request (admin), filter theo status + phân trang server-side. */
+  async getCourseStatusStats(): Promise<{
+    pending: number;
+    approved: number;
+    rejected: number;
+  }> {
+    const results = await this.courseModel.findAll({
+      attributes: ['status', [fn('COUNT', col('id')), 'count']],
+      where: {
+        status: {
+          [Op.in]: [
+            CourseStatus.PENDING,
+            CourseStatus.APPROVED,
+            CourseStatus.REJECTED,
+          ],
+        },
+      },
+      group: ['status'],
+      raw: true,
+    });
+    const map: Record<string, number> = {};
+    for (const row of results as unknown as { status: string; count: string }[]) {
+      map[row.status] = Number(row.count);
+    }
+    return {
+      pending: map[CourseStatus.PENDING] ?? 0,
+      approved: map[CourseStatus.APPROVED] ?? 0,
+      rejected: map[CourseStatus.REJECTED] ?? 0,
+    };
+  }
+
+  async getChangeRequestStatusStats(): Promise<{
+    pending: number;
+    approved: number;
+    rejected: number;
+  }> {
+    const results = await this.courseChangeRequestModel.findAll({
+      attributes: ['status', [fn('COUNT', col('id')), 'count']],
+      group: ['status'],
+      raw: true,
+    });
+    const map: Record<string, number> = {};
+    for (const row of results as unknown as { status: string; count: string }[]) {
+      map[row.status] = Number(row.count);
+    }
+    return {
+      pending: map[CourseChangeRequestStatus.PENDING] ?? 0,
+      approved: map[CourseChangeRequestStatus.APPROVED] ?? 0,
+      rejected: map[CourseChangeRequestStatus.REJECTED] ?? 0,
+    };
+  }
+
+  private readonly changeRequestIncludes = [
+    {
+      model: Course,
+      as: 'course',
+      attributes: ['id', 'name', 'status'],
+      required: false,
+    },
+    {
+      model: User,
+      as: 'requester',
+      attributes: ['id', 'firstName', 'lastName', 'email', 'avatarUrl'],
+      required: false,
+    },
+  ];
+
   async listChangeRequests(params: {
     status?: string;
     page?: number;
@@ -2120,6 +2167,7 @@ export class CoursesService {
     const { rows, count } = await this.courseChangeRequestModel.findAndCountAll(
       {
         where,
+        include: this.changeRequestIncludes,
         order: [['id', 'DESC']],
         limit,
         offset: (page - 1) * limit,
@@ -2132,6 +2180,16 @@ export class CoursesService {
       page,
       limit,
     };
+  }
+
+  async getChangeRequest(id: number): Promise<CourseChangeRequestView> {
+    const request = await this.courseChangeRequestModel.findByPk(id, {
+      include: this.changeRequestIncludes,
+    });
+    if (!request) {
+      throw new NotFoundException(`Change request ${id} not found`);
+    }
+    return this.toChangeRequestView(request);
   }
 
   /**
@@ -2437,6 +2495,13 @@ export class CoursesService {
 
   async remove(id: number, requester?: RequesterContext): Promise<void> {
     const course = await this.findOne(id);
+    if (requester) {
+      const isAdmin = requester.role === this.ADMIN_ROLE;
+      const ownerId = (course as Course & { userId?: number }).userId;
+      if (!isAdmin && ownerId !== requester.userId) {
+        throw new ForbiddenException('You are not the owner of this course');
+      }
+    }
     const before = this.auditableCourseSnapshot(course);
     // Course bị xoá (soft delete) → chỉ xoá các change request ĐANG PENDING của
     // nó (không còn ý nghĩa gửi admin duyệt). Request đã approved/rejected GIỮ LẠI
@@ -2583,8 +2648,36 @@ export class CoursesService {
       );
     }
 
+    // Check ownership for LECTURER
+    const isAdmin = requester?.role === 1;
+    if (requester && !isAdmin && course.userId !== requester.userId) {
+      throw new ForbiddenException(
+        'You do not have permission to publish this course',
+      );
+    }
+
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    // Publish course → publish luôn các quiz activity còn draft (draft → public)
+    // để học viên nộp bài được. Activity đã archived/removed/public giữ nguyên.
+    const lessonRows = await this.lessonModel.findAll({
+      where: { courseId: id },
+      attributes: ['id'],
+    });
+    const lessonIds = lessonRows.map((l) => l.id);
+    if (lessonIds.length) {
+      await this.lessonActivityModel.update(
+        { status: ActivityStatus.PUBLIC },
+        {
+          where: {
+            lessonId: { [Op.in]: lessonIds },
+            activityType: ActivityType.QUIZ,
+            status: ActivityStatus.DRAFT,
+          },
+        },
+      );
+    }
 
     if (requester) {
       await this.auditLogsService.log({

@@ -3,6 +3,7 @@ import {
 	withQueryPath,
 } from "@/features/_shared/crud-factories";
 import { apiHttpClient } from "@/features/_shared/api-factories";
+import type { Lesson as CourseLesson } from "@/features/lessons/types";
 import type {
 	Course,
 	CourseLevel,
@@ -31,6 +32,7 @@ type CourseApiResponse = {
 	status?: CourseStatus;
 	created_at?: string;
 	updated_at?: string;
+	lessons?: CourseLesson[];
 };
 
 function mapCourse(raw: CourseApiResponse): Course {
@@ -48,10 +50,11 @@ function mapCourse(raw: CourseApiResponse): Course {
 		status: raw.status ?? "draft",
 		created_at: raw.created_at,
 		updated_at: raw.updated_at,
+		lessons: raw.lessons,
 	};
 }
 
-const courseCrudApi = createResourceApi<
+export const courseCrudApi = createResourceApi<
 	CourseApiResponse,
 	Course,
 	CreateCoursePayload,
@@ -75,9 +78,8 @@ export const courseApi = {
 	listMine: async (params?: CourseListParams) => {
 		// Backend exposes a dedicated "mine" endpoint for instructor-owned courses
 		try {
-			const { data } = await apiHttpClient.get<CourseListResponse>(
-				"/course/courses/mine",
-			);
+			const path = withQueryPath("/course/courses/mine", params);
+			const { data } = await apiHttpClient.get<CourseListResponse>(path);
 			return (Array.isArray(data) ? data : data.data ?? []).map(mapCourse);
 		} catch (err) {
 			return [];

@@ -1,28 +1,16 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import RoadmapDetailPage from "@/features/instructor/roadmap-management/RoadmapDetail";
 
-import { use } from "react";
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const RoadmapDetailPage = dynamic(
-  () => import("@/features/instructor/roadmap-management/RoadmapDetail"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Chi tiết lộ trình",
+  "Xem và quản lý chi tiết lộ trình học tập.",
 );
 
 interface Props {
   params: Promise<{ roadmapId: string }>;
 }
 
-export default function Page({ params }: Props) {
-  const { roadmapId } = use(params);
+export default async function Page({ params }: Props) {
+  const { roadmapId } = await params;
   return <RoadmapDetailPage roadmapId={Number(roadmapId)} />;
 }

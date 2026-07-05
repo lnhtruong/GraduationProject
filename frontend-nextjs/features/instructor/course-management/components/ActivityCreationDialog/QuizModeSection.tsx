@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import Hls from "hls.js";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -50,6 +51,14 @@ function formatClock(totalSeconds: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
 }
 
+function formatClockNormal(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function QuizModeSection({
   quizMode,
   onQuizModeChange,
@@ -60,7 +69,77 @@ export function QuizModeSection({
   lessonVideoDuration,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const safeDuration = Math.max(0, Number(lessonVideoDuration ?? 0));
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (!lessonVideoUrl) {
+      videoElement.removeAttribute("src");
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      return;
+    }
+
+    const isHls = lessonVideoUrl.includes(".m3u8");
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 15,
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(lessonVideoUrl);
+        hls.attachMedia(videoElement);
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                break;
+            }
+          }
+        });
+      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        videoElement.src = lessonVideoUrl;
+      }
+    } else {
+      videoElement.src = lessonVideoUrl;
+    }
+
+    return () => {
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.removeAttribute("src");
+        try {
+          videoElement.load();
+        } catch (_) {}
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [lessonVideoUrl, quizMode]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -68,6 +147,8 @@ export function QuizModeSection({
   const [startSeconds, setStartSeconds] = useState(0);
   const [showSwipeIndicator, setShowSwipeIndicator] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<"forward" | "backward" | null>(null);
+
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
 
   useEffect(() => {
     if (!canUseInVideoQuiz && quizMode === "in_video") {
@@ -95,10 +176,10 @@ export function QuizModeSection({
     }
 
     const diff = Math.abs(element.currentTime - selectedSeconds);
-    if (diff > 0.05) {
+    if (isSliderDragging || diff > 0.8) {
       element.currentTime = selectedSeconds;
     }
-  }, [selectedSeconds, safeDuration]);
+  }, [selectedSeconds, safeDuration, isSliderDragging]);
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -157,7 +238,7 @@ export function QuizModeSection({
         <div className="space-y-1">
           <Label className="text-sm font-bold text-foreground">Vị trí hiển thị Quiz</Label>
           <p className="text-[11px] text-muted-foreground max-w-md leading-relaxed">
-            Đặt câu hỏi kiểm tra tại mốc thời gian cụ thể (Trong video) hoặc hiển thị sau khi học sinh xem xong bài học (Ngoài video).
+            Chọn mốc thời gian hiển thị bài tập trong video hoặc hiển thị sau bài học.
           </p>
         </div>
         <Select
@@ -181,9 +262,6 @@ export function QuizModeSection({
       {/* Timeline selector for in-video mode */}
       {quizMode === "in_video" ? (
         <div className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm animate-fadeIn">
-          <Label className="text-xs font-bold uppercase tracking-wider text-primary">
-            Kéo trực tiếp trên video để định vị mốc Quiz
-          </Label>
 
           {lessonVideoUrl ? (
             <div className="relative group overflow-hidden rounded-xl border border-border bg-black shadow-lg">
@@ -191,14 +269,15 @@ export function QuizModeSection({
               <video
                 ref={videoRef}
                 className="mx-auto block h-auto max-h-[300px] w-full object-contain cursor-pointer select-none"
-                src={lessonVideoUrl}
                 preload="metadata"
                 playsInline
                 onClick={togglePlay}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                onSeeked={(event) => {
-                  syncFromVideoTime(event.currentTarget.currentTime);
+                onTimeUpdate={(event) => {
+                  if (isPlaying) {
+                    syncFromVideoTime(event.currentTarget.currentTime);
+                  }
                 }}
                 onMouseDown={handleVideoMouseDown}
                 onMouseMove={handleVideoMouseMove}
@@ -231,8 +310,11 @@ export function QuizModeSection({
               )}
 
               {/* Custom Bottom Controller Bar */}
-              <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/95 via-black/70 to-transparent p-3 pt-8 flex flex-col gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 z-10">
-                
+              <div 
+                className={`absolute inset-x-3 bottom-3 z-20 rounded-xl border border-white/10 bg-black/75 px-3 py-2.5 backdrop-blur-md shadow-lg flex flex-col gap-2 transition-opacity duration-200 ${
+                  isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                }`}
+              >
                 {/* Custom Progress Bar / Slider */}
                 <div className="relative h-1.5 w-full bg-white/20 rounded-full cursor-pointer group/timeline">
                   {/* Progress fill */}
@@ -247,6 +329,10 @@ export function QuizModeSection({
                     max={safeDuration || 0}
                     step={0.1}
                     value={selectedSeconds}
+                    onMouseDown={() => setIsSliderDragging(true)}
+                    onMouseUp={() => setIsSliderDragging(false)}
+                    onTouchStart={() => setIsSliderDragging(true)}
+                    onTouchEnd={() => setIsSliderDragging(false)}
                     onChange={(event) => {
                       const nextValue = Number(event.target.value || 0);
                       onTimestampChange(toTimestamp(nextValue));
@@ -255,7 +341,7 @@ export function QuizModeSection({
                   />
                   {/* Thumb Indicator */}
                   <div 
-                    className="absolute h-3.5 w-3.5 rounded-full bg-primary border-2 border-white -top-[4px] -translate-x-1/2 opacity-0 group-hover/timeline:opacity-100 transition-opacity duration-150 shadow-md pointer-events-none"
+                    className="absolute h-3 w-3 rounded-full bg-white border-2 border-primary -top-[3px] -translate-x-1/2 transition-transform duration-100 shadow-md pointer-events-none group-hover/timeline:scale-125"
                     style={{ left: `${(selectedSeconds / (safeDuration || 1)) * 100}%` }}
                   />
                 </div>
@@ -266,7 +352,7 @@ export function QuizModeSection({
                     <button 
                       type="button" 
                       onClick={togglePlay} 
-                      className="hover:text-primary transition-colors focus:outline-none p-1"
+                      className="hover:text-primary transition-colors focus:outline-none p-1 cursor-pointer"
                     >
                       {isPlaying ? (
                         <Pause className="h-4 w-4 fill-white text-white" />
@@ -275,7 +361,7 @@ export function QuizModeSection({
                       )}
                     </button>
                     <span className="font-mono text-[11px] tracking-wide text-zinc-200">
-                      {formatClock(selectedSeconds)} / {formatClock(safeDuration)}
+                      {formatClockNormal(selectedSeconds)} / {formatClockNormal(safeDuration)}
                     </span>
                   </div>
                   <div>
@@ -289,10 +375,6 @@ export function QuizModeSection({
             </div>
           ) : null}
 
-          {/* Clean minimalist guide tip */}
-          <p className="text-[11px] text-muted-foreground text-center mt-1 select-none">
-            Mẹo: Kéo thả trên màn hình video hoặc click timeline để tua nhanh.
-          </p>
         </div>
       ) : null}
     </div>

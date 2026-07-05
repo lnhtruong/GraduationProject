@@ -1,28 +1,16 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import LessonFormPage from "@/features/instructor/course-management/LessonFormPage";
 
-import { use } from "react";
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const LessonFormPage = dynamic(
-  () => import("@/features/instructor/course-management/LessonFormPage"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Tạo bài học",
+  "Tạo bài học mới, thêm video và hoạt động học tập cho khóa học.",
 );
 
 interface Props {
   params: Promise<{ courseId: string }>;
 }
 
-export default function Page({ params }: Props) {
-  const { courseId } = use(params);
+export default async function Page({ params }: Props) {
+  const { courseId } = await params;
   return <LessonFormPage courseId={Number(courseId)} />;
 }

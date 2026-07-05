@@ -19,8 +19,13 @@ export function useCourseLearnPage(courseId: number) {
     selectedLessonProgressId: data.selectedLessonProgress?.id,
     persistedInVideoAnswers: data.persistedInVideoState.answers,
     persistedInVideoSubmitted: data.persistedInVideoState.submitted,
+    persistedInVideoCorrectness: data.persistedInVideoState.correctness,
     persistedAfterLessonAnswers: data.persistedAfterLessonState.answers,
     persistedAfterLessonSubmitted: data.persistedAfterLessonState.submitted,
+    persistedAfterLessonScore: data.persistedAfterLessonState.score,
+    persistedAfterLessonPassed: data.persistedAfterLessonState.passed,
+    persistedAfterLessonCorrectAnswers: data.persistedAfterLessonState.correctAnswers,
+    loadingQuizSubmissions: data.isQuizQueriesLoading,
   });
 
   return {

@@ -1,30 +1,16 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import CourseFeedManagementPage from "@/features/instructor/course-management/CourseFeedManagementPage";
 
-import { use } from "react";
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const CourseFeedManagementPage = dynamic(
-  () =>
-    import(
-      "@/features/instructor/course-management/CourseFeedManagementPage"
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Quản lý bảng tin khóa học",
+  "Quản lý nội dung video ngắn và bài đăng bảng tin của khóa học.",
 );
 
 interface Props {
   params: Promise<{ courseId: string }>;
 }
 
-export default function Page({ params }: Props) {
-  const { courseId } = use(params);
+export default async function Page({ params }: Props) {
+  const { courseId } = await params;
   return <CourseFeedManagementPage courseId={Number(courseId)} />;
 }

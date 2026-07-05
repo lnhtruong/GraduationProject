@@ -16,7 +16,7 @@ export function CartMobileBottomBar({ items, onCheckout }: CartMobileBottomBarPr
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
       <div className="flex flex-col">
         <span className="text-base font-extrabold text-foreground">
           {formatPrice(total)}

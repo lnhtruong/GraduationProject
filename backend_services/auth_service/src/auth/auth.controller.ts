@@ -1,14 +1,17 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -27,7 +30,10 @@ import type { Response, Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -58,6 +64,102 @@ export class AuthController {
       await this.authService.googleLogin(googleLoginDto),
       res,
     );
+  }
+
+  @Get('github')
+  async githubOAuth(@Res() res: Response) {
+    const url = await this.authService.buildGithubOAuthUrl();
+    res.redirect(url);
+  }
+
+  @Get('github/callback')
+  async githubCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Res() res: Response,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+
+    if (!code) {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+
+    try {
+      const result = await this.authService.githubCallback(code, state);
+      res.cookie(
+        COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+        result.refreshToken,
+        COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+      );
+      const nonce = await this.authService.createOAuthSession({
+        accessToken: result.accessToken,
+        user: result.user,
+      });
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
+      );
+    } catch {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+  }
+
+  @Get('facebook')
+  async facebookOAuth(@Res() res: Response) {
+    const url = await this.authService.buildFacebookOAuthUrl();
+    res.redirect(url);
+  }
+
+  @Get('facebook/callback')
+  async facebookCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Res() res: Response,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+
+    if (!code) {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+
+    try {
+      const result = await this.authService.facebookCallback(code, state);
+      res.cookie(
+        COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+        result.refreshToken,
+        COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
+      );
+      const nonce = await this.authService.createOAuthSession({
+        accessToken: result.accessToken,
+        user: result.user,
+      });
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
+      );
+    } catch {
+      return res.redirect(
+        `${frontendUrl}/auth/oauth-callback?error=login_failed`,
+      );
+    }
+  }
+
+  @Get('oauth-session')
+  @HttpCode(HttpStatus.OK)
+  async getOAuthSession(
+    @Query('session') nonce: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!nonce) throw new UnauthorizedException('Missing session');
+    const session = await this.authService.consumeOAuthSession(nonce);
+    if (!session) throw new UnauthorizedException('Session expired or invalid');
+    return session;
   }
 
   @Post('refresh')

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -74,12 +75,24 @@ export function OutsideQuizEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[96vw] max-w-5xl overflow-y-auto p-0">
-        <DialogHeader className="border-b border-border/60 px-5 py-4">
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[92vh] w-[92vw] sm:max-w-2xl overflow-y-auto p-0 rounded-2xl border border-border/70 shadow-2xl transition-all duration-300"
+      >
+        <DialogHeader className="border-b border-border/60 px-5 py-4 pr-12 relative">
           <DialogTitle>Quiz sau bài học</DialogTitle>
           <DialogDescription>
             Chỉnh sửa quiz cho bài học: {lessonTitle}
           </DialogDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground z-20"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
         </DialogHeader>
 
         <div className="p-4 sm:p-5">

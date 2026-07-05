@@ -9,6 +9,7 @@ interface NewsfeedUiState {
   isOptionBoxOpen: boolean;
   optionBoxContentType: NewsfeedOptionBoxContentType;
   activeVideoId: number | null;
+  isGlobalPaused: boolean;
   openMenu: () => void;
   closeMenu: () => void;
   toggleMenu: () => void;
@@ -16,6 +17,8 @@ interface NewsfeedUiState {
   closeOptionBox: () => void;
   setOptionBoxContentType: (type: NewsfeedOptionBoxContentType) => void;
   setActiveVideoId: (id: number | null) => void;
+  setGlobalPaused: (paused: boolean) => void;
+  toggleGlobalPaused: () => void;
 }
 
 export const useNewsfeedUiStore = create<NewsfeedUiState>((set) => ({
@@ -23,6 +26,7 @@ export const useNewsfeedUiStore = create<NewsfeedUiState>((set) => ({
   isOptionBoxOpen: false,
   optionBoxContentType: "course",
   activeVideoId: null,
+  isGlobalPaused: false,
   openMenu: () => set({ isMenuOpen: true }),
   closeMenu: () => set({ isMenuOpen: false }),
   toggleMenu: () => set((state) => ({ isMenuOpen: !state.isMenuOpen })),
@@ -31,4 +35,6 @@ export const useNewsfeedUiStore = create<NewsfeedUiState>((set) => ({
   closeOptionBox: () => set({ isOptionBoxOpen: false }),
   setOptionBoxContentType: (type) => set({ optionBoxContentType: type }),
   setActiveVideoId: (id) => set({ activeVideoId: id }),
+  setGlobalPaused: (paused) => set({ isGlobalPaused: paused }),
+  toggleGlobalPaused: () => set((state) => ({ isGlobalPaused: !state.isGlobalPaused })),
 }));

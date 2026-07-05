@@ -55,6 +55,22 @@ export class QuizzesController {
     return { userId, role };
   }
 
+  private stripAnswers(quiz: any) {
+    if (!quiz) return quiz;
+    const plainQuiz = typeof quiz.get === 'function' ? quiz.get({ plain: true }) : quiz;
+    if (plainQuiz.questions) {
+      for (const question of plainQuiz.questions) {
+        delete question.correctAns;
+        if (question.options) {
+          for (const option of question.options) {
+            delete option.isCorrect;
+          }
+        }
+      }
+    }
+    return plainQuiz;
+  }
+
   private parseQuizTypeFilter(
     value?: string,
   ): 'in_video' | 'after_video' | undefined {
@@ -135,31 +151,75 @@ export class QuizzesController {
   }
 
   @Get()
-  async findAll(@Query('lessonActivityId') lessonActivityId?: string) {
+  async findAll(
+    @Query('lessonActivityId') lessonActivityId?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
     const parsed =
       typeof lessonActivityId === 'string' && lessonActivityId.trim().length > 0
         ? Number(lessonActivityId)
         : undefined;
-    return await this.quizzesService.findAll({ lessonActivityId: parsed });
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+    const quizzes = await this.quizzesService.findAll({ lessonActivityId: parsed });
+
+    const hasBypassPrivilege = parsed
+      ? await this.quizzesService.isQuizOwnerOrAdmin(requester, { lessonActivityId: parsed })
+      : requester.role === 1;
+
+    if (!hasBypassPrivilege) {
+      return quizzes.map((q) => this.stripAnswers(q));
+    }
+    return quizzes;
   }
 
   @Get('lesson/:lessonId')
   async findAllByLessonId(
     @Param('lessonId') lessonId: string,
     @Query('type') type?: string,
+    @Query('status') status?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
   ) {
     const parsedLessonId = Number(lessonId);
     const parsedType = this.parseQuizTypeFilter(type);
+    const requester = this.parseRequester(userIdHeader, roleHeader);
 
-    return await this.quizzesService.findAllByLessonId(
+    const quizzes = await this.quizzesService.findAllByLessonId(
       parsedLessonId,
       parsedType,
+      status,
     );
+
+    const hasBypassPrivilege = await this.quizzesService.isQuizOwnerOrAdmin(
+      requester,
+      { lessonId: parsedLessonId },
+    );
+
+    if (!hasBypassPrivilege) {
+      return quizzes.map((q) => this.stripAnswers(q));
+    }
+    return quizzes;
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await this.quizzesService.findOne(Number(id));
+  async findOne(
+    @Param('id') id: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+    const quiz = await this.quizzesService.findOne(Number(id));
+
+    const hasBypassPrivilege = await this.quizzesService.isQuizOwnerOrAdmin(
+      requester,
+      { quizId: Number(id) },
+    );
+
+    if (!hasBypassPrivilege) {
+      return this.stripAnswers(quiz);
+    }
+    return quiz;
   }
 
   @Patch(':id')
@@ -184,13 +244,9 @@ export class QuizzesController {
     @Headers('x-user-role') roleHeader?: string,
   ) {
     // Soft delete (paranoid mode trên Quiz model) — set deleted_at, không xoá vĩnh viễn.
-    // Course đã publish (non-admin) → trả về change request thay vì xoá ngay.
+    // Xoá trực tiếp (không còn change request); chỉ admin/chủ khóa được xoá.
     const requester = this.parseRequester(userIdHeader, roleHeader);
-    const result = await this.quizzesService.removeWithReview(
-      Number(id),
-      requester,
-    );
-    if (result) return result;
+    await this.quizzesService.removeWithReview(Number(id), requester);
     return { success: true };
   }
 

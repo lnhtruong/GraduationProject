@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { InVideoQuizPoint, type AfterLessonQuizQuestion } from "../utils";
 
 import { LessonVideoPlayer } from "./LessonVideoCard/LessonVideoPlayer";
@@ -30,6 +29,7 @@ interface Props {
     percent: number;
   } | null;
   afterLessonPassed: boolean;
+  afterLessonCorrectAnswers: Record<string, number>;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   isTransitioningNext: boolean;
@@ -39,21 +39,29 @@ interface Props {
   volume: number;
   isMuted: boolean;
   isFullscreen: boolean;
+  setIsFullscreen?: (isFullscreen: boolean) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
   isQuizSolved: (point: InVideoQuizPoint) => boolean;
+  qualityLevels: { id: number; name: string }[];
+  currentQualityLevel: number;
+  onQualityLevelsLoaded: (levels: { id: number; name: string }[]) => void;
+  onSetQualityLevel: (levelId: number) => void;
   onTogglePlayback: () => void;
   onSetPlaybackRate: (rate: number) => void;
   onToggleMute: () => void;
   onVolumeChange: (vol: number) => void;
   onToggleFullscreen: () => void;
+  onTogglePictureInPicture: () => void;
   onVideoKeyDown: (event: React.KeyboardEvent<HTMLVideoElement>) => void;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onVideoEnded: () => void;
-  onVideoMetadataLoaded: (duration: number) => void;
+  onVideoMetadataLoaded: (duration: number, aspectRatio?: number) => void;
+  videoAspectRatio?: number | null;
   onSelectInVideoAnswer: (quizPointId: string, optionIndex: number) => void;
   onSelectAfterLessonAnswer: (questionId: string, optionIndex: number) => void;
   onSubmitAfterLessonQuiz: () => void;
   onAdvanceToNextLesson: () => void;
+  onRetryAfterLessonQuiz: () => void;
   onSubmitInVideoQuiz: () => void;
   onJumpToQuizPoint: (point: InVideoQuizPoint) => void;
   onOverlayScrubClick: (event: MouseEvent<HTMLDivElement>) => void;
@@ -80,6 +88,7 @@ export function LessonVideoCard({
   afterLessonSubmitted,
   afterLessonScore,
   afterLessonPassed,
+  afterLessonCorrectAnswers,
   hasNextLesson,
   nextLessonCountdown,
   isTransitioningNext,
@@ -89,13 +98,19 @@ export function LessonVideoCard({
   volume,
   isMuted,
   isFullscreen,
+  setIsFullscreen,
   videoRef,
   isQuizSolved,
+  qualityLevels,
+  currentQualityLevel,
+  onQualityLevelsLoaded,
+  onSetQualityLevel,
   onTogglePlayback,
   onSetPlaybackRate,
   onToggleMute,
   onVolumeChange,
   onToggleFullscreen,
+  onTogglePictureInPicture,
   onVideoKeyDown,
   onTimeUpdate,
   onVideoEnded,
@@ -104,6 +119,7 @@ export function LessonVideoCard({
   onSelectAfterLessonAnswer,
   onSubmitAfterLessonQuiz,
   onAdvanceToNextLesson,
+  onRetryAfterLessonQuiz,
   onSubmitInVideoQuiz,
   onJumpToQuizPoint,
   onOverlayScrubClick,
@@ -111,6 +127,7 @@ export function LessonVideoCard({
   setIsPlaying,
   setCurrentTime,
   setLastVideoTime,
+  videoAspectRatio,
 }: Props) {
   const playerBlocked = Boolean(activeQuizPoint) || showAfterLessonOverlay;
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -145,112 +162,122 @@ export function LessonVideoCard({
     !showAfterLessonOverlay;
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/95 shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
-      <CardContent className="space-y-4 p-3 sm:p-4 lg:p-5">
-        <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black p-2 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-          <div
-            className="relative aspect-video overflow-hidden rounded-[1.35rem] border border-white/5 bg-black"
-            onMouseMove={() => {
-              setControlsVisible(true);
-              scheduleAutoHide();
-            }}
-            onMouseEnter={() => {
-              setControlsVisible(true);
-              scheduleAutoHide();
-            }}
-            onMouseLeave={() => {
-              scheduleAutoHide();
-            }}
-          >
-            {/* Core Video Player */}
-            <LessonVideoPlayer
-              ref={videoRef}
-              selectedLessonVideoUrl={selectedLessonVideoUrl}
-              activeQuizPoint={activeQuizPoint}
-              isPlaying={isPlaying}
-              playerBlocked={playerBlocked}
-              currentLessonDurationLabel={currentLessonDurationLabel}
-              onTogglePlayback={onTogglePlayback}
-              onVideoKeyDown={onVideoKeyDown}
-              onTimeUpdate={onTimeUpdate}
-              onVideoEnded={onVideoEnded}
-              onVideoMetadataLoaded={onVideoMetadataLoaded}
-              setIsPlaying={setIsPlaying}
-              setCurrentTime={setCurrentTime}
-              setLastVideoTime={setLastVideoTime}
-            />
+    <div
+      className={`relative overflow-hidden bg-black shadow-[0_16px_48px_rgba(15,23,42,0.15)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.4)] ${
+        isFullscreen
+          ? "fullscreen-active w-full h-full border-0 rounded-none"
+          : "rounded-2xl border border-border/40"
+      }`}
+      style={{ aspectRatio: isFullscreen ? undefined : (videoAspectRatio || 16/9) }}
+      onMouseMove={() => {
+        setControlsVisible(true);
+        scheduleAutoHide();
+      }}
+      onMouseEnter={() => {
+        setControlsVisible(true);
+        scheduleAutoHide();
+      }}
+      onMouseLeave={() => {
+        scheduleAutoHide();
+      }}
+    >
+      <div className="w-full h-full relative video-player-inner">
+        {/* Core Video Player */}
+        <LessonVideoPlayer
+          ref={videoRef}
+          selectedLessonVideoUrl={selectedLessonVideoUrl}
+          activeQuizPoint={activeQuizPoint}
+          isPlaying={isPlaying}
+          playerBlocked={playerBlocked}
+          currentLessonDurationLabel={currentLessonDurationLabel}
+          currentQualityLevel={currentQualityLevel}
+          onQualityLevelsLoaded={onQualityLevelsLoaded}
+          onTogglePlayback={onTogglePlayback}
+          onVideoKeyDown={onVideoKeyDown}
+          onTimeUpdate={onTimeUpdate}
+          onVideoEnded={onVideoEnded}
+          onVideoMetadataLoaded={onVideoMetadataLoaded}
+          setIsPlaying={setIsPlaying}
+          setCurrentTime={setCurrentTime}
+          setLastVideoTime={setLastVideoTime}
+          setIsFullscreen={setIsFullscreen}
+        />
 
-            {/* Quiz overlays (in-video and after-lesson) */}
-            <LessonVideoQuizOverlay
-              activeQuizPoint={activeQuizPoint}
-              inVideoAnswers={inVideoAnswers}
-              inVideoSubmitted={inVideoSubmitted}
-              inVideoScore={inVideoScore}
-              onSelectInVideoAnswer={onSelectInVideoAnswer}
-              onSubmitInVideoQuiz={onSubmitInVideoQuiz}
-              showAfterLessonOverlay={showAfterLessonOverlay}
-              afterLessonQuiz={afterLessonQuiz}
-              afterLessonAnswers={afterLessonAnswers}
-              afterLessonSubmitted={afterLessonSubmitted}
-              afterLessonScore={afterLessonScore}
-              afterLessonPassed={afterLessonPassed}
-              hasNextLesson={hasNextLesson}
-              nextLessonCountdown={nextLessonCountdown}
-              nextLessonTitle={nextLessonTitle}
-              onSelectAfterLessonAnswer={onSelectAfterLessonAnswer}
-              onSubmitAfterLessonQuiz={onSubmitAfterLessonQuiz}
-              onAdvanceToNextLesson={onAdvanceToNextLesson}
-            />
+      {/* Quiz overlays (in-video and after-lesson) */}
+      <LessonVideoQuizOverlay
+        activeQuizPoint={activeQuizPoint}
+        inVideoAnswers={inVideoAnswers}
+        inVideoSubmitted={inVideoSubmitted}
+        inVideoScore={inVideoScore}
+        onSelectInVideoAnswer={onSelectInVideoAnswer}
+        onSubmitInVideoQuiz={onSubmitInVideoQuiz}
+        showAfterLessonOverlay={showAfterLessonOverlay}
+        afterLessonQuiz={afterLessonQuiz}
+        afterLessonAnswers={afterLessonAnswers}
+        afterLessonSubmitted={afterLessonSubmitted}
+        afterLessonScore={afterLessonScore}
+        afterLessonPassed={afterLessonPassed}
+        afterLessonCorrectAnswers={afterLessonCorrectAnswers}
+        hasNextLesson={hasNextLesson}
+        nextLessonCountdown={nextLessonCountdown}
+        nextLessonTitle={nextLessonTitle}
+        onSelectAfterLessonAnswer={onSelectAfterLessonAnswer}
+        onSubmitAfterLessonQuiz={onSubmitAfterLessonQuiz}
+        onAdvanceToNextLesson={onAdvanceToNextLesson}
+        onRetryAfterLessonQuiz={onRetryAfterLessonQuiz}
+      />
 
-            {/* Transition & Up Next Overlays */}
-            <LessonVideoUpNextOverlay
-              showUpNextOverlay={showUpNextOverlay}
-              nextLessonTitle={nextLessonTitle}
-              selectedLessonDuration={selectedLessonDuration}
-              currentTime={currentTime}
-              onAdvanceToNextLesson={onAdvanceToNextLesson}
-              isTransitioningNext={isTransitioningNext}
-            />
+      {/* Transition & Up Next Overlays */}
+      <LessonVideoUpNextOverlay
+        showUpNextOverlay={showUpNextOverlay}
+        nextLessonTitle={nextLessonTitle}
+        selectedLessonDuration={selectedLessonDuration}
+        currentTime={currentTime}
+        onAdvanceToNextLesson={onAdvanceToNextLesson}
+        isTransitioningNext={isTransitioningNext}
+      />
 
-            {/* Bottom Controls Bar */}
-            <div
-              className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${
-                playerBlocked
-                  ? "pointer-events-none opacity-40"
-                  : controlsVisible
-                    ? "opacity-100"
-                    : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <LessonVideoTimeline
-                currentTime={currentTime}
-                selectedLessonDuration={selectedLessonDuration}
-                progressPercent={progressPercent}
-                inVideoQuizPoints={inVideoQuizPoints}
-                isQuizSolved={isQuizSolved}
-                onSeekChange={onSeekChange}
-                onJumpToQuizPoint={onJumpToQuizPoint}
-                onOverlayScrubClick={onOverlayScrubClick}
-              />
+      {/* Bottom Controls Bar */}
+      <div
+        className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300 sm:px-5 sm:pb-5 ${
+          playerBlocked
+            ? "pointer-events-none opacity-40"
+            : controlsVisible
+              ? "opacity-100"
+              : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <LessonVideoTimeline
+          currentTime={currentTime}
+          selectedLessonDuration={selectedLessonDuration}
+          progressPercent={progressPercent}
+          inVideoQuizPoints={inVideoQuizPoints}
+          isQuizSolved={isQuizSolved}
+          onSeekChange={onSeekChange}
+          onJumpToQuizPoint={onJumpToQuizPoint}
+          onOverlayScrubClick={onOverlayScrubClick}
+        />
 
-              <LessonVideoControls
-                isPlaying={isPlaying}
-                isMuted={isMuted}
-                volume={volume}
-                currentTime={currentTime}
-                selectedLessonDuration={selectedLessonDuration}
-                playbackRate={playbackRate}
-                isFullscreen={isFullscreen}
-                onTogglePlayback={onTogglePlayback}
-                onToggleMute={onToggleMute}
-                onVolumeChange={onVolumeChange}
-                onSetPlaybackRate={onSetPlaybackRate}
-                onToggleFullscreen={onToggleFullscreen}
-              />
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        <LessonVideoControls
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          volume={volume}
+          currentTime={currentTime}
+          selectedLessonDuration={selectedLessonDuration}
+          playbackRate={playbackRate}
+          isFullscreen={isFullscreen}
+          qualityLevels={qualityLevels}
+          currentQualityLevel={currentQualityLevel}
+          onSetQualityLevel={onSetQualityLevel}
+          onTogglePlayback={onTogglePlayback}
+          onToggleMute={onToggleMute}
+          onVolumeChange={onVolumeChange}
+          onSetPlaybackRate={onSetPlaybackRate}
+          onToggleFullscreen={onToggleFullscreen}
+          onTogglePictureInPicture={onTogglePictureInPicture}
+        />
+      </div>
+      </div>
+    </div>
   );
 }

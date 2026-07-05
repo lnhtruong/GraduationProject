@@ -7,36 +7,84 @@
 
 import { API_URL } from "@/lib/env";
 import { authStorageHelper } from "@/store/auth";
-import type {
-  VideoCompletedPayload,
-  VideoErrorPayload,
-  VideoProgressPayload,
-} from "@/features/upload/api/upload.websocket";
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export interface VideoData {
+  videoId?: number;
+  url?: string;
+  type: string;
+  duration?: number;
+  name?: string;
+  job_id?: string;
+  jobId?: string;
+  srtUrl?: string;
+}
+
+export interface VideoProgressPayload {
+  videoId?: number;
+  progress?: number;
+  jobId?: string;
+  type?: string;
+  stage?: string;
+  status?: string;
+  timestamp: string;
+}
+
+export interface VideoCompletedPayload {
+  success: true;
+  data: VideoData;
+  timestamp: string;
+}
+
+export interface VideoErrorPayload {
+  success: false;
+  error?: {
+    id?: string;
+    message?: string;
+    reason?: string;
+  };
+  jobId?: string;
+  type?: string;
+  status?: string;
+  timestamp: string;
+}
 
 export const MEDIA_UPLOAD_STREAM_EVENTS = [
   "video:progress",
   "video:completed",
   "upload-video:completed",
   "video:error",
+  "quiz:generated",
 ] as const;
 
 export type MediaUploadStreamEventType =
   (typeof MEDIA_UPLOAD_STREAM_EVENTS)[number];
 
+export type QuizGeneratedPayload = {
+  jobId: string;
+  quizId: number;
+  lessonActivityId: number;
+  videoId: number;
+  questionCount: number;
+  status: "completed" | "failed";
+  type?: "quiz";
+};
+
 export type MediaUploadStreamEvent =
   | { type: "video:progress"; payload: VideoProgressPayload }
   | { type: "video:completed"; payload: VideoCompletedPayload }
   | { type: "upload-video:completed"; payload: VideoCompletedPayload }
-  | { type: "video:error"; payload: VideoErrorPayload };
+  | { type: "video:error"; payload: VideoErrorPayload }
+  | { type: "quiz:generated"; payload: QuizGeneratedPayload };
 
 export interface UploadStreamHandlers {
   onProgress?: (payload: VideoProgressPayload) => void;
   onCompleted?: (payload: VideoCompletedPayload) => void;
   onError?: (payload: VideoErrorPayload) => void;
+  onQuizGenerated?: (payload: QuizGeneratedPayload) => void;
   onEvent?: (event: MediaUploadStreamEvent) => void;
   onConnectionError?: (error: Error) => void;
 }
@@ -157,6 +205,12 @@ function normalizeMediaPayload(payload: unknown): unknown {
         : typeof record.error_message === "string"
           ? { message: record.error_message }
           : record.error,
+    lessonActivityId: record.lessonActivityId ?? record.lesson_activity_id,
+    lesson_activity_id: record.lessonActivityId ?? record.lesson_activity_id,
+    videoId: record.videoId ?? record.video_id,
+    video_id: record.videoId ?? record.video_id,
+    quizId: record.quizId ?? record.quiz_id,
+    quiz_id: record.quizId ?? record.quiz_id,
   };
 }
 
@@ -281,5 +335,12 @@ function dispatchEvent(
     };
     handlers.onEvent?.(event);
     handlers.onError?.(event.payload);
+  } else if (eventType === "quiz:generated") {
+    const event = {
+      type: "quiz:generated" as const,
+      payload: payload as QuizGeneratedPayload,
+    };
+    handlers.onEvent?.(event);
+    handlers.onQuizGenerated?.(event.payload);
   }
 }

@@ -1,9 +1,4 @@
-import {
-  DataType,
-  Model,
-  Column,
-  Table,
-} from 'sequelize-typescript';
+import { DataType, Model, Column, Table } from 'sequelize-typescript';
 
 @Table({
   tableName: 'users',
@@ -47,6 +42,20 @@ export class User extends Model {
     unique: true,
   })
   declare googleId: string | null;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  declare githubId: string | null;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  declare facebookId: string | null;
 
   @Column({
     type: DataType.BOOLEAN,

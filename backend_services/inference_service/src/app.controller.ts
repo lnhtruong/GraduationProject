@@ -11,10 +11,7 @@ import {
   BadRequestException,
   Headers,
 } from '@nestjs/common';
-import {
-  FileInterceptor,
-  NoFilesInterceptor,
-} from '@nestjs/platform-express';
+import { FileInterceptor, NoFilesInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
 import type { Response } from 'express';
 
@@ -110,6 +107,18 @@ export class AppController {
     @Body() body: unknown,
     @Headers('x-user-id') userIdHeader?: string,
   ): Promise<unknown> {
+    const videoUrl =
+      typeof body === 'object' &&
+      body !== null &&
+      'video_url' in body &&
+      typeof (body as Record<string, unknown>).video_url === 'string'
+        ? (body as Record<string, string>).video_url
+        : undefined;
+
+    if (!videoUrl || videoUrl.trim().length === 0) {
+      throw new BadRequestException('video_url is required');
+    }
+
     const mascotImageUrl =
       typeof body === 'object' &&
       body !== null &&
