@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -56,20 +55,33 @@ export function FilterSidebar({
   const [localCategoryIds, setLocalCategoryIds] = useState<number[]>([]);
   const [localLevel, setLocalLevel] = useState("all");
   const [localRating, setLocalRating] = useState(0);
+  const [previewRating, setPreviewRating] = useState(0);
   const [localPriceRange, setLocalPriceRange] = useState<[number, number]>([0, 5000000]);
 
   useEffect(() => {
     if (isMobileTrigger && isOpen) {
-      setLocalCategoryIds(params.categoryIds);
-      setLocalLevel(params.level || "all");
-      setLocalRating(params.minRating || 0);
-      setLocalPriceRange([params.minPrice, params.maxPrice]);
+      const frame = window.requestAnimationFrame(() => {
+        setLocalCategoryIds(params.categoryIds);
+        setLocalLevel(params.level || "all");
+        setLocalRating(params.minRating || 0);
+        setLocalPriceRange([params.minPrice, params.maxPrice]);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
     }
   }, [isOpen, params, isMobileTrigger]);
 
   useEffect(() => {
     if (!isMobileTrigger) {
-      setLocalPriceRange([params.minPrice, params.maxPrice]);
+      const frame = window.requestAnimationFrame(() => {
+        setLocalPriceRange([params.minPrice, params.maxPrice]);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
     }
   }, [params.minPrice, params.maxPrice, isMobileTrigger]);
 
@@ -108,6 +120,7 @@ export function FilterSidebar({
   };
 
   const handleRatingChange = (rating: number) => {
+    setPreviewRating(0);
     if (isMobileTrigger) {
       setLocalRating((prev) => (prev === rating ? 0 : rating));
       return;
@@ -153,7 +166,7 @@ export function FilterSidebar({
               ))}
             </div>
           ) : (
-            <ScrollArea className="h-52 pr-2">
+            <div className="max-h-52 overflow-y-auto pr-2">
               <div className="flex flex-col gap-2.5">
                 {categories.map((category) => {
                   const isChecked = selectedCategoryIds.includes(category.id);
@@ -177,7 +190,7 @@ export function FilterSidebar({
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </AccordionContent>
       </AccordionItem>
@@ -234,23 +247,30 @@ export function FilterSidebar({
         </AccordionTrigger>
         <AccordionContent className="pb-1 pt-1">
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1">
+            <div
+              className="flex w-fit items-center gap-0.5 p-1"
+              onMouseLeave={() => setPreviewRating(0)}
+            >
               {Array.from({ length: 5 }).map((_, index) => {
                 const starValue = index + 1;
-                const isFilled = starValue <= selectedRating;
+                const displayRating = previewRating || selectedRating;
+                const isFilled = starValue <= displayRating;
                 return (
                   <button
                     key={starValue}
                     type="button"
+                    onMouseEnter={() => setPreviewRating(starValue)}
+                    onFocus={() => setPreviewRating(starValue)}
+                    onBlur={() => setPreviewRating(0)}
                     onClick={() => handleRatingChange(starValue)}
-                    className="rounded p-1 transition-colors hover:bg-muted/80"
+                    className="rounded-lg p-1.5 transition-colors hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                     aria-label={`Đánh giá tối thiểu ${starValue} sao`}
                   >
                     <Star
-                      className={`h-5 w-5 transition-all ${
+                      className={`h-5 w-5 transition-all duration-150 ${
                         isFilled
-                          ? "fill-primary text-primary"
-                          : "text-muted-foreground/45 hover:text-muted-foreground"
+                          ? "scale-110 fill-primary text-primary"
+                          : "text-muted-foreground/45"
                       }`}
                     />
                   </button>

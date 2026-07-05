@@ -9,7 +9,7 @@ import type { CourseCardData } from "@/features/_shared/course-card.types";
 export const homeApi = createApi({
   getFeaturedCourses: async (): Promise<CourseCardData[]> => {
     const { data } = await apiHttpClient.get<CoursesRawResponse>("/course/courses", {
-      params: { limit: 8, page: 1, status: 'publish' },
+      params: { limit: 8, page: 1, status: "publish", sort: "popular" },
     });
 
     return extractCourses(data).map(mapCourseRaw);

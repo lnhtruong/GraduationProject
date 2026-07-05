@@ -29,7 +29,13 @@ export function SearchBar({ placeholder = "Tìm kiếm khóa học...", classNam
       isInitialSync.current = false;
       return;
     }
-    setQuery(initialQuery);
+    const frame = window.requestAnimationFrame(() => {
+      setQuery(initialQuery);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, [initialQuery]);
 
   const handleSearch = (searchTerm: string) => {
