@@ -18,17 +18,25 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  @Get('profile')
-  // @UseGuards(JwtAuthGuard)
-  async getProfile(@Headers('x-user-id') userIdHeader: string) {
-    // Get userId from header forwarded by gateway
+  private parseRequesterId(userIdHeader: string) {
     const userId = parseInt(userIdHeader, 10);
 
-    console.log('check userid: ', userId);
     if (!userId || isNaN(userId)) {
       throw new BadRequestException('User ID not found in request headers');
     }
-    return this.usersService.getUserProfile(userId);
+
+    return userId;
+  }
+
+  @Get('me')
+  async getMe(@Headers('x-user-id') userIdHeader: string) {
+    return this.usersService.getUserProfile(this.parseRequesterId(userIdHeader));
+  }
+
+  @Get('profile')
+  // @UseGuards(JwtAuthGuard)
+  async getProfile(@Headers('x-user-id') userIdHeader: string) {
+    return this.usersService.getUserProfile(this.parseRequesterId(userIdHeader));
   }
 
   @Get(':id')
