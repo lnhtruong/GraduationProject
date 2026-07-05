@@ -1,18 +1,11 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import Editor from "@/features/editor";
 
-import { Suspense } from "react";
-import dynamic from "next/dynamic";
-import { PageLoader } from "@/components/PageLoader";
+export const metadata = buildPrivatePageMetadata(
+  "Trình chỉnh sửa video",
+  "Chỉnh sửa video học tập, mascot và tài nguyên sáng tạo trong LearnHub.",
+);
 
-const Editor = dynamic(() => import("@/features/editor"), {
-  ssr: false,
-  loading: () => <PageLoader message="Đang tải trình chỉnh sửa..." />,
-});
-
-export default function EditorPage() {
-  return (
-    <Suspense fallback={<PageLoader message="Đang tải trình chỉnh sửa..." />}>
-      <Editor />
-    </Suspense>
-  );
+export default function Page() {
+  return <Editor />;
 }

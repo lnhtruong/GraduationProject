@@ -14,14 +14,14 @@ export async function generateMetadata({ params }: Props) {
     });
     if (!res.ok) {
       return {
-        title: "Chi tiết khóa học | LearnHub",
+        title: "Chi tiết khóa học",
       };
     }
     const course = await res.json();
     return buildCourseMetadata(course, undefined, "video.other");
   } catch {
     return {
-      title: "Chi tiết khóa học | LearnHub",
+      title: "Chi tiết khóa học",
     };
   }
 }

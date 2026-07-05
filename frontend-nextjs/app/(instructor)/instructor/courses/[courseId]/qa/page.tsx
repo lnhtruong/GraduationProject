@@ -1,3 +1,10 @@
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+
+export const metadata = buildPrivatePageMetadata(
+  "Q&A khóa học",
+  "Theo dõi và phản hồi thảo luận của học viên trong khóa học.",
+);
+
 import { use, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CourseQAWorkspace } from "@/features/instructor/qa/components/CourseQAWorkspace";

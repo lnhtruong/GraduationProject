@@ -3,7 +3,7 @@ import { MyCoursesPage } from "@/features/my-courses/components/MyCoursesPage";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Học tập của tôi | LearnHub",
+  title: "Học tập của tôi",
   description: "Quản lý và tiếp tục các khóa học bạn đang tham gia trên LearnHub.",
 };
 

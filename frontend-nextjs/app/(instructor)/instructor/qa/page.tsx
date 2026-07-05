@@ -1,19 +1,9 @@
-"use client";
+import { buildPrivatePageMetadata } from "@/lib/metadata";
+import InstructorQAWorkspace from "@/features/instructor/components/qa/InstructorQAWorkspace";
 
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const InstructorQAWorkspace = dynamic(
-  () => import("@/features/instructor/components/qa/InstructorQAWorkspace"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    ),
-  },
+export const metadata = buildPrivatePageMetadata(
+  "Q&A giảng viên",
+  "Quản lý câu hỏi, thảo luận và phản hồi của học viên trên các khóa học.",
 );
 
 export default function Page() {
