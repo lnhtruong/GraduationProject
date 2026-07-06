@@ -1,9 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, MessageCircleReply, SendHorizonal } from "lucide-react";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +13,7 @@ import {
   useNewsfeedComments,
 } from "../api/newsfeed.hooks";
 import type { NewsfeedCommentItem, NewsfeedItem } from "../types";
+import { NewsfeedAuthDialog, type NewsfeedAuthAction } from "./NewsfeedAuthDialog";
 
 type CommentSortOrder = "newest" | "oldest";
 
@@ -285,27 +284,17 @@ export function NewsfeedCommentsPanel({
   viewerName,
   sortOrder,
 }: NewsfeedCommentsPanelProps) {
-  const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const [content, setContent] = useState("");
   const [replyTargetId, setReplyTargetId] = useState<number | null>(null);
+  const [authDialogAction, setAuthDialogAction] = useState<NewsfeedAuthAction | null>(null);
   const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const feedId = video?.feedId ?? null;
   const commentsQuery = useNewsfeedComments(feedId, Boolean(feedId));
   const createCommentMutation = useCreateNewsfeedComment();
 
   const requireAuth = () => {
-    const returnUrl =
-      typeof window !== "undefined"
-        ? `${window.location.pathname}${window.location.search}`
-        : "/newsfeed";
-
-    toast.info("Bạn cần đăng nhập để bình luận.", {
-      action: {
-        label: "Đăng nhập",
-        onClick: () => router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`),
-      },
-    });
+    setAuthDialogAction("comment");
   };
 
   const comments = useMemo(
@@ -440,6 +429,15 @@ export function NewsfeedCommentsPanel({
           </div>
         </div>
       </form>
+      <NewsfeedAuthDialog
+        open={Boolean(authDialogAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAuthDialogAction(null);
+          }
+        }}
+        action={authDialogAction ?? undefined}
+      />
     </div>
   );
 }

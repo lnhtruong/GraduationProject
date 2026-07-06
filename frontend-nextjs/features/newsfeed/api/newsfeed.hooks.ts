@@ -410,9 +410,11 @@ export function useCreateNewsfeedComment() {
     mutationKey: newsfeedKeys.custom("create-comment"),
     mutationFn: newsfeedApi.createComment,
     onSuccess: (_data, variables) => {
-      updateFeedItemInQueries(queryClient, variables.feedId, (item) =>
-        updateFeedCommentCount(item, variables.feedId),
-      );
+      if (!variables.originCmt) {
+        updateFeedItemInQueries(queryClient, variables.feedId, (item) =>
+          updateFeedCommentCount(item, variables.feedId),
+        );
+      }
       void queryClient.invalidateQueries({
         queryKey: newsfeedKeys.custom("comments", variables.feedId),
       });

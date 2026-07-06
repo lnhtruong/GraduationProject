@@ -1,11 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Mic, Search, User, X } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,13 +16,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserAvatar } from "@/components/UserAvatar";
 import { VoiceSearchDialog } from "@/features/voice-search/components/VoiceSearchDialog";
+import { getUserDisplayName } from "@/lib/user-display";
+import type { User as AuthUser } from "@/store/auth";
 
 interface NewsfeedHeaderProps {
   onToggleMenu: () => void;
   isAuthenticated: boolean;
-  userInitials: string;
-  userName?: string | null;
+  user?: AuthUser | null;
   onLogout: () => void | Promise<void>;
   searchValue: string;
   onSearchValueChange: (value: string) => void;
@@ -33,8 +34,7 @@ interface NewsfeedHeaderProps {
 export function NewsfeedHeader({
   onToggleMenu,
   isAuthenticated,
-  userInitials,
-  userName,
+  user,
   onLogout,
   searchValue,
   onSearchValueChange,
@@ -43,6 +43,7 @@ export function NewsfeedHeader({
   const pathname = usePathname();
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const userName = getUserDisplayName(user);
 
   const handleSubmit = (value: string) => {
     onSearchSubmit(value);
@@ -62,12 +63,7 @@ export function NewsfeedHeader({
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/" className="flex items-center gap-2 rounded-full px-1.5 py-1">
-            <Image src="/logo.png" alt="LearnHub" width={28} height={28} />
-            <span className="hidden text-sm font-semibold tracking-wide sm:inline">
-              LearnHub
-            </span>
-          </Link>
+          <BrandLogo compact />
         </div>
 
         <div className="hidden justify-self-center md:flex md:w-full md:max-w-[760px] items-center gap-3">
@@ -161,16 +157,15 @@ export function NewsfeedHeader({
                   size="icon"
                   className="h-10 w-10 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={undefined} />
-                    <AvatarFallback className="text-xs font-semibold">
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    user={user}
+                    className="h-8 w-8"
+                    fallbackClassName="text-xs"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{userName ? userName : "Tài khoản"}</DropdownMenuLabel>
+                <DropdownMenuLabel>{userName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="cursor-pointer">

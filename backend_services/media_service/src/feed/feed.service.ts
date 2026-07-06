@@ -360,7 +360,7 @@ export class FeedService {
         raw: true,
       }),
       this.feedCommentModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds } },
+        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
         group: ['highlight_id'],
         raw: true,
@@ -450,7 +450,7 @@ export class FeedService {
         raw: true,
       }),
       this.feedCommentModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds } },
+        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
         group: ['highlight_id'],
         raw: true,
@@ -546,6 +546,7 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
+          origin_cmt: null,
           created_at: { [Op.gte]: startDate },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -1654,6 +1655,7 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
+          origin_cmt: null,
           created_at: { [Op.gte]: since },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -2120,6 +2122,7 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
+      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 
@@ -2286,6 +2289,7 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
+      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 
