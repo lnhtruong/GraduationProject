@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, Clapperboard, NotebookText, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Upload, Clapperboard, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
 import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
@@ -91,9 +90,6 @@ export function VideoSelectionSection({
   onDraftVideoChange,
   courseId,
   lessonId,
-  isEdit = false,
-  onOpenCreateQuizModal,
-  onPendingCreateQuiz,
   onUploadStateChange,
   timelineMarkers = [],
   isProcessing = false,
@@ -105,7 +101,10 @@ export function VideoSelectionSection({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const selectedUploadVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
-  onDraftVideoChangeRef.current = onDraftVideoChange;
+
+  useEffect(() => {
+    onDraftVideoChangeRef.current = onDraftVideoChange;
+  }, [onDraftVideoChange]);
 
   // Video Library Pagination
   const PAGE_SIZE = 6;
@@ -115,7 +114,8 @@ export function VideoSelectionSection({
 
   useEffect(() => {
     if (page > totalPages) {
-      setPage(totalPages);
+      const timer = window.setTimeout(() => setPage(totalPages), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [page, totalPages]);
 
@@ -419,9 +419,9 @@ export function VideoSelectionSection({
                   session.status === "completed") && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 px-2.5 text-[11px] font-medium"
+                    className="h-8 rounded-lg border-border/70 px-3 text-[11px] font-semibold text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                     onClick={clearSession}
                   >
                     Ẩn thông báo

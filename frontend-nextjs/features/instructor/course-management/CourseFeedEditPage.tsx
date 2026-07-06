@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
+  courseFeedKeys,
   useCourseFeed,
   useCourseFeedById,
   useInstructorCourseById,
@@ -67,6 +69,7 @@ function normalizeCaption(value?: string): string | undefined {
 
 export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: feedDetail, isLoading: feedDetailLoading } =
@@ -490,6 +493,12 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
         open={isHighlightUploadOpen}
         onOpenChange={setIsHighlightUploadOpen}
         onUploadSuccess={() => {
+          void queryClient.invalidateQueries({
+            queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: courseFeedKeys.root,
+          });
           router.refresh();
         }}
       />

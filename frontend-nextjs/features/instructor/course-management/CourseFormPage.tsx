@@ -19,6 +19,22 @@ interface Props {
   courseId?: number;
 }
 
+function getWorkflowErrorMessage(error: unknown, fallback: string) {
+  const responseMessage = (error as {
+    response?: { data?: { message?: unknown } };
+  }).response?.data?.message;
+
+  if (typeof responseMessage === "string" && responseMessage.trim()) {
+    return responseMessage;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export default function CourseFormPage({ courseId }: Props) {
   const router = useRouter();
   const isEdit = courseId !== undefined;
@@ -30,7 +46,6 @@ export default function CourseFormPage({ courseId }: Props) {
   const updateCourseMutation = useUpdateCourse();
   const submitForReviewMutation = useSubmitCourseForReview();
   const publishCourseMutation = usePublishCourse();
-  const isAdmin = user?.role === 1;
 
   const handleCourseStatusAction = async () => {
     if (!course) {
@@ -51,9 +66,7 @@ export default function CourseFormPage({ courseId }: Props) {
         router.refresh();
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Cập nhật trạng thái thất bại";
-      toast.error(message);
+      toast.error(getWorkflowErrorMessage(error, "Cập nhật trạng thái thất bại"));
     }
   };
 

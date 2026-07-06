@@ -269,8 +269,18 @@ export class CoursesController {
   }
 
   @Post(':id/submit-for-review')
-  submitForReview(@Param('id', ParseIntPipe) id: number) {
-    return this.coursesService.submitForReview(id);
+  submitForReview(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
+  ) {
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua);
+    if (!requester) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return this.coursesService.submitForReview(id, requester);
   }
 
   @Post(':id/review')

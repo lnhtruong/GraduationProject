@@ -6,8 +6,9 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { newsfeedApi } from "./newsfeed.api";
 import type {
@@ -38,12 +39,13 @@ export function useNewsfeedFeed(
   const resolvedLimit = source === "trending" ? 20 : limit;
   const feedSignature = `${source}:${resolvedLimit}:${normalizedSearchTerm}:${courseId ?? "all"}`;
   const sessionIdRef = useRef<string | null>(null);
-  const previousSignatureRef = useRef(feedSignature);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  if (previousSignatureRef.current !== feedSignature) {
-    previousSignatureRef.current = feedSignature;
+  useEffect(() => {
     sessionIdRef.current = null;
-  }
+    const timer = window.setTimeout(() => setSessionId(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [feedSignature]);
 
   const query = useInfiniteQuery({
     queryKey: newsfeedKeys.custom("feed", resolvedLimit, source, normalizedSearchTerm, courseId ?? "all"),
@@ -72,18 +74,26 @@ export function useNewsfeedFeed(
   useEffect(() => {
     if (mode !== "recommended") {
       sessionIdRef.current = null;
-      return;
+      const timer = window.setTimeout(() => setSessionId(null), 0);
+      return () => window.clearTimeout(timer);
     }
 
     const latestPage = query.data?.pages.at(-1);
     if (latestPage?.sessionId) {
       sessionIdRef.current = latestPage.sessionId;
+      const timer = window.setTimeout(() => setSessionId(latestPage.sessionId), 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [mode, query.data?.pages]);
+
+    if (sessionId !== null) {
+      const timer = window.setTimeout(() => setSessionId(null), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [mode, query.data?.pages, sessionId]);
 
   return {
     ...query,
-    sessionId: mode === "recommended" ? sessionIdRef.current : null,
+    sessionId: mode === "recommended" ? sessionId : null,
   };
 }
 
@@ -245,8 +255,60 @@ function applyInteraction(
           : Math.max(0, item.stats.saves - 1),
       };
     }
+  } else if (variables.type === "share" && data.active) {
+    updatedItem.stats = {
+      ...item.stats,
+      shares: item.stats.shares + 1,
+    };
   }
   return updatedItem;
+}
+
+function updateFeedCommentCount(item: NewsfeedItem, feedId: number): NewsfeedItem {
+  if (item.feedId !== feedId) {
+    return item;
+  }
+
+  return {
+    ...item,
+    stats: {
+      ...item.stats,
+      comments: item.stats.comments + 1,
+    },
+  };
+}
+
+function updateFeedItemInQueries(
+  queryClient: QueryClient,
+  feedId: number,
+  updater: (item: NewsfeedItem) => NewsfeedItem,
+) {
+  queryClient.setQueriesData<InfiniteData<NewsfeedFeedApiResponse>>(
+    { queryKey: ["newsfeed", "feed"] },
+    (oldData) => {
+      if (!oldData || !oldData.pages) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page) => ({
+          ...page,
+          items: page.items.map((item) => (item.feedId === feedId ? updater(item) : item)),
+        })),
+      };
+    },
+  );
+
+  for (const key of ["saved", "viewed"]) {
+    queryClient.setQueriesData<NewsfeedFeedApiResponse>(
+      { queryKey: ["newsfeed", key] },
+      (oldData) => {
+        if (!oldData || !Array.isArray(oldData.items)) return oldData;
+        return {
+          ...oldData,
+          items: oldData.items.map((item) => (item.feedId === feedId ? updater(item) : item)),
+        };
+      },
+    );
+  }
 }
 
 export function useNewsfeedInteractMutation() {
@@ -297,6 +359,10 @@ export function useNewsfeedInteractMutation() {
 
       updateRegularFeedQuery("saved");
       updateRegularFeedQuery("viewed");
+
+      if (variables.type === "save") {
+        void queryClient.invalidateQueries({ queryKey: newsfeedKeys.custom("saved") });
+      }
     },
   });
 }
@@ -344,6 +410,11 @@ export function useCreateNewsfeedComment() {
     mutationKey: newsfeedKeys.custom("create-comment"),
     mutationFn: newsfeedApi.createComment,
     onSuccess: (_data, variables) => {
+      if (!variables.originCmt) {
+        updateFeedItemInQueries(queryClient, variables.feedId, (item) =>
+          updateFeedCommentCount(item, variables.feedId),
+        );
+      }
       void queryClient.invalidateQueries({
         queryKey: newsfeedKeys.custom("comments", variables.feedId),
       });

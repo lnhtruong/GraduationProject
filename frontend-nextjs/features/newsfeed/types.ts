@@ -73,6 +73,10 @@ export interface NewsfeedLecturer {
 
 export interface NewsfeedRawItem {
 	feed_id: number;
+	comment_count?: number;
+	comments_count?: number;
+	share_count?: number;
+	shares_count?: number;
 	title?: string;
 	caption?: string | null;
 	hashtags?: string[] | null;

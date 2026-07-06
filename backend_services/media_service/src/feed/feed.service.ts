@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, fn, col, literal, WhereOptions } from 'sequelize';
@@ -18,6 +24,14 @@ import {
   NotificationSseEventType,
 } from '../notifications/notification.enums';
 
+type FeedStats = {
+  likes: number;
+  saves: number;
+  shares: number;
+  views: number;
+  comments: number;
+};
+
 type FeedResponseItem = {
   feed_id: number;
   title?: string;
@@ -27,7 +41,7 @@ type FeedResponseItem = {
   video: unknown;
   course: unknown;
   lecturer: unknown;
-  stats: { likes: number; saves: number; views: number };
+  stats: FeedStats;
   is_liked: boolean;
   is_saved: boolean;
 };
@@ -88,6 +102,16 @@ export class FeedService {
   private parseNumberValue(value: unknown): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private createEmptyFeedStats(): FeedStats {
+    return {
+      likes: 0,
+      saves: 0,
+      shares: 0,
+      views: 0,
+      comments: 0,
+    };
   }
 
   private normalizePercentage(value: number): number {
@@ -305,11 +329,11 @@ export class FeedService {
     feedIds: number[],
     userId: number,
   ): Promise<{
-    statsByFeed: Map<number, { likes: number; saves: number; views: number }>;
+    statsByFeed: Map<number, FeedStats>;
     likedSet: Set<number>;
     savedSet: Set<number>;
   }> {
-    const statsByFeed = new Map<number, { likes: number; saves: number; views: number }>();
+    const statsByFeed = new Map<number, FeedStats>();
     const likedSet = new Set<number>();
     const savedSet = new Set<number>();
 
@@ -317,13 +341,14 @@ export class FeedService {
       return { statsByFeed, likedSet, savedSet };
     }
 
-    const [interactionRows, viewRows, userInteractionRows] = await Promise.all([
+    const [interactionRows, viewRows, commentRows, userInteractionRows] = await Promise.all([
       this.feedInteractionModel.findAll({
         where: { highlight_id: { [Op.in]: feedIds } },
         attributes: [
           'highlight_id',
           [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
           [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
         ],
         group: ['highlight_id'],
         raw: true,
@@ -331,6 +356,12 @@ export class FeedService {
       this.feedViewModel.findAll({
         where: { highlight_id: { [Op.in]: feedIds } },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'views']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
+      this.feedCommentModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
         group: ['highlight_id'],
         raw: true,
       }),
@@ -349,21 +380,30 @@ export class FeedService {
       highlight_id: number;
       likes: string | number;
       saves: string | number;
+      shares: string | number;
     }>;
     for (const row of interactionAggRows) {
       const feedId = Number(row.highlight_id);
-      statsByFeed.set(feedId, {
-        likes: Number(row.likes || 0),
-        saves: Number(row.saves || 0),
-        views: statsByFeed.get(feedId)?.views || 0,
-      });
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
+      current.likes = Number(row.likes || 0);
+      current.saves = Number(row.saves || 0);
+      current.shares = Number(row.shares || 0);
+      statsByFeed.set(feedId, current);
     }
 
     const viewAggRows = viewRows as unknown as Array<{ highlight_id: number; views: string | number }>;
     for (const row of viewAggRows) {
       const feedId = Number(row.highlight_id);
-      const current = statsByFeed.get(feedId) || { likes: 0, saves: 0, views: 0 };
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
       current.views = Number(row.views || 0);
+      statsByFeed.set(feedId, current);
+    }
+
+    const commentAggRows = commentRows as unknown as Array<{ highlight_id: number; comments: string | number }>;
+    for (const row of commentAggRows) {
+      const feedId = Number(row.highlight_id);
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
+      current.comments = Number(row.comments || 0);
       statsByFeed.set(feedId, current);
     }
 
@@ -385,19 +425,20 @@ export class FeedService {
 
   private async getStatsOnly(
     feedIds: number[],
-  ): Promise<Map<number, { likes: number; saves: number; views: number }>> {
-    const statsByFeed = new Map<number, { likes: number; saves: number; views: number }>();
+  ): Promise<Map<number, FeedStats>> {
+    const statsByFeed = new Map<number, FeedStats>();
     if (feedIds.length === 0) {
       return statsByFeed;
     }
 
-    const [interactionRows, viewRows] = await Promise.all([
+    const [interactionRows, viewRows, commentRows] = await Promise.all([
       this.feedInteractionModel.findAll({
         where: { highlight_id: { [Op.in]: feedIds } },
         attributes: [
           'highlight_id',
           [fn('SUM', literal("CASE WHEN type = 'like' THEN 1 ELSE 0 END")), 'likes'],
           [fn('SUM', literal("CASE WHEN type = 'save' THEN 1 ELSE 0 END")), 'saves'],
+          [fn('SUM', literal("CASE WHEN type = 'share' THEN 1 ELSE 0 END")), 'shares'],
         ],
         group: ['highlight_id'],
         raw: true,
@@ -408,27 +449,42 @@ export class FeedService {
         group: ['highlight_id'],
         raw: true,
       }),
+      this.feedCommentModel.findAll({
+        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
+        attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
+        group: ['highlight_id'],
+        raw: true,
+      }),
     ]);
 
     const interactionAggRows = interactionRows as unknown as Array<{
       highlight_id: number;
       likes: string | number;
       saves: string | number;
+      shares: string | number;
     }>;
     for (const row of interactionAggRows) {
       const feedId = Number(row.highlight_id);
-      statsByFeed.set(feedId, {
-        likes: Number(row.likes || 0),
-        saves: Number(row.saves || 0),
-        views: statsByFeed.get(feedId)?.views || 0,
-      });
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
+      current.likes = Number(row.likes || 0);
+      current.saves = Number(row.saves || 0);
+      current.shares = Number(row.shares || 0);
+      statsByFeed.set(feedId, current);
     }
 
     const viewAggRows = viewRows as unknown as Array<{ highlight_id: number; views: string | number }>;
     for (const row of viewAggRows) {
       const feedId = Number(row.highlight_id);
-      const current = statsByFeed.get(feedId) || { likes: 0, saves: 0, views: 0 };
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
       current.views = Number(row.views || 0);
+      statsByFeed.set(feedId, current);
+    }
+
+    const commentAggRows = commentRows as unknown as Array<{ highlight_id: number; comments: string | number }>;
+    for (const row of commentAggRows) {
+      const feedId = Number(row.highlight_id);
+      const current = statsByFeed.get(feedId) ?? this.createEmptyFeedStats();
+      current.comments = Number(row.comments || 0);
       statsByFeed.set(feedId, current);
     }
 
@@ -490,6 +546,7 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
+          origin_cmt: null,
           created_at: { [Op.gte]: startDate },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -627,7 +684,7 @@ export class FeedService {
 
   private async buildFeedResponse(
     feedIds: number[],
-    statsByFeed: Map<number, { likes: number; saves: number; views: number }>,
+    statsByFeed: Map<number, FeedStats>,
     likedSet: Set<number>,
     savedSet: Set<number>,
     options?: { requireActive?: boolean; requirePublishedCourse?: boolean },
@@ -665,7 +722,7 @@ export class FeedService {
       if (!feed || !feed.course || !feed.video) {
         continue;
       }
-      const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+      const stats = statsByFeed.get(feed.id) ?? this.createEmptyFeedStats();
       const { user, ...courseData } = feed.course.toJSON();
       data.push({
         feed_id: feed.id,
@@ -847,7 +904,7 @@ export class FeedService {
         if (!feed.video || !feed.course) {
           return null;
         }
-        const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+        const stats = statsByFeed.get(feed.id) ?? this.createEmptyFeedStats();
         const { user, ...courseData } = feed.course.toJSON();
         return {
           feed_id: feed.id,
@@ -1018,7 +1075,7 @@ export class FeedService {
       where: { video_id: videoId },
     });
     if (existing) {
-      throw new BadRequestException('Video already in feed');
+      throw new ConflictException('Video này đã có trên feed.');
     }
 
     // Create
@@ -1598,6 +1655,7 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
+          origin_cmt: null,
           created_at: { [Op.gte]: since },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -1750,8 +1808,8 @@ export class FeedService {
     courseId?: number,
     hashtag?: string,
   ): Promise<{
-    rankedFeeds: Array<{ feed: HighlightFeed; stats: { likes: number; saves: number; views: number } }>;
-    statsByFeed: Map<number, { likes: number; saves: number; views: number }>;
+    rankedFeeds: Array<{ feed: HighlightFeed; stats: FeedStats }>;
+    statsByFeed: Map<number, FeedStats>;
     likedSet: Set<number>;
     savedSet: Set<number>;
     viewedCount: Map<number, number>;
@@ -1861,7 +1919,7 @@ export class FeedService {
 
     // ─── 4. Score every candidate ─────────────────────────────────────────
     const scored = candidateFeeds.map((feed) => {
-      const stats = statsByFeed.get(feed.id) || { likes: 0, saves: 0, views: 0 };
+      const stats = statsByFeed.get(feed.id) ?? this.createEmptyFeedStats();
       const sig = signals.get(feed.id) ?? {
         likes: 0,
         saves: 0,
@@ -2064,6 +2122,7 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
+      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 
@@ -2230,6 +2289,7 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
+      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 

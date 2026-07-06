@@ -73,6 +73,17 @@ function normalizeMediaUrl(url?: string | null) {
   return trimmed;
 }
 
+function readCount(...values: Array<unknown>) {
+  for (const value of values) {
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue) && numberValue >= 0) {
+      return numberValue;
+    }
+  }
+
+  return 0;
+}
+
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
   const courseName = raw.course?.name?.trim() || "Khóa học";
   const title = raw.title?.trim() || courseName || "Video";
@@ -97,11 +108,15 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
     lecturer: raw.lecturer,
     stats: {
-      likes: raw.stats?.likes ?? 0,
-      comments: raw.stats?.comments ?? 0,
-      saves: raw.stats?.saves ?? 0,
-      shares: raw.stats?.shares ?? 0,
-      views: raw.stats?.views ?? 0,
+      likes: readCount(raw.stats?.likes),
+      comments: readCount(
+        raw.stats?.comments,
+        raw.comment_count,
+        raw.comments_count,
+      ),
+      saves: readCount(raw.stats?.saves),
+      shares: readCount(raw.stats?.shares, raw.share_count, raw.shares_count),
+      views: readCount(raw.stats?.views),
     },
     isLiked: Boolean(raw.is_liked),
     isSaved: Boolean(raw.is_saved),

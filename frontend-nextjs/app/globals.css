@@ -437,38 +437,94 @@
   color: var(--popover-foreground) !important;
 }
 
-/* Fullscreen mobile rotation fallback */
+/* Newsfeed desktop fullscreen, shaped closer to YouTube Shorts. */
 .fullscreen-active:fullscreen,
 .fullscreen-active:-webkit-full-screen {
   width: 100vw !important;
   height: 100vh !important;
   max-width: none !important;
   max-height: none !important;
-  background-color: black !important;
+  background: var(--background) !important;
 }
 
-.fullscreen-active .video-player-inner {
-  width: 100% !important;
+.dark .fullscreen-active:fullscreen,
+.dark .fullscreen-active:-webkit-full-screen {
+  background: #0f0f0f !important;
+}
+
+.fullscreen-active:fullscreen .video-player-inner,
+.fullscreen-active:-webkit-full-screen .video-player-inner {
+  width: min(1180px, calc(100vw - 176px)) !important;
   height: 100% !important;
   position: relative !important;
-  background-color: black !important;
+  margin: 0 auto !important;
+  padding: 20px 0 !important;
+  justify-content: center !important;
+  gap: 16px !important;
+  background: transparent !important;
 }
 
-@media (orientation: portrait) {
-  .fullscreen-active:fullscreen .video-player-inner,
-  .fullscreen-active:-webkit-full-screen .video-player-inner {
-    width: 100vh !important;
-    height: 100vw !important;
-    transform: translate(-50%, -50%) rotate(90deg) !important;
-    transform-origin: center center !important;
-    position: absolute !important;
-    top: 50% !important;
-    left: 50% !important;
-    background-color: black !important;
-  }
+.fullscreen-active:fullscreen .newsfeed-video-item,
+.fullscreen-active:-webkit-full-screen .newsfeed-video-item {
+  height: 100vh !important;
 }
 
-/* Fix browser autofill background-color and text-color to align with light/dark theme */
+.fullscreen-active:fullscreen .newsfeed-video-item > article,
+.fullscreen-active:-webkit-full-screen .newsfeed-video-item > article {
+  height: 100vh !important;
+}
+
+.fullscreen-active:fullscreen .newsfeed-video-frame,
+.fullscreen-active:-webkit-full-screen .newsfeed-video-frame {
+  height: auto !important;
+  max-width: none !important;
+  max-height: calc(100vh - 40px) !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: #000 !important;
+  box-shadow: none !important;
+}
+
+.fullscreen-active:fullscreen .newsfeed-action-rail,
+.fullscreen-active:-webkit-full-screen .newsfeed-action-rail {
+  position: static !important;
+  align-self: center !important;
+  gap: 14px !important;
+  padding-bottom: 0 !important;
+  margin-left: 0 !important;
+}
+
+.newsfeed-fullscreen-nav {
+  display: none;
+}
+
+.fullscreen-active:fullscreen .newsfeed-fullscreen-nav,
+.fullscreen-active:-webkit-full-screen .newsfeed-fullscreen-nav {
+  position: fixed;
+  right: 30px;
+  top: 50%;
+  z-index: 2147483600;
+  display: flex;
+  transform: translateY(-50%);
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fullscreen-active:fullscreen .newsfeed-fullscreen-nav button,
+.fullscreen-active:-webkit-full-screen .newsfeed-fullscreen-nav button {
+  border: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+.dark .fullscreen-active:fullscreen .newsfeed-fullscreen-nav button,
+.dark .fullscreen-active:-webkit-full-screen .newsfeed-fullscreen-nav button {
+  border-color: transparent !important;
+  background: rgb(255 255 255 / 0.12) !important;
+  color: white !important;
+}
+
+/* Make browser/password-manager autofill visible without adding extra UI. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -479,6 +535,25 @@ select:-webkit-autofill,
 select:-webkit-autofill:hover,
 select:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--color-foreground) !important;
-  -webkit-box-shadow: 0 0 0px 1000px var(--color-background) inset !important;
-  transition: background-color 5000s ease-in-out 0s;
+  caret-color: var(--color-foreground);
+  -webkit-box-shadow:
+    0 0 0 1000px color-mix(in oklab, var(--primary) 13%, var(--background)) inset,
+    0 0 0 1px color-mix(in oklab, var(--primary) 38%, var(--border)) inset !important;
+  transition:
+    background-color 9999s ease-in-out 0s,
+    color 9999s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark select:-webkit-autofill,
+.dark select:-webkit-autofill:hover,
+.dark select:-webkit-autofill:focus {
+  -webkit-box-shadow:
+    0 0 0 1000px color-mix(in oklab, var(--primary) 18%, var(--background)) inset,
+    0 0 0 1px color-mix(in oklab, var(--primary) 45%, var(--border)) inset !important;
 }

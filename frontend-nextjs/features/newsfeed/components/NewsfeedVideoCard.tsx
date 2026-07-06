@@ -12,6 +12,7 @@ import {
   Heart,
   Maximize2,
   MessageCircle,
+  Minimize2,
   Pause,
   PictureInPicture2,
   Play,
@@ -37,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
 import type { NewsfeedItem } from "../types";
 import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 import { useNewsfeedViewTracker } from "../hooks/useNewsfeedFeedStrategy";
@@ -44,6 +46,7 @@ import { getInitials } from "./newsfeed-ui";
 import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
 import { NEWSFEED_PLAYBACK_RATE_OPTIONS } from "../constants";
 import { NewsfeedTimeline } from "./NewsfeedTimeline";
+import { NewsfeedAuthDialog, type NewsfeedAuthAction } from "./NewsfeedAuthDialog";
 
 export type NewsfeedPlaybackRate = (typeof NEWSFEED_PLAYBACK_RATE_OPTIONS)[number];
 
@@ -86,7 +89,8 @@ interface NewsfeedVideoCardProps {
   onPlaybackRateChange: (rate: NewsfeedPlaybackRate) => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
-  onOpenShare: (url: string) => void;
+  onOpenShare: (feedId: number, url: string) => void;
+  onToggleFullscreen?: () => void;
 }
 
 export function NewsfeedVideoCard({
@@ -98,6 +102,7 @@ export function NewsfeedVideoCard({
   onOpenCourse,
   onOpenComments,
   onOpenShare,
+  onToggleFullscreen,
 }: NewsfeedVideoCardProps) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -107,6 +112,7 @@ export function NewsfeedVideoCard({
 
   const isGlobalPaused = useNewsfeedUiStore((state) => state.isGlobalPaused);
   const setGlobalPaused = useNewsfeedUiStore((state) => state.setGlobalPaused);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
   const [isMuted, setIsMuted] = useState(false);
@@ -116,12 +122,14 @@ export function NewsfeedVideoCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [isSaved, setIsSaved] = useState(video.isSaved);
   const [localLikeCount, setLocalLikeCount] = useState(video.stats.likes);
   const [localSaveCount, setLocalSaveCount] = useState(video.stats.saves);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [isOverlayHidden, setIsOverlayHidden] = useState(false);
+  const [authDialogAction, setAuthDialogAction] = useState<NewsfeedAuthAction | null>(null);
   const likeMutation = useNewsfeedInteractMutation();
   const saveMutation = useNewsfeedInteractMutation();
   useNewsfeedViewTracker({
@@ -131,25 +139,43 @@ export function NewsfeedVideoCard({
   });
 
   useEffect(() => {
-    setIsLiked(video.isLiked);
+    const timer = window.setTimeout(() => setIsLiked(video.isLiked), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.isLiked]);
 
   useEffect(() => {
-    setIsSaved(video.isSaved);
+    const timer = window.setTimeout(() => setIsSaved(video.isSaved), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.isSaved]);
 
   useEffect(() => {
-    setLocalLikeCount(video.stats.likes);
+    const timer = window.setTimeout(() => setLocalLikeCount(video.stats.likes), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.stats.likes]);
 
   useEffect(() => {
-    setLocalSaveCount(video.stats.saves);
+    const timer = window.setTimeout(() => setLocalSaveCount(video.stats.saves), 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId, video.stats.saves]);
 
   useEffect(() => {
-    setIsCaptionExpanded(false);
-    setIsOverlayHidden(false);
+    const timer = window.setTimeout(() => {
+      setIsCaptionExpanded(false);
+      setIsOverlayHidden(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [video.feedId]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -220,18 +246,20 @@ export function NewsfeedVideoCard({
 
     return segments;
   }, [fullCaptionSegments]);
-  const fullCaptionText = useMemo(
-    () => fullCaptionSegments.map((segment) => segment.text).join(" "),
-    [fullCaptionSegments],
-  );
-  const collapsedCaptionText = useMemo(
-    () => collapsedCaptionSegments.map((segment) => segment.text).join(" "),
-    [collapsedCaptionSegments],
-  );
-  const captionHasOverflow = fullCaptionText.length > collapsedCaptionText.length;
-
   const displayStats = video.stats;
   const volumePercent = isMuted ? 0 : volume * 100;
+
+  const requireAuth = useCallback(
+    (action: NewsfeedAuthAction) => {
+      if (isAuthenticated) {
+        return true;
+      }
+
+      setAuthDialogAction(action);
+      return false;
+    },
+    [isAuthenticated],
+  );
 
   const handleHashtagClick = useCallback(
     (tag: string) => {
@@ -246,6 +274,10 @@ export function NewsfeedVideoCard({
 
   const toggleInteraction = useCallback(
     async (type: "like" | "save") => {
+      if (!requireAuth(type)) {
+        return;
+      }
+
       const isCurrentlyActive = type === "like" ? isLiked : isSaved;
       const nextActiveState = !isCurrentlyActive;
 
@@ -288,7 +320,7 @@ export function NewsfeedVideoCard({
         }
       }
     },
-    [isLiked, isSaved, likeMutation, saveMutation, video.feedId],
+    [isLiked, isSaved, likeMutation, requireAuth, saveMutation, video.feedId],
   );
 
   const handleTogglePlay = useCallback(() => {
@@ -332,13 +364,13 @@ export function NewsfeedVideoCard({
 
     if (!isActive) {
       element.pause();
-      setIsPaused(true);
+      window.setTimeout(() => setIsPaused(true), 0);
       return;
     }
 
     if (isGlobalPaused) {
       element.pause();
-      setIsPaused(true);
+      window.setTimeout(() => setIsPaused(true), 0);
     } else {
       const tryPlay = async () => {
         await element.play();
@@ -414,16 +446,7 @@ export function NewsfeedVideoCard({
 
 
   const handleFullscreen = () => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      void container.requestFullscreen();
-    }
+    onToggleFullscreen?.();
   };
 
   const handleVideoClick = useCallback(
@@ -440,12 +463,21 @@ export function NewsfeedVideoCard({
   return (
     <article
       ref={containerRef}
-      className="relative flex h-[calc(100vh-64px)] w-full snap-start items-center justify-center"
+      className="relative flex h-full w-full snap-start items-center justify-center"
     >
-      <div className="relative flex h-full w-full items-center justify-center gap-4 p-0 md:px-6">
+      <NewsfeedAuthDialog
+        open={Boolean(authDialogAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAuthDialogAction(null);
+          }
+        }}
+        action={authDialogAction ?? undefined}
+      />
+      <div className="video-player-inner relative flex h-full w-full items-center justify-center gap-4 p-0 md:px-6">
         <div
           className={cn(
-            "relative overflow-hidden bg-background dark:bg-black md:bg-black shadow-xl",
+            "newsfeed-video-frame relative overflow-hidden bg-background dark:bg-black md:bg-black shadow-xl",
             "w-full h-full rounded-none border-0",
             "md:rounded-2xl md:border md:border-border/60",
             isPortraitVideo
@@ -585,7 +617,11 @@ export function NewsfeedVideoCard({
                   <Ellipsis className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuContent
+                align="end"
+                className="z-[2147483647] w-60"
+                portalContainer={containerRef.current}
+              >
                 <DropdownMenuLabel>Tùy chọn video</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
@@ -655,13 +691,17 @@ export function NewsfeedVideoCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              className="hidden h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:inline-flex md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
               onClick={(event) => {
                 event.stopPropagation();
                 handleFullscreen();
               }}
             >
-              <Maximize2 className="h-4 w-4" />
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
             </Button>
           </div>
 
@@ -778,7 +818,7 @@ export function NewsfeedVideoCard({
 
         <div
           className={cn(
-            "absolute right-2 bottom-20 md:static flex flex-col items-center gap-3 pb-6 z-20 transition-all duration-300",
+            "newsfeed-action-rail absolute right-2 bottom-20 md:static flex flex-col items-center gap-3 pb-6 z-20 transition-all duration-300",
             isOverlayHidden && "opacity-0 pointer-events-none"
           )}
           onPointerDown={(event) => event.stopPropagation()}
@@ -847,7 +887,10 @@ export function NewsfeedVideoCard({
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             onClick={(event) => {
               event.stopPropagation();
-              onOpenShare(`${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`);
+              onOpenShare(
+                video.feedId,
+                `${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`,
+              );
             }}
           >
             <Share2 className="h-5 w-5" />

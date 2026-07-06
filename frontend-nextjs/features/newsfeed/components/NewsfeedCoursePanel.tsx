@@ -13,7 +13,6 @@ import {
 	GraduationCap,
 	ShoppingCart,
 	Sparkles,
-	Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -74,13 +73,13 @@ function RoadmapLaneItem({
 	index,
 	total,
 	isCurrent,
-	isCompleted,
+	isBeforeCurrent,
 }: {
 	course: NonNullable<RoadmapCourse["course"]>;
 	index: number;
 	total: number;
 	isCurrent: boolean;
-	isCompleted: boolean;
+	isBeforeCurrent: boolean;
 }) {
 	const href = `/courses/${course.id}`;
 
@@ -99,15 +98,15 @@ function RoadmapLaneItem({
 							"flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
 							isCurrent
 								? "border-primary bg-primary text-primary-foreground"
-								: isCompleted
-									? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+								: isBeforeCurrent
+									? "border-primary/30 bg-primary/10 text-primary"
 									: "border-border/70 bg-background text-muted-foreground",
 						)}
 					>
 						{index + 1}
 					</div>
 					{index < total - 1 ? (
-						<div className={cn("mt-2 h-8 w-px rounded-full", isCompleted ? "bg-emerald-500/35" : "bg-border/70")} />
+						<div className={cn("mt-2 h-8 w-px rounded-full", isBeforeCurrent ? "bg-primary/30" : "bg-border/70")} />
 					) : null}
 				</div>
 
@@ -121,8 +120,8 @@ function RoadmapLaneItem({
 					<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
 						<span>{course.price > 0 ? `${course.price.toLocaleString("vi-VN")} VND` : "Miễn phí"}</span>
 						<span>•</span>
-						<span className={cn("font-medium", isCurrent ? "text-primary" : isCompleted ? "text-emerald-600" : "text-muted-foreground")}>
-							{isCurrent ? "Đang học" : isCompleted ? "Đã học" : `Bài ${String(index + 1).padStart(2, "0")}`}
+						<span className={cn("font-medium", isCurrent || isBeforeCurrent ? "text-primary" : "text-muted-foreground")}>
+							{isCurrent ? "Khóa đang xem" : isBeforeCurrent ? "Bước trước" : `Bước ${String(index + 1).padStart(2, "0")}`}
 						</span>
 						<ArrowRight className="h-3 w-3" />
 					</div>
@@ -260,10 +259,6 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 							<Clock className="h-4 w-4 text-primary" />
 							{formatDurationLabel(video.course.duration)}
 						</span>
-						<span className="inline-flex items-center gap-1.5">
-							<Users className="h-4 w-4 text-primary" />
-							ID khóa học {video.course.id}
-						</span>
 						<span className="inline-flex items-center gap-1.5 text-foreground">
 							<levelMeta.icon className="h-4 w-4 text-primary" />
 							{levelMeta.label}
@@ -358,10 +353,10 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 					<div className="flex items-start justify-between gap-3">
 						<div>
 							<div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-								Lộ trình học
+								Lộ trình gợi ý
 							</div>
 							<p className="mt-2 text-sm leading-6 text-muted-foreground">
-								Học theo tuyến dọc, bài trước dẫn bài sau, không rẽ nhánh.
+								Xem khóa học này nằm ở đâu trong tuyến nội dung của giảng viên.
 							</p>
 						</div>
 						<div className="text-right text-xs text-muted-foreground">
@@ -381,7 +376,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 							{roadmapCourses.map((roadmapCourse, index) => {
 								const course = roadmapCourse.course;
 								const isCurrent = activeCourseIndex >= 0 && index === activeCourseIndex;
-								const isCompleted = activeCourseIndex >= 0 && index < activeCourseIndex;
+								const isBeforeCurrent = activeCourseIndex >= 0 && index < activeCourseIndex;
 
 								if (!course) {
 									return null;
@@ -394,7 +389,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 										index={index}
 										total={roadmapCourses.length}
 										isCurrent={isCurrent}
-										isCompleted={isCompleted}
+										isBeforeCurrent={isBeforeCurrent}
 									/>
 								);
 							})}

@@ -6,12 +6,14 @@ import { ArrowBigDownDash, ArrowBigUpDash, Clapperboard } from "lucide-react";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
 import { useNewsfeedVideoFeed } from "../hooks/useNewsfeedVideoFeed";
 import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
 import { NewsfeedOptionBox } from "./NewsfeedOptionBox";
 import { NewsfeedShareDialog } from "./NewsfeedShareDialog";
 import { NewsfeedVideoFeed } from "./NewsfeedVideoFeed";
 import { useNewsfeedHistory } from "../hooks/useNewsfeedHistory";
+import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 
 interface NewsfeedPageProps {
 	initialVideoId?: number | null;
@@ -23,7 +25,6 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		isMenuOpen,
 		isOptionBoxOpen,
 		optionBoxContentType,
-		closeMenu,
 		openOptionBox,
 		closeOptionBox,
 		setActiveVideoId,
@@ -31,7 +32,10 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	} = useNewsfeedUiStore();
 	const [shareOpen, setShareOpen] = useState(false);
 	const [shareUrl, setShareUrl] = useState("");
+	const [shareFeedId, setShareFeedId] = useState<number | null>(null);
 	const { recordHistoryItem } = useNewsfeedHistory();
+	const shareMutation = useNewsfeedInteractMutation();
+	const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
 	const activeVideo = feed.activeVideo;
 
@@ -122,10 +126,19 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		openOptionBox("comments");
 	}, [closeOptionBox, isOptionBoxOpen, openOptionBox, optionBoxContentType]);
 
-	const onOpenShare = useCallback((url: string) => {
+	const onOpenShare = useCallback((feedId: number, url: string) => {
+		setShareFeedId(feedId);
 		setShareUrl(url);
 		setShareOpen(true);
 	}, []);
+
+	const handleShareRecorded = useCallback(() => {
+		if (!shareFeedId || !isAuthenticated) {
+			return;
+		}
+
+		shareMutation.mutate({ feedId: shareFeedId, type: "share" });
+	}, [isAuthenticated, shareFeedId, shareMutation]);
 
 	if (feed.isLoading) {
 		return (
@@ -213,6 +226,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				open={shareOpen}
 				onOpenChange={setShareOpen}
 				url={shareUrl}
+				onShareRecorded={handleShareRecorded}
 			/>
 
 			<div className="fixed right-0 top-16 z-40 hidden md:flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">

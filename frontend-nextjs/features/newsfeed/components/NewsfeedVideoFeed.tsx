@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { NewsfeedItem } from "../types";
 import { NewsfeedVideoCard, type NewsfeedPlaybackRate } from "./NewsfeedVideoCard";
@@ -60,7 +62,7 @@ interface NewsfeedVideoFeedProps {
   onPrev: () => void;
   onOpenCourse: () => void;
   onOpenComments: () => void;
-  onOpenShare: (url: string) => void;
+  onOpenShare: (feedId: number, url: string) => void;
   className?: string;
 }
 
@@ -83,7 +85,14 @@ export function NewsfeedVideoFeed({
   const cancelScrollRef = useRef<(() => void) | null>(null);
   const onNextRef = useRef(onNext);
   const onPrevRef = useRef(onPrev);
-  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>("1");
+  const [playbackRate, setPlaybackRate] = useState<NewsfeedPlaybackRate>(() => {
+    if (typeof window === "undefined") {
+      return "1";
+    }
+
+    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
+    return storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate) ? storedPlaybackRate : "1";
+  });
 
   useEffect(() => {
     onNextRef.current = onNext;
@@ -91,15 +100,50 @@ export function NewsfeedVideoFeed({
   }, [onNext, onPrev]);
 
   useEffect(() => {
-    const storedPlaybackRate = window.localStorage.getItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY);
-    if (storedPlaybackRate && isNewsfeedPlaybackRate(storedPlaybackRate)) {
-      setPlaybackRate(storedPlaybackRate);
-    }
-  }, []);
-
-  useEffect(() => {
     window.localStorage.setItem(NEWSFEED_PLAYBACK_RATE_STORAGE_KEY, playbackRate);
   }, [playbackRate]);
+
+  const alignActiveItem = useCallback(() => {
+    const container = containerRef.current;
+    const activeItem = itemRefs.current.get(activeIndex);
+    if (!container || !activeItem) {
+      return;
+    }
+
+    container.scrollTop = activeItem.offsetTop;
+  }, [activeIndex]);
+
+  const scheduleActiveItemAlign = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(alignActiveItem);
+    });
+    window.setTimeout(alignActiveItem, 120);
+  }, [alignActiveItem]);
+
+  useEffect(() => {
+    document.addEventListener("fullscreenchange", scheduleActiveItemAlign);
+    return () => {
+      document.removeEventListener("fullscreenchange", scheduleActiveItemAlign);
+    };
+  }, [scheduleActiveItemAlign]);
+
+  const handleToggleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    if (window.innerWidth < 768) {
+      return;
+    }
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().finally(scheduleActiveItemAlign);
+      return;
+    }
+
+    void container.requestFullscreen().then(scheduleActiveItemAlign);
+  }, [scheduleActiveItemAlign]);
 
   const setItemRef = useCallback((index: number, node: HTMLDivElement | null) => {
     if (!node) {
@@ -191,7 +235,7 @@ export function NewsfeedVideoFeed({
     <div
       ref={containerRef}
       className={cn(
-        "h-[calc(100vh-64px)] w-full overflow-y-hidden",
+        "fullscreen-active h-[calc(100vh-64px)] w-full overflow-y-hidden bg-background",
         "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']",
         className,
       )}
@@ -203,6 +247,7 @@ export function NewsfeedVideoFeed({
             key={video.feedId}
             ref={(node) => setItemRef(index, node)}
             data-index={index}
+            className="newsfeed-video-item h-[calc(100vh-64px)]"
           >
             {isVisible ? (
               <NewsfeedVideoCard
@@ -214,13 +259,37 @@ export function NewsfeedVideoFeed({
                 onOpenCourse={onOpenCourse}
                 onOpenComments={onOpenComments}
                 onOpenShare={onOpenShare}
+                onToggleFullscreen={handleToggleFullscreen}
               />
             ) : (
-              <div className="h-[calc(100vh-64px)] w-full bg-background dark:bg-black/95 md:bg-black/95 flex items-center justify-center text-muted-foreground/20 text-xs" />
+              <div className="h-full w-full bg-background flex items-center justify-center text-muted-foreground/20 text-xs" />
             )}
           </div>
         );
       })}
+
+      <div className="newsfeed-fullscreen-nav">
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-14 w-14 rounded-full bg-white/12 text-white hover:bg-white/20 hover:text-white"
+          onClick={onPrev}
+          aria-label="Video trước"
+        >
+          <ArrowUp className="h-7 w-7" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-14 w-14 rounded-full bg-white/12 text-white hover:bg-white/20 hover:text-white"
+          onClick={onNext}
+          aria-label="Video tiếp theo"
+        >
+          <ArrowDown className="h-7 w-7" />
+        </Button>
+      </div>
     </div>
   );
 }

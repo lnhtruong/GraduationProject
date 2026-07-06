@@ -124,7 +124,11 @@ export default function SignUpForm() {
 
       <div className="space-y-4">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            autoComplete="on"
+          >
             {error && (
               <Alert variant="destructive" className="py-3">
                 <AlertCircle className="h-4 w-4" />
@@ -140,17 +144,18 @@ export default function SignUpForm() {
               </Alert>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="lastName"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-h-[78px] content-start">
                     <FormLabel>Họ</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         type="text"
+                        autoComplete="family-name"
                         placeholder="Nguyễn"
                         disabled={form.formState.isSubmitting}
                         className="h-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
@@ -164,12 +169,13 @@ export default function SignUpForm() {
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-h-[78px] content-start">
                     <FormLabel>Tên</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         type="text"
+                        autoComplete="given-name"
                         placeholder="Văn A"
                         disabled={form.formState.isSubmitting}
                         className="h-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
@@ -191,6 +197,7 @@ export default function SignUpForm() {
                     <Input
                       {...field}
                       type="email"
+                      autoComplete="email"
                       placeholder="your@email.com"
                       disabled={form.formState.isSubmitting}
                       className="h-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
@@ -212,6 +219,7 @@ export default function SignUpForm() {
                       <Input
                         {...field}
                         type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         disabled={form.formState.isSubmitting}
                         className="h-10 pr-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
@@ -247,6 +255,7 @@ export default function SignUpForm() {
                       <Input
                         {...field}
                         type={showConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         disabled={form.formState.isSubmitting}
                         className="h-10 pr-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"

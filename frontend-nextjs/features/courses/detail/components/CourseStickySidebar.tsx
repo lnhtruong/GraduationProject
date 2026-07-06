@@ -29,6 +29,7 @@ interface Props {
   isInWishlist?: boolean;
   onToggleWishlist?: () => void;
   isTogglingWishlist?: boolean;
+  hidePurchaseActions?: boolean;
 }
 
 const INCLUDES = [
@@ -39,13 +40,13 @@ const INCLUDES = [
   { icon: Smartphone, label: () => "Học trên di động & desktop" },
 ];
 
-export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart, isInCart, isInWishlist, onToggleWishlist, isTogglingWishlist }: Props) {
+export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnroll, onAddToCart, isEnrolling, isAddingToCart, isInCart, isInWishlist, onToggleWishlist, isTogglingWishlist, hidePurchaseActions = false }: Props) {
   const isFree = course.price === 0;
   const isEnrolled = enrollment !== null;
   const isCompleted = enrollment?.status === "completed";
 
   return (
-    <div id="course-enroll-cta" className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.13)]">
+    <div data-course-enroll-cta className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.13)]">
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden bg-zinc-900">
         {course.thumbnailUrl ? (
@@ -61,7 +62,7 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
 
       <div className="space-y-4 p-5">
         {/* Price */}
-        {!isEnrolled && (
+        {!isEnrolled && !hidePurchaseActions && (
           <div className="flex flex-wrap items-baseline gap-2">
             {isFree ? (
               <span className="text-2xl font-extrabold text-foreground">Miễn phí</span>
@@ -84,19 +85,25 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
         )}
 
         {/* CTA button */}
-        <EnrollButton
-          course={course}
-          enrollment={enrollment}
-          isAuthenticated={isAuthenticated}
-          onEnroll={onEnroll}
-          onAddToCart={onAddToCart}
-          isEnrolling={isEnrolling}
-          isAddingToCart={isAddingToCart}
-          isInCart={isInCart}
-          isInWishlist={isInWishlist}
-          onToggleWishlist={onToggleWishlist}
-          isTogglingWishlist={isTogglingWishlist}
-        />
+        {hidePurchaseActions ? (
+          <div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-sm text-muted-foreground">
+            Tài khoản quản trị chỉ xem và duyệt nội dung, không thực hiện mua hoặc thêm khóa học vào giỏ hàng.
+          </div>
+        ) : (
+          <EnrollButton
+            course={course}
+            enrollment={enrollment}
+            isAuthenticated={isAuthenticated}
+            onEnroll={onEnroll}
+            onAddToCart={onAddToCart}
+            isEnrolling={isEnrolling}
+            isAddingToCart={isAddingToCart}
+            isInCart={isInCart}
+            isInWishlist={isInWishlist}
+            onToggleWishlist={onToggleWishlist}
+            isTogglingWishlist={isTogglingWishlist}
+          />
+        )}
 
         {/* Guarantee */}
         {/* {!isEnrolled && (

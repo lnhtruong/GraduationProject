@@ -154,33 +154,33 @@ export function AdminCourseTable({
 
               {showActions && (
                 <TableCell className="pr-5" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1.5">
+                  <div className="flex items-center justify-end gap-2.5">
                     {course.status === "pending" ? (
                       <>
                         <Button
                           size="sm"
-                          className="h-7 gap-1.5 bg-emerald-600 px-3 text-[12px] font-medium text-white hover:bg-emerald-700"
+                          className="h-7 gap-1.5 whitespace-nowrap bg-emerald-600 px-3 text-[12px] font-medium text-white hover:bg-emerald-700"
                           onClick={() => onApprove?.(course)}
                           disabled={isBusy}
                         >
                           {isApproving ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                           ) : (
-                            <Check className="h-3 w-3" />
+                            <Check className="h-3 w-3 shrink-0" />
                           )}
                           Duyệt
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 gap-1.5 border-destructive/30 px-3 text-[12px] font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          className="h-7 gap-1.5 whitespace-nowrap border-destructive/30 px-3 text-[12px] font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
                           onClick={() => onReject?.(course)}
                           disabled={isBusy}
                         >
                           {isRejecting ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                           ) : (
-                            <X className="h-3 w-3" />
+                            <X className="h-3 w-3 shrink-0" />
                           )}
                           Từ chối
                         </Button>

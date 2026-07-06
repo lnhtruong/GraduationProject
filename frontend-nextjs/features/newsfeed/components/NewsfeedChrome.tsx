@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { NewsfeedHeader } from "./NewsfeedHeader";
 import { NewsfeedSidebar } from "./NewsfeedSidebar";
-import { getInitials } from "./newsfeed-ui";
 import { useNewsfeedUiStore } from "../store/newsfeed-ui.store";
 
 interface NewsfeedChromeProps {
@@ -37,16 +36,12 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 		[router],
 	);
 
-	const userName = user?.firstName ?? user?.email ?? null;
-	const userInitials = getInitials(user?.firstName ?? user?.email ?? "U");
-
 	return (
 		<div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 via-background to-muted/30 text-foreground dark:from-primary/10 dark:via-background dark:to-background">
 			<NewsfeedHeader
 				onToggleMenu={toggleMenu}
 				isAuthenticated={isAuthenticated}
-				userInitials={userInitials}
-				userName={userName}
+				user={user}
 				onLogout={() => {
 					void logout();
 					router.push("/signin");

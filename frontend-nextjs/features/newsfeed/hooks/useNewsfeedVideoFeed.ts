@@ -63,11 +63,15 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   const totalVideos = videos.length;
   const hasMore = Boolean(feedQuery.hasNextPage);
   const isFetchingNextPage = feedQuery.isFetchingNextPage;
+  const fetchNextPage = feedQuery.fetchNextPage;
 
   useEffect(() => {
-    setActiveIndex(0);
-    setScrollToIndex(null);
-    appliedInitialVideoIdRef.current = null;
+    const timer = window.setTimeout(() => {
+      setActiveIndex(0);
+      setScrollToIndex(null);
+      appliedInitialVideoIdRef.current = null;
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [searchTerm]);
 
   useEffect(() => {
@@ -88,9 +92,12 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
       return;
     }
 
-    setActiveIndex(targetIndex);
-    setScrollToIndex(targetIndex);
-    appliedInitialVideoIdRef.current = initialVideoId;
+    const timer = window.setTimeout(() => {
+      setActiveIndex(targetIndex);
+      setScrollToIndex(targetIndex);
+      appliedInitialVideoIdRef.current = initialVideoId;
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [initialVideoId, videos]);
 
   const safeIndex = useMemo(() => {
@@ -114,15 +121,16 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
         isFetchingNextPage,
       })
     ) {
-      void feedQuery.fetchNextPage();
+      void fetchNextPage();
     }
-  }, [enabled, feedQuery.fetchNextPage, hasMore, isFetchingNextPage, safeIndex, totalVideos]);
+  }, [enabled, fetchNextPage, hasMore, isFetchingNextPage, safeIndex, totalVideos]);
 
   useEffect(() => {
     if (activeIndex <= safeIndex) {
       return;
     }
-    setActiveIndex(safeIndex);
+    const timer = window.setTimeout(() => setActiveIndex(safeIndex), 0);
+    return () => window.clearTimeout(timer);
   }, [activeIndex, safeIndex]);
 
   const activeVideo = useMemo(() => {

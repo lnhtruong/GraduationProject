@@ -335,7 +335,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'DELETE',
     pattern: '/api/course/courses/:id',
     access: 'roles',
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'POST',
@@ -859,6 +859,8 @@ const ACCESS_RULES: AccessRule[] = [
   },
   { method: 'GET', pattern: '/api/media/feed/trending', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/hashtags/trending', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/:feedId/comments', access: 'public' },
+  { method: 'GET', pattern: '/api/media/feed/:feedId/comment/detail', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/:id', access: 'public' },
   { method: 'GET', pattern: '/api/media/feed/**', access: 'authenticated' },
   {

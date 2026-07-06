@@ -46,6 +46,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { CourseFormValues, InstructorCourse } from "../types";
 import { formatMonthYear } from "@/features/courses/utils";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
+import { useCourseCategories } from "@/features/courses/api/courseSearch.hooks";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
 const RichTextBoxCKE = dynamic(
@@ -63,6 +64,22 @@ const RichTextBoxCKE = dynamic(
 interface Props {
   course?: InstructorCourse | null;
   onSave?: (payload: CourseFormValues) => Promise<void> | void;
+}
+
+function getCourseSaveErrorMessage(error: unknown) {
+  const responseMessage = (error as {
+    response?: { data?: { message?: unknown } };
+  }).response?.data?.message;
+
+  if (typeof responseMessage === "string" && responseMessage.trim()) {
+    return responseMessage;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Không thể lưu khóa học. Vui lòng thử lại.";
 }
 
 const LANGUAGE_OPTIONS = [
@@ -87,6 +104,7 @@ const DEFAULT_DURATION = "00:00:00";
 export function CourseForm({ course, onSave }: Props) {
   const { user } = useAuth();
   const [categoryInput, setCategoryInput] = useState("");
+  const { data: categorySuggestions = [] } = useCourseCategories();
   const [filledAt, setFilledAt] = useState<string | null>(null);
   const formOpenedAt = useMemo(() => new Date().toISOString(), []);
 
@@ -108,8 +126,8 @@ export function CourseForm({ course, onSave }: Props) {
   const normalizeLanguageValue = (value?: string | null): string => {
     if (!value) return "vi";
     const normalized = value.trim().toLowerCase();
-    if (normalized === "vi" || normalized.includes("việt")) return "vi";
-    if (normalized === "en" || normalized.includes("anh")) return "en";
+    if (normalized === "vi" || normalized === "vietnamese" || normalized.includes("việt")) return "vi";
+    if (normalized === "en" || normalized === "english" || normalized.includes("anh")) return "en";
     return "vi";
   };
 
@@ -137,7 +155,7 @@ export function CourseForm({ course, onSave }: Props) {
     [course],
   );
 
-  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<CourseFormValues>({
+  const { register, control, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
     defaultValues: initialValues,
   });
@@ -156,7 +174,6 @@ export function CourseForm({ course, onSave }: Props) {
       });
       if (result?.secure_url) {
         setValue("thumbnailUrl", result.secure_url);
-        toast.success("Tải ảnh lên thành công!");
       } else {
         toast.error("Không nhận được URL ảnh từ máy chủ.");
       }
@@ -165,7 +182,9 @@ export function CourseForm({ course, onSave }: Props) {
         error instanceof Error
           ? error.message
           : String(error || "Lỗi không xác định");
-      toast.error(`Tải ảnh lên thất bại: ${errMsg}`);
+      console.error("Upload course thumbnail failed:", errMsg);
+    } finally {
+      event.target.value = "";
     }
   };
 
@@ -199,6 +218,15 @@ export function CourseForm({ course, onSave }: Props) {
     () => sanitizeHtml(previewDescriptionHtml),
     [previewDescriptionHtml],
   );
+  const categorySuggestionItems = useMemo(() => {
+    const selected = new Set(categoriesValue.map((item) => item.toLowerCase()));
+    const keyword = categoryInput.trim().toLowerCase();
+
+    return categorySuggestions
+      .filter((category) => !selected.has(category.name.toLowerCase()))
+      .filter((category) => !keyword || category.name.toLowerCase().includes(keyword))
+      .slice(0, 6);
+  }, [categoriesValue, categoryInput, categorySuggestions]);
 
   useEffect(() => {
     if (filledAt) return;
@@ -264,18 +292,30 @@ export function CourseForm({ course, onSave }: Props) {
   };
 
   const onSubmit = async (values: CourseFormValues) => {
-    await onSave?.({
-      name: values.name.trim(),
-      description: values.description.trim(),
-      thumbnailUrl: values.thumbnailUrl?.trim() || null,
-      categories: values.categories.map((item) => item.trim()).filter(Boolean),
-      level: values.level,
-      duration: values.duration.trim(),
-      language: values.language.trim(),
-      price: Number(values.price || 0),
-    });
+    try {
+      await onSave?.({
+        name: values.name.trim(),
+        description: values.description.trim(),
+        thumbnailUrl: values.thumbnailUrl?.trim() || null,
+        categories: values.categories.map((item) => item.trim()).filter(Boolean),
+        level: values.level,
+        duration: values.duration.trim(),
+        language: values.language.trim(),
+        price: Number(values.price || 0),
+      });
 
-    toast.success(isEdit ? "Đã cập nhật khóa học" : "Đã tạo khóa học mới");
+      const shouldCreateReviewRequest =
+        isEdit && course?.status && course.status !== "draft";
+      toast.success(
+        shouldCreateReviewRequest
+          ? "Đã gửi yêu cầu chỉnh sửa, đang chờ duyệt."
+          : isEdit
+            ? "Đã cập nhật khóa học"
+            : "Đã tạo khóa học mới",
+      );
+    } catch (error) {
+      toast.error(getCourseSaveErrorMessage(error));
+    }
   };
 
   /* ─── Preview Panel (rendered inside Sheet) ─── */
@@ -376,7 +416,9 @@ export function CourseForm({ course, onSave }: Props) {
         </p>
         <div className="mt-1 flex items-end justify-between gap-2">
           <p className="text-xl font-bold text-primary">
-            {Number(priceValue ?? 0).toLocaleString("vi-VN")}đ
+            {Number(priceValue ?? 0) > 0
+              ? `${Number(priceValue ?? 0).toLocaleString("vi-VN")}đ`
+              : "Miễn phí"}
           </p>
         </div>
       </div>
@@ -427,8 +469,8 @@ export function CourseForm({ course, onSave }: Props) {
             </SheetContent>
           </Sheet>
 
-          <Button type="submit" form="course-form" className="min-w-[120px]">
-            {isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
+          <Button type="submit" form="course-form" className="min-w-[120px]" disabled={isSubmitting}>
+            {isSubmitting ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
           </Button>
         </>,
         portalTarget
@@ -629,6 +671,26 @@ export function CourseForm({ course, onSave }: Props) {
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
+                      {categorySuggestionItems.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {categorySuggestionItems.map((category) => (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() =>
+                                addCategory(
+                                  category.name,
+                                  field.value ?? [],
+                                  field.onChange,
+                                )
+                              }
+                              className="rounded-full border border-border/70 bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                            >
+                              {category.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 />
@@ -715,7 +777,12 @@ export function CourseForm({ course, onSave }: Props) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setValue("thumbnailUrl", "")}
+                        onClick={() => {
+                          setValue("thumbnailUrl", "");
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
                         disabled={isUploading}
                         className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
                       >

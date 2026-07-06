@@ -7,16 +7,39 @@ function readNullableString(value: unknown): string | null {
 }
 
 function mergeUserProfile(user: User): User {
+  const normalizedUser = normalizeAuthUser(user);
   const currentUser = useAuthStore.getState().user;
-  if (!currentUser || currentUser.id !== user.id) {
-    return user;
+  if (!currentUser || currentUser.id !== normalizedUser.id) {
+    return normalizedUser;
   }
 
   return {
-    ...user,
-    firstName: user.firstName ?? currentUser.firstName ?? null,
-    lastName: user.lastName ?? currentUser.lastName ?? null,
-    avatarUrl: user.avatarUrl ?? currentUser.avatarUrl ?? null,
+    ...normalizedUser,
+    firstName: normalizedUser.firstName ?? currentUser.firstName ?? null,
+    lastName: normalizedUser.lastName ?? currentUser.lastName ?? null,
+    avatarUrl: normalizedUser.avatarUrl ?? currentUser.avatarUrl ?? null,
+  };
+}
+
+export function normalizeAuthUser(raw: unknown): User {
+  const source = (raw ?? {}) as Record<string, unknown>;
+
+  return {
+    id: Number(source.id ?? source.userId ?? source.user_id ?? 0),
+    email: typeof source.email === "string" ? source.email : "",
+    role: Number(source.role ?? 0),
+    firstName:
+      readNullableString(source.firstName) ??
+      readNullableString(source.first_name),
+    lastName:
+      readNullableString(source.lastName) ??
+      readNullableString(source.last_name),
+    avatarUrl:
+      readNullableString(source.avatarUrl) ??
+      readNullableString(source.avatar_url) ??
+      readNullableString(source.picture) ??
+      readNullableString(source.photoURL) ??
+      readNullableString(source.photoUrl),
   };
 }
 
@@ -60,6 +83,10 @@ export function buildUserFromToken(token: string): User | null {
     lastName:
       readNullableString(payload.lastName) ??
       readNullableString(payload.last_name),
+    avatarUrl:
+      readNullableString(payload.avatarUrl) ??
+      readNullableString(payload.avatar_url) ??
+      readNullableString(payload.picture),
   };
 }
 

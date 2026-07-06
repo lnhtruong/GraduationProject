@@ -226,7 +226,7 @@ export const useQuickPublishCourse = createMutationHooks<
 type LessonQuizTypeFilter = "in_video" | "after_video";
 
 const lessonQuizKeys = createKeyFactory("lesson-quizzes");
-const courseFeedKeys = createKeyFactory("course-feed");
+export const courseFeedKeys = createKeyFactory("course-feed");
 
 export function useQuizzesByLessonId(
   lessonId: number | null,

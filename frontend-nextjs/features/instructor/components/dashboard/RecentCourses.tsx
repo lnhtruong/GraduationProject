@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, Pencil } from "lucide-react";
+import { BookOpen, FolderKanban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "../../utils/format";
@@ -90,11 +90,11 @@ export function RecentCourses({ courses }: Props) {
               </div>
 
               <Link
-                href={`/instructor/courses/${course.id}/edit`}
+                href={`/instructor/courses/${course.id}`}
                 className="shrink-0 text-xs font-medium text-primary hover:underline"
-                aria-label={`Chỉnh sửa ${course.name}`}
+                aria-label={`Quản lý ${course.name}`}
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <FolderKanban className="h-3.5 w-3.5" />
               </Link>
             </li>
           ))}

@@ -2588,17 +2588,26 @@ export class CoursesService {
 
     if (lessonCount === 0) {
       throw new BadRequestException(
-        'Course must have at least one lesson before requesting review.',
+        'Khóa học cần có ít nhất một bài học trước khi gửi duyệt.',
       );
     }
   }
 
-  async submitForReview(id: number): Promise<Course> {
+  async submitForReview(
+    id: number,
+    requester?: RequesterContext,
+  ): Promise<Course> {
     const course = await this.findOne(id);
+    if (requester && requester.role !== this.ADMIN_ROLE) {
+      const ownerId = (course as Course & { userId?: number }).userId;
+      if (ownerId !== requester.userId) {
+        throw new ForbiddenException('You are not the owner of this course');
+      }
+    }
     await this.ensureCourseHasLessons(id);
     if (course.status !== CourseStatus.DRAFT) {
       throw new BadRequestException(
-        `Course must be in DRAFT status to submit for review. Current status: ${course.status}`,
+        `Chỉ có thể gửi duyệt khóa học ở trạng thái bản nháp. Trạng thái hiện tại: ${course.status}`,
       );
     }
     return await course.update({ status: CourseStatus.PENDING });

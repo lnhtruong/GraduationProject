@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Users,
-  ShieldCheck,
   ChevronRight,
   Flag,
   Wallet,
@@ -16,6 +15,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/components/BrandLogo";
+import { UserAvatar } from "@/components/UserAvatar";
+import { getUserDisplayName } from "@/lib/user-display";
 
 const NAV_ITEMS = [
   {
@@ -48,23 +50,20 @@ const NAV_ITEMS = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const displayName = getUserDisplayName(user, "Quản trị viên");
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border/60 bg-background">
       {/* Sidebar header */}
-      <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          <ShieldCheck className="h-4.5 w-4.5" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold leading-none">Admin Panel</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Quản trị hệ thống
-          </p>
-        </div>
+      <div className="border-b border-border/60 px-4 py-3">
+        <BrandLogo
+          compact
+          badge="Admin"
+          subtitle="Quản trị hệ thống"
+          className="px-0 hover:bg-transparent"
+        />
       </div>
-
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 p-3">
         <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
@@ -104,7 +103,21 @@ export function AdminSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border/60 px-3 py-3 space-y-1">
+      <div className="space-y-2 border-t border-border/60 px-3 py-3">
+        <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
+          <UserAvatar
+            user={user}
+            fallback="AD"
+            className="h-8 w-8"
+            fallbackClassName="text-xs"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold">{displayName}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {user?.email}
+            </p>
+          </div>
+        </div>
         <Link
           href="/"
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"

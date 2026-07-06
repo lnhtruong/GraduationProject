@@ -114,7 +114,11 @@ export default function SignInForm() {
 
       <div className="space-y-4">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            autoComplete="on"
+          >
             {error && (
               <Alert variant="destructive" className="py-3">
                 <AlertCircle className="h-4 w-4" />
@@ -132,6 +136,7 @@ export default function SignInForm() {
                     <Input
                       {...field}
                       type="email"
+                      autoComplete="email"
                       placeholder="your@email.com"
                       disabled={form.formState.isSubmitting}
                       className="h-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
@@ -161,6 +166,7 @@ export default function SignInForm() {
                       <Input
                         {...field}
                         type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
                         placeholder="••••••••"
                         disabled={form.formState.isSubmitting}
                         className="h-10 pr-10 bg-background focus-visible:ring-2 focus-visible:ring-primary/50 transition-shadow"
