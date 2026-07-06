@@ -54,7 +54,7 @@ export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrder
         className="w-full text-sm text-muted-foreground hover:text-foreground"
         asChild
       >
-        <Link href="/courses">Tiếp tục mua sắm</Link>
+        <Link href="/courses/search">Tiếp tục mua sắm</Link>
       </Button>
 
       {/* Trust badge */}

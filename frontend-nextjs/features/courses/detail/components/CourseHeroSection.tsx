@@ -41,14 +41,14 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
               Trang chủ
             </Link>
             <ChevronRight className="h-3 w-3 shrink-0" />
-            <Link href="/courses" className="transition-colors hover:text-white">
+            <Link href="/courses/search" className="transition-colors hover:text-white">
               Khóa học
             </Link>
             {course.categories[0] && (
               <>
                 <ChevronRight className="h-3 w-3 shrink-0" />
                 <Link
-                  href={`/courses?category=${course.categories[0].id}`}
+                  href={`/courses/search?categoryId=${course.categories[0].id}`}
                   className="transition-colors hover:text-white"
                 >
                   {course.categories[0].name}

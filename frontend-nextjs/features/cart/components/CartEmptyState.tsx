@@ -22,7 +22,7 @@ export function CartEmptyState() {
           className="border-primary/40 text-primary hover:bg-primary/5"
           asChild
         >
-          <Link href="/courses">Khám phá khoá học</Link>
+          <Link href="/courses/search">Khám phá khoá học</Link>
         </Button>
       </div>
 

@@ -61,7 +61,7 @@ function EmptyState({ filter }: { filter: EnrollStatusFilter }) {
         className="border-primary/40 text-primary hover:bg-primary/5"
         asChild
       >
-        <Link href="/courses">Khám phá khóa học</Link>
+        <Link href="/courses/search">Khám phá khóa học</Link>
       </Button>
     </motion.div>
   );
