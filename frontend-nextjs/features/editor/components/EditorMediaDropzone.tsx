@@ -11,6 +11,8 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
 import { type VideoCompletedPayload } from "@/features/_shared/realtime/media-upload-stream";
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
+import { useQueryClient } from "@tanstack/react-query";
+import { videoKeys } from "@/features/video/api/video.hooks";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
@@ -67,6 +69,7 @@ export default function EditorMediaDropzone({
   showDragIcon = true,
 }: EditorMediaDropzoneProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [files, setFiles] = React.useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
@@ -242,6 +245,7 @@ export default function EditorMediaDropzone({
 
         const uploadedUrl = response.secure_url;
         const videoId = await waitForUploadedVideoId(uploadedUrl);
+        await queryClient.invalidateQueries({ queryKey: videoKeys.root });
         onMediaSelect(uploadedUrl, undefined, videoId);
         onUploadComplete?.();
       } catch (error) {

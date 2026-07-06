@@ -246,12 +246,14 @@ export default function CoursesPage() {
                 Tổ chức và vận hành toàn bộ khóa học của bạn trong một workspace gọn, rõ và dễ mở rộng.
               </p>
             </div>
-            <Button asChild size="sm" className="h-9 px-4 rounded-xl shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer">
-              <Link href="/instructor/courses/new">
-                <CirclePlus className="mr-1.5 h-4 w-4" />
-                Tạo khóa học
-              </Link>
-            </Button>
+            {user?.role !== ROLES.ADMIN ? (
+              <Button asChild size="sm" className="h-9 px-4 rounded-xl shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer">
+                <Link href="/instructor/courses/new">
+                  <CirclePlus className="mr-1.5 h-4 w-4" />
+                  Tạo khóa học
+                </Link>
+              </Button>
+            ) : null}
           </div>
 
           {/* Interactive Statistics Metrics Panel (acts as filter tab) */}
@@ -398,12 +400,14 @@ export default function CoursesPage() {
                     Hiện chưa có dữ liệu khóa học để quản lý. Bắt đầu bằng cách tạo khóa học đầu tiên của bạn để chia sẻ kiến thức với cộng đồng.
                   </p>
                 </div>
-                <Button asChild size="sm" className="rounded-xl cursor-pointer">
-                  <Link href="/instructor/courses/new">
-                    <CirclePlus className="mr-1.5 h-4 w-4" />
-                    Tạo khóa học đầu tiên
-                  </Link>
-                </Button>
+                {user?.role !== ROLES.ADMIN ? (
+                  <Button asChild size="sm" className="rounded-xl cursor-pointer">
+                    <Link href="/instructor/courses/new">
+                      <CirclePlus className="mr-1.5 h-4 w-4" />
+                      Tạo khóa học đầu tiên
+                    </Link>
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           ) : !filteredCourses.length ? (

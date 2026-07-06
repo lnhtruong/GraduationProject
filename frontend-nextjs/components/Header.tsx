@@ -1,7 +1,6 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -24,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,11 +36,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchBar } from "@/components/SearchBar";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useCartSummary } from "@/features/cart/api/cart.hooks";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { canAccessInstructor, getRoleName, ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { getUserDisplayName } from "@/lib/user-display";
 import { useUiModeStore } from "@/store/ui-mode";
 
 const LEARNER_NAV_ITEMS = [
@@ -108,18 +109,7 @@ export function Header() {
     };
   }, [pathname]);
 
-  const displayName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
-    user?.email ||
-    "Người dùng";
-
-  const userInitials = (() => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
-    }
-
-    return (user?.email?.[0] ?? "U").toUpperCase();
-  })();
+  const displayName = getUserDisplayName(user);
 
   const switchMode = () => {
     const nextMode = isTeacherMode ? "learner" : "teacher";
@@ -133,27 +123,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/92 shadow-xs backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-3 px-3 sm:px-5 lg:px-8">
-        <Link
-          href="/"
-          className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/60"
-        >
-          <Image
-            src="/logo.png"
-            alt="LearnHub"
-            width={42}
-            height={42}
-            priority
-            className="h-10 w-10 rounded-xl"
-          />
-          <div className="hidden leading-tight sm:block">
-            <p className="text-base font-extrabold tracking-tight text-foreground">
-              LearnHub
-            </p>
-            <p className="text-[11px] font-medium text-muted-foreground">
-              Học tập thông minh
-            </p>
-          </div>
-        </Link>
+        <BrandLogo />
 
         <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => {
@@ -297,10 +267,7 @@ export function Header() {
                   variant="ghost"
                   className="h-10 gap-2 rounded-full border border-border/70 px-1.5 pr-3"
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatarUrl ?? undefined} alt={displayName} />
-                    <AvatarFallback>{userInitials}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar user={user} className="h-8 w-8" />
                   <span className="hidden max-w-28 truncate text-sm font-semibold lg:inline">
                     {displayName}
                   </span>

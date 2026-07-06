@@ -183,6 +183,8 @@ export function CourseForm({ course, onSave }: Props) {
           ? error.message
           : String(error || "Lỗi không xác định");
       console.error("Upload course thumbnail failed:", errMsg);
+    } finally {
+      event.target.value = "";
     }
   };
 
@@ -302,7 +304,15 @@ export function CourseForm({ course, onSave }: Props) {
         price: Number(values.price || 0),
       });
 
-      toast.success(isEdit ? "Đã cập nhật khóa học" : "Đã tạo khóa học mới");
+      const shouldCreateReviewRequest =
+        isEdit && course?.status && course.status !== "draft";
+      toast.success(
+        shouldCreateReviewRequest
+          ? "Đã gửi yêu cầu chỉnh sửa, đang chờ duyệt."
+          : isEdit
+            ? "Đã cập nhật khóa học"
+            : "Đã tạo khóa học mới",
+      );
     } catch (error) {
       toast.error(getCourseSaveErrorMessage(error));
     }
@@ -767,7 +777,12 @@ export function CourseForm({ course, onSave }: Props) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setValue("thumbnailUrl", "")}
+                        onClick={() => {
+                          setValue("thumbnailUrl", "");
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
                         disabled={isUploading}
                         className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
                       >

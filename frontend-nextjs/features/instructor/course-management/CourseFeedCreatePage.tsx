@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
+  courseFeedKeys,
   useCourseFeed,
   useCourseFeedCandidateVideos,
   useCreateCourseFeed,
@@ -110,6 +112,7 @@ function formatDuration(duration: number | null | undefined): string {
 
 export default function CourseFeedCreatePage({ courseId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: feeds } = useCourseFeed(courseId);
@@ -688,7 +691,12 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         open={isHighlightUploadOpen}
         onOpenChange={setIsHighlightUploadOpen}
         onUploadSuccess={() => {
-          // Refresh candidate videos
+          void queryClient.invalidateQueries({
+            queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: courseFeedKeys.root,
+          });
           router.refresh();
         }}
       />

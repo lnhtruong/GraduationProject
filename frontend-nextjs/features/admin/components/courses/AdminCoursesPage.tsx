@@ -38,7 +38,7 @@ import type {
 
 type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
 type KindFilter = "all" | CourseChangeRequestKind;
-type CourseStatusFilter = "pending" | "approved" | "rejected" | "all";
+type CourseStatusFilter = "pending" | "publish" | "rejected" | "all";
 type CRStatusFilter = "pending" | "approved" | "rejected" | "all";
 type ConfirmCourseAction = { type: "approve" | "reject"; course: Course };
 type ConfirmCRAction = { type: "approve" | "reject"; request: CourseChangeRequest };
@@ -65,7 +65,7 @@ const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
 
 const COURSE_STATUS_OPTIONS: { value: CourseStatusFilter; label: string }[] = [
   { value: "pending", label: "Chờ duyệt" },
-  { value: "approved", label: "Đã duyệt" },
+  { value: "publish", label: "Đã xuất bản" },
   { value: "rejected", label: "Đã từ chối" },
   { value: "all", label: "Tất cả" },
 ];
@@ -237,7 +237,7 @@ export default function AdminCoursesPage() {
     level: levelFilter !== "all" ? levelFilter : undefined,
     minPrice: isPriceFiltered ? priceCommitted[0] : undefined,
     maxPrice: isPriceFiltered && priceCommitted[1] < PRICE_MAX ? priceCommitted[1] : undefined,
-    status: courseStatusFilter !== "all" ? courseStatusFilter as "pending" | "approved" | "rejected" : undefined,
+    status: courseStatusFilter !== "all" ? courseStatusFilter : undefined,
   };
 
   const { data: courseData, isLoading: isCourseLoading, isError: isCourseError, refetch: refetchCourses } =

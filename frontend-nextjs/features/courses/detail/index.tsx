@@ -17,6 +17,7 @@ import { useCourseDetail } from "../api/courseDetail.api";
 import { useBuyNow } from "@/features/payment/api/payment.hooks";
 import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 import { useIsInWishlist, useToggleWishlistMutation } from "@/features/wishlist/api/wishlist.hooks";
+import { ROLES } from "@/lib/roles";
 
 // ---------------------------------------------------------------------------
 // Inline minor sections
@@ -84,6 +85,7 @@ export default function CourseDetail({ courseId }: Props) {
 
   const { user } = useAuthStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const isAdmin = user?.role === ROLES.ADMIN;
   const { data: enrollment } = useEnrollmentCheck(courseId, user?.id);
 
   const buyNow = useBuyNow(courseId);
@@ -174,6 +176,7 @@ export default function CourseDetail({ courseId }: Props) {
                 course={course}
                 enrollment={enrollment ?? null}
                 isAuthenticated={isAuthenticated}
+                hidePurchaseActions={isAdmin}
                 onEnroll={handleEnroll}
                 onAddToCart={course.price > 0 ? handleAddToCart : undefined}
                 isEnrolling={buyNow.isPending}
@@ -209,6 +212,7 @@ export default function CourseDetail({ courseId }: Props) {
                 course={course}
                 enrollment={enrollment ?? null}
                 isAuthenticated={isAuthenticated}
+                hidePurchaseActions={isAdmin}
                 onEnroll={handleEnroll}
                 onAddToCart={course.price > 0 ? handleAddToCart : undefined}
                 isEnrolling={buyNow.isPending}
@@ -225,6 +229,7 @@ export default function CourseDetail({ courseId }: Props) {
       </div>
 
       {/* ── Mobile bottom CTA bar ───────────────────────── */}
+      {!isAdmin ? (
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
         {enrollment ? (
           <>
@@ -253,6 +258,7 @@ export default function CourseDetail({ courseId }: Props) {
           </>
         )}
       </div>
+      ) : null}
     </div>
   );
 }

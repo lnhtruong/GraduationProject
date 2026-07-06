@@ -47,10 +47,12 @@ export function HighlightUploadDialog({
     cancel,
   } = useUpload({ autoCreateProject: false });
   const [showForm, setShowForm] = React.useState(false);
+  const notifiedJobRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!open) {
       setShowForm(false);
+      notifiedJobRef.current = null;
       // cancel() and setFile() come from the upload hook and may have
       // non-stable identities between renders. We intentionally omit them
       // from the dependency list to avoid re-running this effect repeatedly
@@ -63,10 +65,11 @@ export function HighlightUploadDialog({
   }, [open]);
 
   React.useEffect(() => {
-    if (status === "completed" && clips.length > 0) {
+    if (status === "completed" && clips.length > 0 && notifiedJobRef.current !== jobId) {
+      notifiedJobRef.current = jobId ?? "completed";
       onUploadSuccess?.();
     }
-  }, [status, clips, onUploadSuccess]);
+  }, [status, clips.length, jobId, onUploadSuccess]);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -143,14 +146,14 @@ export function HighlightUploadDialog({
           <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 text-left sm:px-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary animate-pulse">
               <Sparkles className="h-3.5 w-3.5" />
-              Tạo highlight video
+              Tạo highlight từ video bài giảng
             </div>
             <div className="mt-2">
               <DialogTitle className="text-xl font-bold">
-                Tải lên video bài giảng & Tạo Highlight
+                Chọn video bài giảng để tạo highlight
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
-                Chọn file, đặt topic và keyword để AI tự động cắt các clip ngắn chất lượng cao.
+                Upload video gốc, sau đó đặt chủ đề và từ khóa để AI cắt ra các đoạn highlight phù hợp.
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -160,7 +163,7 @@ export function HighlightUploadDialog({
               <UploadDropzone
                 onFileSelect={handleFileSelect}
                 variant="hero"
-                title="Kéo và thả video highlight vào đây"
+                title="Kéo và thả video bài giảng vào đây"
                 subtitle="hoặc"
               />
             )}
@@ -202,14 +205,14 @@ export function HighlightUploadDialog({
 
             {!file && (
               <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-                Tip: dùng file gốc chất lượng cao để AI cắt highlight chuẩn hơn.
+                Gợi ý: dùng video gốc rõ hình, rõ tiếng để AI cắt highlight chuẩn hơn.
               </div>
             )}
           </div>
 
           <div className="sticky bottom-0 border-t border-border/70 bg-background px-5 py-4 flex items-center justify-between gap-3 sm:px-6">
             <div className="text-xs text-muted-foreground">
-              {isCompleted ? "Xử lý video hoàn tất" : isProcessing ? "Đang xử lý..." : "Sẵn sàng tải lên video mới"}
+              {isCompleted ? "Xử lý video hoàn tất" : isProcessing ? "Đang xử lý..." : "Sẵn sàng chọn video"}
             </div>
             <Button
               type="button"
