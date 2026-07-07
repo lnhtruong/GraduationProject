@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
 import type { UploadStatus } from "@/features/upload/types";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 // ============================================================================
 // ANIMATED PROGRESS HOOK
@@ -206,6 +207,13 @@ export default function ProcessingStatus({
   // Don't render if idle
   if (status === "idle") return null;
 
+  const safeErrorMessage = error
+    ? getUserFacingErrorMessage(
+        error,
+        "Không thể xử lý video. Vui lòng thử lại.",
+      )
+    : null;
+
   // Icon color based on status
   const iconColor =
     status === "processing" || status === "uploading"
@@ -252,10 +260,10 @@ export default function ProcessingStatus({
       )}
 
       {/* Error Message */}
-      {status === "failed" && error && (
+      {status === "failed" && safeErrorMessage && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{safeErrorMessage}</AlertDescription>
         </Alert>
       )}
 

@@ -30,6 +30,7 @@ import {
 	type LibraryTabValue,
 	type PreviewItem,
 } from "./types";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export default function LibraryFeature() {
 	const router = useRouter();
@@ -213,16 +214,8 @@ export default function LibraryFeature() {
 }
 
 function toErrorMessage(error: unknown): string {
-	if (error instanceof Error) {
-		return error.message;
-	}
-
-	if (typeof error === "object" && error !== null) {
-		const maybeMessage = (error as { message?: unknown }).message;
-		if (typeof maybeMessage === "string") {
-			return maybeMessage;
-		}
-	}
-
-	return "Vui lòng thử lại sau.";
+	return getUserFacingErrorMessage(
+		error,
+		"Hiện chưa thể tải thư viện. Vui lòng thử lại sau.",
+	);
 }

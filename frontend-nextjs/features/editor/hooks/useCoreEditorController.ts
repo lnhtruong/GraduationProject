@@ -29,6 +29,7 @@ import {
   type VideoErrorPayload,
   createMediaUploadStream,
 } from "@/features/_shared/realtime/media-upload-stream";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export interface CoreEditorControllerProps {
   disableUpload?: boolean;
@@ -575,8 +576,12 @@ export function useCoreEditorController({
       toast.success("Tạo mascot video thành công, chuyển sang thư viện...");
       router.push("/library");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Tạo mascot video thất bại: ${message}`);
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "Không thể tạo video mascot. Vui lòng thử lại.",
+        ),
+      );
     } finally {
       setIsCreatingMascotVideo(false);
     }

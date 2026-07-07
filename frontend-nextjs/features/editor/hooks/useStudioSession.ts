@@ -27,25 +27,13 @@ import { normalizeMascotScale } from "@/features/editor/utils/mascotPlacement";
 import { toast } from "sonner";
 import type { Video } from "@/features/video";
 import type { Image } from "@/features/image";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-
-  if (typeof error === "object" && error !== null) {
-    const e = error as {
-      response?: {
-        data?: {
-          message?: string | string[];
-        };
-      };
-    };
-
-    const msg = e.response?.data?.message;
-    if (Array.isArray(msg)) return msg.join(" | ");
-    if (typeof msg === "string") return msg;
-  }
-
-  return "Unknown error";
+  return getUserFacingErrorMessage(
+    error,
+    "Không thể tải phiên chỉnh sửa. Vui lòng thử lại.",
+  );
 }
 
 export function useStudioSession() {

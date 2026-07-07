@@ -12,6 +12,7 @@ import { useVideoById } from "@/features/video/api/video.hooks";
 import { getVideoCardTitle, formatDuration } from "../../utils/lesson-form.utils";
 import { VideoPreview } from "./VideoPreview";
 import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Video {
   id: number;
@@ -212,9 +213,12 @@ export function VideoSelectionSection({
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Không thể bắt đầu upload.";
-      toast.error(message);
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "Không thể bắt đầu upload. Vui lòng thử lại.",
+        ),
+      );
     }
   };
 
@@ -367,7 +371,10 @@ export function VideoSelectionSection({
                   <p className="text-green-600 dark:text-green-400">Upload hoàn tất.</p>
                 ) : session.status === "failed" ? (
                   <p className="text-destructive">
-                    Upload thất bại{session.error ? `: ${session.error}` : "."}
+                    {getUserFacingErrorMessage(
+                      session.error,
+                      "Upload thất bại. Vui lòng thử lại.",
+                    )}
                   </p>
                 ) : session.status === "canceled" ? (
                   <p className="text-muted-foreground">Đã hủy upload.</p>

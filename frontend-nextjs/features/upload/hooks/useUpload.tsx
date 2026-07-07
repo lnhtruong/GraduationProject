@@ -18,6 +18,7 @@ import type {
   UploadHookReturn,
   HighlightParams,
 } from "@/features/upload/types";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 // ============================================================================
 // INITIAL STATE
@@ -138,7 +139,10 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       setState((prev) => ({
         ...prev,
         status: "failed",
-        error: error.message,
+        error: getUserFacingErrorMessage(
+          error,
+          "Không thể xử lý video. Vui lòng thử lại.",
+        ),
         progress: null,
       }));
     },

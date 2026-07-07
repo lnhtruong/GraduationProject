@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { CourseForm } from "./components/CourseForm";
 import {
@@ -24,15 +25,15 @@ function getWorkflowErrorMessage(error: unknown, fallback: string) {
     response?: { data?: { message?: unknown } };
   }).response?.data?.message;
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 export default function CourseFormPage({ courseId }: Props) {

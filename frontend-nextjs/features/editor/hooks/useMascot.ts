@@ -14,6 +14,7 @@ import {
   type VideoCompletedPayload,
   type VideoErrorPayload,
 } from "@/features/_shared/realtime/media-upload-stream";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export function useMascot() {
   // ============================================================================
@@ -148,9 +149,12 @@ export function useMascot() {
     } catch (error) {
       setIsApplyingMascot(false);
       setMascotProgress("");
-      const errorMsg =
-        error instanceof Error ? error.message : "Lỗi không xác định";
-      toast.error(errorMsg);
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "Không thể tạo video mascot. Vui lòng thử lại.",
+        ),
+      );
       throw error;
     }
   };

@@ -1,5 +1,6 @@
 import * as tus from "tus-js-client";
 import { videoApi } from "../api/video.api";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 type StartUploadPayload = {
   file: File;
@@ -83,7 +84,12 @@ class LessonVideoUploadManager {
       },
       onError: (error) => {
         this.cleanupAll();
-        handlers.onError?.(error.message || "Upload thất bại.");
+        handlers.onError?.(
+          getUserFacingErrorMessage(
+            error,
+            "Upload thất bại. Vui lòng thử lại.",
+          ),
+        );
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         const progressPercent = Math.min(
@@ -177,11 +183,12 @@ class LessonVideoUploadManager {
           void poll();
         }, 10000);
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Không thể kiểm tra trạng thái video.";
-        handlers.onError?.(message);
+        handlers.onError?.(
+          getUserFacingErrorMessage(
+            error,
+            "Không thể kiểm tra trạng thái video. Vui lòng thử lại sau.",
+          ),
+        );
         this.cleanupAll();
       }
     };

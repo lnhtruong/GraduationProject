@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowBigDownDash, ArrowBigUpDash, Clapperboard } from "lucide-react";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useNewsfeedVideoFeed } from "../hooks/useNewsfeedVideoFeed";
@@ -149,12 +150,17 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	}
 
 	if (feed.error) {
-		const message = feed.error instanceof Error ? feed.error.message : "Không thể tải bảng tin";
+		const message = getUserFacingErrorMessage(
+			feed.error,
+			"Hiện chưa thể tải bảng tin. Vui lòng thử lại sau.",
+		);
 
 		return (
 			<div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
-				<Clapperboard className="h-12 w-12 text-destructive" />
-				<h2 className="text-2xl font-bold">Tải bảng tin thất bại</h2>
+				<div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+					<Clapperboard className="h-8 w-8" />
+				</div>
+				<h2 className="text-2xl font-bold">Chưa tải được bảng tin</h2>
 				<p className="text-muted-foreground max-w-xl">
 					{message}
 				</p>

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { FolderKanban, RefreshCcw } from "lucide-react";
 import { ProjectCard } from "./ProjectCard";
 import type { WorkspaceProjectItem } from "../types";
@@ -98,8 +99,8 @@ function ProjectGridSkeleton() {
 }
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Đã xảy ra lỗi không xác định";
+  return getUserFacingErrorMessage(
+    error,
+    "Hiện chưa thể tải danh sách dự án. Vui lòng thử lại sau.",
+  );
 }

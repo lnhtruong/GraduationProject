@@ -52,6 +52,7 @@ import {
   createMediaUploadStream,
   type UploadStreamSubscription,
 } from "@/features/_shared/realtime/media-upload-stream";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Props {
   open: boolean;
@@ -65,7 +66,7 @@ interface Props {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 export function ActivityCreationDialog({
@@ -251,7 +252,11 @@ export function ActivityCreationDialog({
         },
         onError: (payload) => {
           if (payload.jobId === jobId) {
-            toast.error(`Sinh quiz thất bại: ${payload.error?.message || "Lỗi từ worker"}`);
+            const message = getErrorMessage(
+              payload.error,
+              "Không thể sinh quiz. Vui lòng thử lại.",
+            );
+            toast.error(message);
             setView("create");
             setStage("");
 

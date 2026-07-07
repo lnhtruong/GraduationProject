@@ -23,6 +23,7 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,15 +72,15 @@ function getCourseSaveErrorMessage(error: unknown) {
     response?: { data?: { message?: unknown } };
   }).response?.data?.message;
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "Không thể lưu khóa học. Vui lòng thử lại.";
+  return getUserFacingErrorMessage(error, "Không thể lưu khóa học. Vui lòng thử lại.");
 }
 
 const LANGUAGE_OPTIONS = [

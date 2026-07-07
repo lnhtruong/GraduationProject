@@ -31,6 +31,7 @@ import {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { useDebounce } from "@/hooks/useDebounce";
 
 type StatusFilter =
@@ -48,15 +49,15 @@ function getWorkflowErrorMessage(error: unknown, fallback: string) {
     response?: { data?: { message?: unknown } };
   }).response?.data?.message;
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 export default function CoursesPage() {

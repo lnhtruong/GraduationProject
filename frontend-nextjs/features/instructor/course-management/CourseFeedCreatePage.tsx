@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
@@ -76,15 +77,15 @@ function getCreateFeedErrorMessage(error: unknown): string {
     return "Video này đã có trên feed. Vui lòng chọn highlight khác.";
   }
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "Không thể tạo feed. Vui lòng thử lại.";
+  return getUserFacingErrorMessage(error, "Không thể tạo feed. Vui lòng thử lại.");
 }
 
 function getVideoThumbnail(video: CourseFeedCandidateVideo): string | null {

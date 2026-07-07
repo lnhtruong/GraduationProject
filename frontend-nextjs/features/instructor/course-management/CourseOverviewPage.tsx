@@ -58,6 +58,7 @@ import { formatDuration, formatPrice } from "@/features/courses/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Props {
   courseId: number;
@@ -182,9 +183,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
         toast.success("Đã publish khóa học");
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Cập nhật trạng thái thất bại";
-      toast.error(message);
+      toast.error(getUserFacingErrorMessage(error, "Cập nhật trạng thái thất bại"));
     }
   };
 
