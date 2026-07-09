@@ -371,12 +371,38 @@ export class AuthService {
     return state;
   }
 
-  private async verifyOAuthState(state: string): Promise<void> {
+  // OAuth callbacks can arrive more than once for a single login (e.g.
+  // Facebook/browser prefetching the redirect URL). Only the first request
+  // may run the code exchange; duplicates wait for its cached result.
+  private async consumeOAuthStateOnce(state: string): Promise<boolean> {
     const value = await this.redisService.get('oauth_state:' + state);
-    if (!value) {
-      throw new UnauthorizedException('Invalid OAuth state');
+    if (!value) return false;
+    const isFirst = await this.redisService.setLock(
+      'oauth_state_used:' + state,
+      '1',
+      300,
+    );
+    if (isFirst) {
+      await this.redisService.del('oauth_state:' + state);
     }
-    await this.redisService.del('oauth_state:' + state);
+    return isFirst;
+  }
+
+  private async storeOAuthResult(state: string, result: object): Promise<void> {
+    await this.redisService.set(
+      'oauth_result:' + state,
+      JSON.stringify(result),
+      120,
+    );
+  }
+
+  private async waitForOAuthResult(state: string) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const raw = await this.redisService.get('oauth_result:' + state);
+      if (raw) return JSON.parse(raw);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return null;
   }
 
   async createOAuthSession(payload: {
@@ -421,7 +447,12 @@ export class AuthService {
   }
 
   async githubCallback(code: string, state: string) {
-    await this.verifyOAuthState(state);
+    const isFirstCallback = await this.consumeOAuthStateOnce(state);
+    if (!isFirstCallback) {
+      const cached = await this.waitForOAuthResult(state);
+      if (cached) return cached;
+      throw new UnauthorizedException('Invalid OAuth state');
+    }
     const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
     const clientSecret = this.configService.get<string>('GITHUB_CLIENT_SECRET');
     const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
@@ -508,7 +539,9 @@ export class AuthService {
       });
     }
 
-    return this.issueAuthTokens(user);
+    const result = await this.issueAuthTokens(user);
+    await this.storeOAuthResult(state, result);
+    return result;
   }
 
   async buildFacebookOAuthUrl(): Promise<string> {
@@ -532,7 +565,12 @@ export class AuthService {
   }
 
   async facebookCallback(code: string, state: string) {
-    await this.verifyOAuthState(state);
+    const isFirstCallback = await this.consumeOAuthStateOnce(state);
+    if (!isFirstCallback) {
+      const cached = await this.waitForOAuthResult(state);
+      if (cached) return cached;
+      throw new UnauthorizedException('Invalid OAuth state');
+    }
     const appId = this.configService.get<string>('FACEBOOK_APP_ID');
     const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
     const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
@@ -594,7 +632,9 @@ export class AuthService {
       });
     }
 
-    return this.issueAuthTokens(user);
+    const result = await this.issueAuthTokens(user);
+    await this.storeOAuthResult(state, result);
+    return result;
   }
 
   private async issueAuthTokens(user: User) {

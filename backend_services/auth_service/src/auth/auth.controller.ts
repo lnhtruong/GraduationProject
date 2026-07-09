@@ -101,7 +101,11 @@ export class AuthController {
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
       );
-    } catch {
+    } catch (err) {
+      console.error(
+        'GitHub OAuth callback failed:',
+        err?.response?.data ?? err,
+      );
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?error=login_failed`,
       );
@@ -143,7 +147,11 @@ export class AuthController {
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?session=${nonce}`,
       );
-    } catch {
+    } catch (err) {
+      console.error(
+        'Facebook OAuth callback failed:',
+        err?.response?.data ?? err,
+      );
       return res.redirect(
         `${frontendUrl}/auth/oauth-callback?error=login_failed`,
       );

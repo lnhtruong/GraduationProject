@@ -28,6 +28,7 @@ type VideoUploadContext = {
 @Injectable()
 export class BunnyService {
   private readonly apiBase = 'https://video.bunnycdn.com';
+  private readonly defaultCdnBaseUrl = 'https://vz-e0f2a12f-935.b-cdn.net';
 
   constructor(
     @InjectModel(Video)
@@ -57,6 +58,15 @@ export class BunnyService {
     return createHash('sha256')
       .update(`${libraryId}${streamApiKey}${expiresAt}${videoId}`)
       .digest('hex');
+  }
+
+  private getCdnBaseUrl() {
+    return (process.env.BUNNY_STREAM_CDN_BASE_URL?.trim() || this.defaultCdnBaseUrl)
+      .replace(/\/+$/, '');
+  }
+
+  private buildOriginalVideoUrl(videoId: string) {
+    return `${this.getCdnBaseUrl()}/${encodeURIComponent(videoId)}/original`;
   }
 
   private parsePositiveInt(value: unknown): number | undefined {
@@ -119,12 +129,13 @@ export class BunnyService {
         throw new InternalServerErrorException('Bunny did not return a valid video guid');
       }
 
+      const initialVideoUrl = this.buildOriginalVideoUrl(bunnyVideoId);
       const uploadContext = this.buildUploadContext(body?.meta);
       const videoRow = await this.videoModel.create({
         user_id: userId,
         type: VideoType.LONG,
         bunny_video_guid: bunnyVideoId,
-        url: null,
+        url: initialVideoUrl,
         name: title,
         duration: null,
         thumbnail: 'https://placehold.co/320x180/png?text=processing',
@@ -141,6 +152,8 @@ export class BunnyService {
         success: true,
         videoId: videoRow.id,
         bunnyVideoId,
+        url: initialVideoUrl,
+        // originalUrl: initialVideoUrl,
         libraryId,
         tus: {
           endpoint: `${this.apiBase}/tusupload`,

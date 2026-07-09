@@ -79,6 +79,16 @@ type QuizPayload = {
     model?: string;
 };
 
+type HighlightMultiVideoResult = {
+    topic_id?: number | string;
+    title?: string;
+    description?: string;
+    download_url?: string;
+    srt_url?: string;
+    duration?: number | string;
+    [key: string]: unknown;
+};
+
 export interface ai_model_result {
     event?: 'stage_update' | 'completed' | 'job_failed'; // Thêm field này
     job_id?: string;
@@ -94,6 +104,7 @@ export interface ai_model_result {
     duration?: number;
     display_name?: string;
     source_original_filename?: string;
+    videos?: HighlightMultiVideoResult[];
 
     // Dành cho quiz type=quiz
     quiz?: {
@@ -718,7 +729,185 @@ export class WebhookService {
         return undefined;
     }
 
+    private normalizeText(value: unknown): string | undefined {
+        return typeof value === 'string' && value.trim().length > 0
+            ? value.trim()
+            : undefined;
+    }
+
+    private buildCloudinaryVideoThumbnailUrl(assetUrl: string): string | undefined {
+        try {
+            const url = new URL(assetUrl);
+            if (!url.pathname.includes('/video/upload/')) {
+                return undefined;
+            }
+
+            url.pathname = url.pathname
+                .replace('/video/upload/', '/video/upload/so_1/')
+                .replace(/\.[^/.]+$/, '.jpg');
+            return url.toString();
+        } catch {
+            return undefined;
+        }
+    }
+
+    private buildHighlightMultiJobId(jobId: string | undefined, topicId: number | undefined) {
+        if (!jobId || !topicId) {
+            return null;
+        }
+        return `${jobId}:highlight-multi:${topicId}`;
+    }
+
+    private async handleHighlightMultiCompleted(params: {
+        payload: ai_model_result;
+        userId: number;
+        jobId?: string;
+    }) {
+        const { payload, userId, jobId } = params;
+        const videos = Array.isArray(payload.videos) ? payload.videos : [];
+
+        if (!videos.length) {
+            this.logger.warn('highlight-multi completed missing videos[]');
+            return { ignored: true, reason: 'missing_videos' };
+        }
+
+        const createdVideos: Array<{
+            videoId: number;
+            topicId?: number;
+            title?: string;
+            url: string;
+            srtUrl?: string;
+            duration?: number;
+        }> = [];
+
+        for (const [index, video] of videos.entries()) {
+            const url = this.normalizeText(video.download_url);
+            if (!url) {
+                this.logger.warn(
+                    `highlight-multi video index=${index} missing download_url`,
+                );
+                continue;
+            }
+
+            const topicId =
+                this.parsePositiveInt(video.topic_id) ?? index + 1;
+            const derivedJobId = this.buildHighlightMultiJobId(jobId, topicId);
+            const title =
+                this.normalizeText(video.title) ??
+                `${payload.source_original_filename ?? jobId ?? 'highlight'} - topic ${topicId}`;
+            const srtUrl = this.normalizeText(video.srt_url) ?? payload.srt_url ?? null;
+            const durationRaw = Number(video.duration);
+            const duration =
+                Number.isFinite(durationRaw) && durationRaw > 0 ? durationRaw : null;
+            const thumbnail =
+                this.buildCloudinaryVideoThumbnailUrl(url) ??
+                'https://placehold.co/320x180/png?text=thumbnail';
+
+            let row: Video;
+            if (derivedJobId) {
+                const [found] = await this.videoModel.findOrCreate({
+                    where: { job_id: derivedJobId },
+                    defaults: {
+                        job_id: derivedJobId,
+                        user_id: userId,
+                        type: VideoType.HIGHLIGHT,
+                        url,
+                        duration,
+                        name: title,
+                        thumbnail,
+                        srt_raw_url: srtUrl,
+                        upload_context: {
+                            sourceJobId: jobId,
+                            topicId,
+                            description: this.normalizeText(video.description) ?? null,
+                            sourceOriginalFilename: payload.source_original_filename ?? null,
+                            type: 'highlight-multi',
+                        },
+                    },
+                });
+                row = found;
+                await row.update({
+                    user_id: userId,
+                    type: VideoType.HIGHLIGHT,
+                    url,
+                    duration: duration ?? row.duration,
+                    name: title,
+                    thumbnail,
+                    srt_raw_url: srtUrl,
+                    upload_context: {
+                        ...(row.upload_context ?? {}),
+                        sourceJobId: jobId,
+                        topicId,
+                        description: this.normalizeText(video.description) ?? null,
+                        sourceOriginalFilename: payload.source_original_filename ?? null,
+                        type: 'highlight-multi',
+                    },
+                });
+            } else {
+                row = await this.videoModel.create({
+                    job_id: null,
+                    user_id: userId,
+                    type: VideoType.HIGHLIGHT,
+                    url,
+                    duration,
+                    name: title,
+                    thumbnail,
+                    srt_raw_url: srtUrl,
+                    upload_context: {
+                        topicId,
+                        description: this.normalizeText(video.description) ?? null,
+                        sourceOriginalFilename: payload.source_original_filename ?? null,
+                        type: 'highlight-multi',
+                    },
+                });
+            }
+
+            createdVideos.push({
+                videoId: row.id,
+                topicId,
+                title,
+                url,
+                srtUrl: srtUrl ?? undefined,
+                duration: duration ?? undefined,
+            });
+        }
+
+        if (!createdVideos.length) {
+            return { ignored: true, reason: 'no_valid_videos' };
+        }
+
+        await this.notificationService.createAndEmit({
+            userId,
+            eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
+            sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
+            title: 'Highlight videos completed',
+            message: `${createdVideos.length} highlight videos are ready`,
+            sourceType: NotificationSourceType.VIDEO_JOB,
+            sourceId: createdVideos[0]?.videoId,
+            payload: {
+                jobId,
+                type: 'highlight-multi',
+                status: 'completed',
+                videos,
+                createdVideos,
+                videoIds: createdVideos.map((video) => video.videoId),
+                srtUrl: payload.srt_url,
+                sourceOriginalFilename: payload.source_original_filename,
+                redirectUrl: '/library',
+            },
+        });
+
+        return {
+            success: true,
+            videoIds: createdVideos.map((video) => video.videoId),
+        };
+    }
+
     async handleAIResult(payload: ai_model_result) {
+
+        console.log('handleHighlightMultiCompleted', payload);
+
+
         // 1. Xử lý User ID trước (logic cũ của bạn)
         const userIdRaw = payload.user_id ?? payload.userId;
         const userIdStr = typeof userIdRaw === 'number' ? String(userIdRaw) : userIdRaw;
@@ -733,11 +922,13 @@ export class WebhookService {
 
         // 2. Map Video Type (accept unknown string for progress/error relay)
         const rawType = payload.type?.toString().toLowerCase();
-        const type: VideoType | 'quiz' | undefined =
+        const type: VideoType | 'quiz' | 'highlight-multi' | undefined =
             rawType === VideoType.MASCOT ? VideoType.MASCOT
                 : rawType === VideoType.HIGHLIGHT ? VideoType.HIGHLIGHT
                     : rawType === VideoType.LONG ? VideoType.LONG
-                        : rawType === 'quiz' ? 'quiz' : undefined;
+                        : rawType === 'quiz' ? 'quiz'
+                            : rawType === 'highlight-multi' ? 'highlight-multi'
+                                : undefined;
         const typeForSse = type ?? rawType ?? 'unknown';
 
         let completedVideoId: number | undefined;
@@ -984,6 +1175,15 @@ export class WebhookService {
                 }
 
                 // ---- TYPE = highlight | mascot | long (logic cũ) ------------
+                if (rawType === 'highlight-multi') {
+                    console.log('check 1');
+                    return this.handleHighlightMultiCompleted({
+                        payload,
+                        userId,
+                        jobId,
+                    });
+                }
+
                 const url = payload.url ?? payload.video_url;
                 if (!url) {
                     this.logger.warn('AI model webhook missing url for completed event');
