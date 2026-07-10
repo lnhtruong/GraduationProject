@@ -39,6 +39,19 @@ export class UsersController {
     return this.usersService.getUserProfile(this.parseRequesterId(userIdHeader));
   }
 
+  // Stats — phải khai báo TRƯỚC route ':id' để 'stats' không bị ParseIntPipe bắt nhầm.
+  @Get('stats')
+  async getUserStats(@Headers('x-user-role') requesterRoleHeader: string) {
+    const requesterRole = parseInt(requesterRoleHeader, 10);
+    if (isNaN(requesterRole)) {
+      throw new BadRequestException('Requester context not found in request headers');
+    }
+    if (requesterRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admin can view user stats');
+    }
+    return this.usersService.getUserStats();
+  }
+
   @Get(':id')
   // @UseGuards(JwtAuthGuard)
   async getUserById(@Param('id', ParseIntPipe) id: number) {

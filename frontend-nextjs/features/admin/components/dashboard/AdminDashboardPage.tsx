@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   GraduationCap,
   ShieldCheck,
+  GitPullRequestArrow,
 } from "lucide-react";
 import { useAdminDashboardStats } from "../../api/admin-dashboard.hooks";
 
@@ -54,15 +55,43 @@ export default function AdminDashboardPage() {
           />
           <StatCard
             icon={<CheckCircle2 className="h-5 w-5" />}
-            label="Đã publish"
-            value={data?.courses.published ?? undefined}
+            label="Đợi xuất bản"
+            value={data?.courses.approved ?? undefined}
             colorClass="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
             isLoading={isLoading}
           />
         </div>
       </section>
 
-      {/* Widget 2 — Người dùng */}
+      {/* Widget 2 — Change Requests */}
+      <section className="space-y-3">
+        <SectionLabel icon={<GitPullRequestArrow className="h-4 w-4" />} label="Yêu cầu thay đổi" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            icon={<Clock4 className="h-5 w-5" />}
+            label="Chờ duyệt"
+            value={data?.changeRequests.pending ?? undefined}
+            colorClass="text-amber-600 bg-amber-50 dark:bg-amber-950/30"
+            isLoading={isLoading}
+          />
+          <StatCard
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            label="Đã duyệt"
+            value={data?.changeRequests.approved ?? undefined}
+            colorClass="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+            isLoading={isLoading}
+          />
+          <StatCard
+            icon={<Flag className="h-5 w-5" />}
+            label="Đã từ chối"
+            value={data?.changeRequests.rejected ?? undefined}
+            colorClass="text-rose-600 bg-rose-50 dark:bg-rose-950/30"
+            isLoading={isLoading}
+          />
+        </div>
+      </section>
+
+      {/* Widget 4 — Người dùng */}
       <section className="space-y-3">
         <SectionLabel icon={<Users className="h-4 w-4" />} label="Người dùng" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -90,7 +119,7 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* Widget 3 — Báo cáo vi phạm */}
+      {/* Widget 5 — Báo cáo vi phạm */}
       <section className="space-y-3">
         <SectionLabel icon={<Flag className="h-4 w-4" />} label="Báo cáo vi phạm" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

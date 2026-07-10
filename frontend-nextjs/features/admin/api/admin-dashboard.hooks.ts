@@ -2,15 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { apiHttpClient } from "@/features/_shared/api-factories";
 import { adminUsersApi } from "./admin-users.api";
 import { adminReportsApi } from "./admin-reports.api";
-import { adminCourseApi } from "./admin-courses.api";
-import { ROLES } from "@/lib/roles";
 
 export interface AdminDashboardData {
   courses: {
     total: number | null;
     pending: number | null;
-    published: number | null;
+    approved: number | null;
+    rejected: number | null;
     totalEnrollments: number | null;
+  };
+  changeRequests: {
+    pending: number | null;
+    approved: number | null;
+    rejected: number | null;
   };
   users: {
     total: number | null;
@@ -24,14 +28,12 @@ export function useAdminDashboardStats() {
   return useQuery<AdminDashboardData>({
     queryKey: ["admin", "dashboard", "overview"],
     queryFn: async () => {
-      const [overviewRes, pendingCoursesRes, publishedCoursesRes, allUsersRes, studentsRes, lecturersRes, reportsRes] =
+      const [overviewRes, courseStatsRes, changeRequestStatsRes, userStatsRes, reportsRes] =
         await Promise.allSettled([
           apiHttpClient.get("/course/courses/stats/overview"),
-          adminCourseApi.listPaginated({ status: "pending", limit: 1 }),
-          adminCourseApi.listPaginated({ status: "publish", limit: 1 }),
-          adminUsersApi.listAll({ limit: 1 }),
-          adminUsersApi.listAll({ limit: 1, role: ROLES.STUDENT }),
-          adminUsersApi.listAll({ limit: 1, role: ROLES.LECTURER }),
+          apiHttpClient.get("/course/courses/stats"),
+          apiHttpClient.get("/course/courses/change-requests/stats"),
+          adminUsersApi.getStats(),
           adminReportsApi.listAll({ status: "pending" }),
         ]);
 
@@ -40,17 +42,36 @@ export function useAdminDashboardStats() {
           ? overviewRes.value.data?.summary
           : null;
 
+      const courseStats =
+        courseStatsRes.status === "fulfilled"
+          ? courseStatsRes.value.data
+          : null;
+
+      const changeRequestStats =
+        changeRequestStatsRes.status === "fulfilled"
+          ? changeRequestStatsRes.value.data
+          : null;
+
+      const userStats =
+        userStatsRes.status === "fulfilled" ? userStatsRes.value : null;
+
       return {
         courses: {
           total: summary?.totalCourses ?? null,
-          pending: pendingCoursesRes.status === "fulfilled" ? (pendingCoursesRes.value.pagination?.totalItems ?? null) : null,
-          published: publishedCoursesRes.status === "fulfilled" ? (publishedCoursesRes.value.pagination?.totalItems ?? null) : null,
+          pending: courseStats?.pending ?? null,
+          approved: courseStats?.approved ?? null,
+          rejected: courseStats?.rejected ?? null,
           totalEnrollments: summary?.totalEnrollments ?? null,
         },
+        changeRequests: {
+          pending: changeRequestStats?.pending ?? null,
+          approved: changeRequestStats?.approved ?? null,
+          rejected: changeRequestStats?.rejected ?? null,
+        },
         users: {
-          total: allUsersRes.status === "fulfilled" ? (allUsersRes.value.pagination?.totalItems ?? null) : null,
-          students: studentsRes.status === "fulfilled" ? (studentsRes.value.pagination?.totalItems ?? null) : null,
-          lecturers: lecturersRes.status === "fulfilled" ? (lecturersRes.value.pagination?.totalItems ?? null) : null,
+          total: userStats?.total ?? null,
+          students: userStats?.students ?? null,
+          lecturers: userStats?.lecturers ?? null,
         },
         pendingReports: reportsRes.status === "fulfilled" ? (reportsRes.value.pagination?.totalItems ?? null) : null,
       };

@@ -178,7 +178,8 @@ export interface CreateCoursePayload {
 export type UpdateCoursePayload = Partial<CreateCoursePayload>;
 
 export type CourseListParams = {
-  status?: CourseStatus;
+  // Cho phép gộp nhiều trạng thái, vd "approved,publish" (BE parse theo dấu phẩy).
+  status?: CourseStatus | string;
   page?: number;
   limit?: number;
   search?: string;

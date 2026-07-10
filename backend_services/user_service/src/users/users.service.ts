@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, WhereOptions } from 'sequelize';
+import { col, fn, Op, WhereOptions } from 'sequelize';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.model';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -175,6 +175,32 @@ export class UsersService {
         totalItems: count,
         totalPages: Math.ceil(count / safeLimit),
       },
+    };
+  }
+
+  async getUserStats(): Promise<{
+    total: number;
+    admins: number;
+    students: number;
+    lecturers: number;
+  }> {
+    const results = await this.userModel.findAll({
+      attributes: ['role', [fn('COUNT', col('id')), 'count']],
+      group: ['role'],
+      raw: true,
+    });
+    const map: Record<number, number> = {};
+    for (const row of results as unknown as { role: number; count: string }[]) {
+      map[row.role] = Number(row.count);
+    }
+    const admins = map[UserRole.ADMIN] ?? 0;
+    const students = map[UserRole.STUDENT] ?? 0;
+    const lecturers = map[UserRole.LECTURER] ?? 0;
+    return {
+      total: admins + students + lecturers,
+      admins,
+      students,
+      lecturers,
     };
   }
 

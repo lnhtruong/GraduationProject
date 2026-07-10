@@ -1137,7 +1137,7 @@ export class CoursesService {
 
   async findAllPublic(
     params: {
-      status?: CourseStatus;
+      status?: CourseStatus | CourseStatus[];
       page?: number;
       limit?: number;
       search?: string;
@@ -1176,14 +1176,22 @@ export class CoursesService {
     const whereCondition: any = {};
     const effectiveStatus = isAdmin ? status : CourseStatus.PUBLISH;
 
-    if (!isAdmin && status && status !== CourseStatus.PUBLISH) {
+    if (
+      !isAdmin &&
+      status &&
+      (Array.isArray(status)
+        ? status.some((s) => s !== CourseStatus.PUBLISH)
+        : status !== CourseStatus.PUBLISH)
+    ) {
       throw new ForbiddenException(
         'Only admin can filter courses by this status',
       );
     }
 
     if (effectiveStatus) {
-      whereCondition.status = effectiveStatus;
+      whereCondition.status = Array.isArray(effectiveStatus)
+        ? { [Op.in]: effectiveStatus }
+        : effectiveStatus;
     }
 
     if (level) {
