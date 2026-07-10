@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,7 +9,7 @@ import { Loader2, Upload, Clapperboard, Trash2, ChevronLeft, ChevronRight } from
 import { toast } from "sonner";
 import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
 import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
-import { useVideoById } from "@/features/video/api/video.hooks";
+import { useVideoById, videoKeys } from "@/features/video/api/video.hooks";
 import { getVideoCardTitle, formatDuration } from "../../utils/lesson-form.utils";
 import { VideoPreview } from "./VideoPreview";
 import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
@@ -95,6 +96,7 @@ export function VideoSelectionSection({
   timelineMarkers = [],
   isProcessing = false,
 }: Props) {
+  const queryClient = useQueryClient();
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string | null>(null);
   const [previewDuration, setPreviewDuration] = useState<number | null>(null);
@@ -133,12 +135,12 @@ export function VideoSelectionSection({
     retryUpload,
     cancelUpload,
     clearSession,
-    isUploading,
+    isUploadBlocking,
   } = useLessonVideoUpload();
 
   useEffect(() => {
-    onUploadStateChange?.(isUploading);
-  }, [isUploading, onUploadStateChange]);
+    onUploadStateChange?.(isUploadBlocking);
+  }, [isUploadBlocking, onUploadStateChange]);
 
   useEffect(() => {
     return () => {
@@ -166,7 +168,7 @@ export function VideoSelectionSection({
   }, [session.videoId, onVideoSelect]);
 
   const onPickFile = () => {
-    if (isUploading) return;
+    if (isUploadBlocking) return;
     fileInputRef.current?.click();
   };
 
@@ -201,6 +203,18 @@ export function VideoSelectionSection({
       });
     });
 
+    const clearLocalPreview = () => {
+      URL.revokeObjectURL(blobUrl);
+      setPreviewBlobUrl(null);
+      setPreviewFileName(null);
+      setPreviewDuration(null);
+      onDraftVideoChangeRef.current?.({
+        blobUrl: null,
+        durationSeconds: null,
+        fileName: null,
+      });
+    };
+
     try {
       await startUpload({
         file,
@@ -208,8 +222,16 @@ export function VideoSelectionSection({
         courseId,
         lessonId,
         onCompleted: async (videoId) => {
+          await queryClient.invalidateQueries({
+            queryKey: videoKeys.detail(videoId),
+          });
+          await queryClient.refetchQueries({
+            queryKey: videoKeys.detail(videoId),
+            type: "active",
+          });
           await onRefreshVideos?.();
           onVideoSelect(videoId);
+          clearLocalPreview();
         },
       });
     } catch (error) {
@@ -231,7 +253,7 @@ export function VideoSelectionSection({
   const onDropFile = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragOver(false);
-    if (isUploading) return;
+    if (isUploadBlocking) return;
     const file = event.dataTransfer.files?.[0] ?? null;
     await handleSelectedFile(file);
   };
@@ -258,7 +280,11 @@ export function VideoSelectionSection({
   };
 
   const hasActiveVideo = Boolean(selectedVideoId || previewBlobUrl);
-  const videoUrl = previewBlobUrl ?? selectedVideo?.url ?? null;
+  // While the file is still uploading, keep the local blob preview so the user
+  // can see the selected file immediately. Once Bunny's webhook/SSE reports the
+  // processed playback URL, prefer that URL over the initial `/original` URL
+  // stored at init-upload time.
+  const videoUrl = previewBlobUrl ?? session.readyVideoUrl ?? selectedVideo?.url ?? null;
   const videoName = previewFileName ?? (selectedVideo ? getVideoCardTitle(selectedVideo.name, selectedVideo.id) : "Đang tải thông tin video...");
   const durationSec = previewDuration ?? selectedVideo?.duration ?? null;
   const formattedDur = formatDuration(durationSec);
@@ -453,7 +479,7 @@ export function VideoSelectionSection({
             }}
             onDragOver={(event) => {
               event.preventDefault();
-              if (!isUploading) setIsDragOver(true);
+              if (!isUploadBlocking) setIsDragOver(true);
             }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={onDropFile}
@@ -461,10 +487,10 @@ export function VideoSelectionSection({
               isDragOver
                 ? "border-primary bg-primary/5 ring-4 ring-primary/10"
                 : "border-border bg-background/50 hover:border-primary/50 hover:bg-muted/30"
-            } ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+            } ${isUploadBlocking ? "pointer-events-none opacity-70" : ""}`}
           >
             <div className="mb-3.5 grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110 shadow-sm">
-              {isUploading ? (
+              {isUploadBlocking ? (
                 <Loader2 className="h-5.5 w-5.5 animate-spin" />
               ) : (
                 <Upload className="h-5.5 w-5.5" />

@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as tus from "tus-js-client";
+import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useProcessHighlight } from "../api/upload.hooks";
+import {
+  useProcessHighlightLink,
+} from "../api/upload.hooks";
+import { uploadApi } from "../api/upload.api";
 import {
   createMediaUploadStream,
   type UploadStreamSubscription,
@@ -14,21 +19,23 @@ import {
 import { useCreateProject } from "@/features/project/api/project.hooks";
 import { authStorageHelper } from "@/store/auth";
 import type {
-  UploadState,
-  UploadHookReturn,
+  Clip,
   HighlightParams,
+  UploadHookReturn,
+  UploadState,
 } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
-
-// ============================================================================
-// INITIAL STATE
-// ============================================================================
+import { videoApi } from "@/features/video/api/video.api";
 
 const INITIAL_STATE: UploadState = {
   file: null,
+  source: null,
   progress: null,
   status: "idle",
   jobId: null,
+  bunnyVideoId: null,
+  sourceVideoId: null,
+  sourceVideoUrl: null,
   createdProjectId: null,
   clips: [],
   isDownloading: false,
@@ -37,30 +44,48 @@ const INITIAL_STATE: UploadState = {
   progressPercent: undefined,
 };
 
-// ============================================================================
-// HOOK
-// ============================================================================
-
-function resolveUserId(authUserId: number | undefined): number | undefined {
-  if (authUserId != null) return authUserId;
-  const stored = authStorageHelper.getUser() as { id?: number } | null;
-  return stored?.id;
-}
+const ACTIVE_HIGHLIGHT_JOB_KEY = "learnhub:active-highlight-job";
 
 type UploadEventEnvelope = {
   jobId?: string | number;
   job_id?: string | number;
   url?: string;
+  video_url?: string;
+  urls?: unknown;
+  outputs?: unknown;
+  clips?: unknown;
+  videos?: unknown;
+  createdVideos?: unknown;
+  videoIds?: unknown;
+  zip_url?: string;
   videoId?: number;
+  video_id?: number;
+  name?: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  duration?: number;
+  srtUrl?: string;
+  srt_url?: string;
   progress?: number;
   stage?: string;
-  data?: {
-    jobId?: string | number;
-    job_id?: string | number;
-    url?: string;
-    videoId?: number;
-  };
+  data?: Record<string, unknown>;
+  result?: Record<string, unknown>;
 };
+
+export interface UseUploadOptions {
+  autoCreateProject?: boolean;
+}
+
+function resolveUserId(authUserId: number | undefined): number | undefined {
+  if (authUserId != null) return authUserId;
+  const stored = authStorageHelper.getUser() as { id?: number; user_id?: number } | null;
+  return stored?.id ?? stored?.user_id;
+}
+
+function formatKeywords(items: string[]) {
+  return items.map((item) => item.trim()).filter(Boolean).join(",");
+}
 
 function readEventJobId(payload: UploadEventEnvelope): string | null {
   const raw =
@@ -71,46 +96,310 @@ function readEventJobId(payload: UploadEventEnvelope): string | null {
   return raw == null ? null : String(raw);
 }
 
-function readCompletedEvent(
-  payload: VideoCompletedPayload | UploadEventEnvelope,
-): {
-  url?: string;
-  videoId?: number;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function clipFromUnknown(value: unknown, index: number): Clip | null {
+  if (typeof value === "string") {
+    return {
+      url: value,
+      name: value.split("/").pop()?.split("?")[0] || `highlight-${index + 1}.mp4`,
+    };
+  }
+
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const url =
+    typeof record.url === "string"
+      ? record.url
+      : typeof record.video_url === "string"
+        ? record.video_url
+        : typeof record.output_url === "string"
+          ? record.output_url
+          : typeof record.download_url === "string"
+            ? record.download_url
+            : typeof record.downloadUrl === "string"
+              ? record.downloadUrl
+              : undefined;
+
+  if (!url) return null;
+
+  const videoId =
+    typeof record.videoId === "number"
+      ? record.videoId
+      : typeof record.video_id === "number"
+        ? record.video_id
+        : typeof record.id === "number"
+          ? record.id
+          : undefined;
+
+  const topicId =
+    typeof record.topicId === "number" || typeof record.topicId === "string"
+      ? record.topicId
+      : typeof record.topic_id === "number" || typeof record.topic_id === "string"
+        ? record.topic_id
+        : null;
+
+  const duration =
+    typeof record.duration === "number"
+      ? record.duration
+      : typeof record.duration === "string" && Number.isFinite(Number(record.duration))
+        ? Number(record.duration)
+        : null;
+
+  return {
+    url,
+    videoId,
+    topicId,
+    description:
+      typeof record.description === "string" ? record.description : null,
+    srtUrl:
+      typeof record.srtUrl === "string"
+        ? record.srtUrl
+        : typeof record.srt_url === "string"
+          ? record.srt_url
+          : null,
+    name:
+      (typeof record.name === "string" && record.name) ||
+      (typeof record.title === "string" && record.title) ||
+      (topicId ? `Highlight ${topicId}` : "") ||
+      url.split("/").pop()?.split("?")[0] ||
+      `highlight-${index + 1}.mp4`,
+    thumbnail:
+      typeof record.thumbnail === "string"
+        ? record.thumbnail
+        : typeof record.thumbnailUrl === "string"
+          ? record.thumbnailUrl
+          : null,
+    duration,
+  };
+}
+
+function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope): {
+  clips: Clip[];
   jobId: string | null;
 } {
   const envelope = payload as UploadEventEnvelope;
+  const data = asRecord(envelope.data) ?? {};
+  const result = asRecord(envelope.result) ?? asRecord(data.result) ?? {};
+  const source = { ...envelope, ...data, ...result };
+
+  const buckets = [
+    source.createdVideos,
+    source.outputs,
+    source.clips,
+    source.videos,
+    source.urls,
+  ].filter(Array.isArray) as unknown[][];
+
+  const clips = buckets
+    .flat()
+    .map((item, index) => clipFromUnknown(item, index))
+    .filter((clip): clip is Clip => Boolean(clip));
+
+  if (typeof source.url === "string" || typeof source.video_url === "string") {
+    const single = clipFromUnknown(
+      {
+        url: source.url ?? source.video_url,
+        videoId: source.videoId ?? source.video_id,
+        name: source.name,
+        title: source.title,
+        description: source.description,
+        thumbnail: source.thumbnail,
+        duration: source.duration,
+        srtUrl: source.srtUrl ?? source.srt_url,
+      },
+      0,
+    );
+    if (single) clips.unshift(single);
+  }
+
+  if (typeof source.zip_url === "string") {
+    clips.push({
+      url: source.zip_url,
+      name: source.zip_url.split("/").pop()?.split("?")[0] || "highlights.zip",
+    });
+  }
+
+  const videoIds = Array.isArray(source.videoIds)
+    ? source.videoIds.filter((value): value is number => typeof value === "number")
+    : [];
+  if (videoIds.length > 0) {
+    clips.forEach((clip, index) => {
+      if (!clip.videoId && videoIds[index]) {
+        clip.videoId = videoIds[index];
+      }
+    });
+  }
+
+  const uniqueClips = Array.from(
+    new Map(clips.map((clip) => [clip.url, clip])).values(),
+  );
+
   return {
-    url: envelope.data?.url ?? envelope.url,
-    videoId: envelope.data?.videoId ?? envelope.videoId,
+    clips: uniqueClips,
     jobId: readEventJobId(envelope),
   };
 }
 
+function readErrorMessage(payload: VideoErrorPayload | UploadEventEnvelope): string | null {
+  const envelope = payload as UploadEventEnvelope;
+  const data = asRecord(envelope.data) ?? {};
+  const source = { ...envelope, ...data };
+  const error = source.error;
+
+  if (typeof error === "string" && error.trim()) return error;
+
+  const errorRecord = asRecord(error);
+  const message = errorRecord?.message ?? source.error_message ?? source.errorMessage;
+  return typeof message === "string" && message.trim() ? message : null;
+}
+
+function isDownloadBundle(clip: Clip): boolean {
+  return /\.zip(?:\?|$)/i.test(clip.url) || /\.zip$/i.test(clip.name);
+}
+
+function normalizeAssetUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return value.split("?")[0];
+  }
+}
+
+function isBunnyOriginalUrl(value: string) {
+  return /\/original(?:[?#].*)?$/i.test(value.trim());
+}
+
+function mergeCompletedClips(current: Clip[], incoming: Clip[]): Clip[] {
+  if (current.length === 1 && incoming.length === 1) {
+    return [{ ...current[0], ...incoming[0] }];
+  }
+
+  const merged = new Map(current.map((clip) => [clip.url, clip]));
+  for (const clip of incoming) {
+    merged.set(clip.url, { ...merged.get(clip.url), ...clip });
+  }
+  return Array.from(merged.values());
+}
+
+function restoreActiveHighlightJob(): UploadState {
+  if (typeof window === "undefined") return INITIAL_STATE;
+
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_HIGHLIGHT_JOB_KEY);
+    if (!raw) return INITIAL_STATE;
+
+    const saved = JSON.parse(raw) as Partial<UploadState>;
+    if (
+      !saved.jobId ||
+      (saved.status !== "pending" &&
+        saved.status !== "processing" &&
+        saved.status !== "completed")
+    ) {
+      window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
+      return INITIAL_STATE;
+    }
+
+    return {
+      ...INITIAL_STATE,
+      ...saved,
+      file: null,
+      progress: null,
+      clips: Array.isArray(saved.clips) ? saved.clips : [],
+      status:
+        saved.status === "completed" && saved.clips?.length
+          ? "completed"
+          : "processing",
+      stage: saved.stage || "Đang khôi phục tiến trình tạo highlight",
+    };
+  } catch {
+    window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
+    return INITIAL_STATE;
+  }
+}
+
 function resolveProjectId(response: unknown): number | null {
-  if (!response || typeof response !== "object") return null;
-
-  const record = response as {
-    edit_id?: number;
-    id?: number;
-    data?: { edit_id?: number; id?: number };
-  };
-
+  const record = asRecord(response);
+  const data = asRecord(record?.data);
   return (
-    record.edit_id ??
-    record.id ??
-    record.data?.edit_id ??
-    record.data?.id ??
-    null
+    (typeof record?.edit_id === "number" ? record.edit_id : null) ??
+    (typeof record?.id === "number" ? record.id : null) ??
+    (typeof data?.edit_id === "number" ? data.edit_id : null) ??
+    (typeof data?.id === "number" ? data.id : null)
   );
 }
 
-export interface UseUploadOptions {
-  autoCreateProject?: boolean;
+async function uploadFileToBunny(
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<{
+  videoId: number;
+  bunnyVideoId: string;
+  videoUrl: string;
+  thumbnail?: string | null;
+  duration?: number | null;
+}> {
+  const initResponse = await videoApi.initBunnyUpload({
+    title: file.name,
+    meta: { purpose: "highlight_source" },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: initResponse.tus.endpoint,
+      retryDelays: [0, 1000, 3000, 5000, 10000],
+      chunkSize: 8 * 1024 * 1024,
+      removeFingerprintOnSuccess: true,
+      headers: {
+        AuthorizationSignature: initResponse.tus.headers.AuthorizationSignature,
+        AuthorizationExpire: initResponse.tus.headers.AuthorizationExpire,
+        LibraryId: initResponse.tus.headers.LibraryId,
+        VideoId: initResponse.tus.headers.VideoId,
+      },
+      metadata: {
+        filetype: file.type || "video/mp4",
+        title: file.name,
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const percent = Math.round((bytesUploaded / Math.max(bytesTotal, 1)) * 100);
+        onProgress(Math.min(percent, 99));
+      },
+      onSuccess: () => resolve(),
+      onError: (error) => reject(error),
+    });
+
+    upload.start();
+  });
+
+  const videoUrl = initResponse.url ?? initResponse.originalUrl ?? null;
+  if (!videoUrl) {
+    throw new Error("LearnHub chưa trả về URL video gốc để xử lý.");
+  }
+
+  if (!isBunnyOriginalUrl(videoUrl)) {
+    throw new Error("LearnHub chÆ°a tráº£ vá» URL /original cá»§a Bunny Ä‘á»ƒ táº¡o highlight.");
+  }
+
+  // TUS completion means the original file is available. Highlight processing
+  // can start now while Bunny continues transcoding the playback variants.
+  return {
+    videoId: initResponse.videoId,
+    bunnyVideoId: initResponse.bunnyVideoId,
+    videoUrl,
+    thumbnail: null,
+    duration: null,
+  };
 }
 
 export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   const autoCreateProject = options?.autoCreateProject ?? true;
-  const [state, setState] = useState<UploadState>(INITIAL_STATE);
+  const [state, setState] = useState<UploadState>(restoreActiveHighlightJob);
   const { user } = useAuth();
   const router = useRouter();
   const { mutateAsync: createProject } = useCreateProject();
@@ -119,51 +408,98 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     videoId?: number;
   } | null> | null>(null);
   const redirectedProjectRef = useRef<number | null>(null);
-  const hideProgressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
-  // We rely on backend to include `videoId` in SSE completed events.
-  // Use React Query mutation
-  const processHighlight = useProcessHighlight({
-    onJobStarted: (jobId) => {
-      setState((prev) => ({
-        ...prev,
-        jobId,
-        status: "pending",
-        progress: null,
-      }));
-    },
-    onError: (error) => {
-      console.error("[useUpload] Job failed:", error);
-      setState((prev) => ({
-        ...prev,
-        status: "failed",
-        error: getUserFacingErrorMessage(
-          error,
-          "Không thể xử lý video. Vui lòng thử lại.",
-        ),
-        progress: null,
-      }));
-    },
+  const setJobStarted = useCallback((jobId: string) => {
+    setState((prev) => ({
+      ...prev,
+      jobId,
+      status: "pending",
+      progress: null,
+      stage: "Đã gửi yêu cầu tạo highlight",
+      progressPercent: 5,
+    }));
+  }, []);
+
+  const setJobError = useCallback((error: Error) => {
+    setState((prev) => ({
+      ...prev,
+      status: "failed",
+      error: getUserFacingErrorMessage(
+        error,
+        "Không thể xử lý video. Vui lòng thử lại.",
+      ),
+      progress: null,
+    }));
+  }, []);
+
+  const processHighlightLink = useProcessHighlightLink({
+    onJobStarted: setJobStarted,
+    onError: setJobError,
   });
 
+  const updateState = (updates: Partial<UploadState>) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const awaitingPersistedVideoIds =
+    state.status === "completed" &&
+    state.clips.some((clip) => !isDownloadBundle(clip) && !clip.videoId);
   const sseSessionActive =
     state.status === "uploading" ||
     state.status === "pending" ||
-    state.status === "processing";
+    state.status === "processing" ||
+    awaitingPersistedVideoIds;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (
+      state.jobId &&
+      (state.status === "pending" ||
+        state.status === "processing" ||
+        awaitingPersistedVideoIds)
+    ) {
+      window.localStorage.setItem(
+        ACTIVE_HIGHLIGHT_JOB_KEY,
+        JSON.stringify({
+          jobId: state.jobId,
+          status: state.status,
+          source: state.source,
+          sourceVideoId: state.sourceVideoId,
+          sourceVideoUrl: state.sourceVideoUrl,
+          bunnyVideoId: state.bunnyVideoId,
+          stage: state.stage,
+          progressPercent: state.progressPercent,
+          clips: state.clips,
+        }),
+      );
+      return;
+    }
+
+    window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
+  }, [
+    state.bunnyVideoId,
+    state.jobId,
+    state.progressPercent,
+    state.source,
+    state.sourceVideoId,
+    state.sourceVideoUrl,
+    state.stage,
+    state.status,
+    state.clips,
+    awaitingPersistedVideoIds,
+  ]);
 
   const createOrGetProjectForClip = useCallback(
     async (
       clip: UploadState["clips"][number],
     ): Promise<{ projectId: number; videoId?: number } | null> => {
-      if (!clip?.url || !resolveUserId(user?.id)) return null;
+      if (!clip?.url || !clip.videoId || !resolveUserId(user?.id)) return null;
 
-      const existingProjectId = state.createdProjectId;
-      if (existingProjectId) {
+      if (state.createdProjectId) {
         return clip.videoId
-          ? { projectId: existingProjectId, videoId: clip.videoId }
-          : { projectId: existingProjectId };
+          ? { projectId: state.createdProjectId, videoId: clip.videoId }
+          : { projectId: state.createdProjectId };
       }
 
       if (createProjectPromiseRef.current) {
@@ -171,13 +507,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       }
 
       const promise = (async () => {
-        const resolvedVideoId = clip.videoId ?? null;
-        const now = new Date();
-        const projectName = `Highlight ${now.toLocaleDateString("vi-VN")}`;
-
         const createdProject = await createProject({
-          session_name: projectName,
-          video_id: resolvedVideoId,
+          session_name: `Highlight ${new Date().toLocaleDateString("vi-VN")}`,
+          video_id: clip.videoId,
         });
 
         const projectId = resolveProjectId(createdProject);
@@ -188,8 +520,8 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           createdProjectId: prev.createdProjectId ?? projectId,
         }));
 
-        return resolvedVideoId
-          ? { projectId, videoId: resolvedVideoId }
+        return clip.videoId
+          ? { projectId, videoId: clip.videoId }
           : { projectId };
       })();
 
@@ -200,164 +532,202 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
         createProjectPromiseRef.current = null;
       }
     },
-    [user?.id, state.createdProjectId, createProject],
+    [createProject, state.createdProjectId, user?.id],
   );
 
-  // Real-time events via SSE (Server-Sent Events)
   useEffect(() => {
     const userId = resolveUserId(user?.id);
-    if (!userId || !sseSessionActive) {
-      return;
-    }
-    // Attempt SSE connection for active session
+    if (!userId || !sseSessionActive) return;
 
     let stream: UploadStreamSubscription | null = null;
 
     const onProgress = (payload: VideoProgressPayload) => {
       setState((prev) => {
-        if (prev.status === "completed" || prev.status === "failed") {
+        if (prev.status === "completed" || prev.status === "failed") return prev;
+
+        const envelope = payload as UploadEventEnvelope;
+        const eventJobId = readEventJobId(envelope);
+        if (eventJobId && prev.jobId && String(prev.jobId) !== eventJobId) {
           return prev;
         }
 
-        // New format: Job stage update (has jobId, stage)
-        const envelope = payload as UploadEventEnvelope;
-        const eventJobId = readEventJobId(envelope);
-        const eventStage =
-          typeof envelope.stage === "string" ? envelope.stage : undefined;
-        if (eventJobId && eventStage) {
-          // Only update if this is for the current job
-          if (
-            eventJobId &&
-            prev.jobId &&
-            String(prev.jobId) !== String(eventJobId)
-          ) {
-            return prev; // Ignore events from other jobs
-          }
+        const rawStage = typeof envelope.stage === "string"
+          ? envelope.stage.trim()
+          : undefined;
+        if (!rawStage && typeof payload.progress !== "number") return prev;
+        if (prev.jobId && !eventJobId) return prev;
 
-          // Normalize stage string (trim extra whitespace that backend might include)
-          const rawStage = eventStage.trim();
-
-          // Try to extract X/Y from stage like "1/4: Transcribing"
-          let stageProgress: number | undefined;
-          const match = rawStage.match(/^(\d+)\/(\d+)\s*:\s*(.*)$/);
-          if (match) {
-            const step = Number(match[1]);
-            const total = Number(match[2]) || 1;
-            stageProgress = Math.round((step / total) * 100);
-          } else if (/finaliz|upload|uploading/i.test(rawStage)) {
-            // Heuristic: treat finalizing/upload steps as near-complete
-            stageProgress = 95;
-          }
-
-          // update stage/progressPercent silently
-
-          return {
-            ...prev,
-            status: "processing",
-            stage: rawStage, // Display cleaned stage
-            progressPercent: stageProgress,
-          };
-        }
-
-        // Legacy format: Direct progress (has videoId, progress)
-        if (payload.videoId && typeof payload.progress === "number") {
-          return {
-            ...prev,
-            status: "processing",
-            progressPercent: payload.progress,
-            stage: `Uploading (${payload.progress}%)`,
-          };
-        }
-
-        return prev;
+        return {
+          ...prev,
+          status: "processing",
+          stage: rawStage ?? `Đang xử lý (${payload.progress}%)`,
+          progressPercent:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : prev.progressPercent,
+        };
       });
     };
 
     const onCompleted = (payload: VideoCompletedPayload) => {
-      const { url, videoId, jobId } = readCompletedEvent(payload);
-
-      if (!url) {
-        console.warn("[useUpload] Completion event missing URL");
-        return;
-      }
+      const { clips, jobId } = readCompletedClips(payload);
+      if (clips.length === 0) return;
 
       setState((prev) => {
-        if (prev.status === "completed") return prev;
+        if (prev.jobId && !jobId) {
+          return prev;
+        }
 
-        // Only process if this matches the current job (or no jobId filtering needed)
         if (jobId && prev.jobId && String(prev.jobId) !== String(jobId)) {
           return prev;
         }
 
-        const name =
-          url.split("/").pop()?.split("?")[0] || "highlight-output.mp4";
         return {
           ...prev,
           status: "completed",
-          clips: [{ name, url, videoId }],
+          clips: mergeCompletedClips(prev.clips, clips),
           isDownloading: false,
           progress: null,
-          stage: "Completed",
+          progressPercent: 100,
+          stage: "Hoàn thành",
         };
       });
     };
 
     const onError = (payload: VideoErrorPayload) => {
       setState((prev) => {
-        if (prev.status === "completed") return prev;
-
-        // Check if this error is for the current job
         const errorJobId = readEventJobId(payload as UploadEventEnvelope);
-        if (
-          errorJobId &&
-          prev.jobId &&
-          String(prev.jobId) !== String(errorJobId)
-        ) {
+        if (prev.jobId && !errorJobId) {
           return prev;
         }
 
-        const errorMessage = payload.error?.message ?? "Lỗi xử lý video";
-
-        console.error("[useUpload] Video processing failed:", errorMessage);
+        if (errorJobId && prev.jobId && String(prev.jobId) !== errorJobId) {
+          return prev;
+        }
 
         return {
           ...prev,
           status: "failed",
-          error: errorMessage,
+          error: readErrorMessage(payload) ?? "Không thể tạo highlight.",
           progress: null,
-          stage: "Failed",
+          stage: "Không thành công",
         };
       });
     };
 
-    const onConnectionError = (error: Error) => {
-      console.error("[useUpload] SSE connection error:", error);
-      // Don't update state for connection errors - SSE will retry automatically
-    };
-
     stream = createMediaUploadStream(
-      { onProgress, onCompleted, onError, onConnectionError },
+      { onProgress, onCompleted, onError },
       { userId },
     );
 
     return () => stream?.close();
   }, [user?.id, sseSessionActive]);
 
-  // ============================================================================
-  // ============================================================================
-  // AUTO-CREATE PROJECT AND REDIRECT WHEN VIDEO COMPLETES
-  // ============================================================================
   useEffect(() => {
-    if (!autoCreateProject) {
+    if (
+      !state.jobId ||
+      (state.status !== "pending" && state.status !== "processing")
+    ) {
       return;
     }
 
-    if (state.status !== "completed" || state.clips.length === 0) {
-      return;
-    }
+    let cancelled = false;
+
+    const checkJob = async () => {
+      try {
+        const payload = await uploadApi.getJobStatus(String(state.jobId));
+        if (cancelled) return;
+
+        const status = String(
+          payload.status ??
+            (asRecord(payload.result)?.status ?? ""),
+        ).toLowerCase();
+
+        if (["completed", "complete", "success", "succeeded"].includes(status)) {
+          const { clips } = readCompletedClips(payload as UploadEventEnvelope);
+          if (clips.length > 0) {
+            setState((prev) => ({
+              ...prev,
+              status: "completed",
+              clips,
+              progress: null,
+              progressPercent: 100,
+              stage: "Hoàn thành",
+            }));
+          }
+          return;
+        }
+
+        if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+          setState((prev) => ({
+            ...prev,
+            status: "failed",
+            progress: null,
+            stage: "Không thành công",
+            error:
+              readErrorMessage(payload as UploadEventEnvelope) ??
+              "Không thể tạo highlight.",
+          }));
+        }
+      } catch {
+        // SSE remains the primary channel. A transient status request must not
+        // turn a running job into a failed job.
+      }
+    };
+
+    void checkJob();
+    const timer = window.setInterval(checkJob, 8_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [state.jobId, state.status]);
+
+  useEffect(() => {
+    if (!awaitingPersistedVideoIds) return;
+
+    let cancelled = false;
+
+    const reconcilePersistedVideos = async () => {
+      try {
+        const videos = await videoApi.getAllByUser("highlight");
+        if (cancelled) return;
+
+        const videoIdByUrl = new Map(
+          videos
+            .filter((video) => Boolean(video.url) && video.id > 0)
+            .map((video) => [normalizeAssetUrl(video.url), video.id]),
+        );
+
+        setState((prev) => ({
+          ...prev,
+          clips: prev.clips.map((clip) => ({
+            ...clip,
+            videoId:
+              clip.videoId ?? videoIdByUrl.get(normalizeAssetUrl(clip.url)),
+          })),
+        }));
+      } catch {
+        // The SSE event may still arrive; retry reconciliation in the next cycle.
+      }
+    };
+
+    void reconcilePersistedVideos();
+    const timer = window.setInterval(reconcilePersistedVideos, 3_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [awaitingPersistedVideoIds]);
+
+  useEffect(() => {
+    if (!autoCreateProject) return;
+    if (state.status !== "completed" || state.clips.length !== 1) return;
 
     const firstClip = state.clips[0];
-    if (!firstClip?.url || !resolveUserId(user?.id)) {
+    if (!firstClip?.url || !firstClip.videoId || !resolveUserId(user?.id)) {
       return;
     }
 
@@ -366,131 +736,159 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     const createProjectAndRedirect = async () => {
       try {
         const result = await createOrGetProjectForClip(firstClip);
+        if (!isMounted || !result) return;
+        if (redirectedProjectRef.current === result.projectId) return;
 
-        if (!isMounted) return;
-        if (!result) {
-          console.warn("[useUpload] No project ID returned from create");
-          return;
-        }
-
-        if (redirectedProjectRef.current === result.projectId) {
-          return;
-        }
         redirectedProjectRef.current = result.projectId;
-
-        console.debug(
-          "[useUpload] Project created, redirecting to editor:",
-          result.projectId,
-        );
-        const paramsObj: Record<string, string> = {
+        const params = new URLSearchParams({
           edit_id: String(result.projectId),
           src: firstClip.url,
-        };
-        if (result.videoId) paramsObj.video_id = String(result.videoId);
-        const params = new URLSearchParams(paramsObj);
+          from: "highlight",
+        });
+        if (result.videoId) params.set("video_id", String(result.videoId));
 
-        router.push(`/editor?${params.toString()}`);
+        let shouldRedirect = true;
+        const redirectTimer = setTimeout(() => {
+          if (shouldRedirect && isMounted) {
+            router.push(`/editor?${params.toString()}`);
+          }
+        }, 5000);
+
+        toast.success("Đã tạo highlight, đang mở Studio...", {
+          duration: 5000,
+          action: {
+            label: "Ở lại xem kết quả",
+            onClick: () => {
+              shouldRedirect = false;
+              clearTimeout(redirectTimer);
+              toast.dismiss();
+            },
+          },
+        });
       } catch (error) {
         console.error("[useUpload] Failed to auto-create project:", error);
-        // Fail silently - user can still manually create project if needed
       }
     };
 
-    createProjectAndRedirect();
+    void createProjectAndRedirect();
 
     return () => {
       isMounted = false;
     };
-  }, [state.status, state.clips, user?.id, router, createOrGetProjectForClip]);
+  }, [autoCreateProject, createOrGetProjectForClip, router, state.clips, state.status, user?.id]);
 
-  const ensureProjectForClip = async (
-    clip: UploadState["clips"][number],
-  ): Promise<{ projectId: number; videoId?: number } | null> => {
-    return createOrGetProjectForClip(clip);
+  const startHighlightFromUrl = async (
+    videoUrl: string,
+    params: HighlightParams,
+    meta?: { videoId?: number | null; sourceOriginalFilename?: string },
+  ) => {
+    const trimmedVideoUrl = videoUrl.trim();
+    if (!trimmedVideoUrl) {
+      throw new Error("Thiếu URL video gốc để tạo highlight.");
+    }
+
+    await processHighlightLink.mutateAsync({
+      videoUrl: trimmedVideoUrl,
+      videoId: meta?.videoId,
+      userId: resolveUserId(user?.id),
+      sourceOriginalFilename: meta?.sourceOriginalFilename,
+      topic: params.topic,
+      includeKeywords: formatKeywords(params.includeKeywords),
+      excludeKeywords: formatKeywords(params.excludeKeywords),
+      isMultiOutput: params.isMultiOutput,
+      isOpenAI: params.isOpenAI,
+    });
   };
 
-  // ============================================================================
-  // UPDATE STATE HELPER
-  // ============================================================================
-  const updateState = (updates: Partial<UploadState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  };
-
-  // ============================================================================
-  // SET FILE
-  // ============================================================================
-  const setFile = (file: File | null) => {
-    updateState({ file });
-  };
-
-  // ============================================================================
-  // START UPLOAD
-  // ============================================================================
   const startUpload = async (fileToUpload: File, params: HighlightParams) => {
-    console.debug("[useUpload] Starting upload workflow with params:", params);
-
-    // Reset state
     updateState({
       file: fileToUpload,
+      source: "file",
       progress: 0,
       status: "uploading",
       clips: [],
       jobId: null,
+      bunnyVideoId: null,
+      sourceVideoId: null,
+      sourceVideoUrl: null,
       createdProjectId: null,
       error: null,
+      stage: "Đang tải video lên LearnHub",
+      progressPercent: undefined,
     });
 
     try {
-      // Format keywords as comma-separated strings
-      const includeKeywordsFormatted = params.includeKeywords.join(",");
-      const excludeKeywordsFormatted = params.excludeKeywords.join(",");
+      const bunny = await uploadFileToBunny(fileToUpload, (percent) =>
+        updateState({ progress: percent }),
+      );
 
-      // Start processing — real upload % streamed via onUploadProgress
-      await processHighlight.mutateAsync({
-        file: fileToUpload,
-        topic: params.topic,
-        includeKeywords: includeKeywordsFormatted,
-        excludeKeywords: excludeKeywordsFormatted,
-        // Cap at 99%: the last 1% only "completes" when the server responds with job_id.
-        // This prevents the bar being stuck at 100% while the server processes the upload.
-        onUploadProgress: (percent) =>
-          updateState({ progress: Math.min(percent, 99) }),
+      updateState({
+        progress: null,
+        status: "processing",
+        bunnyVideoId: bunny.bunnyVideoId,
+        sourceVideoId: bunny.videoId,
+        sourceVideoUrl: bunny.videoUrl,
+        stage: "Video đã sẵn sàng, đang tạo highlight",
+        progressPercent: 5,
       });
 
-      // Hide progress bar after completion
-      if (hideProgressTimeoutRef.current) {
-        clearTimeout(hideProgressTimeoutRef.current);
-      }
-      hideProgressTimeoutRef.current = setTimeout(() => {
-        updateState({ progress: null });
-      }, 500);
-    } catch (err) {
-      // Error already handled by onError callback
-      console.error("[useUpload] Upload error:", err);
+      await startHighlightFromUrl(bunny.videoUrl, params, {
+        videoId: bunny.videoId,
+        sourceOriginalFilename: fileToUpload.name,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        status: "failed",
+        progress: null,
+        error: getUserFacingErrorMessage(
+          error,
+          "Không thể tải video lên LearnHub hoặc tạo highlight.",
+        ),
+      }));
     }
   };
 
-  // ============================================================================
-  // CANCEL
-  // ============================================================================
-  const cancel = () => {
-    console.debug("[useUpload] Canceling upload");
-    if (hideProgressTimeoutRef.current) {
-      clearTimeout(hideProgressTimeoutRef.current);
-      hideProgressTimeoutRef.current = null;
+  const startFromExistingVideo = async (videoUrl: string, params: HighlightParams) => {
+    updateState({
+      file: null,
+      source: "existing-video",
+      progress: null,
+      status: "processing",
+      clips: [],
+      jobId: null,
+      bunnyVideoId: null,
+      sourceVideoId: null,
+      sourceVideoUrl: videoUrl,
+      createdProjectId: null,
+      error: null,
+      stage: "Đang tạo highlight từ video đã có",
+      progressPercent: 5,
+    });
+
+    try {
+      await startHighlightFromUrl(videoUrl, params);
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        status: "failed",
+        error: getUserFacingErrorMessage(
+          error,
+          "Không thể tạo highlight từ link video này.",
+        ),
+      }));
     }
+  };
+
+  const setFile = (file: File | null) => {
+    updateState({ file, source: file ? "file" : null });
+  };
+
+  const cancel = () => {
     setState(INITIAL_STATE);
   };
 
-  // ============================================================================
-  // RESET (for starting new upload without clearing file)
-  // ============================================================================
   const reset = () => {
-    console.debug("[useUpload] Resetting state");
-    if (hideProgressTimeoutRef.current) {
-      clearTimeout(hideProgressTimeoutRef.current);
-      hideProgressTimeoutRef.current = null;
-    }
     updateState({
       progress: null,
       status: "idle",
@@ -499,25 +897,17 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       isDownloading: false,
       createdProjectId: null,
       error: null,
+      stage: undefined,
+      progressPercent: undefined,
     });
   };
 
-  useEffect(() => {
-    return () => {
-      if (hideProgressTimeoutRef.current) {
-        clearTimeout(hideProgressTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // ============================================================================
-  // RETURN
-  // ============================================================================
   return {
     ...state,
     setFile,
     startUpload,
-    ensureProjectForClip,
+    startFromExistingVideo,
+    ensureProjectForClip: createOrGetProjectForClip,
     cancel,
     reset,
   };

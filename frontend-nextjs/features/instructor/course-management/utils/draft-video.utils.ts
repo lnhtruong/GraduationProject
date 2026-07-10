@@ -7,6 +7,7 @@ export type LessonFormVideoContext = {
   selectedVideoId: number | null;
   draftVideoBlobUrl: string | null;
   draftVideoDurationSeconds: number;
+  isVideoUploadBusy?: boolean;
 };
 
 export function resolveActiveVideoSource(params: {

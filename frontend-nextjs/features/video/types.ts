@@ -23,6 +23,8 @@ export interface Video {
   image_id: number | null;
   name?: string | null;
   url: string;
+  srt_raw_url?: string | null;
+  srtRawUrl?: string | null;
   duration: number | null;
   type: VideoType;
   thumbnail?: string | null;

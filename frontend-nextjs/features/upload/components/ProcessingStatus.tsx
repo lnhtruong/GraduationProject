@@ -1,77 +1,49 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { type ElementType, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import type { UploadStatus } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { AlertCircle, CheckCircle, Clock, Loader2 } from "lucide-react";
 
-// ============================================================================
-// ANIMATED PROGRESS HOOK
-// Smoothly crawls toward the target milestone instead of jumping.
-//
-// Behaviour per stage (4-step pipeline, each segment = 25%):
-//   - When target increases (new stage), instantly jump to the *previous* milestone
-//     (e.g. target 25→50 means we're starting segment 2, so reset to 25%)
-//   - Then crawl at ~1% per second toward (target - 1%), slowing down near the ceiling
-//   - At target === 100 (final stage), allow reaching 100%
-// ============================================================================
-
-function useAnimatedProgress(target: number, segmentSize = 25): number {
+function useAnimatedProgress(target: number): number {
   const [displayed, setDisplayed] = useState(0);
 
-  // Jump to segment start when a new stage arrives
   useEffect(() => {
-    setDisplayed((prev) => {
-      if (target > prev) return Math.max(0, target - segmentSize);
-      return prev;
-    });
-  }, [target, segmentSize]);
-
-  // Crawl toward ceiling (target-1% for intermediate, 100% for last)
-  useEffect(() => {
-    const ceiling = target === 100 ? 100 : target - 1;
-    const interval = setInterval(() => {
+    const ceiling = target === 100 ? 100 : Math.max(0, target - 1);
+    const interval = window.setInterval(() => {
       setDisplayed((prev) => {
+        if (prev > ceiling) return ceiling;
         if (prev >= ceiling) return prev;
         const remaining = ceiling - prev;
-        // Ease-out: covers ~24% in ~24s, slows near ceiling
         const step = Math.max(0.02, remaining * 0.008);
         return Math.min(prev + step, ceiling);
       });
     }, 30);
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [target]);
 
   return Math.round(displayed);
 }
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 interface ProcessingStatusProps {
   status: UploadStatus;
   jobId: string | null;
   isDownloading?: boolean;
   error?: string | null;
-  stage?: string; // Dynamic stage from backend
-  progressPercent?: number; // Dynamic progress from backend (0-100)
+  stage?: string;
+  progressPercent?: number;
 }
 
 interface StatusConfig {
   label: string;
   color: string;
-  icon: React.ElementType;
+  icon: ElementType;
   progress: number;
   description: string;
 }
-
-// ============================================================================
-// STATUS CONFIGURATIONS
-// ============================================================================
 
 const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
   idle: {
@@ -79,38 +51,38 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
     color: "bg-gray-100 text-gray-800 border-gray-200",
     icon: Clock,
     progress: 0,
-    description: "Chọn file video để bắt đầu",
+    description: "Chọn video để bắt đầu",
   },
   uploading: {
     label: "Đang tải lên",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Loader2,
     progress: 50,
-    description: "Đang tải video lên server...",
+    description: "Đang tải video lên LearnHub",
   },
   pending: {
-    label: "Đang chờ xử lý",
+    label: "Đang chờ",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
     progress: 0,
-    description: "Video đã được tải lên, đang xếp hàng để xử lý",
+    description: "Video đã được nhận và đang chờ AI xử lý",
   },
   processing: {
-    label: "Đang xử lý",
+    label: "Đang cắt highlight",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Loader2,
     progress: 60,
-    description: "Hệ thống đang phân tích và cắt video thành các clip ngắn",
+    description: "LearnHub đang phân tích nội dung và chọn đoạn đáng giữ",
   },
   completed: {
     label: "Hoàn thành",
     color: "bg-green-100 text-green-800 border-green-200",
     icon: CheckCircle,
     progress: 100,
-    description: "Video đã được xử lý thành công",
+    description: "Video đã xử lý xong",
   },
   failed: {
-    label: "Thất bại",
+    label: "Không thành công",
     color: "bg-red-100 text-red-800 border-red-200",
     icon: AlertCircle,
     progress: 0,
@@ -118,26 +90,40 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
   },
 };
 
-// ============================================================================
-// PROCESSING STEPS
-// Labels match what Colab backend sends in the "stage" field ("X/Y: ...")
-// ============================================================================
-
 const COLAB_STEPS = [
-  "Phiên âm nội dung video",
-  "Chọn highlight bằng AI",
-  "Cắt & ghép video",
-  "Tải lên & hoàn tất",
+  "Nhận diện nội dung trong video",
+  "Chọn đoạn đáng giữ lại",
+  "Cắt và ghép highlight",
+  "Lưu kết quả vào thư viện",
 ];
 
+function normalizeStageLabel(stage?: string): string | undefined {
+  if (!stage) return undefined;
+  const raw = stage.replace(/^\d+\/\d+\s*:\s*/, "").trim().toLowerCase();
+
+  if (/transcrib|speech|audio|subtitle/.test(raw)) {
+    return "Nhận diện nội dung trong video";
+  }
+  if (/select|highlight|analy/.test(raw)) {
+    return "Chọn đoạn đáng giữ lại";
+  }
+  if (/cut|clip|merge|render|stitch/.test(raw)) {
+    return "Cắt và ghép highlight";
+  }
+  if (/upload|final|complete/.test(raw)) {
+    return "Lưu kết quả vào thư viện";
+  }
+
+  return stage;
+}
+
 function ProcessingSteps({ stage }: { stage?: string }) {
-  // Parse current step from "X/Y: Label" format, e.g. "2/4: Selecting Highlights with AI"
-  const currentStep = stage ? parseInt(stage.split("/")[0]) : 0;
+  const currentStep = stage ? Number.parseInt(stage.split("/")[0], 10) : 0;
 
   return (
-    <div className="space-y-2 pt-2 border-t">
-      <h4 className="text-sm font-medium">Các bước xử lý:</h4>
-      <div className="space-y-1 text-xs">
+    <div className="space-y-2 border-t pt-3">
+      <h4 className="text-sm font-medium">Các bước đang chạy</h4>
+      <div className="space-y-1.5 text-xs">
         {COLAB_STEPS.map((label, index) => {
           const stepNum = index + 1;
           const isDone = stepNum < currentStep;
@@ -146,18 +132,18 @@ function ProcessingSteps({ stage }: { stage?: string }) {
           return (
             <div key={stepNum} className="flex items-center gap-2">
               {isDone ? (
-                <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                <CheckCircle className="h-3 w-3 shrink-0 text-green-500" />
               ) : isActive ? (
-                <Loader2 className="w-3 h-3 animate-spin text-blue-500 shrink-0" />
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-blue-500" />
               ) : (
-                <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+                <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
               )}
               <span
                 className={
                   isDone
                     ? "text-green-600 line-through"
                     : isActive
-                      ? "text-blue-600 font-medium"
+                      ? "font-medium text-blue-600"
                       : "text-muted-foreground"
                 }
               >
@@ -171,10 +157,6 @@ function ProcessingSteps({ stage }: { stage?: string }) {
   );
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export default function ProcessingStatus({
   status,
   isDownloading = false,
@@ -184,37 +166,31 @@ export default function ProcessingStatus({
 }: ProcessingStatusProps) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
-
-  // Use backend stage/progress when available, fall back to config defaults
-  const displayStage = stage || config.description;
-
-  // Derive milestone from "X/Y: ..." stage string (Colab doesn't send numeric progress)
-  // e.g. "2/4: Selecting Highlights" → 50%
   const stageMatch = stage?.match(/^(\d+)\/(\d+)/);
   const stageProgress = stageMatch
-    ? Math.round((parseInt(stageMatch[1]) / parseInt(stageMatch[2])) * 100)
+    ? Math.round((Number(stageMatch[1]) / Number(stageMatch[2])) * 100)
     : undefined;
-
-  // Target for the animated bar: explicit WS progress > stage milestone > status default
   const targetProgress =
     progressPercent ??
     stageProgress ??
     (status === "pending" ? 0 : config.progress);
-
-  // Smoothly crawl toward targetProgress instead of jumping to it
   const displayProgress = useAnimatedProgress(targetProgress);
+  const displayStage =
+    status === "failed" ? config.description : normalizeStageLabel(stage) || config.description;
 
-  // Don't render if idle
+  const safeErrorMessage = useMemo(
+    () =>
+      error
+        ? getUserFacingErrorMessage(
+            error,
+            "Không thể xử lý video. Vui lòng thử lại.",
+          )
+        : null,
+    [error],
+  );
+
   if (status === "idle") return null;
 
-  const safeErrorMessage = error
-    ? getUserFacingErrorMessage(
-        error,
-        "Không thể xử lý video. Vui lòng thử lại.",
-      )
-    : null;
-
-  // Icon color based on status
   const iconColor =
     status === "processing" || status === "uploading"
       ? "text-blue-600"
@@ -225,30 +201,24 @@ export default function ProcessingStatus({
           : status === "failed"
             ? "text-red-600"
             : "text-gray-600";
-
-  // Icon animation
   const iconAnimation =
     status === "processing" || status === "uploading" ? "animate-spin" : "";
 
   return (
-    <div className="space-y-4 p-4 bg-card border rounded-lg">
-      {/* Status Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Icon className={`w-5 h-5 ${iconColor} ${iconAnimation}`} />
-          </div>
+          <Icon className={`h-5 w-5 ${iconColor} ${iconAnimation}`} />
           <div>
             <h3 className="font-medium">{config.label}</h3>
             <p className="text-sm text-muted-foreground">{displayStage}</p>
           </div>
         </div>
         <Badge variant="outline" className={config.color}>
-          {config.label}
+          {status === "failed" ? "Lỗi" : config.label}
         </Badge>
       </div>
 
-      {/* Progress Bar */}
       {status !== "failed" && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -259,7 +229,6 @@ export default function ProcessingStatus({
         </div>
       )}
 
-      {/* Error Message */}
       {status === "failed" && safeErrorMessage && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -267,11 +236,10 @@ export default function ProcessingStatus({
         </Alert>
       )}
 
-      {/* Additional Info */}
       <div className="space-y-2">
         {isDownloading && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <Loader2 className="h-3 w-3 animate-spin" />
             Đang tải kết quả về...
           </div>
         )}
@@ -281,16 +249,13 @@ export default function ProcessingStatus({
         </div>
       </div>
 
-      {/* Processing Steps — driven by stage string "X/Y: Label" from Colab polling */}
       {status === "processing" && <ProcessingSteps stage={stage} />}
 
-      {/* Pending Steps */}
       {status === "pending" && (
-        <div className="space-y-2 pt-2 border-t">
-          <h4 className="text-sm font-medium">Đang chờ:</h4>
+        <div className="space-y-2 border-t pt-3">
+          <h4 className="text-sm font-medium">Đang chờ xử lý</h4>
           <div className="text-xs text-muted-foreground">
-            Video của bạn đang trong hàng đợi. Thời gian xử lý tùy thuộc vào độ
-            dài video và số lượng yêu cầu đang chờ.
+            Thời gian xử lý phụ thuộc vào độ dài video và số lượng yêu cầu đang chờ.
           </div>
         </div>
       )}

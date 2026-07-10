@@ -2,7 +2,8 @@
  * Server-Sent Events (SSE) client for media upload progress tracking.
  * - Endpoint: GET /api/media/sse/users/{userId}/events
  * - Auth: Bearer token in Authorization header
- * - Events: video:progress, video:completed, upload-video:completed, video:error
+ * - Events: video:progress, video:completed, upload-video:completed,
+ *   upload-image:completed, video:error
  */
 
 import { API_URL } from "@/lib/env";
@@ -14,13 +15,61 @@ import { authStorageHelper } from "@/store/auth";
 
 export interface VideoData {
   videoId?: number;
+  video_id?: number;
   url?: string;
+  video_url?: string;
   type: string;
   duration?: number;
   name?: string;
   job_id?: string;
   jobId?: string;
   srtUrl?: string;
+  clips?: Array<{
+    videoId?: number;
+    video_id?: number;
+    url: string;
+    video_url?: string;
+    name?: string;
+    thumbnail?: string;
+    duration?: number;
+  }>;
+  outputs?: Array<{
+    videoId?: number;
+    video_id?: number;
+    url: string;
+    video_url?: string;
+    name?: string;
+    thumbnail?: string;
+    duration?: number;
+  }>;
+  videos?: Array<{
+    topic_id?: number | string;
+    topicId?: number | string;
+    title?: string;
+    description?: string;
+    download_url?: string;
+    downloadUrl?: string;
+    url?: string;
+    video_url?: string;
+    name?: string;
+    thumbnail?: string;
+    duration?: number | string;
+    srt_url?: string;
+    srtUrl?: string;
+  }>;
+  createdVideos?: Array<{
+    videoId?: number;
+    video_id?: number;
+    topicId?: number;
+    topic_id?: number;
+    title?: string;
+    url: string;
+    video_url?: string;
+    srtUrl?: string;
+    srt_url?: string;
+    duration?: number;
+  }>;
+  videoIds?: number[];
 }
 
 export interface VideoProgressPayload {
@@ -52,10 +101,32 @@ export interface VideoErrorPayload {
   timestamp: string;
 }
 
+export interface ImageCompletedPayload {
+  success: true;
+  imageId?: number;
+  image_id?: number;
+  url?: string;
+  name?: string;
+  type?: string;
+  jobId?: string;
+  job_id?: string;
+  data?: {
+    imageId?: number;
+    image_id?: number;
+    url?: string;
+    name?: string;
+    type?: string;
+    jobId?: string;
+    job_id?: string;
+  };
+  timestamp: string;
+}
+
 export const MEDIA_UPLOAD_STREAM_EVENTS = [
   "video:progress",
   "video:completed",
   "upload-video:completed",
+  "upload-image:completed",
   "video:error",
   "quiz:generated",
 ] as const;
@@ -77,12 +148,14 @@ export type MediaUploadStreamEvent =
   | { type: "video:progress"; payload: VideoProgressPayload }
   | { type: "video:completed"; payload: VideoCompletedPayload }
   | { type: "upload-video:completed"; payload: VideoCompletedPayload }
+  | { type: "upload-image:completed"; payload: ImageCompletedPayload }
   | { type: "video:error"; payload: VideoErrorPayload }
   | { type: "quiz:generated"; payload: QuizGeneratedPayload };
 
 export interface UploadStreamHandlers {
   onProgress?: (payload: VideoProgressPayload) => void;
   onCompleted?: (payload: VideoCompletedPayload) => void;
+  onImageCompleted?: (payload: ImageCompletedPayload) => void;
   onError?: (payload: VideoErrorPayload) => void;
   onQuizGenerated?: (payload: QuizGeneratedPayload) => void;
   onEvent?: (event: MediaUploadStreamEvent) => void;
@@ -202,6 +275,8 @@ function normalizeMediaPayload(payload: unknown): unknown {
     error:
       typeof record.error === "object" && record.error !== null
         ? record.error
+        : typeof record.error === "string"
+          ? { message: record.error }
         : typeof record.error_message === "string"
           ? { message: record.error_message }
           : record.error,
@@ -211,6 +286,8 @@ function normalizeMediaPayload(payload: unknown): unknown {
     video_id: record.videoId ?? record.video_id,
     quizId: record.quizId ?? record.quiz_id,
     quiz_id: record.quizId ?? record.quiz_id,
+    imageId: record.imageId ?? record.image_id,
+    image_id: record.imageId ?? record.image_id,
   };
 }
 
@@ -328,6 +405,13 @@ function dispatchEvent(
     };
     handlers.onEvent?.(event);
     handlers.onCompleted?.(event.payload);
+  } else if (eventType === "upload-image:completed") {
+    const event = {
+      type: "upload-image:completed" as const,
+      payload: payload as ImageCompletedPayload,
+    };
+    handlers.onEvent?.(event);
+    handlers.onImageCompleted?.(event.payload);
   } else if (eventType === "video:error") {
     const event = {
       type: "video:error" as const,

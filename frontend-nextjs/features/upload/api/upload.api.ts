@@ -6,28 +6,37 @@ import {
   createApi,
   inferenceHttpClient as inferenceClient,
 } from "@/features/_shared/api-factories";
-import {
-  buildHighlightReelFormData,
-  buildHighlightReelRequestConfig,
-} from "../utils/upload.utils";
-import type { JobIdResponse, HighlightReelParams } from "../types";
+import { buildHighlightReelLinkPayload } from "../utils/upload.utils";
+import type {
+  JobIdResponse,
+  HighlightReelLinkParams,
+} from "../types";
 
 // ============================================================================
 // API OBJECT
 // ============================================================================
 
-export const UPLOAD_ENDPOINT = "/mascot_colab/highlight-reel";
+export const HIGHLIGHT_LINK_ENDPOINT = "/mascot_colab/highlight-reel-link";
+export const JOB_STATUS_ENDPOINT = "/mascot_colab/jobs/status";
 
 export const uploadApi = createApi({
-  startJob: async (params: HighlightReelParams) => {
-    const formData = buildHighlightReelFormData(params);
-    const requestConfig = buildHighlightReelRequestConfig(params);
-
+  startJobFromLink: async (params: HighlightReelLinkParams) => {
+    const payload = buildHighlightReelLinkPayload(params);
     const { data } = await inferenceClient.post<JobIdResponse>(
-      UPLOAD_ENDPOINT,
-      formData,
-      requestConfig,
+      HIGHLIGHT_LINK_ENDPOINT,
+      {
+        ...payload,
+        user_id: String(payload.user_id ?? ""),
+        isOpenAI: String(payload.isOpenAI ?? false),
+        isMultiOutput: String(payload.isMultiOutput ?? false),
+      },
     );
     return data.job_id;
+  },
+  getJobStatus: async (jobId: string) => {
+    const { data } = await inferenceClient.get<Record<string, unknown>>(
+      `${JOB_STATUS_ENDPOINT}/${encodeURIComponent(jobId)}`,
+    );
+    return data;
   },
 });

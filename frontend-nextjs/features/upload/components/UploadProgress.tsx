@@ -4,10 +4,6 @@ import ProcessingStatus from "./ProcessingStatus";
 import SuccessStatus from "./SuccessStatus";
 import type { UploadStatus } from "@/features/upload/types";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 interface UploadProgressProps {
   progress: number | null;
   status: UploadStatus;
@@ -23,10 +19,6 @@ interface UploadProgressProps {
   onClose?: () => void;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export default function UploadProgress({
   progress,
   status,
@@ -41,26 +33,25 @@ export default function UploadProgress({
   mode,
   onClose,
 }: UploadProgressProps) {
-  // Show upload progress bar
   if (progress !== null && status === "uploading") {
     return (
-      <div className="space-y-3 p-4 bg-card border rounded-lg">
+      <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <div className="flex-1">
             <p className="text-sm font-medium">
               {(progress ?? 0) >= 99
-                ? "Đang chuẩn bị xử lý..."
-                : "Đang tải lên video..."}
+                ? "Đang chuẩn bị phân tích video..."
+                : "Đang tải video lên LearnHub..."}
             </p>
             <p className="text-xs text-muted-foreground">
-              Vui lòng không đóng trang này
+              Vui lòng giữ trang này mở cho đến khi upload hoàn tất.
             </p>
           </div>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Tiến độ</span>
+            <span className="text-muted-foreground">Tiến độ upload</span>
             <span className="font-medium">{progress}%</span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -69,7 +60,6 @@ export default function UploadProgress({
     );
   }
 
-  // Show success status
   if (status === "completed" && clipsCount > 0) {
     return (
       <SuccessStatus
@@ -82,7 +72,6 @@ export default function UploadProgress({
     );
   }
 
-  // Show processing status
   if (status !== "idle" && status !== "uploading") {
     return (
       <ProcessingStatus
@@ -96,6 +85,5 @@ export default function UploadProgress({
     );
   }
 
-  // Idle state
   return null;
 }

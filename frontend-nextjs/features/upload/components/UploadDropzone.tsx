@@ -26,7 +26,6 @@ interface UploadDropzoneProps {
 const DEFAULT_ACCEPT = "video/*";
 const DEFAULT_MAX_SIZE = 2 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_SIZE_LABEL = "2GB";
-
 const SUPPORTED_FORMATS = ["MP4", "MOV", "AVI", "WEBM", "MKV"];
 
 export default function UploadDropzone({
@@ -34,7 +33,7 @@ export default function UploadDropzone({
   accept = DEFAULT_ACCEPT,
   maxSize = DEFAULT_MAX_SIZE,
   maxSizeLabel = DEFAULT_MAX_SIZE_LABEL,
-  title = "Kéo và thả video vào đây",
+  title = "Kéo video bài giảng vào đây",
   subtitle = "hoặc",
   disabled = false,
   variant = "default",
@@ -50,8 +49,7 @@ export default function UploadDropzone({
       if (message.includes("size")) {
         errorMessage = `File quá lớn. Kích thước tối đa: ${maxSizeLabel}`;
       } else if (message.includes("type")) {
-        errorMessage =
-          "Định dạng file không được hỗ trợ. Vui lòng chọn file video.";
+        errorMessage = "Định dạng file chưa được hỗ trợ. Vui lòng chọn một file video.";
       }
 
       toast.error(errorMessage, {
@@ -64,11 +62,11 @@ export default function UploadDropzone({
   const onValueChange = React.useCallback(
     (selectedFiles: File[]) => {
       setFiles(selectedFiles);
-      if (selectedFiles.length > 0) {
-        const file = selectedFiles[0];
-        onFileSelect(file);
-        setFiles([]);
-      }
+      const file = selectedFiles[0];
+      if (!file) return;
+
+      onFileSelect(file);
+      setFiles([]);
     },
     [onFileSelect],
   );
@@ -77,30 +75,25 @@ export default function UploadDropzone({
     variant === "compact"
       ? "rounded-xl border-border/70 bg-background/70 p-4"
       : variant === "hero"
-        ? "rounded-2xl border-primary/30 bg-primary/3 p-0 data-dragging:border-primary data-dragging:bg-primary/10"
-        : "rounded-xl border-border/60 bg-background p-4 sm:p-5";
+        ? "rounded-2xl border-primary/30 bg-primary/3 p-0 data-[dragging]:border-primary data-[dragging]:bg-primary/10"
+        : "rounded-2xl border-2 border-dashed border-slate-300 bg-background p-4 shadow-none transition-all duration-200 hover:border-primary/50 data-[dragging]:border-primary data-[dragging]:bg-primary/5 sm:p-6";
 
   const contentClassName =
     variant === "hero"
       ? "flex min-h-40 flex-col items-center justify-center gap-3 px-4 py-6 text-center"
       : variant === "compact"
         ? "flex flex-col items-center gap-3 text-center"
-        : "flex flex-col items-center gap-4 text-center";
+        : "flex min-h-[20rem] flex-col items-center justify-center gap-4 text-center";
 
   const iconClassName =
     variant === "compact"
-      ? "grid size-14 place-items-center rounded-full bg-primary/10"
-      : "grid size-20 place-items-center rounded-full bg-primary/10 sm:size-24";
+      ? "grid size-10 place-items-center"
+      : "grid size-12 place-items-center sm:size-14";
 
   const iconSizeClassName =
     variant === "compact"
-      ? "size-7 text-primary"
-      : "size-10 text-primary sm:size-12";
-
-  const titleClassName =
-    variant === "compact"
-      ? "mb-1 text-base font-medium"
-      : "mb-1 text-lg font-medium";
+      ? "size-6 text-primary"
+      : "size-8 text-primary sm:size-9";
 
   return (
     <FileUpload
@@ -125,9 +118,7 @@ export default function UploadDropzone({
                 playsInline
               />
             </div>
-            <div>
-              <p className="text-sm font-medium">{previewFileName}</p>
-            </div>
+            <p className="text-sm font-medium">{previewFileName}</p>
           </div>
         ) : (
           <div className={contentClassName}>
@@ -136,7 +127,7 @@ export default function UploadDropzone({
             </div>
 
             <div>
-              <h3 className={titleClassName}>{title}</h3>
+              <h3 className="mb-1 text-lg font-medium">{title}</h3>
               <p className="text-sm text-muted-foreground">
                 {subtitle}{" "}
                 <FileUploadTrigger asChild>
@@ -146,7 +137,7 @@ export default function UploadDropzone({
                     className="h-auto p-0"
                     disabled={disabled}
                   >
-                    chọn file
+                    chọn file từ máy
                   </Button>
                 </FileUploadTrigger>
               </p>

@@ -1,47 +1,44 @@
 import { Button } from "@/components/ui/button";
-import { Download, Edit, FileArchive } from "lucide-react";
+import { Download, Edit, FileArchive, Loader2 } from "lucide-react";
 import type { Clip } from "@/features/upload/types";
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 interface ResultsSectionProps {
   clips: Clip[];
   isVisible: boolean;
-  createdProjectId?: number | null;
   onEditClip?: (clip: Clip) => void | Promise<void>;
 }
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export default function ResultsSection({
   clips,
   isVisible,
-  createdProjectId,
   onEditClip,
 }: ResultsSectionProps) {
-  if (!isVisible || clips.length === 0) {
-    return null;
-  }
+  if (!isVisible || clips.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
-          Kết quả ({clips.length} {clips.length === 1 ? "file" : "files"})
-        </h3>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-wide text-primary">
+            Kết quả
+          </p>
+          <h3 className="text-xl font-semibold">
+            {clips.length === 1
+              ? "Highlight đã tạo"
+              : `${clips.length} highlight để bạn chọn`}
+          </h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Mở đoạn phù hợp trong Studio để thêm Mascot và hoàn thiện video.
+        </p>
       </div>
 
       <div className="grid gap-4">
         {clips.map((clip, index) => (
           <ClipCard
-            key={index}
+            key={`${clip.url}-${index}`}
             clip={clip}
             index={index}
-            createdProjectId={createdProjectId}
             onEditClip={onEditClip}
           />
         ))}
@@ -50,63 +47,58 @@ export default function ResultsSection({
   );
 }
 
-// ============================================================================
-// CLIP CARD COMPONENT
-// ============================================================================
-
 interface ClipCardProps {
   clip: Clip;
   index: number;
-  createdProjectId?: number | null;
   onEditClip?: (clip: Clip) => void | Promise<void>;
 }
 
 function ClipCard({
   clip,
   index,
-  createdProjectId,
   onEditClip,
 }: ClipCardProps) {
   const isZip = clip.url.endsWith(".zip") || clip.name.endsWith(".zip");
   const isVideo =
     !isZip &&
     (clip.url.startsWith("blob:") || /\.(mp4|mov|avi|webm)$/i.test(clip.url));
-  const editorParams = new URLSearchParams({ src: clip.url });
-  if (clip.videoId) {
-    editorParams.set("video_id", String(clip.videoId));
-  }
-  if (createdProjectId) {
-    editorParams.set("edit_id", String(createdProjectId));
-  }
-  const editorHref = `/editor?${editorParams.toString()}`;
 
   return (
-    <div className="bg-card border rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b">
-        <div className="flex items-center gap-3">
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           {isZip ? (
-            <FileArchive className="w-5 h-5 text-muted-foreground" />
+            <FileArchive className="h-5 w-5 shrink-0 text-muted-foreground" />
           ) : (
-            <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-              <span className="text-xs font-semibold text-primary">
-                {index + 1}
-              </span>
-            </div>
+            <span className="shrink-0 text-sm font-semibold text-muted-foreground">
+              {index + 1}
+            </span>
           )}
-          <div>
-            <div className="font-medium">{clip.name}</div>
-            {isZip && (
-              <div className="text-xs text-muted-foreground">
-                File nén chứa các clip
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              {clip.topicId ? (
+                <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  Chủ đề {clip.topicId}
+                </span>
+              ) : null}
+              <div className="truncate font-medium" title={clip.name}>
+                {clip.name}
               </div>
-            )}
+            </div>
+            {clip.description ? (
+              <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                {clip.description}
+              </div>
+            ) : null}
+            {isZip ? (
+              <div className="text-xs text-muted-foreground">
+                Gói tải xuống gồm nhiều đoạn video.
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* Download Button */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" asChild>
             <a
               href={clip.url}
@@ -114,50 +106,68 @@ function ClipCard({
               target="_blank"
               rel="noreferrer"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" />
               Tải xuống
             </a>
           </Button>
 
-          {/* Edit Button (only for videos) */}
-          {isVideo && (
+          {isVideo ? (
             <Button
               variant="default"
               size="sm"
+              disabled={!clip.videoId}
               onClick={() => {
-                console.log(
-                  "[ResultsSection] Navigating to editor with URL:",
-                  editorHref,
-                );
                 void onEditClip?.(clip);
               }}
             >
-              <Edit className="w-4 h-4 mr-2" />
-              Chỉnh sửa
+              {clip.videoId ? (
+                <Edit className="mr-2 h-4 w-4" />
+              ) : (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {clip.videoId ? "Mở trong Studio" : "Đang lưu"}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-4">
         {isZip ? (
-          <div className="text-sm text-muted-foreground p-6 bg-muted/20 rounded text-center">
-            <FileArchive className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-            <p>Tải file zip và giải nén để xem các clip.</p>
+          <div className="rounded-lg bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            <FileArchive className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
+            <p>Tải file zip và giải nén để xem các đoạn video.</p>
           </div>
         ) : isVideo ? (
-          <video
-            className="w-full rounded border"
-            controls
-            src={clip.url}
-            preload="metadata"
-          >
-            Trình duyệt của bạn không hỗ trợ video tag.
-          </video>
+          <div className="space-y-3">
+            {clip.thumbnail ? (
+              <div className="overflow-hidden rounded-lg border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={clip.thumbnail}
+                  alt={clip.name}
+                  className="aspect-video w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ) : (
+              <video
+                className="w-full rounded-lg border"
+                controls
+                src={clip.url}
+                preload="metadata"
+              >
+                Trình duyệt của bạn không hỗ trợ phát video.
+              </video>
+            )}
+            {clip.videoId ? (
+              <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                Đã lưu vào thư viện video. Bạn có thể mở lại clip này trong Studio.
+              </div>
+            ) : null}
+          </div>
         ) : (
-          <div className="text-sm text-muted-foreground p-6 bg-muted/20 rounded text-center">
-            <p>File không hỗ trợ xem trước. Vui lòng tải xuống để xem.</p>
+          <div className="rounded-lg bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            <p>File này chưa hỗ trợ xem trước. Vui lòng tải xuống để xem.</p>
           </div>
         )}
       </div>

@@ -66,10 +66,11 @@ interface Props {
 
 export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange }: Props) {
   const { user } = useAuth();
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("lesson-form-actions-portal"));
-  }, []);
+  const [portalTarget] = useState<HTMLElement | null>(() =>
+    typeof document === "undefined"
+      ? null
+      : document.getElementById("lesson-form-actions-portal"),
+  );
 
   const isEdit = isLessonEditMode(lesson);
   const lessonId = lesson?.id ?? null;
@@ -127,7 +128,6 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     Boolean(selectedVideoId),
   );
 
-  const selectedVideoDurationSeconds = Number(selectedVideo?.duration ?? 0);
   const {
     url: activeVideoUrl,
     durationSeconds: activeVideoDurationSeconds,
@@ -141,8 +141,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   });
 
   const isVideoProcessing = Boolean(
-    selectedVideo?.thumbnail === "processing" ||
-      (!activeVideoUrl && !videoLoading && !draftVideoBlobUrl && selectedVideoId)
+    !activeVideoUrl && !videoLoading && !draftVideoBlobUrl && selectedVideoId
   );
 
   const timestampOptions = useMemo(
@@ -175,17 +174,20 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
       selectedVideoId,
       draftVideoBlobUrl,
       draftVideoDurationSeconds,
+      isVideoUploadBusy: isUploadingVideo || isVideoProcessing,
     });
   }, [
     draftVideoBlobUrl,
     draftVideoDurationSeconds,
+    isUploadingVideo,
+    isVideoProcessing,
     onVideoContextChange,
     selectedVideoId,
   ]);
 
   useEffect(() => {
     if (!canUseInVideoQuiz && quizMode === "in_video") {
-      setQuizMode("outside_video");
+      queueMicrotask(() => setQuizMode("outside_video"));
     }
   }, [canUseInVideoQuiz, quizMode]);
 
@@ -252,7 +254,9 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     });
 
     if (hasAdjusted) {
-      setPendingQuizStates(adjusted);
+      queueMicrotask(() => {
+        setPendingQuizStates(adjusted);
+      });
       toast.warning(
         "Một số mốc thời gian Quiz trong video vượt quá thời lượng video mới và đã được tự động đưa về cuối video mới."
       );
@@ -350,7 +354,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     } else {
       const quizPayload = createQuizPayload(
         state,
-        null as any,
+        null,
         quizMode,
         quizTimestamp,
       );

@@ -31,6 +31,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
     selectedVideoId: null,
     draftVideoBlobUrl: null,
     draftVideoDurationSeconds: 0,
+    isVideoUploadBusy: false,
   });
 
   const handleVideoContextChange = useCallback(
@@ -168,6 +169,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           lessonVideoId={activeLessonVideoId}
           draftVideoBlobUrl={videoContext.draftVideoBlobUrl}
           draftVideoDurationSeconds={videoContext.draftVideoDurationSeconds}
+          isVideoPreparing={Boolean(videoContext.isVideoUploadBusy)}
           userId={user?.id}
         />
       ) : null}
