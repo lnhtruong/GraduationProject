@@ -12,7 +12,6 @@ export function useTextOverlays() {
     const [layers, setLayers] = useState<LayerItem[]>([]);
 
     const handleAddText = (text: TextOption) => {
-        console.log("Adding text overlay:", text);
         setLayers((prev) => [
             {
                 id: text.id,
@@ -20,12 +19,10 @@ export function useTextOverlays() {
                 data: text,
             },
             ...prev,
-
         ]);
     };
 
     const handleUpdateText = (id: string, updates: Partial<TextOption>) => {
-        console.log("Updating text overlay:", id, updates);
         setLayers((prev) =>
             prev.map((layer) =>
                 layer.type === "text" && layer.id === id
@@ -36,7 +33,6 @@ export function useTextOverlays() {
     };
 
     const handleRemoveText = (id: string) => {
-        console.log("Removing text overlay:", id);
         setLayers((prev) => prev.filter((layer) => layer.id !== id));
     };
 

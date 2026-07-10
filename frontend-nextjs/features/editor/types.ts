@@ -29,6 +29,25 @@ export interface MascotOption {
   sourceWidth?: number;
   sourceHeight?: number;
   previewPlacement?: MascotPreviewPlacement;
+  removeBackground?: boolean;
+  bgMode?: "green_screen" | "transparent";
+  bgQualityMode?: "fast" | "balanced" | "quality";
+  greenScreenColor?: string;
+  chromakeySimilarity?: number;
+  chromakeyBlend?: number;
+  alphaContractPx?: number;
+  alphaBlurPx?: number;
+  animationMode?: "human" | "default";
+  qualityMode?: "ultrafast" | "fast" | "balanced" | "quality";
+  drivingMultiplier?: number;
+  flagStitching?: boolean;
+  flagPasteback?: boolean;
+  flagNormalizeLip?: boolean;
+  flagRelativeMotion?: boolean;
+  flagDoCrop?: boolean;
+  cropScale?: number;
+  vxRatio?: number;
+  vyRatio?: number;
 }
 
 export interface MascotPreviewPlacement {
@@ -254,6 +273,31 @@ export interface MascotParams {
   margin_y?: number;
   scale?: number;
   audio?: File;
+  textOverlays?: TextOption[];
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  gamma?: number;
+  removeBackground?: boolean;
+  bgMode?: string;
+  bgQualityMode?: string;
+  greenScreenColor?: string;
+  chromakeySimilarity?: number;
+  chromakeyBlend?: number;
+  alphaContractPx?: number;
+  alphaBlurPx?: number;
+  animationMode?: string;
+  qualityMode?: string;
+  cfgScale?: number;
+  drivingMultiplier?: number;
+  flagStitching?: boolean;
+  flagPasteback?: boolean;
+  flagNormalizeLip?: boolean;
+  flagRelativeMotion?: boolean;
+  flagDoCrop?: boolean;
+  cropScale?: number;
+  vxRatio?: number;
+  vyRatio?: number;
 }
 
 export interface CreateMascotVideoPayload {

@@ -196,7 +196,7 @@ function DraggableResizableTextLayer({
       if (h.includes("b")) nh = Math.max(30, startHeight + dy);
       if (h.includes("t")) nh = Math.max(30, startHeight - dy);
 
-      // Scale font theo min(ratioW, ratioH) — không để chữ tràn theo cả 2 chiều
+      // Scale font theo min(ratioW, ratioH) để không bị tràn chữ theo cả 2 chiều
       const ratioW = nw / startWidth;
       const ratioH = nh / startHeight;
       const ratio = Math.min(ratioW, ratioH);

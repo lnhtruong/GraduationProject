@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   ChevronLeft,
@@ -68,6 +68,22 @@ export function StudioSidebar({
     "files" | "effect" | "mascot" | "text" | "voice"
   >("files");
   const [search, setSearch] = useState("");
+  const [draftText, setDraftText] = useState<TextOption>(() => ({
+    id: crypto.randomUUID(),
+    text: "",
+    position: { x: 50, y: 50 },
+    fontSize: 32,
+    color: "#FFFFFF",
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textAlign: "center",
+    startTime: 0,
+    duration: 5000,
+    width: 300,
+    height: 100,
+  }));
 
   const handleTabChange = (
     tab: "files" | "effect" | "mascot" | "text" | "voice",
@@ -106,37 +122,21 @@ export function StudioSidebar({
       .map((l) => l.data as TextOption);
   }, [panelBindings]);
 
+  useEffect(() => {
+    if (panelBindings?.selectedTextId) return;
+    setDraftText((prev) => ({
+      ...prev,
+      id: crypto.randomUUID(),
+    }));
+  }, [panelBindings?.selectedTextId]);
+
   const currentText = useMemo<TextOption>(() => {
     if (!panelBindings) {
-      return {
-        id: crypto.randomUUID(),
-        text: "",
-        position: { x: 50, y: 50 },
-        fontSize: 32,
-        color: "#FFFFFF",
-        fontFamily: "Arial",
-        fontWeight: "bold",
-        fontStyle: "normal",
-        textDecoration: "none",
-        textAlign: "center",
-      };
+      return draftText;
     }
 
-    return (
-      textOverlays.find((t) => t.id === panelBindings.selectedTextId) || {
-        id: crypto.randomUUID(),
-        text: "",
-        position: { x: 50, y: 50 },
-        fontSize: 32,
-        color: "#FFFFFF",
-        fontFamily: "Arial",
-        fontWeight: "bold",
-        fontStyle: "normal",
-        textDecoration: "none",
-        textAlign: "center",
-      }
-    );
-  }, [panelBindings, textOverlays]);
+    return textOverlays.find((t) => t.id === panelBindings.selectedTextId) || draftText;
+  }, [draftText, panelBindings, textOverlays]);
 
   const handleTextChange = (newValue: TextOption) => {
     if (!panelBindings) return;
@@ -145,31 +145,37 @@ export function StudioSidebar({
     if (selectedId && textOverlays.find((t) => t.id === selectedId)) {
       panelBindings.onTextUpdate(selectedId, newValue);
     } else {
-      panelBindings.onTextAdd(newValue);
-      panelBindings.onTextSelect(newValue.id);
+      setDraftText(newValue);
     }
   };
 
   const handleTextAdd = () => {
     if (!panelBindings) return;
+    const textValue = currentText.text.trim();
+    if (!textValue) return;
     const newText: TextOption = {
       id: crypto.randomUUID(),
-      text: "New Text",
-      position: { x: 50, y: 50 },
-      fontSize: 32,
-      color: "#FFFFFF",
-      fontFamily: "Arial",
-      fontWeight: "bold",
-      fontStyle: "normal",
-      textDecoration: "none",
-      textAlign: "center",
-      startTime: 0,
-      duration: 5000, // ← đổi từ 0 thành 5000
-      width: 300,
-      height: 100,
+      text: textValue,
+      position: currentText.position,
+      fontSize: currentText.fontSize,
+      color: currentText.color,
+      fontFamily: currentText.fontFamily,
+      fontWeight: currentText.fontWeight,
+      fontStyle: currentText.fontStyle,
+      textDecoration: currentText.textDecoration,
+      textAlign: currentText.textAlign,
+      startTime: currentText.startTime ?? 0,
+      duration: currentText.duration || 5000,
+      width: currentText.width || 300,
+      height: currentText.height || 100,
     };
     panelBindings.onTextAdd(newText);
     panelBindings.onTextSelect(newText.id);
+    setDraftText((prev) => ({
+      ...prev,
+      id: crypto.randomUUID(),
+      text: "",
+    }));
   };
 
   const handleTextRemove = () => {
@@ -215,7 +221,14 @@ export function StudioSidebar({
                 </div>
               </div>
 
-              <TabsList className="flex h-auto w-full flex-col gap-0 border-0 bg-transparent p-0">
+              <TabsList
+                className="flex h-auto w-full flex-col gap-0 border-0 bg-transparent p-0"
+                onClick={() => {
+                  if (collapsed) {
+                    onToggleCollapsed();
+                  }
+                }}
+              >
                 <TabsTrigger
                   value="files"
                   className="mb-2 flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"

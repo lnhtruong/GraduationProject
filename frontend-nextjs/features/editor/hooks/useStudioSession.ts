@@ -44,7 +44,7 @@ export function useStudioSession() {
   const currentQuery = searchParams.toString();
 
   const [editId, setEditId] = useState<number | null>(null);
-  const [sessionName, setSessionName] = useState("Untitled Project");
+  const [sessionName, setSessionName] = useState("Dự án chưa đặt tên");
   const [isBootstrappingProject, setIsBootstrappingProject] = useState(false);
   const [selectedMascotImageId, setSelectedMascotImageId] = useState<
     number | null
@@ -57,6 +57,7 @@ export function useStudioSession() {
     searchParams.get("editid");
   const rawVideoId =
     searchParams.get("video_id") ?? searchParams.get("videoId");
+  const querySourceUrl = searchParams.get("src") || undefined;
   const queryEditId = rawEditId ? Number(rawEditId) : NaN;
   const queryVideoId = rawVideoId ? Number(rawVideoId) : NaN;
 
@@ -95,6 +96,11 @@ export function useStudioSession() {
     isLoading: highlightVideosLoading,
     refetch: refetchHighlightVideos,
   } = useVideosByUser("highlight", true);
+  const {
+    data: rawMascotVideos = [],
+    isLoading: mascotOutputVideosLoading,
+    refetch: refetchMascotVideos,
+  } = useVideosByUser("mascot", true);
   const { data: rawMascotImages = [], isLoading: mascotImagesLoading } =
     useImagesByUser(true);
   const { data: currentProject } = useProjectById(
@@ -134,18 +140,21 @@ export function useStudioSession() {
       })),
     [rawMascotImages],
   );
+  const projectVideos = useMemo(
+    () => [...rawHighlightVideos, ...rawMascotVideos],
+    [rawHighlightVideos, rawMascotVideos],
+  );
   const firstOverlayId =
     projectLayers.length > 0 ? projectLayers[0].mascot_overlay_id : null;
   const { data: overlayDetail } = useLayer(firstOverlayId);
   const activeSessionName = currentProject?.session_name ?? sessionName;
   const activeSourceVideoUrl =
-    highlightVideos.find(
-      (video) => (video.video_id ?? video.id) === currentProject?.video_id,
-    )?.url ?? undefined;
+    projectVideos.find((video) => video.id === currentProject?.video_id)?.url ??
+    querySourceUrl ??
+    undefined;
   const activeSourceVideoName =
-    highlightVideos.find(
-      (video) => (video.video_id ?? video.id) === currentProject?.video_id,
-    )?.name ?? undefined;
+    projectVideos.find((video) => video.id === currentProject?.video_id)?.name ??
+    undefined;
   const existingMascotOverlay = useMemo(() => {
     const rawOverlay = overlayDetail ?? projectLayers[0] ?? null;
     if (!rawOverlay) return null;
@@ -207,7 +216,7 @@ export function useStudioSession() {
 
         bootstrappedSourceRef.current = selectedVideoId;
         const now = new Date();
-        const projectName = `Project ${now.toLocaleDateString("vi-VN")}`;
+        const projectName = `Dự án ${now.toLocaleDateString("vi-VN")}`;
 
         const createdProject = await createProject({
           session_name: projectName,
@@ -270,6 +279,7 @@ export function useStudioSession() {
 
   const isLoading =
     highlightVideosLoading ||
+    mascotOutputVideosLoading ||
     mascotImagesLoading ||
     isCreating ||
     isUpdating ||
@@ -394,7 +404,7 @@ export function useStudioSession() {
     setIsBootstrappingProject(true);
     try {
       const now = new Date();
-      const name = `Project ${now.toLocaleDateString("vi-VN")}`;
+      const name = `Dự án ${now.toLocaleDateString("vi-VN")}`;
       const createdProject = await createProject({
         session_name: name,
         video_id: resolvedVideoId,
@@ -440,7 +450,7 @@ export function useStudioSession() {
         });
       } catch (error) {
         console.error("Update project video failed:", error);
-        toast.error("Cập nhật video cho project thất bại");
+        toast.error("Cập nhật video cho dự án thất bại");
         throw error;
       } finally {
         setIsBootstrappingProject(false);
@@ -451,7 +461,7 @@ export function useStudioSession() {
     setIsBootstrappingProject(true);
     try {
       const now = new Date();
-      const name = `Project ${now.toLocaleDateString("vi-VN")}`;
+      const name = `Dự án ${now.toLocaleDateString("vi-VN")}`;
       const createdProject = await createProject({
         session_name: name,
         video_id: videoId,
@@ -460,7 +470,7 @@ export function useStudioSession() {
       if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
     } catch (error) {
       console.error("Create project from highlight failed:", error);
-      toast.error("Tạo project thất bại");
+      toast.error("Tạo dự án thất bại");
       throw error;
     } finally {
       setIsBootstrappingProject(false);
@@ -554,16 +564,50 @@ export function useStudioSession() {
   }) => {
     if (!activeEditId) return;
 
+    let resolvedVideoId = payload?.videoId;
+
+    if (!resolvedVideoId && payload?.videoUrl) {
+      const normalizeUrl = (value?: string) => {
+        if (!value) return "";
+        try {
+          const parsed = new URL(value);
+          return `${parsed.origin}${parsed.pathname}`;
+        } catch {
+          return value;
+        }
+      };
+      const targetUrl = normalizeUrl(payload.videoUrl);
+      const findMascotVideoIdByUrl = (videos: Video[] | undefined) => {
+        const matched = videos?.find(
+          (video) => normalizeUrl(video.url) === targetUrl,
+        );
+        return matched?.id;
+      };
+
+      resolvedVideoId = findMascotVideoIdByUrl(rawMascotVideos);
+
+      for (let attempt = 0; !resolvedVideoId && attempt < 15; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const refreshed = await refetchMascotVideos();
+        resolvedVideoId = findMascotVideoIdByUrl(refreshed.data);
+      }
+    }
+
+    if (!resolvedVideoId) {
+      throw new Error(
+        "Video mascot đã xử lý xong nhưng chưa được lưu vào thư viện. Vui lòng chờ ít phút rồi thử lại.",
+      );
+    }
+
     await updateProject({
       id: activeEditId,
       data: {
+        video_id: resolvedVideoId,
         status: "finalized",
       },
     });
 
-    if (payload?.videoUrl) {
-      router.replace("/library", { scroll: false });
-    }
+    router.replace("/library", { scroll: false });
   };
 
   return {

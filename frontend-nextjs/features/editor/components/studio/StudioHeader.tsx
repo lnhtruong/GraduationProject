@@ -1,20 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MoreVertical, Wand2, Loader } from "lucide-react";
+import { ArrowLeft, Loader, Save, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface StudioHeaderProps {
   activeSessionName: string;
@@ -22,7 +12,6 @@ interface StudioHeaderProps {
   isLoading: boolean;
   onStartEmptyProject: () => void;
   onSaveSession: (name: string) => Promise<void>;
-  hasMascotOverlay?: boolean;
   isCreatingMascotVideo?: boolean;
   mascotProgress?: string;
   onCreateMascotVideo?: () => void | Promise<void>;
@@ -34,14 +23,18 @@ export function StudioHeader({
   isLoading,
   onStartEmptyProject,
   onSaveSession,
-  hasMascotOverlay = false,
   isCreatingMascotVideo = false,
   mascotProgress = "",
   onCreateMascotVideo,
 }: StudioHeaderProps) {
   const [draftName, setDraftName] = useState(activeSessionName);
   const [isNameEditing, setIsNameEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraftName(activeSessionName);
+  }, [activeSessionName]);
 
   useEffect(() => {
     if (isNameEditing) {
@@ -51,12 +44,21 @@ export function StudioHeader({
   }, [isNameEditing]);
 
   const trimmedDraftName = useMemo(() => draftName.trim(), [draftName]);
-  const canSave = Boolean(activeEditId) && !isLoading;
+  const canSave = Boolean(activeEditId) && !isLoading && !isSaving;
 
   const handleSave = async () => {
     if (!canSave) return;
     const nextName = trimmedDraftName || activeSessionName;
-    await onSaveSession(nextName);
+    setIsSaving(true);
+    try {
+      await onSaveSession(nextName);
+      toast.success("Đã lưu nháp");
+    } catch (error) {
+      console.error("Save draft failed:", error);
+      toast.error("Không thể lưu nháp. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCommitName = async () => {
@@ -77,45 +79,46 @@ export function StudioHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.35)_100%)] backdrop-blur">
-      <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-5">
+      <div className="flex h-12 items-center justify-between gap-2 px-2 sm:h-14 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={onStartEmptyProject}
-            className="h-8 w-8 p-0 hover:bg-accent/80"
-            title="Project rỗng"
+            className="h-9 w-9 shrink-0 p-0 hover:bg-accent/80"
+            title="Dự án mới"
           >
             <ArrowLeft size={18} />
           </Button>
+
           {activeEditId ? (
             isNameEditing ? (
               <Input
                 ref={inputRef}
                 value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
+                onChange={(event) => setDraftName(event.target.value)}
                 onBlur={() => {
                   void handleCommitName();
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
                     void handleCommitName();
                   }
-                  if (e.key === "Escape") {
-                    e.preventDefault();
+                  if (event.key === "Escape") {
+                    event.preventDefault();
                     setDraftName(activeSessionName);
                     setIsNameEditing(false);
                   }
                 }}
-                className="h-9 w-56 sm:w-80 border-border bg-background/90 text-sm font-semibold"
+                className="h-9 w-[38vw] min-w-28 max-w-56 border-border bg-background/90 text-sm font-semibold sm:w-80 sm:max-w-none"
                 placeholder="Tên dự án"
                 aria-label="Tên dự án"
               />
             ) : (
               <button
                 type="button"
-                className="max-w-[70vw] truncate rounded px-1 text-left text-base font-semibold tracking-tight transition hover:bg-accent/40 sm:text-lg"
+                className="max-w-[34vw] truncate rounded px-1 text-left text-sm font-semibold tracking-tight transition hover:bg-accent/40 sm:max-w-[70vw] sm:text-lg"
                 onClick={() => {
                   setDraftName(activeSessionName);
                   setIsNameEditing(true);
@@ -126,64 +129,61 @@ export function StudioHeader({
               </button>
             )
           ) : (
-            <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+            <h2 className="truncate text-sm font-semibold tracking-tight sm:text-lg">
               {activeSessionName}
             </h2>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {activeEditId ? (
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isCreatingMascotVideo || isLoading}
-                      className="h-9 w-9 p-0"
-                      title="Tùy chọn video"
-                    >
-                      {isCreatingMascotVideo ? (
-                        <Loader size={16} className="animate-spin" />
-                      ) : (
-                        <MoreVertical size={16} />
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isCreatingMascotVideo
-                    ? `Đang tạo video: ${mascotProgress}`
-                    : "Tùy chọn video mascot"}
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={() => {
-                    void onCreateMascotVideo?.();
-                  }}
-                  disabled={isCreatingMascotVideo || isLoading}
-                  className="cursor-pointer flex items-center gap-2"
-                >
-                  <Wand2 size={16} />
-                  <span>Tạo video mascot</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {activeEditId ? (
             <Button
               size="sm"
+              variant="outline"
               onClick={() => {
                 void handleSave();
               }}
               disabled={!canSave}
-              className="h-9"
+              className="h-9 gap-1.5 px-2.5 sm:px-3"
+              title="Lưu nháp"
             >
-              Lưu dự án
+              {isSaving ? (
+                <Loader size={15} className="animate-spin" />
+              ) : (
+                <Save size={15} />
+              )}
+              <span className="hidden sm:inline">
+                {isSaving ? "Đang lưu" : "Lưu nháp"}
+              </span>
+            </Button>
+          ) : null}
+
+          {activeEditId && onCreateMascotVideo ? (
+            <Button
+              size="sm"
+              disabled={isCreatingMascotVideo || isLoading}
+              onClick={() => {
+                void onCreateMascotVideo?.();
+              }}
+              className="h-9 gap-1.5 px-3 font-semibold"
+            >
+              {isCreatingMascotVideo ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  <span className="hidden sm:inline">
+                    {mascotProgress
+                      ? `Đang tạo (${mascotProgress})`
+                      : "Đang tạo..."}
+                  </span>
+                  <span className="sm:hidden">Đang tạo</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 size={16} />
+                  <span className="hidden sm:inline">Tạo video hoàn chỉnh</span>
+                  <span className="sm:hidden">Tạo</span>
+                </>
+              )}
             </Button>
           ) : null}
         </div>
