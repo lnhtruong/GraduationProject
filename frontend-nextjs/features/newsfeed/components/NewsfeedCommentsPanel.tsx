@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageCircleReply, SendHorizonal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   useCreateNewsfeedComment,
   useNewsfeedCommentDetail,
   useNewsfeedComments,
+  syncNewsfeedCommentCount,
 } from "../api/newsfeed.hooks";
 import type { NewsfeedCommentItem, NewsfeedItem } from "../types";
 import { NewsfeedAuthDialog, type NewsfeedAuthAction } from "./NewsfeedAuthDialog";
@@ -277,14 +279,17 @@ interface NewsfeedCommentsPanelProps {
   video: NewsfeedItem | null;
   viewerName: string;
   sortOrder: CommentSortOrder;
+  onCommentCountChange?: (count: number) => void;
 }
 
 export function NewsfeedCommentsPanel({
   video,
   viewerName,
   sortOrder,
+  onCommentCountChange,
 }: NewsfeedCommentsPanelProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [replyTargetId, setReplyTargetId] = useState<number | null>(null);
   const [authDialogAction, setAuthDialogAction] = useState<NewsfeedAuthAction | null>(null);
@@ -300,6 +305,15 @@ export function NewsfeedCommentsPanel({
   const comments = useMemo(
     () => sortCommentsByOrder(commentsQuery.data?.pages.flatMap((page) => page.items) ?? [], sortOrder),
     [commentsQuery.data?.pages, sortOrder],
+  );
+  const loadedCommentCount = useMemo(
+    () =>
+      comments.reduce(
+        (total, comment) =>
+          total + 1 + Math.max(0, Number(comment.total_nested_cmt ?? 0)),
+        0,
+      ),
+    [comments],
   );
 
   const canSubmit =
@@ -328,6 +342,15 @@ export function NewsfeedCommentsPanel({
   useEffect(() => {
     autosizeTextarea(commentTextareaRef.current);
   }, [content]);
+
+  useEffect(() => {
+    if (!feedId || loadedCommentCount <= 0) {
+      return;
+    }
+
+    onCommentCountChange?.(loadedCommentCount);
+    syncNewsfeedCommentCount(queryClient, feedId, loadedCommentCount);
+  }, [feedId, loadedCommentCount, onCommentCountChange, queryClient]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">

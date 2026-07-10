@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,8 +27,26 @@ export function NewsfeedOptionBox({
   onClose,
 }: NewsfeedOptionBoxProps) {
   const [sortOrder, setSortOrder] = useState<CommentSortOrder>("newest");
-  const commentCount = video?.stats.comments ?? 0;
+  const [syncedCommentState, setSyncedCommentState] = useState<{
+    feedId: number | null;
+    count: number;
+  } | null>(null);
+  const sourceCommentCount = video?.stats.comments ?? 0;
+  const syncedCommentCount =
+    syncedCommentState?.feedId === (video?.feedId ?? null)
+      ? syncedCommentState.count
+      : null;
+  const commentCount =
+    syncedCommentCount === null
+      ? sourceCommentCount
+      : Math.max(sourceCommentCount, syncedCommentCount);
   const commentCountLabel = useMemo(() => commentCount.toLocaleString("vi-VN"), [commentCount]);
+  const handleCommentCountChange = useCallback(
+    (count: number) => {
+      setSyncedCommentState({ feedId: video?.feedId ?? null, count });
+    },
+    [video?.feedId],
+  );
 
   return (
     <aside
@@ -71,7 +89,12 @@ export function NewsfeedOptionBox({
 
         <div className="flex-1 overflow-hidden">
           {contentType === "comments" ? (
-            <NewsfeedCommentsPanel video={video} viewerName={viewerName} sortOrder={sortOrder} />
+            <NewsfeedCommentsPanel
+              video={video}
+              viewerName={viewerName}
+              sortOrder={sortOrder}
+              onCommentCountChange={handleCommentCountChange}
+            />
           ) : video ? (
             <div className="h-full p-5">
               <NewsfeedCoursePanel video={video} />
