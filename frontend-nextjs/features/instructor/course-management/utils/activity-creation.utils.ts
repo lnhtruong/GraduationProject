@@ -85,7 +85,7 @@ export function createAssignmentPayload(
  */
 export function createQuizPayload(
   state: QuizEditorState,
-  lessonActivityId: number,
+  lessonActivityId: number | null,
   quizMode: "in_video" | "outside_video",
   quizTimestamp: string,
 ): QuizEditorState {

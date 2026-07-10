@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -122,7 +122,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/92 shadow-xs backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-3 px-3 sm:px-5 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-2 px-2 sm:gap-3 sm:px-5 lg:px-8">
         <BrandLogo />
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -155,12 +155,12 @@ export function Header() {
           <div className="hidden flex-1 lg:block" />
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           {!shouldHideHeaderSearch ? (
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-full border border-border/70 lg:hidden"
+              className="hidden h-9 w-9 rounded-full border border-border/70 sm:inline-flex sm:h-10 sm:w-10 lg:hidden"
               onClick={() => setIsMobileSearchOpen((value) => !value)}
               aria-label={isMobileSearchOpen ? "Đóng tìm kiếm" : "Mở tìm kiếm"}
             >
@@ -197,7 +197,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 rounded-full border border-border/70"
+                className="hidden h-9 w-9 rounded-full border border-border/70 sm:inline-flex sm:h-10 sm:w-10"
                 aria-label="Đổi giao diện"
               >
                 <ThemeIcon className="h-5 w-5" />
@@ -235,7 +235,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 rounded-full border border-border/70 lg:hidden"
+                className="h-9 w-9 shrink-0 rounded-full border border-border/70 sm:h-10 sm:w-10 lg:hidden"
                 aria-label="Mở điều hướng"
               >
                 <Menu className="h-5 w-5" />
@@ -265,9 +265,9 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 gap-2 rounded-full border border-border/70 px-1.5 pr-3"
+                  className="h-9 shrink-0 gap-2 rounded-full border border-border/70 px-1 pr-1.5 sm:h-10 sm:px-1.5 sm:pr-3"
                 >
-                  <UserAvatar user={user} className="h-8 w-8" />
+                  <UserAvatar user={user} className="h-7 w-7 sm:h-8 sm:w-8" />
                   <span className="hidden max-w-28 truncate text-sm font-semibold lg:inline">
                     {displayName}
                   </span>
@@ -363,9 +363,17 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild className="h-10 rounded-full px-5 font-bold">
-              <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>
-                Đăng nhập
+            <Button
+              asChild
+              className="h-9 w-9 shrink-0 overflow-hidden rounded-full p-0 font-bold sm:h-10 sm:w-auto sm:px-5"
+            >
+              <Link
+                href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}
+                aria-label="Đăng nhập"
+                className="flex items-center gap-1.5 overflow-hidden sm:overflow-visible"
+              >
+                <User className="h-4 w-4" />
+                <span className="max-[420px]:sr-only">Đăng nhập</span>
               </Link>
             </Button>
           )}
