@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
 import type { CourseChangeRequest, CourseChangeRequestKind } from "../../types/change-request.types";
 
 // ── Kind config ───────────────────────────────────────────────────────────────
@@ -29,19 +30,13 @@ const STATUS_CONFIG = {
   rejected: { label: "Từ chối",   colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
 };
 
-const FIELD_LABELS: Record<string, string> = {
-  name: "Tên khoá học", description: "Mô tả", price: "Giá",
-  level: "Cấp độ", language: "Ngôn ngữ", categories: "Danh mục",
-  title: "Tiêu đề", contentType: "Loại nội dung", duration: "Thời lượng",
-};
-
 // ── Inline diff preview ───────────────────────────────────────────────────────
 
 function InlinePreview({ req }: { req: CourseChangeRequest }) {
   const { kind, payload, prevData, changes } = req;
 
   if (kind === "lesson.delete") {
-    const title = (prevData?.title as string) ?? (changes?.[0]?.from as string) ?? null;
+    const title = (prevData?.title as string) ?? null;
     return (
       <span className="inline-flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400">
         <Trash2 className="h-3 w-3 shrink-0" />
@@ -50,7 +45,7 @@ function InlinePreview({ req }: { req: CourseChangeRequest }) {
     );
   }
 
-  if (kind === "lesson.create" || kind === "quiz.create") {
+  if (kind === "lesson.create") {
     const title = (payload?.title as string) ?? (changes?.find((c) => c.field === "title")?.to as string) ?? null;
     return (
       <span className="text-xs text-muted-foreground">
@@ -59,15 +54,27 @@ function InlinePreview({ req }: { req: CourseChangeRequest }) {
     );
   }
 
-  const diffs = changes ?? [];
+  // quiz.create: kind hợp lệ về mặt backend (giữ để tương thích ngược với
+  // request cũ từ trước khi quiz chuyển sang sửa/xoá trực tiếp), nhưng
+  // QuizChangePayload dùng field "name", không phải "title" như lesson.
+  if (kind === "quiz.create") {
+    const name = (payload?.name as string) ?? (changes?.find((c) => c.field === "name")?.to as string) ?? null;
+    return (
+      <span className="text-xs text-muted-foreground">
+        Tên quiz: <span className="font-medium text-foreground">{name ?? "—"}</span>
+      </span>
+    );
+  }
+
+  const diffs = (changes ?? []).filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
   if (diffs.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
 
   return (
     <span className="flex flex-wrap gap-x-3 gap-y-1">
       {diffs.slice(0, 3).map((c) => {
         const label = FIELD_LABELS[c.field] ?? c.field;
-        const fromStr = c.from !== null && c.from !== undefined ? String(c.from) : null;
-        const toStr   = c.to   !== null && c.to   !== undefined ? String(c.to)   : null;
+        const fromStr = formatDiffValue(c.field, c.from);
+        const toStr   = formatDiffValue(c.field, c.to);
         return (
           <span key={c.field} className="inline-flex items-baseline gap-1 text-xs">
             <span className="font-medium text-muted-foreground">{label}:</span>

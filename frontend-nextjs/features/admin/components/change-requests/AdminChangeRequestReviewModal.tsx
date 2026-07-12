@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewChangeRequest } from "../../api/admin-change-requests.hooks";
+import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
+import { VideoDiffPreview } from "./VideoDiffPreview";
 import type {
   CourseChangeRequest,
   CourseChangeRequestKind,
@@ -54,18 +56,6 @@ const STATUS_LABEL: Record<string, { label: string; colorClass: string }> = {
   rejected: { label: "Từ chối", colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
 };
 
-const FIELD_LABELS: Record<string, string> = {
-  name: "Tên khoá học",
-  description: "Mô tả",
-  price: "Giá (đ)",
-  level: "Cấp độ",
-  language: "Ngôn ngữ",
-  categories: "Danh mục",
-  title: "Tiêu đề bài học",
-  contentType: "Loại nội dung",
-  duration: "Thời lượng",
-};
-
 function formatDate(iso?: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "long", year: "numeric" });
@@ -75,8 +65,8 @@ function formatDate(iso?: string | null) {
 
 function DiffRow({ field, before, after }: { field: string; before?: unknown; after?: unknown }) {
   const label = FIELD_LABELS[field] ?? field;
-  const beforeStr = before !== undefined && before !== null ? String(before) : null;
-  const afterStr = after !== undefined && after !== null ? String(after) : null;
+  const beforeStr = formatDiffValue(field, before);
+  const afterStr = formatDiffValue(field, after);
 
   return (
     <div className="rounded-lg border border-border/60 bg-background px-3 py-2.5 text-sm">
@@ -112,32 +102,54 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
   const { kind, changes, prevData } = request;
 
   if (kind === "lesson.delete") {
+    const title = (prevData?.title as string) ?? null;
+    const contentTypeLabel = prevData?.contentType != null
+      ? formatDiffValue("contentType", prevData.contentType)
+      : null;
     return (
       <div className="rounded-lg border border-rose-200 bg-rose-50/50 px-3 py-3 dark:border-rose-800/40 dark:bg-rose-950/20">
         <p className="mb-1 text-xs font-semibold text-rose-700 dark:text-rose-400">Bài học sẽ bị xoá</p>
-        <p className="text-sm font-medium">{(prevData?.title as string) ?? "—"}</p>
-        {prevData?.contentType != null && (
-          <p className="mt-0.5 text-xs text-muted-foreground">Loại: {String(prevData.contentType)}</p>
+        <p className="text-sm font-medium">{title ?? "—"}</p>
+        {contentTypeLabel && (
+          <p className="mt-0.5 text-xs text-muted-foreground">Loại: {contentTypeLabel}</p>
         )}
       </div>
     );
   }
 
   if (kind === "lesson.create") {
+    const textDiffs = (changes ?? []).filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
+    const lessonTitle = (changes ?? []).find((c) => c.field === "title")?.to as string | undefined;
+    const contentType = (changes ?? []).find((c) => c.field === "contentType")?.to as string | undefined;
+    const videoId = (changes ?? []).find((c) => c.field === "videoId")?.to as number | null | undefined;
+
     return (
       <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-3 dark:border-emerald-800/40 dark:bg-emerald-950/20">
-        <p className="mb-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Bài học mới sẽ được thêm</p>
-        {(changes ?? []).map((c: ChangeRequestFieldDiff) => (
-          <p key={c.field} className="text-sm">
-            <span className="font-medium">{FIELD_LABELS[c.field] ?? c.field}:</span> {String(c.to ?? "—")}
-          </p>
-        ))}
+        <p className="mb-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Bài học mới sẽ được thêm</p>
+        <div className="space-y-1">
+          {textDiffs.map((c) => (
+            <p key={c.field} className="text-sm">
+              <span className="font-medium">{FIELD_LABELS[c.field] ?? c.field}:</span>{" "}
+              {formatDiffValue(c.field, c.to) ?? "—"}
+            </p>
+          ))}
+        </div>
+        {contentType === "video" && typeof videoId === "number" && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm font-medium">Video:</span>
+            <VideoDiffPreview videoId={videoId} title={lessonTitle ?? "Bài học mới"} />
+          </div>
+        )}
       </div>
     );
   }
 
-  const diffs: ChangeRequestFieldDiff[] = changes ?? [];
-  if (diffs.length === 0) {
+  const allDiffs: ChangeRequestFieldDiff[] = changes ?? [];
+  const diffs = allDiffs.filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
+  const videoIdChange = allDiffs.find((c) => c.field === "videoId");
+  const newVideoId = typeof videoIdChange?.to === "number" ? videoIdChange.to : null;
+
+  if (diffs.length === 0 && newVideoId === null) {
     return <p className="text-sm text-muted-foreground italic">Không có thay đổi dữ liệu.</p>;
   }
 
@@ -146,6 +158,12 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
       {diffs.map((c) => (
         <DiffRow key={c.field} field={c.field} before={c.from} after={c.to} />
       ))}
+      {newVideoId !== null && (
+        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2.5">
+          <span className="text-sm font-medium">Video mới:</span>
+          <VideoDiffPreview videoId={newVideoId} title={request.course?.name ?? "Bài học"} />
+        </div>
+      )}
     </div>
   );
 }

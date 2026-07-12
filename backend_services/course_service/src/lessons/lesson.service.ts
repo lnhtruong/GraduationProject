@@ -131,13 +131,19 @@ export class LessonsService {
     return userId;
   }
 
-  /** Ảnh chụp giá trị lesson hiện tại cho đúng các field có trong `payload`. */
+  /**
+   * Ảnh chụp giá trị lesson hiện tại cho đúng các field có trong `payload`,
+   * cộng thêm các field bổ sung (nếu có) — dùng cho `lesson.delete`, nơi
+   * payload chỉ có `{status}` nhưng FE cần `title`/`contentType` để hiển thị
+   * lesson nào sắp bị xoá.
+   */
   private snapshotLesson(
     lesson: Lesson,
     payload: LessonChangePayload,
+    extraKeys: (keyof Lesson)[] = [],
   ): LessonChangePayload {
     const snapshot: Record<string, unknown> = {};
-    for (const key of Object.keys(payload)) {
+    for (const key of [...Object.keys(payload), ...extraKeys]) {
       snapshot[key] = lesson.get(key as keyof Lesson) ?? null;
     }
     return snapshot as LessonChangePayload;
@@ -305,7 +311,7 @@ export class LessonsService {
         courseId: lesson.courseId,
         targetId: lesson.id,
         payload,
-        prevData: this.snapshotLesson(lesson, payload),
+        prevData: this.snapshotLesson(lesson, payload, ['title', 'contentType']),
         requestedBy: this.requireRequester(requester),
       });
     }

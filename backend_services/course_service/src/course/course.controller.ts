@@ -195,11 +195,15 @@ export class CoursesController {
   @Get('change-requests')
   listChangeRequests(
     @Query('status') status?: string,
+    @Query('kind') kind?: string,
+    @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.coursesService.listChangeRequests({
       status,
+      kind,
+      search,
       page: page !== undefined ? Number(page) : undefined,
       limit: limit !== undefined ? Number(limit) : undefined,
     });
