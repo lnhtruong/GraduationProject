@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminReportsApi } from "./admin-reports.api";
 import { USE_MOCK, MOCK_REPORTS } from "../mock/admin-reports.mock";
+import { ADMIN_DASHBOARD_KEY } from "./admin-dashboard.hooks";
 import type { ReportListParams, ReviewReportDto } from "../types/report.types";
 
 const ADMIN_REPORT_KEYS = {
@@ -42,6 +43,7 @@ export function useReviewReport() {
       adminReportsApi.reviewReport(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_REPORT_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_KEY });
     },
   });
 }

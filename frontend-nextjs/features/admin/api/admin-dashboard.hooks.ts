@@ -3,6 +3,10 @@ import { apiHttpClient } from "@/features/_shared/api-factories";
 import { adminUsersApi } from "./admin-users.api";
 import { adminReportsApi } from "./admin-reports.api";
 
+/** Dùng ở các mutation hook khác (courses/change-requests/users/reports) để
+ * invalidate số liệu dashboard sau khi thao tác thành công. */
+export const ADMIN_DASHBOARD_KEY = ["admin", "dashboard"] as const;
+
 export interface AdminDashboardData {
   courses: {
     total: number | null;
@@ -26,7 +30,7 @@ export interface AdminDashboardData {
 
 export function useAdminDashboardStats() {
   return useQuery<AdminDashboardData>({
-    queryKey: ["admin", "dashboard", "overview"],
+    queryKey: [...ADMIN_DASHBOARD_KEY, "overview"],
     queryFn: async () => {
       const [overviewRes, courseStatsRes, changeRequestStatsRes, userStatsRes, reportsRes] =
         await Promise.allSettled([

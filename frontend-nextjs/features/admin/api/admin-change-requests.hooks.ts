@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminChangeRequestsApi } from "./admin-change-requests.api";
+import { ADMIN_DASHBOARD_KEY } from "./admin-dashboard.hooks";
 import type {
   ChangeRequestListParams,
   ReviewChangeRequestDto,
@@ -26,6 +27,7 @@ export function useReviewChangeRequest() {
       adminChangeRequestsApi.review(requestId, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_KEY });
     },
   });
 }
