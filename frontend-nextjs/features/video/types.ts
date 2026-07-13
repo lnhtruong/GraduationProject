@@ -20,6 +20,8 @@ export interface VideoImage {
 export interface Video {
   id: number;
   user_id?: number;
+  job_id?: string | null;
+  jobId?: string | null;
   image_id: number | null;
   name?: string | null;
   url: string;

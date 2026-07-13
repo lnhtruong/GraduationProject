@@ -11,6 +11,7 @@ import {
   Settings2,
   Sparkles,
   Upload,
+  Loader,
 } from "lucide-react";
 import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
 import type { MascotOption } from "@/features/editor/types";
@@ -234,7 +235,7 @@ export default function MascotOptions({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       <section className="space-y-3">
         <div>
           <Label className="text-sm font-semibold">Mascot</Label>
@@ -264,7 +265,7 @@ export default function MascotOptions({
           </div>
         </button>
 
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {presetMascots.map((mascot) => {
             const selected =
               value.type === "preset" && value.presetId === mascot.id;
@@ -274,7 +275,7 @@ export default function MascotOptions({
                 type="button"
                 onClick={() => setPresetMascot(mascot)}
                 className={cn(
-                  "rounded-xl border bg-background p-1.5 transition hover:border-primary/60",
+                  "min-w-0 rounded-xl border bg-background p-1.5 transition hover:border-primary/60",
                   selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
                 )}
               >
@@ -312,6 +313,30 @@ export default function MascotOptions({
               <p className="truncate text-xs text-muted-foreground">
                 PNG/JPG, ưu tiên ảnh nền trong suốt.
               </p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-border bg-muted/35 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Label className="text-sm font-medium">Xóa nền ảnh mascot</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Bật nếu ảnh có nền xanh, nền trắng hoặc cần tách nền trước khi ghép.
+                </p>
+              </div>
+              <Switch
+                checked={Boolean(value.removeBackground)}
+                onCheckedChange={(checked) =>
+                  updateMascot({
+                    removeBackground: checked,
+                    bgMode: checked ? (value.bgMode ?? "green_screen") : value.bgMode,
+                    bgQualityMode: checked
+                      ? (value.bgQualityMode ?? "fast")
+                      : value.bgQualityMode,
+                  })
+                }
+                aria-label="Xóa nền ảnh mascot"
+              />
             </div>
           </div>
 
@@ -393,6 +418,7 @@ export default function MascotOptions({
               max={200}
               step={5}
               disabled={isApplying || !hasVideo}
+              aria-label="Kích thước Mascot"
             />
             <p className="text-xs text-muted-foreground">
               Có thể chỉnh nhanh bằng thanh này hoặc kéo trực tiếp trên preview.
@@ -582,11 +608,12 @@ export default function MascotOptions({
           <section className="sticky bottom-0 z-10 border-t bg-card/95 pt-3 backdrop-blur">
             <Button
               onClick={onCreateVideo}
-              disabled={!canCreateVideo}
-              className="h-12 w-full rounded-xl font-semibold"
+              disabled={!canCreateVideo || isCreatingVideo}
+              className="h-12 w-full rounded-xl font-semibold gap-2"
               size="lg"
               variant="secondary"
             >
+              {isCreatingVideo && <Loader size={16} className="animate-spin" />}
               {isCreatingVideo
                 ? "Đang tạo video với mascot..."
                 : "Tạo video với mascot"}
@@ -660,6 +687,7 @@ function RangeSetting({
         max={max}
         step={step}
         onValueChange={([next]) => onChange(next)}
+        aria-label={label}
       />
     </div>
   );

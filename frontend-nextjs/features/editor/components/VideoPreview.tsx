@@ -450,6 +450,7 @@ export default function VideoPreview({
   onMascotFrameChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [frame, setFrame] = useState<VideoFrameSize | null>(null);
   const [frameOffset, setFrameOffset] = useState({ left: 0, top: 0 });
   const [guideState, setGuideState] = useState({
@@ -623,7 +624,7 @@ export default function VideoPreview({
         previewPlacement: clampedPlacement,
       });
     }
-  }, [frame, mascot, onMascotChange]);
+  }, [frame, mascot, mascotSrc, onMascotChange]);
 
   useDndMonitor({
     onDragMove: (event) => {
@@ -696,11 +697,31 @@ export default function VideoPreview({
     [frame, mascot, mascotSrc],
   );
 
+  const togglePlayback = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!video.paused) {
+      video.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      await video.play();
+      setIsPlaying(!video.paused);
+    } catch {
+      setIsPlaying(false);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center"
-      onClick={() => onTextSelect?.(null)}
+      className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center cursor-pointer"
+      onClick={() => {
+        onTextSelect?.(null);
+      }}
     >
       <video
         ref={videoRef}
@@ -708,10 +729,40 @@ export default function VideoPreview({
         controls
         className="h-full w-full object-contain"
         style={{ filter }}
-        onClick={(e) => e.stopPropagation()}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTextSelect?.(null);
+        }}
       >
         Your browser does not support video.
       </video>
+
+      <button
+        type="button"
+        aria-label={isPlaying ? "Tạm dừng video" : "Phát video"}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onTextSelect?.(null);
+          void togglePlayback();
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        className="pointer-events-auto absolute left-1/2 top-1/2 z-20 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg backdrop-blur transition hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-white/80"
+      >
+        {isPlaying ? (
+          <span className="flex items-center gap-1">
+            <span className="h-5 w-1.5 rounded-sm bg-current" />
+            <span className="h-5 w-1.5 rounded-sm bg-current" />
+          </span>
+        ) : (
+          <span className="ml-1 h-0 w-0 border-y-[12px] border-l-[18px] border-y-transparent border-l-current" />
+        )}
+      </button>
 
       {/* Mascot overlay with drag-and-drop */}
       {frame && (

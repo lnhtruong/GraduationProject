@@ -1,9 +1,10 @@
-import { Check, Mic2, Upload } from "lucide-react";
+import { Check, Mic2, Upload, Play, Square } from "lucide-react";
 import type { VoiceOption } from "@/features/editor/types";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 interface Props {
   value: VoiceOption;
@@ -18,13 +19,66 @@ const presetVoices = [
 ];
 
 export default function VoiceOptions({ value, onChange }: Props) {
+  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+
+  const playVoicePreview = (presetId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+
+    if (playingPreview === presetId) {
+      window.speechSynthesis.cancel();
+      setPlayingPreview(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const isMale = presetId.includes("male");
+    const text = isMale 
+      ? "Xin chào! Tôi là giọng đọc nam thử nghiệm trên hệ thống." 
+      : "Xin chào! Tôi là giọng đọc nữ thử nghiệm trên hệ thống.";
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "vi-VN";
+    
+    if (presetId === "male-1") {
+      utterance.pitch = 0.85;
+      utterance.rate = 0.95;
+    } else if (presetId === "male-2") {
+      utterance.pitch = 0.75;
+      utterance.rate = 1.15;
+    } else if (presetId === "female-1") {
+      utterance.pitch = 1.15;
+      utterance.rate = 1.0;
+    } else if (presetId === "female-2") {
+      utterance.pitch = 1.25;
+      utterance.rate = 0.9;
+    }
+
+    utterance.onend = () => {
+      setPlayingPreview(null);
+    };
+
+    utterance.onerror = () => {
+      setPlayingPreview(null);
+    };
+
+    setPlayingPreview(presetId);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
   const selectNone = () => {
     onChange({ type: "none", speed: 1, volume: 100, pitch: 0 });
   };
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-3">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
+      <section className="min-w-0 space-y-3">
         <div>
           <Label className="text-sm font-semibold">Giọng nói</Label>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -36,7 +90,7 @@ export default function VoiceOptions({ value, onChange }: Props) {
           type="button"
           onClick={selectNone}
           className={cn(
-            "w-full rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
+            "w-full min-w-0 rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
             value.type === "none" && "border-primary bg-primary/10",
           )}
         >
@@ -51,7 +105,7 @@ export default function VoiceOptions({ value, onChange }: Props) {
           </div>
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
           {presetVoices.map((voice) => {
             const selected = value.type === "preset" && value.presetId === voice.id;
             return (
@@ -68,16 +122,30 @@ export default function VoiceOptions({ value, onChange }: Props) {
                   })
                 }
                 className={cn(
-                  "rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
+                  "min-w-0 rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
                   selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
                 )}
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <Mic2 className="h-4 w-4 text-primary" />
-                  {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      title="Nghe thử giọng đọc"
+                      onClick={(e) => playVoicePreview(voice.id, e)}
+                      className="rounded-full p-1 hover:bg-primary/20 text-primary transition-colors"
+                    >
+                      {playingPreview === voice.id ? (
+                        <Square size={12} className="fill-primary" />
+                      ) : (
+                        <Play size={12} className="fill-primary" />
+                      )}
+                    </button>
+                    {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </div>
                 </div>
-                <p className="text-sm font-medium">{voice.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="truncate text-sm font-medium">{voice.name}</p>
+                <p className="line-clamp-2 text-xs text-muted-foreground">
                   {voice.description}
                 </p>
               </button>
@@ -87,7 +155,7 @@ export default function VoiceOptions({ value, onChange }: Props) {
 
         <label
           className={cn(
-            "block cursor-pointer rounded-xl border border-dashed bg-background p-3 transition hover:border-primary/60",
+            "block min-w-0 cursor-pointer rounded-xl border border-dashed bg-background p-3 transition hover:border-primary/60",
             value.type === "custom" && "border-primary bg-primary/10",
           )}
         >
@@ -124,7 +192,7 @@ export default function VoiceOptions({ value, onChange }: Props) {
       </section>
 
       {value.type !== "none" ? (
-        <section className="space-y-4 rounded-xl border border-border bg-background/70 p-3">
+        <section className="min-w-0 space-y-4 rounded-xl border border-border bg-background/70 p-3">
           <Label className="text-sm font-semibold">Tinh chỉnh</Label>
           <VoiceSlider
             label="Tốc độ"
@@ -190,6 +258,7 @@ function VoiceSlider({
         max={max}
         step={step}
         onValueChange={([next]) => onChange(next)}
+        aria-label={label}
       />
     </div>
   );

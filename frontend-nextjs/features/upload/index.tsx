@@ -141,6 +141,7 @@ export default function Upload() {
     error,
     stage,
     progressPercent,
+    jobType,
     startUpload,
     startFromExistingVideo,
     ensureProjectForClip,
@@ -224,12 +225,7 @@ export default function Upload() {
   };
 
   const handleEditClip = async (clip: (typeof clips)[number]) => {
-    if (!clip.videoId) {
-      toast.info(
-        "Highlight đang được lưu vào thư viện. Vui lòng chờ thêm một chút.",
-      );
-      return;
-    }
+    if (!clip.url) return;
 
     setIsOpeningStudio(true);
 
@@ -239,13 +235,13 @@ export default function Upload() {
     if (ensured?.projectId) {
       params.set("edit_id", String(ensured.projectId));
       if (ensured.videoId) params.set("video_id", String(ensured.videoId));
-    } else {
+    } else if (clip.videoId) {
       params.set("video_id", String(clip.videoId));
     }
 
     window.setTimeout(() => {
       router.push(`/editor?${params.toString()}`);
-    }, 900);
+    }, 300);
   };
 
   const handleViewResults = async () => {
@@ -277,16 +273,18 @@ export default function Upload() {
     <main className="mx-auto w-full max-w-6xl overflow-x-clip px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 space-y-5">
-          <div className="space-y-3">
-            <div className="max-w-2xl">
-              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
-                Tạo highlight từ video bài giảng
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                Tự động trích xuất các đoạn nổi bật từ video bài giảng. Chọn nguồn video và để AI của LearnHub làm phần việc còn lại.
-              </p>
+          {!isCompleted && (
+            <div className="space-y-3">
+              <div className="max-w-2xl">
+                <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
+                  Tạo highlight từ video bài giảng
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
+                  Tự động trích xuất các đoạn nổi bật từ video bài giảng. Chọn nguồn video và để AI của LearnHub làm phần việc còn lại.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-5">
             {!isAuthenticated ? (
@@ -419,30 +417,12 @@ export default function Upload() {
                     error={error}
                     stage={stage}
                     progressPercent={progressPercent}
+                    jobType={jobType}
                     onViewResults={handleViewResults}
                     onStartNew={handleStartNew}
                   />
                 )}
 
-                {isOpeningStudio && (
-                  <Card className="p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-3">
-                                                <div>
-                          <h3 className="font-semibold">Highlight đã sẵn sàng</h3>
-                          <p className="text-sm text-muted-foreground">
-                            LearnHub đang mở Studio để bạn thêm Mascot, chữ hoặc
-                            xuất video hoàn chỉnh.
-                          </p>
-                        </div>
-                      </div>
-                      <Button disabled className="gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Đang mở Studio
-                      </Button>
-                    </div>
-                  </Card>
-                )}
               </>
             )}
 
@@ -451,6 +431,7 @@ export default function Upload() {
                 clips={clips}
                 isVisible={showResults}
                 onEditClip={handleEditClip}
+                onStartNew={handleStartNew}
               />
             </div>
           </div>

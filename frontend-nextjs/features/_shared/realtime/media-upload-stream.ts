@@ -159,6 +159,7 @@ export interface UploadStreamHandlers {
   onError?: (payload: VideoErrorPayload) => void;
   onQuizGenerated?: (payload: QuizGeneratedPayload) => void;
   onEvent?: (event: MediaUploadStreamEvent) => void;
+  onOpen?: () => void;
   onConnectionError?: (error: Error) => void;
 }
 
@@ -220,6 +221,13 @@ function normalizeMediaPayload(payload: unknown): unknown {
   }
 
   let record = payload as Record<string, unknown>;
+  const notification =
+    record.notification &&
+    typeof record.notification === "object" &&
+    !Array.isArray(record.notification)
+      ? (record.notification as Record<string, unknown>)
+      : null;
+  const notificationSourceId = notification?.source_id ?? notification?.sourceId;
 
   // Unwrap nested data.data (backend sends data: { success, data: {...}, timestamp })
   if (
@@ -282,8 +290,8 @@ function normalizeMediaPayload(payload: unknown): unknown {
           : record.error,
     lessonActivityId: record.lessonActivityId ?? record.lesson_activity_id,
     lesson_activity_id: record.lessonActivityId ?? record.lesson_activity_id,
-    videoId: record.videoId ?? record.video_id,
-    video_id: record.videoId ?? record.video_id,
+    videoId: record.videoId ?? record.video_id ?? notificationSourceId,
+    video_id: record.videoId ?? record.video_id ?? notificationSourceId,
     quizId: record.quizId ?? record.quiz_id,
     quiz_id: record.quizId ?? record.quiz_id,
     imageId: record.imageId ?? record.image_id,
@@ -333,6 +341,8 @@ export function createMediaUploadStream(
       if (!response.body) {
         throw new Error("SSE response has no body");
       }
+
+      handlers.onOpen?.();
 
       // Stream events
       const reader = response.body.getReader();

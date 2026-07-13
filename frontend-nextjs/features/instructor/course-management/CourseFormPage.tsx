@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
@@ -56,14 +56,14 @@ export default function CourseFormPage({ courseId }: Props) {
     try {
       if (course.status === "draft") {
         await submitForReviewMutation.mutateAsync(course.id);
-        toast.success("Đã gửi khóa học chờ duyệt");
+        toast.success("Đã gửi khóa học để xét duyệt");
         router.refresh();
         return;
       }
 
       if (course.status === "approved") {
         await publishCourseMutation.mutateAsync(course.id);
-        toast.success("Đã publish khóa học");
+        toast.success("Đã xuất bản khóa học");
         router.refresh();
       }
     } catch (error) {
@@ -130,35 +130,35 @@ export default function CourseFormPage({ courseId }: Props) {
         </Button>
       }
       action={
-        <div className="flex items-center gap-3">
-          <div id="course-form-actions-portal" className="flex items-center gap-2" />
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <div
+            id="course-form-actions-portal"
+            className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none"
+          />
 
-          {isEdit && course ? (
+          {isEdit && course?.status === "draft" ? (
             <Button
               type="button"
-              disabled={
-                (course.status === "draft" &&
-                  submitForReviewMutation.isPending) ||
-                (course.status === "approved" &&
-                  publishCourseMutation.isPending) ||
-                (course.status !== "draft" && course.status !== "approved")
-              }
+              disabled={submitForReviewMutation.isPending}
               onClick={() => {
                 void handleCourseStatusAction();
               }}
             >
-              <Upload className="mr-2 h-4 w-4" />
-              {course.status === "draft"
-                ? submitForReviewMutation.isPending
-                  ? "Đang gửi duyệt..."
-                  : "Gửi duyệt khóa học"
-                : course.status === "pending"
-                  ? "Đang chờ admin duyệt"
-                  : course.status === "approved"
-                    ? publishCourseMutation.isPending
-                      ? "Đang publish..."
-                      : "Publish khóa học"
-                    : "Đã publish"}
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              {submitForReviewMutation.isPending ? "Đang gửi..." : "Gửi xét duyệt"}
+            </Button>
+          ) : null}
+
+          {isEdit && course?.status === "approved" ? (
+            <Button
+              type="button"
+              disabled={publishCourseMutation.isPending}
+              onClick={() => {
+                void handleCourseStatusAction();
+              }}
+            >
+              <Rocket className="mr-2 h-4 w-4" />
+              {publishCourseMutation.isPending ? "Đang xuất bản..." : "Xuất bản"}
             </Button>
           ) : null}
         </div>

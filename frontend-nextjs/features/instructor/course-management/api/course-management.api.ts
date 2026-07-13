@@ -248,6 +248,7 @@ const courseFeedCrudApi = createResourceApi<
   getOnePath: (id) => `/media/feed/${id}`,
   getUpdatePath: (id) => `/media/feed/${id}`,
   getDeletePath: (id) => `/media/feed/${id}`,
+  updateMethod: "put",
 });
 
 const courseFeedMineCrudApi = createResourceApi<
@@ -272,6 +273,7 @@ const courseFeedMineCrudApi = createResourceApi<
   getOnePath: (id) => `/media/feed/${id}`,
   getUpdatePath: (id) => `/media/feed/${id}`,
   getDeletePath: (id) => `/media/feed/${id}`,
+  updateMethod: "put",
 });
 
 export const courseFeedApi = {

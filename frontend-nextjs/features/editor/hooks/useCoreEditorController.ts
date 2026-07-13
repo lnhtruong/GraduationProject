@@ -701,6 +701,7 @@ export function useCoreEditorController({
       onTextRemove: handleRemoveText,
       selectedTextId,
       onTextSelect: setSelectedTextId,
+      currentTimeMs,
     });
   }, [
     editId,
@@ -726,6 +727,7 @@ export function useCoreEditorController({
     handleAddText,
     handleUpdateText,
     handleRemoveText,
+    currentTimeMs,
   ]);
 
   const buildEditorPayload = () => {

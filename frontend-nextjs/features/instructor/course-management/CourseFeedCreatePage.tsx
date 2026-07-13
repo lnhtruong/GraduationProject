@@ -16,14 +16,13 @@ import {
   Clapperboard,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
@@ -32,7 +31,7 @@ import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
   courseFeedKeys,
-  useCourseFeed,
+  useCourseFeeds,
   useCourseFeedCandidateVideos,
   useCreateCourseFeed,
   useInstructorCourseById,
@@ -116,7 +115,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  const { data: feeds } = useCourseFeed(courseId);
+  // Fetch ALL feeds of the instructor (all courses) to deduplicate globally —
+  // backend rejects a video that is ALREADY in ANY feed (not just this course).
+  const { data: allMyFeeds } = useCourseFeeds({ pageSize: 500 });
   const { data: candidateVideos, isLoading: candidateLoading } =
     useCourseFeedCandidateVideos(courseId);
   const createFeedMutation = useCreateCourseFeed();
@@ -129,7 +130,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   const [visibleCount, setVisibleCount] = useState(12);
   const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
 
-  const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FeedFormValues>({
+  const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<FeedFormValues>({
     resolver: zodResolver(feedFormSchema),
     defaultValues: {
       title: "",
@@ -139,20 +140,27 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
     },
   });
 
-  const formVideoId = watch("videoId");
-  const formTitle = watch("title") || "";
-  const formCaption = watch("caption") || "";
-  const formHashtags = watch("hashtags") || [];
+  const [formVideoId = "", formTitle = "", formCaption = "", formHashtags = []] =
+    useWatch({
+      control,
+      name: ["videoId", "title", "caption", "hashtags"],
+    });
 
+  // Build set of video IDs already on ANY feed (global dedup)
   const feedVideoIds = useMemo(
-    () => new Set((feeds ?? []).map((item) => item.video?.id)),
-    [feeds],
+    () => new Set((allMyFeeds ?? []).map((item) => item.video?.id)),
+    [allMyFeeds],
   );
 
   const availableVideosForCreate = useMemo(
     () =>
       (candidateVideos ?? []).filter((video) => !feedVideoIds.has(video.id)),
     [candidateVideos, feedVideoIds],
+  );
+
+  const hiddenUsedVideoCount = Math.max(
+    0,
+    (candidateVideos?.length ?? 0) - availableVideosForCreate.length,
   );
 
   const selectedVideo =
@@ -174,7 +182,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         return true;
       }
 
-      const text = `${video.name} ${video.type} ${video.id}`.toLowerCase();
+      const text = `${video.name} ${video.type}`.toLowerCase();
       return text.includes(query);
     });
   }, [availableVideosForCreate, videoQuery, videoTypeFilter]);
@@ -213,12 +221,12 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   const onSubmit = async (values: FeedFormValues) => {
     const videoId = Number(values.videoId);
     if (!Number.isInteger(videoId) || videoId <= 0) {
-      toast.error("Vui lòng chọn một video để tạo feed.");
+      toast.error("Vui lòng chọn một video để tạo feed.", { id: "feed-create-error" });
       return;
     }
 
     if (feedVideoIds.has(videoId)) {
-      toast.error("Video này đã có trên feed. Vui lòng chọn highlight khác.");
+      toast.error("Video này đã có trên feed. Vui lòng chọn highlight khác.", { id: "feed-duplicate-error" });
       return;
     }
 
@@ -235,7 +243,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       router.push(`/instructor/courses/${courseId}/feed`);
       router.refresh();
     } catch (error) {
-      toast.error(getCreateFeedErrorMessage(error));
+      toast.error(getCreateFeedErrorMessage(error), { id: "feed-create-error" });
     }
   };
 
@@ -363,10 +371,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                     <div className="space-y-3 rounded-xl border border-input bg-background p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         {formHashtags.map((hashtag, index) => (
-                          <Badge
+                          <span
                             key={`${hashtag}-${index}`}
-                            variant="secondary"
-                            className="gap-1 rounded-full border border-border/60 bg-primary/10 px-2.5 py-1 text-xs font-medium text-foreground"
+                            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1 text-xs font-medium text-foreground"
                           >
                             <Tag className="h-3 w-3 text-muted-foreground" />
                             {hashtag}
@@ -381,7 +388,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                             >
                               <X className="h-3 w-3" />
                             </button>
-                          </Badge>
+                          </span>
                         ))}
                       </div>
 
@@ -470,6 +477,12 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                         </div>
                       </div>
 
+                      {hiddenUsedVideoCount > 0 ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                          Đã ẩn {hiddenUsedVideoCount} video vì các video này đã có trên feed. Một video chỉ được đăng feed một lần để tránh trùng nội dung.
+                        </div>
+                      ) : null}
+
                       {errors.videoId && (
                         <p className="text-sm font-medium text-destructive">{errors.videoId.message}</p>
                       )}
@@ -552,15 +565,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </div>
                                     )}
 
-                                    <div className="absolute left-2 top-2 flex gap-1.5">
-                                      <Badge
-                                        variant="secondary"
-                                        className="rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white border-0"
-                                      >
-                                        {video.type}
-                                      </Badge>
-                                    </div>
-
                                     {isSelected && (
                                       <div className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                                         <CheckCircle2 className="h-3 w-3" />
@@ -613,8 +617,32 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex min-h-36 items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 text-sm text-muted-foreground">
-                          Không có video phù hợp.
+                        <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-8 text-center">
+                          {videoTypeFilter === "mascot" ? (
+                            <>
+                              <p className="text-sm text-muted-foreground">Bạn chưa có video Mascot nào.</p>
+                              <p className="text-xs text-muted-foreground/70">Hãy tạo video mascot trong Studio để đưa lên feed.</p>
+                              <Link
+                                href="/studio"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Mở Studio tạo Mascot
+                              </Link>
+                            </>
+                          ) : videoTypeFilter === "highlight" ? (
+                            <>
+                              <p className="text-sm text-muted-foreground">Không có video Highlight nào để chọn.</p>
+                              <p className="text-xs text-muted-foreground/70">Tất cả highlight đã có trên feed hoặc bạn chưa tạo highlight nào.</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-muted-foreground">Không có video nào khả dụng.</p>
+                              <p className="text-xs text-muted-foreground/70">
+                                Chỉ các video dạng <strong>Highlight</strong> và <strong>Mascot</strong> mới có thể đăng lên feed. Video gốc dài không được hỗ trợ.
+                              </p>
+                            </>
+                          )}
                         </div>
                       )}
                     </CardContent>

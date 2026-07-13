@@ -15,6 +15,7 @@ interface UploadProgressProps {
   onStartNew?: () => void;
   stage?: string;
   progressPercent?: number;
+  jobType?: string;
   mode?: "upload" | "feed";
   onClose?: () => void;
 }
@@ -28,6 +29,7 @@ export default function UploadProgress({
   error,
   stage,
   progressPercent,
+  jobType,
   onViewResults,
   onStartNew,
   mode,
@@ -60,7 +62,7 @@ export default function UploadProgress({
     );
   }
 
-  if (status === "completed" && clipsCount > 0) {
+  if (status === "completed" && clipsCount > 0 && mode === "feed") {
     return (
       <SuccessStatus
         clipsCount={clipsCount}
@@ -72,7 +74,7 @@ export default function UploadProgress({
     );
   }
 
-  if (status !== "idle" && status !== "uploading") {
+  if (status === "pending" || status === "processing" || status === "failed") {
     return (
       <ProcessingStatus
         status={status}
@@ -81,6 +83,7 @@ export default function UploadProgress({
         error={error}
         stage={stage}
         progressPercent={progressPercent}
+        jobType={jobType}
       />
     );
   }

@@ -51,9 +51,11 @@ export function NewsfeedOptionBox({
   return (
     <aside
       className={cn(
-        "fixed bottom-0 right-0 z-40 h-[82vh] max-h-[calc(100vh-64px)] w-full rounded-t-3xl border-l border-border/70 bg-background/95 backdrop-blur transition-transform duration-300",
+        "fixed bottom-0 right-0 z-40 h-[82vh] max-h-[calc(100vh-64px)] w-full rounded-t-3xl border-l border-border/70 bg-background/95 backdrop-blur transition-[transform,visibility] duration-300",
         "md:top-16 md:bottom-auto md:right-[72px] md:h-[calc(100vh-64px)] md:w-[380px] md:rounded-none lg:w-[450px] xl:w-[520px]",
-        isOpen ? "translate-y-0 md:translate-x-0" : "translate-y-full md:translate-y-0 md:translate-x-full",
+        isOpen
+          ? "visible translate-y-0 md:translate-x-0"
+          : "invisible translate-y-full md:translate-y-0 md:translate-x-[calc(100%+72px)]",
       )}
     >
       <div className="flex h-full flex-col">
@@ -81,6 +83,8 @@ export function NewsfeedOptionBox({
             variant="ghost"
             size="icon"
             onClick={onClose}
+            aria-label={contentType === "comments" ? "Đóng bình luận" : "Đóng thông tin khóa học"}
+            title="Đóng"
             className="h-10 w-10 rounded-full border border-border/70 bg-background/90 hover:bg-accent"
           >
             <X className="h-5 w-5" />

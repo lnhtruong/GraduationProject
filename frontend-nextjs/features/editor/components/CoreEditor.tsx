@@ -107,6 +107,8 @@ export default function CoreEditor({
     handleReorderText,
     mascot,
     setMascot,
+    voice,
+    setVoice,
   } = editor;
 
   const selectedTextOverlay =
@@ -242,6 +244,26 @@ export default function CoreEditor({
                 videoDurationMs={videoDurationMs}
                 currentTimeMs={currentTimeMs}
                 onSeek={handleSeek}
+                mascot={mascot}
+                onRemoveMascot={() => {
+                  setMascot((prev) => ({
+                    ...prev,
+                    type: "none",
+                    presetId: undefined,
+                    presetUrl: undefined,
+                    imageId: undefined,
+                    customFile: undefined,
+                  }));
+                }}
+                voice={voice}
+                onRemoveVoice={() => {
+                  setVoice({
+                    type: "none",
+                    speed: 1,
+                    volume: 100,
+                    pitch: 0,
+                  });
+                }}
               />
             </section>
           </div>

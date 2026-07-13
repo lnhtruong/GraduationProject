@@ -268,7 +268,7 @@ export function Header() {
                   className="h-9 shrink-0 gap-2 rounded-full border border-border/70 px-1 pr-1.5 sm:h-10 sm:px-1.5 sm:pr-3"
                 >
                   <UserAvatar user={user} className="h-7 w-7 sm:h-8 sm:w-8" />
-                  <span className="hidden max-w-28 truncate text-sm font-semibold lg:inline">
+                  <span className="hidden max-w-28 truncate text-sm font-semibold xl:inline">
                     {displayName}
                   </span>
                 </Button>

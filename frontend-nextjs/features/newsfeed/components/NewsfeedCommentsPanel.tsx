@@ -284,7 +284,6 @@ interface NewsfeedCommentsPanelProps {
 
 export function NewsfeedCommentsPanel({
   video,
-  viewerName,
   sortOrder,
   onCommentCountChange,
 }: NewsfeedCommentsPanelProps) {
@@ -430,7 +429,7 @@ export function NewsfeedCommentsPanel({
               }
             }}
             onInput={(event) => autosizeTextarea(event.currentTarget)}
-            placeholder={isAuthenticated ? `Bình luận với tên ${viewerName}...` : "Đăng nhập để bình luận..."}
+            placeholder={isAuthenticated ? "Viết bình luận..." : "Đăng nhập để bình luận..."}
             maxLength={1000}
             rows={1}
             className="min-h-10 max-h-[120px] resize-none overflow-y-auto border-border/70 bg-background/80"

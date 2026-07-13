@@ -75,6 +75,7 @@ export default function EditorMediaDropzone({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
   const inFlightUploadKeyRef = React.useRef<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
     setUploadProgress(percent),
@@ -331,6 +332,21 @@ export default function EditorMediaDropzone({
 
   const isUploading = uploadMutation.isPending || isLoading;
 
+  React.useEffect(() => {
+    const handleUploadRequest = () => {
+      if (isUploading) return;
+      fileInputRef.current?.click();
+    };
+
+    window.addEventListener("editor-media-upload-request", handleUploadRequest);
+    return () => {
+      window.removeEventListener(
+        "editor-media-upload-request",
+        handleUploadRequest,
+      );
+    };
+  }, [isUploading]);
+
   return (
     <FileUpload
       maxFiles={1}
@@ -341,6 +357,19 @@ export default function EditorMediaDropzone({
       onFileReject={onFileReject}
       disabled={isUploading}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(event) => {
+          const selectedFiles = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          if (selectedFiles.length > 0) {
+            void onValueChange(selectedFiles);
+          }
+        }}
+      />
       <FileUploadDropzone>
         <div
           className={`flex flex-col items-center justify-center gap-4 p-8 text-center h-full min-h-96 transition-colors ${

@@ -155,6 +155,8 @@ export interface CourseFeedItem {
   caption?: string | null;
   hashtags?: string[] | null;
   video_type?: string;
+  status?: string;
+  created_at?: string | null;
   video: CourseFeedVideo;
   course: {
     id: number;
@@ -172,6 +174,16 @@ export interface CourseFeedItem {
   };
   is_liked?: boolean;
   is_saved?: boolean;
+}
+
+export interface CourseFeedPage {
+  data: CourseFeedItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface CourseFeedUpsertPayload {

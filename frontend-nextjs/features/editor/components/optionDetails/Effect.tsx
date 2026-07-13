@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface Props {
   value: EffectOption;
@@ -96,8 +97,8 @@ export default function EffectOptions({ value, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-3">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
+      <section className="min-w-0 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <Label className="text-sm font-semibold">Màu video</Label>
@@ -110,26 +111,32 @@ export default function EffectOptions({ value, onChange }: Props) {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
           {presetFilters.map((filter) => (
             <button
               key={filter.id}
               type="button"
               onClick={() => applyFilter(filter)}
               className={cn(
-                "rounded-xl border border-border bg-background p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
+                "relative min-w-0 rounded-xl border border-border bg-background p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
                 value.filter === filter.id &&
                   "border-primary bg-primary/10 ring-2 ring-primary/20",
               )}
             >
               <div
                 className={cn(
-                  "mb-2 h-12 rounded-lg bg-gradient-to-br",
+                  "relative mb-2 h-12 rounded-lg bg-gradient-to-br",
                   filter.previewClass,
                 )}
-              />
-              <div className="text-sm font-semibold">{filter.name}</div>
-              <div className="text-xs text-muted-foreground">
+              >
+                {value.filter === filter.id && (
+                  <div className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm animate-in zoom-in duration-200">
+                    <Check className="h-3 w-3" />
+                  </div>
+                )}
+              </div>
+              <div className="truncate text-sm font-semibold">{filter.name}</div>
+              <div className="line-clamp-2 text-xs text-muted-foreground">
                 {filter.description}
               </div>
             </button>
@@ -137,7 +144,7 @@ export default function EffectOptions({ value, onChange }: Props) {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-4 rounded-xl border border-border bg-background/70 p-3">
         <Label className="text-sm font-semibold">Tinh chỉnh</Label>
         <EffectSlider
           label="Độ sáng"

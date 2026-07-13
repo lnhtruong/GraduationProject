@@ -6,61 +6,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  BrainCircuit,
   CheckCircle2,
-  Compass,
   GraduationCap,
-  Library,
   Play,
   Search,
-  Sparkles,
-  Target,
-  Users,
-  Wand2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageLoader } from "@/components/PageLoader";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
-import { canAccessInstructor } from "@/lib/roles";
-import { cn } from "@/lib/utils";
 import { useFeaturedCourses } from "./api/home.hooks";
 import { CourseCard } from "./component/CourseCard";
-
-const categories = [
-  "Frontend",
-  "Backend",
-  "AI",
-  "Thiết kế",
-  "Dữ liệu",
-  "Ngoại ngữ",
-];
-
-const learningTracks = [
-  {
-    title: "Khám phá bằng video ngắn",
-    description: "Xem highlight trước để nắm ý chính, rồi quyết định học sâu hơn.",
-    href: "/newsfeed",
-    icon: Play,
-    tone: "text-sky-600 bg-sky-500/10",
-  },
-  {
-    title: "Học theo khóa học",
-    description: "Theo dõi bài học, tiến độ và nội dung có cấu trúc rõ ràng.",
-    href: "/courses/search",
-    icon: Library,
-    tone: "text-violet-600 bg-violet-500/10",
-  },
-  {
-    title: "Tạo highlight từ bài giảng",
-    description: "Biến video dài thành những đoạn ngắn dễ xem, dễ chia sẻ.",
-    href: "/upload",
-    icon: Wand2,
-    tone: "text-emerald-600 bg-emerald-500/10",
-  },
-];
 
 const feedHighlights = [
   "Học nhanh qua video ngắn",
@@ -68,11 +25,29 @@ const feedHighlights = [
   "Đi thẳng từ highlight sang khóa học",
 ];
 
+const workflowSteps = [
+  {
+    title: "Tải video bài giảng",
+    description:
+      "Tải video dài lên LearnHub hoặc chọn video đã có trong thư viện.",
+  },
+  {
+    title: "Chọn kiểu highlight",
+    description:
+      "Chọn một đoạn hay nhất hoặc nhiều đoạn theo chủ đề để xem lại, chia sẻ hoặc gắn vào bài học.",
+  },
+  {
+    title: "Hoàn thiện trong Studio",
+    description:
+      "Mở video ngắn trong Studio để thêm chữ, mascot hoặc chỉnh lại trước khi lưu.",
+  },
+];
+
 export default function Home() {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
-  const { user, isAuthenticated } = useAuthState();
-  const canUseStudio = canAccessInstructor(user?.role);
+  const { user } = useAuthState();
+  const uploadHref = user ? "/upload" : "/signin?returnUrl=%2Fupload";
   const { data: featuredCourses, isLoading: coursesLoading } =
     useFeaturedCourses();
 
@@ -95,26 +70,20 @@ export default function Home() {
     <main className="min-h-screen bg-background">
       <section className="border-b border-border/70 bg-linear-to-b from-primary/8 via-background to-background">
         <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-14">
-          <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1.5 text-xs font-bold text-primary shadow-xs">
-              <Sparkles className="h-3.5 w-3.5" />
-              Tạo highlight video và học theo khóa học
-            </div>
-
+          <div className="space-y-6">
             <div className="space-y-4">
               <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Biến bài giảng dài thành video ngắn, rồi học sâu bằng khóa học.
+                Biến bài giảng dài thành video ngắn để học dễ hơn.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                LearnHub giúp giảng viên tạo highlight từ video bài giảng, còn
-                người học khám phá kiến thức qua video ngắn trước khi đi vào
-                khóa học đầy đủ.
+                Tải video bài giảng lên, chọn cách cắt highlight, chỉnh nhanh trong
+                Studio nếu cần rồi xuất bản vào feed hoặc khóa học.
               </p>
             </div>
 
             <form
               onSubmit={handleSearch}
-              className="flex max-w-2xl flex-col gap-2 rounded-2xl border border-border/70 bg-background p-2 shadow-lg shadow-primary/5 sm:flex-row"
+              className="flex max-w-2xl flex-col gap-2 rounded-xl border border-border/70 bg-background p-2 shadow-sm sm:flex-row"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3 px-3">
                 <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -130,22 +99,10 @@ export default function Home() {
               </Button>
             </form>
 
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Link
-                  key={category}
-                  href={`/courses/search?q=${encodeURIComponent(category)}`}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
-                >
-                  {category}
-                </Link>
-              ))}
-            </div>
-
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-xl px-5 font-bold">
-                <Link href={isAuthenticated ? "/my-courses" : "/newsfeed"}>
-                  {isAuthenticated ? "Tiếp tục học" : "Xem video ngắn"}
+                <Link href={uploadHref}>
+                  Tạo highlight
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -155,15 +112,21 @@ export default function Home() {
                 variant="outline"
                 className="rounded-xl px-5 font-bold"
               >
-                <Link href={canUseStudio ? "/instructor/dashboard" : "/upload"}>
-                  {canUseStudio ? "Mở Studio" : "Tạo Highlight"}
-                </Link>
+                <Link href="/courses/search">Tìm khóa học</Link>
               </Button>
             </div>
+
           </div>
 
           <div className="relative">
-            <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card shadow-2xl shadow-primary/10">
+            <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl shadow-primary/10">
+              <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                <div>
+                  <h2 className="text-base font-black text-foreground">
+                    Video ngắn sau khi cắt
+                  </h2>
+                </div>
+              </div>
               <div className="relative aspect-[4/3] bg-muted">
                 <Image
                   src="/homepage.png"
@@ -172,66 +135,85 @@ export default function Home() {
                   priority
                   className="object-cover"
                 />
+                <div className="absolute inset-x-4 bottom-4 rounded-xl bg-background/95 p-3 shadow-lg backdrop-blur">
+                  <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+                    <span>Dòng thời gian</span>
+                    <span>Highlight 02:14</span>
+                  </div>
+                  <div className="mt-2 grid h-8 grid-cols-[1.2fr_0.7fr_1fr] gap-1">
+                    <div className="rounded-md bg-primary/25" />
+                    <div className="rounded-md bg-violet-500/25" />
+                    <div className="rounded-md bg-emerald-500/25" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border-b border-border/70 py-12">
-        <div className="mx-auto grid max-w-7xl gap-5 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
-          {learningTracks.map((track) => (
-            <Link key={track.title} href={track.href} className="group">
-              <Card className="h-full rounded-xl border-border/70 transition-colors group-hover:border-primary/30">
-                <CardContent className="flex h-full gap-4 p-5">
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-                      track.tone,
-                    )}
-                  >
-                    <track.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-foreground">{track.title}</h2>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {track.description}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-b border-border/70 bg-muted/30 py-14">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-wide text-primary">
-              Dành cho giảng viên và người tạo nội dung
-            </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-              Từ video bài giảng dài đến highlight dễ xem.
+      <section className="border-b border-border/70 py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-7 max-w-3xl">
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
+              Một bài giảng có thể thành nhiều điểm chạm học tập.
             </h2>
             <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
-              Tải video lên LearnHub, tạo các đoạn highlight ngắn, rồi gắn chúng
-              với khóa học để người học khám phá nhanh trước khi học sâu.
+              Video dài có thể được cắt thành các đoạn ngắn để xem lại, chia sẻ
+              trên feed hoặc gắn vào bài học khi cần học sâu hơn.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <Button asChild size="lg" className="rounded-xl font-bold">
-              <Link href={canUseStudio ? "/instructor/courses" : "/upload"}>
-                {canUseStudio ? "Quản lý nội dung" : "Tạo Highlight"}
-                <Wand2 className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-xl font-bold">
-              <Link href="/newsfeed">
-                Xem highlight mẫu
-                <Play className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+
+          <div className="grid overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="border-b border-border/70 p-4 sm:p-5 lg:border-b-0 lg:border-r">
+              <div className="relative overflow-hidden rounded-xl bg-muted">
+                <div className="relative aspect-video">
+                  <Image
+                    src="/homepage.png"
+                    alt="Video dài được cắt thành highlight"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="absolute inset-x-3 bottom-3 rounded-xl bg-background/95 p-3 shadow-sm backdrop-blur">
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                    <span>Video dài 58:21</span>
+                    <span>Đã tạo 3 highlight</span>
+                  </div>
+                  <div className="mt-2 grid h-7 grid-cols-[1.2fr_0.8fr_1fr] gap-1.5">
+                    <div className="rounded-md bg-primary/30" />
+                    <div className="rounded-md bg-emerald-500/25" />
+                    <div className="rounded-md bg-sky-500/25" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5">
+              <div className="divide-y divide-border/70">
+                {workflowSteps.map((step, index) => (
+                  <div key={step.title} className="flex gap-3 py-4">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button asChild className="mt-2 w-full rounded-xl font-bold">
+                <Link href={uploadHref}>
+                  Tạo highlight từ video
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>

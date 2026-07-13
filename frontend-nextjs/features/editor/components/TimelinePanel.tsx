@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
-import { ChevronDown, ChevronUp, Trash2, Type } from "lucide-react";
-import type { LayerItem, TextOption } from "@/features/editor/types";
+import { ChevronDown, ChevronUp, Trash2, Type, Sticker, Mic } from "lucide-react";
+import type { LayerItem, TextOption, MascotOption, VoiceOption } from "@/features/editor/types";
 import { cn } from "@/lib/utils";
 
 const clamp = (value: number, min: number, max: number) =>
@@ -178,6 +178,10 @@ interface Props {
   videoDurationMs?: number;
   currentTimeMs?: number;
   onSeek?: (ms: number) => void;
+  mascot?: MascotOption;
+  onRemoveMascot?: () => void;
+  voice?: VoiceOption;
+  onRemoveVoice?: () => void;
 }
 
 const RULER_HEIGHT = 28;
@@ -195,16 +199,26 @@ export default function TimelinePanel({
   videoDurationMs = 30_000,
   currentTimeMs = 0,
   onSeek,
+  mascot,
+  onRemoveMascot,
+  voice,
+  onRemoveVoice,
 }: Props) {
   const textLayers = layers.filter(
     (layer): layer is LayerItem & { type: "text" } => layer.type === "text",
   );
+  const hasMascot = mascot && mascot.type !== "none";
+  const hasVoice = voice && voice.type !== "none";
+
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const playheadDragging = useRef(false);
   const [containerWidth, setContainerWidth] = useState(600);
   const [pxPerSec, setPxPerSec] = useState(40);
   const [trashHover, setTrashHover] = useState(false);
+
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(600);
 
   useEffect(() => {
     const target = containerRef.current;
@@ -217,11 +231,41 @@ export default function TimelinePanel({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const target = scrollAreaRef.current;
+    if (!target) return;
+
+    const handleScroll = () => {
+      setScrollLeft(target.scrollLeft);
+    };
+
+    target.addEventListener("scroll", handleScroll, { passive: true });
+    setScrollLeft(target.scrollLeft);
+
+    const observer = new ResizeObserver(([entry]) => {
+      setViewportWidth(entry.contentRect.width);
+    });
+    observer.observe(target);
+
+    return () => {
+      target.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+    };
+  }, []);
+
   const pxPerMs = pxPerSec / 1000;
   const totalPx = Math.max(containerWidth, (videoDurationMs / 1000) * pxPerSec);
   const ticksEvery = pxPerSec >= 60 ? 1 : pxPerSec >= 20 ? 2 : 5;
+
+  const startSec = Math.max(0, Math.floor((scrollLeft - 100) / pxPerSec));
+  const endSec = Math.min(
+    videoDurationMs / 1000,
+    Math.ceil((scrollLeft + viewportWidth + 100) / pxPerSec)
+  );
+
   const ticks: number[] = [];
-  for (let second = 0; second <= videoDurationMs / 1000; second += ticksEvery) {
+  const alignedStart = Math.ceil(startSec / ticksEvery) * ticksEvery;
+  for (let second = alignedStart; second <= endSec; second += ticksEvery) {
     ticks.push(second);
   }
 
@@ -283,7 +327,7 @@ export default function TimelinePanel({
             {formatTime(currentTimeMs)} / {formatTime(videoDurationMs)}
           </span>
           <span className="hidden text-[10px] text-muted-foreground sm:inline">
-            Thu phóng
+            Thu phóng ({Math.round((pxPerSec / 40) * 100)}%)
           </span>
           <input
             type="range"
@@ -299,7 +343,64 @@ export default function TimelinePanel({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex shrink-0 flex-col" style={{ width: TRACK_WIDTH }}>
           <div style={{ height: RULER_HEIGHT }} />
-          {textLayers.length === 0 ? (
+          
+          {/* Mascot layer header */}
+          {hasMascot && (
+            <div
+              className={cn(
+                "mb-1 flex h-11 cursor-pointer items-center gap-1 rounded-l border-r border-border px-1.5 sm:h-8",
+                selectedId === "mascot" ? "bg-amber-500/10 border-amber-500/80 border-r-2" : "hover:bg-muted/50",
+              )}
+              onClick={() => onSelect("mascot")}
+            >
+              <Sticker size={11} className="shrink-0 text-amber-500" />
+              <span className="flex-1 truncate text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                Mascot: {mascot.type === "preset" ? mascot.presetId : "Cá nhân"}
+              </span>
+              <button
+                type="button"
+                title="Xóa mascot"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveMascot?.();
+                  if (selectedId === "mascot") onSelect(null);
+                }}
+                className="rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
+              >
+                <Trash2 size={10} />
+              </button>
+            </div>
+          )}
+
+          {/* Voice layer header */}
+          {hasVoice && (
+            <div
+              className={cn(
+                "mb-1 flex h-11 cursor-pointer items-center gap-1 rounded-l border-r border-border px-1.5 sm:h-8",
+                selectedId === "voice" ? "bg-indigo-500/10 border-indigo-500/80 border-r-2" : "hover:bg-muted/50",
+              )}
+              onClick={() => onSelect("voice")}
+            >
+              <Mic size={11} className="shrink-0 text-indigo-500" />
+              <span className="flex-1 truncate text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                Giọng: {voice.type === "preset" ? voice.presetId : "Custom"}
+              </span>
+              <button
+                type="button"
+                title="Xóa giọng nói"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveVoice?.();
+                  if (selectedId === "voice") onSelect(null);
+                }}
+                className="rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
+              >
+                <Trash2 size={10} />
+              </button>
+            </div>
+          )}
+
+          {textLayers.length === 0 && !hasMascot && !hasVoice ? (
             <div className="flex h-11 items-center px-2 text-[11px] text-muted-foreground sm:h-8">
               Chưa có layer
             </div>
@@ -315,7 +416,7 @@ export default function TimelinePanel({
             >
               <Type size={12} className="shrink-0 text-muted-foreground" />
               <span className="flex-1 truncate text-[11px] font-medium">
-                {layer.data.text || "Text"}
+                {layer.data.text ? (layer.data.text.split(" ").slice(0, 4).join(" ") + (layer.data.text.split(" ").length > 4 ? "..." : "")) : "Chữ mới"}
               </span>
               <button
                 type="button"
@@ -361,11 +462,11 @@ export default function TimelinePanel({
           <div
             className="relative"
             style={{ width: totalPx, minWidth: "100%" }}
+            onPointerDown={handlePlayheadPointerDown}
           >
             <div
-              className="relative cursor-pointer border-b border-border bg-muted/40"
+              className="relative border-b border-border bg-muted/40"
               style={{ height: RULER_HEIGHT }}
-              onPointerDown={handlePlayheadPointerDown}
             >
               {ticks.map((second) => (
                 <div
@@ -389,7 +490,47 @@ export default function TimelinePanel({
               />
             ))}
 
-            <div className="relative pt-1">
+            <div className="relative pt-1" onPointerDown={(e) => e.stopPropagation()}>
+              {/* Mascot Track Strip */}
+              {hasMascot && (
+                <div className="relative mb-1 h-11 sm:h-8">
+                  <div
+                    className={cn(
+                      "absolute bottom-1 top-1 flex select-none items-center rounded-xl border bg-amber-500/20 px-3 text-xs font-semibold text-amber-700 dark:bg-amber-500/30 dark:text-amber-200 cursor-pointer transition-all",
+                      selectedId === "mascot" ? "border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "border-amber-500/20 hover:border-amber-400",
+                    )}
+                    style={{ left: 0, width: videoDurationMs * pxPerMs }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect("mascot");
+                    }}
+                  >
+                    <Sticker size={12} className="mr-1.5 shrink-0 text-amber-500" />
+                    <span className="truncate">Lớp Mascot: {mascot.type === "preset" ? mascot.presetId : "Ảnh tải lên"}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Voice/Audio Track Strip */}
+              {hasVoice && (
+                <div className="relative mb-1 h-11 sm:h-8">
+                  <div
+                    className={cn(
+                      "absolute bottom-1 top-1 flex select-none items-center rounded-xl border bg-indigo-500/20 px-3 text-xs font-semibold text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-200 cursor-pointer transition-all",
+                      selectedId === "voice" ? "border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm" : "border-indigo-500/20 hover:border-indigo-400",
+                    )}
+                    style={{ left: 0, width: videoDurationMs * pxPerMs }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect("voice");
+                    }}
+                  >
+                    <Mic size={12} className="mr-1.5 shrink-0 text-indigo-500" />
+                    <span className="truncate">Lớp Giọng nói: {voice.type === "preset" ? voice.presetId : "Âm thanh"}</span>
+                  </div>
+                </div>
+              )}
+
               {textLayers.map((layer) => (
                 <TimelineTrack
                   key={layer.id}
@@ -434,7 +575,16 @@ export default function TimelinePanel({
           )}
           onMouseEnter={() => setTrashHover(true)}
           onMouseLeave={() => setTrashHover(false)}
-          onClick={() => onRemove(selectedId)}
+          onClick={() => {
+            if (selectedId === "mascot") {
+              onRemoveMascot?.();
+            } else if (selectedId === "voice") {
+              onRemoveVoice?.();
+            } else {
+              onRemove(selectedId);
+            }
+            onSelect(null);
+          }}
         >
           <Trash2 size={13} />
           <span className="text-xs font-medium">Xóa layer đang chọn</span>

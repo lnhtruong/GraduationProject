@@ -50,12 +50,13 @@ export function StudioHeader({
     if (!canSave) return;
     const nextName = trimmedDraftName || activeSessionName;
     setIsSaving(true);
+    const toastId = toast.loading("Đang lưu nháp...");
     try {
       await onSaveSession(nextName);
-      toast.success("Đã lưu nháp");
+      toast.success("Đã lưu nháp thành công!", { id: toastId });
     } catch (error) {
       console.error("Save draft failed:", error);
-      toast.error("Không thể lưu nháp. Vui lòng thử lại.");
+      toast.error("Không thể lưu nháp. Vui lòng thử lại.", { id: toastId });
     } finally {
       setIsSaving(false);
     }

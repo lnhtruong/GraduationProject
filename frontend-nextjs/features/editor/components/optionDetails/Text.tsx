@@ -65,8 +65,8 @@ export default function TextOptions({
   };
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-2">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
+      <section className="min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="text-content" className="text-sm font-semibold">
             Nội dung
@@ -86,7 +86,7 @@ export default function TextOptions({
       </section>
 
       {(onAdd || onRemove) && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={cn("grid min-w-0 gap-2", onAdd && onRemove ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
           {onAdd ? (
             <Button
               onClick={onAdd}
@@ -112,17 +112,19 @@ export default function TextOptions({
         </div>
       )}
 
-      <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
         <Label className="text-sm font-semibold">Kiểu chữ</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Cỡ chữ</Label>
-            <div className="flex gap-1">
+            <div className="flex min-w-0 gap-1">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => update({ fontSize: Math.max(12, value.fontSize - 2) })}
                 className="h-10 w-10"
+                title="Giảm cỡ chữ"
+                aria-label="Giảm cỡ chữ"
               >
                 -
               </Button>
@@ -140,13 +142,17 @@ export default function TextOptions({
                 min={12}
                 max={96}
                 step={2}
-                className="h-10 text-center font-mono"
+                className="h-10 min-w-0 text-center font-mono"
+                title="Nhập cỡ chữ"
+                aria-label="Cỡ chữ"
               />
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => update({ fontSize: Math.min(96, value.fontSize + 2) })}
                 className="h-10 w-10"
+                title="Tăng cỡ chữ"
+                aria-label="Tăng cỡ chữ"
               >
                 +
               </Button>
@@ -175,7 +181,7 @@ export default function TextOptions({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Định dạng</Label>
             <div className="grid grid-cols-3 gap-1">
@@ -189,6 +195,8 @@ export default function TextOptions({
                   })
                 }
                 className="h-10 font-bold"
+                title="Chữ in đậm"
+                aria-label="Chữ in đậm"
               >
                 B
               </Button>
@@ -202,6 +210,8 @@ export default function TextOptions({
                   })
                 }
                 className="h-10 italic"
+                title="Chữ in nghiêng"
+                aria-label="Chữ in nghiêng"
               >
                 I
               </Button>
@@ -219,6 +229,8 @@ export default function TextOptions({
                   })
                 }
                 className="h-10 underline"
+                title="Chữ gạch chân"
+                aria-label="Chữ gạch chân"
               >
                 U
               </Button>
@@ -240,6 +252,7 @@ export default function TextOptions({
                     onClick={() => update({ textAlign: option.value })}
                     className="h-10 w-full"
                     title={option.label}
+                    aria-label={option.label}
                   >
                     <Icon className="h-4 w-4" />
                   </Button>
@@ -250,9 +263,9 @@ export default function TextOptions({
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
         <Label className="text-sm font-semibold">Màu chữ</Label>
-        <div className="grid grid-cols-8 gap-1.5">
+        <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:grid-cols-8">
           {presetColors.map((color) => (
             <button
               key={color.value}
@@ -269,7 +282,7 @@ export default function TextOptions({
             />
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <Input
             type="color"
             value={customColor}
@@ -284,12 +297,12 @@ export default function TextOptions({
             value={value.color}
             onChange={(event) => update({ color: event.target.value })}
             placeholder="#FFFFFF"
-            className="h-10 flex-1 rounded-xl font-mono text-sm"
+            className="h-10 min-w-0 flex-1 rounded-xl font-mono text-sm"
           />
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
         <Label className="text-sm font-semibold">Vị trí</Label>
         <PositionSlider
           label="Ngang"
@@ -303,9 +316,9 @@ export default function TextOptions({
         />
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
         <Label className="text-sm font-semibold">Thời lượng</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <TimeInput
             label="Bắt đầu"
             value={value.startTime ?? 0}

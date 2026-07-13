@@ -185,24 +185,19 @@ export function NewsfeedHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="inline-flex rounded-full border border-border/70 bg-background/90 px-3 shadow-sm hover:bg-accent hover:text-accent-foreground sm:px-4"
+            <Button
+              asChild
+              className="h-9 w-9 shrink-0 overflow-hidden rounded-full p-0 font-bold sm:h-10 sm:w-auto sm:px-5"
+            >
+              <Link
+                href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}
+                aria-label="Đăng nhập"
+                className="flex items-center gap-1.5 overflow-hidden sm:overflow-visible"
               >
-                <Link href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                asChild
-                className="hidden rounded-full px-4 shadow-sm sm:inline-flex"
-              >
-                <Link href={`/signup?returnUrl=${encodeURIComponent(pathname)}`}>Đăng ký</Link>
-              </Button>
-            </>
+                <User className="h-4 w-4" />
+                <span className="max-[420px]:sr-only">Đăng nhập</span>
+              </Link>
+            </Button>
           )}
         </div>
       </div>

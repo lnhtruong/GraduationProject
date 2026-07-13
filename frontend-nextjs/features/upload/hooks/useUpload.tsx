@@ -42,13 +42,17 @@ const INITIAL_STATE: UploadState = {
   error: null,
   stage: undefined,
   progressPercent: undefined,
+  jobType: undefined,
 };
 
 const ACTIVE_HIGHLIGHT_JOB_KEY = "learnhub:active-highlight-job";
+const HIGHLIGHT_STATUS_FALLBACK_MS = 120_000;
 
 type UploadEventEnvelope = {
   jobId?: string | number;
   job_id?: string | number;
+  type?: string;
+  status?: string;
   url?: string;
   video_url?: string;
   urls?: unknown;
@@ -128,14 +132,15 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
 
   if (!url) return null;
 
+  const rawVideoId = record.videoId ?? record.video_id ?? record.id ?? record.source_id;
+  const parsedVideoId =
+    typeof rawVideoId === "number"
+      ? rawVideoId
+      : typeof rawVideoId === "string" && Number.isFinite(Number(rawVideoId))
+        ? Number(rawVideoId)
+        : undefined;
   const videoId =
-    typeof record.videoId === "number"
-      ? record.videoId
-      : typeof record.video_id === "number"
-        ? record.video_id
-        : typeof record.id === "number"
-          ? record.id
-          : undefined;
+    parsedVideoId && parsedVideoId > 0 ? parsedVideoId : undefined;
 
   const topicId =
     typeof record.topicId === "number" || typeof record.topicId === "string"
@@ -177,6 +182,44 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
           : null,
     duration,
   };
+}
+
+function isHighlightJobEvent(payload: UploadEventEnvelope): boolean {
+  const rawType =
+    typeof payload.data?.type === "string"
+      ? payload.data.type
+      : typeof payload.type === "string"
+        ? payload.type
+        : "";
+
+  return rawType.toLowerCase().startsWith("highlight");
+}
+
+function readJobType(payload: UploadEventEnvelope): string | undefined {
+  const rawType =
+    typeof payload.data?.type === "string"
+      ? payload.data.type
+      : typeof payload.type === "string"
+        ? payload.type
+        : undefined;
+
+  return rawType?.trim() || undefined;
+}
+
+function resolveRunningStatus(payload: UploadEventEnvelope): UploadStatus {
+  const rawStatus =
+    typeof payload.status === "string"
+      ? payload.status
+      : typeof payload.data?.status === "string"
+        ? payload.data.status
+        : "";
+  const normalized = rawStatus.toLowerCase();
+
+  if (["pending", "queued", "queue", "waiting"].includes(normalized)) {
+    return "pending";
+  }
+
+  return "processing";
 }
 
 function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope): {
@@ -249,7 +292,7 @@ function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope
 function readErrorMessage(payload: VideoErrorPayload | UploadEventEnvelope): string | null {
   const envelope = payload as UploadEventEnvelope;
   const data = asRecord(envelope.data) ?? {};
-  const source = { ...envelope, ...data };
+  const source = { ...envelope, ...data } as Record<string, unknown>;
   const error = source.error;
 
   if (typeof error === "string" && error.trim()) return error;
@@ -408,6 +451,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     videoId?: number;
   } | null> | null>(null);
   const redirectedProjectRef = useRef<number | null>(null);
+  const lastSseEventAtRef = useRef<number>(0);
+  const sseOpenedAtRef = useRef<number>(0);
+  const sseConnectionFailedRef = useRef(false);
 
   const setJobStarted = useCallback((jobId: string) => {
     setState((prev) => ({
@@ -471,6 +517,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           stage: state.stage,
           progressPercent: state.progressPercent,
           clips: state.clips,
+          jobType: state.jobType,
         }),
       );
       return;
@@ -487,6 +534,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     state.stage,
     state.status,
     state.clips,
+    state.jobType,
     awaitingPersistedVideoIds,
   ]);
 
@@ -540,8 +588,13 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     if (!userId || !sseSessionActive) return;
 
     let stream: UploadStreamSubscription | null = null;
+    sseConnectionFailedRef.current = false;
+    sseOpenedAtRef.current = 0;
 
     const onProgress = (payload: VideoProgressPayload) => {
+      lastSseEventAtRef.current = Date.now();
+      sseConnectionFailedRef.current = false;
+
       setState((prev) => {
         if (prev.status === "completed" || prev.status === "failed") return prev;
 
@@ -555,21 +608,26 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           ? envelope.stage.trim()
           : undefined;
         if (!rawStage && typeof payload.progress !== "number") return prev;
-        if (prev.jobId && !eventJobId) return prev;
+        if (prev.jobId && !eventJobId && !isHighlightJobEvent(envelope)) {
+          return prev;
+        }
 
         return {
           ...prev,
-          status: "processing",
+          status: resolveRunningStatus(envelope),
+          jobType: readJobType(envelope) ?? prev.jobType,
           stage: rawStage ?? `Đang xử lý (${payload.progress}%)`,
           progressPercent:
             typeof payload.progress === "number"
               ? payload.progress
-              : prev.progressPercent,
+              : undefined,
         };
       });
     };
 
     const onCompleted = (payload: VideoCompletedPayload) => {
+      lastSseEventAtRef.current = Date.now();
+      sseConnectionFailedRef.current = false;
       const { clips, jobId } = readCompletedClips(payload);
       if (clips.length === 0) return;
 
@@ -589,12 +647,15 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           isDownloading: false,
           progress: null,
           progressPercent: 100,
+          jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
           stage: "Hoàn thành",
         };
       });
     };
 
     const onError = (payload: VideoErrorPayload) => {
+      lastSseEventAtRef.current = Date.now();
+      sseConnectionFailedRef.current = false;
       setState((prev) => {
         const errorJobId = readEventJobId(payload as UploadEventEnvelope);
         if (prev.jobId && !errorJobId) {
@@ -616,7 +677,18 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     };
 
     stream = createMediaUploadStream(
-      { onProgress, onCompleted, onError },
+      {
+        onProgress,
+        onCompleted,
+        onError,
+        onOpen: () => {
+          sseOpenedAtRef.current = Date.now();
+          sseConnectionFailedRef.current = false;
+        },
+        onConnectionError: () => {
+          sseConnectionFailedRef.current = true;
+        },
+      },
       { userId },
     );
 
@@ -634,6 +706,17 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     let cancelled = false;
 
     const checkJob = async () => {
+      const hasFreshSse =
+        lastSseEventAtRef.current > 0 &&
+        Date.now() - lastSseEventAtRef.current < HIGHLIGHT_STATUS_FALLBACK_MS;
+      const hasOpenSse =
+        sseOpenedAtRef.current > 0 &&
+        Date.now() - sseOpenedAtRef.current < HIGHLIGHT_STATUS_FALLBACK_MS;
+
+      if ((hasFreshSse || hasOpenSse) && !sseConnectionFailedRef.current) {
+        return;
+      }
+
       try {
         const payload = await uploadApi.getJobStatus(String(state.jobId));
         if (cancelled) return;
@@ -652,9 +735,42 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
               clips,
               progress: null,
               progressPercent: 100,
+              jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
               stage: "Hoàn thành",
             }));
           }
+          return;
+        }
+
+        if (["pending", "queued", "queue", "waiting", "processing", "running"].includes(status)) {
+          const envelope = payload as UploadEventEnvelope;
+          const rawStage =
+            typeof envelope.stage === "string"
+              ? envelope.stage.trim()
+              : typeof envelope.data?.stage === "string"
+                ? envelope.data.stage.trim()
+                : undefined;
+          const progress =
+            typeof envelope.progress === "number"
+              ? envelope.progress
+              : typeof envelope.data?.progress === "number"
+                ? envelope.data.progress
+                : undefined;
+
+          setState((prev) => {
+            if (prev.status === "completed" || prev.status === "failed") {
+              return prev;
+            }
+
+            return {
+              ...prev,
+              status: resolveRunningStatus(envelope),
+              jobType: readJobType(envelope) ?? prev.jobType,
+              stage: rawStage ?? prev.stage,
+              progressPercent:
+                typeof progress === "number" ? progress : undefined,
+            };
+          });
           return;
         }
 
@@ -675,8 +791,10 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       }
     };
 
-    void checkJob();
-    const timer = window.setInterval(checkJob, 8_000);
+    const timer = window.setInterval(
+      checkJob,
+      HIGHLIGHT_STATUS_FALLBACK_MS,
+    );
 
     return () => {
       cancelled = true;
@@ -699,13 +817,20 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
             .filter((video) => Boolean(video.url) && video.id > 0)
             .map((video) => [normalizeAssetUrl(video.url), video.id]),
         );
+        const videoIdByJobId = new Map(
+          videos
+            .filter((video) => Boolean(video.job_id ?? video.jobId) && video.id > 0)
+            .map((video) => [String(video.job_id ?? video.jobId), video.id]),
+        );
 
         setState((prev) => ({
           ...prev,
           clips: prev.clips.map((clip) => ({
             ...clip,
             videoId:
-              clip.videoId ?? videoIdByUrl.get(normalizeAssetUrl(clip.url)),
+              clip.videoId ??
+              (prev.jobId ? videoIdByJobId.get(String(prev.jobId)) : undefined) ??
+              videoIdByUrl.get(normalizeAssetUrl(clip.url)),
           })),
         }));
       } catch {
@@ -815,6 +940,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       error: null,
       stage: "Đang tải video lên LearnHub",
       progressPercent: undefined,
+      jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
     });
 
     try {
@@ -830,6 +956,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
         sourceVideoUrl: bunny.videoUrl,
         stage: "Video đã sẵn sàng, đang tạo highlight",
         progressPercent: 5,
+        jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
       });
 
       await startHighlightFromUrl(bunny.videoUrl, params, {
@@ -864,6 +991,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       error: null,
       stage: "Đang tạo highlight từ video đã có",
       progressPercent: 5,
+      jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
     });
 
     try {
@@ -899,6 +1027,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       error: null,
       stage: undefined,
       progressPercent: undefined,
+      jobType: undefined,
     });
   };
 

@@ -126,8 +126,9 @@ const useMascotImageUploadBase = createMutationHooks<
   },
   {
     retry: false,
-    onSuccess: () => {
+    onSuccess: (data, variables, queryClient) => {
       toast.success("Đã tải ảnh mascot lên");
+      void queryClient.invalidateQueries({ queryKey: ["image"] });
     },
   },
 );

@@ -162,7 +162,9 @@ export interface ExternalEditorPanelBindings {
   onTextRemove: (id: string) => void;
   selectedTextId: string | null;
   onTextSelect: (id: string | null) => void;
+  currentTimeMs?: number;
 }
+
 
 // ============================================================================
 // API DTOs & REQUEST/RESPONSE TYPES

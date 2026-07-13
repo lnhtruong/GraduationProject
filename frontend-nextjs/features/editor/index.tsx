@@ -125,7 +125,11 @@ export default function Editor() {
         onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:ml-14 lg:pb-0">
+      <div
+        className={`min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] transition-[margin] duration-300 lg:pb-0 ${
+          isSidebarCollapsed ? "lg:ml-[4.5rem]" : "lg:ml-[28rem]"
+        }`}
+      >
         <StudioHeader
           activeSessionName={activeSessionName}
           activeEditId={activeEditId}

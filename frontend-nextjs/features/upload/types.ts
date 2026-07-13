@@ -43,6 +43,7 @@ export interface UploadState {
   error: string | null;
   stage?: string;
   progressPercent?: number;
+  jobType?: string;
 }
 
 export interface HighlightParams {

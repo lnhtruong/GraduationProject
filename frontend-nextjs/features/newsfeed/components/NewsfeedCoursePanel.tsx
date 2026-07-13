@@ -233,6 +233,8 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 								variant="ghost"
 								size="icon"
 								onClick={onClose}
+								aria-label="Đóng thông tin khóa học"
+								title="Đóng"
 								className="h-9 w-9 rounded-none border border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
 							>
 								<ChevronRight className="h-5 w-5" />

@@ -66,6 +66,8 @@ export type BunnyVideoPlayDataResponse = {
 type VideoApiResponse = {
   id?: number;
   user_id?: number;
+  job_id?: string | null;
+  jobId?: string | null;
   image_id?: number | null;
   mascot_image_id?: number | null;
   url?: string;
@@ -88,6 +90,8 @@ function mapVideo(raw: VideoApiResponse): Video {
   return {
     id: raw.id ?? 0,
     user_id: raw.user_id,
+    job_id: raw.job_id ?? raw.jobId ?? null,
+    jobId: raw.jobId ?? raw.job_id ?? null,
     image_id: raw.image_id ?? raw.mascot_image_id ?? null,
     name: raw.name ?? null,
     url: raw.url ?? "",
