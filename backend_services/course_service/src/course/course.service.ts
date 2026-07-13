@@ -537,6 +537,25 @@ export class CoursesService {
     return snapshot as CourseUpdatePayload;
   }
 
+  /**
+   * FE gửi nguyên form (mọi field) mỗi lần submit, không chỉ field đã sửa.
+   * Lọc lại: chỉ giữ field có giá trị THỰC SỰ khác giá trị hiện tại của course,
+   * để change request (và diff hiển thị cho admin) không lẫn field không đổi.
+   */
+  private diffAgainstCourse(
+    course: Course,
+    payload: CourseUpdatePayload,
+  ): CourseUpdatePayload {
+    const diffed: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      const current = course.get(key as keyof Course) ?? null;
+      if (JSON.stringify(value ?? null) !== JSON.stringify(current)) {
+        diffed[key] = value;
+      }
+    }
+    return diffed as CourseUpdatePayload;
+  }
+
   /** Tạo danh sách diff (cũ → mới) theo từng field có trong `payload`. */
   private buildChanges(
     payload: ChangeRequestPayload,
@@ -1137,7 +1156,7 @@ export class CoursesService {
 
   async findAllPublic(
     params: {
-      status?: CourseStatus;
+      status?: CourseStatus | CourseStatus[];
       page?: number;
       limit?: number;
       search?: string;
@@ -1176,14 +1195,22 @@ export class CoursesService {
     const whereCondition: any = {};
     const effectiveStatus = isAdmin ? status : CourseStatus.PUBLISH;
 
-    if (!isAdmin && status && status !== CourseStatus.PUBLISH) {
+    if (
+      !isAdmin &&
+      status &&
+      (Array.isArray(status)
+        ? status.some((s) => s !== CourseStatus.PUBLISH)
+        : status !== CourseStatus.PUBLISH)
+    ) {
       throw new ForbiddenException(
         'Only admin can filter courses by this status',
       );
     }
 
     if (effectiveStatus) {
-      whereCondition.status = effectiveStatus;
+      whereCondition.status = Array.isArray(effectiveStatus)
+        ? { [Op.in]: effectiveStatus }
+        : effectiveStatus;
     }
 
     if (level) {
@@ -1827,7 +1854,14 @@ export class CoursesService {
       course.status === CourseStatus.PUBLISH ||
       course.status === CourseStatus.APPROVED;
     if (requiresChangeRequest && !isAdmin) {
-      const prevData = this.snapshotPreviousData(course, payload);
+      const changedPayload = this.diffAgainstCourse(course, payload);
+      // FE gửi nguyên form mỗi lần submit; nếu không field nào thực sự đổi thì
+      // không có gì để admin duyệt — giữ nguyên course, không tạo/ghi đè request.
+      if (Object.keys(changedPayload).length === 0) {
+        return course;
+      }
+
+      const prevData = this.snapshotPreviousData(course, changedPayload);
       // Overwrite chỉ áp dụng cho request course.update (tối đa 1 pending/course).
       // Lesson change requests stack riêng theo từng thao tác nên không đụng vào.
       const existing = await this.courseChangeRequestModel.findOne({
@@ -1839,7 +1873,7 @@ export class CoursesService {
       });
       if (existing) {
         return await existing.update({
-          payload,
+          payload: changedPayload,
           prevData,
           requestedBy: requester.userId,
         });
@@ -1847,7 +1881,7 @@ export class CoursesService {
       return await this.courseChangeRequestModel.create({
         courseId: id,
         requestedBy: requester.userId,
-        payload,
+        payload: changedPayload,
         prevData,
         kind: CourseChangeRequestKind.COURSE_UPDATE,
         status: CourseChangeRequestStatus.PENDING,
@@ -2148,6 +2182,8 @@ export class CoursesService {
 
   async listChangeRequests(params: {
     status?: string;
+    kind?: string;
+    search?: string;
     page?: number;
     limit?: number;
   }): Promise<{
@@ -2163,11 +2199,27 @@ export class CoursesService {
     if (params.status) {
       where.status = params.status;
     }
+    if (params.kind) {
+      where.kind = params.kind;
+    }
+
+    const keyword = params.search?.trim();
+    const includes = keyword
+      ? this.changeRequestIncludes.map((include) =>
+          include.as === 'course'
+            ? {
+                ...include,
+                required: true,
+                where: { name: { [Op.like]: `%${keyword}%` } },
+              }
+            : include,
+        )
+      : this.changeRequestIncludes;
 
     const { rows, count } = await this.courseChangeRequestModel.findAndCountAll(
       {
         where,
-        include: this.changeRequestIncludes,
+        include: includes,
         order: [['id', 'DESC']],
         limit,
         offset: (page - 1) * limit,
@@ -2296,13 +2348,19 @@ export class CoursesService {
     };
   }
 
-  /** Ảnh chụp giá trị lesson hiện tại cho đúng các field có trong `payload`. */
+  /**
+   * Ảnh chụp giá trị lesson hiện tại cho đúng các field có trong `payload`,
+   * cộng thêm các field bổ sung (nếu có) — dùng cho `lesson.delete`, nơi
+   * payload chỉ có `{status}` nhưng FE cần `title`/`contentType` để hiển thị
+   * lesson nào sắp bị xoá.
+   */
   private snapshotLesson(
     lesson: Lesson,
     payload: LessonChangePayload,
+    extraKeys: (keyof Lesson)[] = [],
   ): LessonChangePayload {
     const snapshot: Record<string, unknown> = {};
-    for (const key of Object.keys(payload)) {
+    for (const key of [...Object.keys(payload), ...extraKeys]) {
       snapshot[key] = lesson.get(key as keyof Lesson) ?? null;
     }
     return snapshot as LessonChangePayload;
@@ -2346,7 +2404,12 @@ export class CoursesService {
     const payload = request.payload as LessonChangePayload;
     // Refresh snapshot ngay trước khi apply để diff phản ánh đúng giá trị lesson
     // tại thời điểm duyệt (đề phòng lesson đã đổi so với lúc tạo request).
-    const prevData = this.snapshotLesson(lesson, payload);
+    const isDelete = request.kind === CourseChangeRequestKind.LESSON_DELETE;
+    const prevData = this.snapshotLesson(
+      lesson,
+      payload,
+      isDelete ? ['title', 'contentType'] : [],
+    );
 
     if (request.kind === CourseChangeRequestKind.LESSON_DELETE) {
       await lesson.update({ status: LessonStatus.REMOVED }, { transaction });

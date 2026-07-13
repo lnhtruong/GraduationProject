@@ -230,65 +230,84 @@ export default function AdminRevenuePage() {
 
       {/* Recent transactions */}
       <Section title="Giao dịch gần đây">
-        <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
-                <th className="px-4 py-2.5 font-medium">Người mua</th>
-                <th className="px-4 py-2.5 font-medium">Số khóa</th>
-                <th className="px-4 py-2.5 text-right font-medium">Tổng tiền</th>
-                <th className="px-4 py-2.5 font-medium">Trạng thái</th>
-                <th className="px-4 py-2.5 font-medium">Thời gian</th>
-              </tr>
-            </thead>
-            <tbody>
-              {txQ.isLoading ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-6 text-center text-xs text-muted-foreground"
-                  >
-                    Đang tải...
-                  </td>
-                </tr>
-              ) : (txQ.data?.data.length ?? 0) === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-6 text-center text-xs text-muted-foreground"
-                  >
-                    Chưa có giao dịch
-                  </td>
-                </tr>
-              ) : (
-                txQ.data?.data.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="border-b border-border/40 last:border-b-0 hover:bg-muted/30"
-                  >
-                    <td className="px-4 py-2.5">
-                      {t.buyerName || `User #${t.buyerUserId}`}
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums">{t.itemCount}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-medium">
-                      {formatVND(t.totalAmount)}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLOR[t.status]}`}
+        {txQ.isLoading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-10 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        ) : (txQ.data?.data.length ?? 0) === 0 ? (
+          <div className="rounded-lg border border-dashed py-6 text-center text-xs text-muted-foreground">
+            Chưa có giao dịch
+          </div>
+        ) : (
+          <>
+            {/* Desktop: bảng đầy đủ, từ sm trở lên */}
+            <div className="hidden overflow-hidden rounded-xl border border-border/60 bg-background sm:block">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                      <th className="px-4 py-2.5 font-medium">Người mua</th>
+                      <th className="px-4 py-2.5 font-medium">Số khóa</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Tổng tiền</th>
+                      <th className="px-4 py-2.5 font-medium">Trạng thái</th>
+                      <th className="px-4 py-2.5 font-medium">Thời gian</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txQ.data?.data.map((t) => (
+                      <tr
+                        key={t.id}
+                        className="border-b border-border/40 last:border-b-0 hover:bg-muted/30"
                       >
-                        {STATUS_LABEL[t.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {(t.paidAt || t.createdAt || "").replace("T", " ").slice(0, 16)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <td className="px-4 py-2.5">
+                          {t.buyerName || `User #${t.buyerUserId}`}
+                        </td>
+                        <td className="px-4 py-2.5 tabular-nums">{t.itemCount}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums font-medium">
+                          {formatVND(t.totalAmount)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLOR[t.status]}`}
+                          >
+                            {STATUS_LABEL[t.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {(t.paidAt || t.createdAt || "").replace("T", " ").slice(0, 16)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile: card danh sách, dưới sm */}
+            <div className="divide-y divide-border/40 rounded-xl border border-border/60 bg-background sm:hidden">
+              {txQ.data?.data.map((t) => (
+                <div key={t.id} className="flex flex-col gap-1.5 px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      {t.buyerName || `User #${t.buyerUserId}`}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLOR[t.status]}`}
+                    >
+                      {STATUS_LABEL[t.status]}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{t.itemCount} khóa · {formatVND(t.totalAmount)}</span>
+                    <span>{(t.paidAt || t.createdAt || "").replace("T", " ").slice(0, 16)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </Section>
     </div>
   );

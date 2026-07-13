@@ -45,6 +45,16 @@ export class CoursesController {
     return role;
   }
 
+  // Cho phép lọc nhiều trạng thái cùng lúc qua "status=approved,publish".
+  private parseStatusFilter(
+    status?: CourseStatus,
+  ): CourseStatus | CourseStatus[] | undefined {
+    if (!status) return undefined;
+    return (status as unknown as string).includes(',')
+      ? ((status as unknown as string).split(',').filter(Boolean) as CourseStatus[])
+      : status;
+  }
+
   @Post()
   create(
     @Body() createCourseDto: CreateCourseDto,
@@ -115,7 +125,7 @@ export class CoursesController {
     }
 
     return this.coursesService.findAllPublic({
-      status,
+      status: this.parseStatusFilter(status),
       page: parsedPage,
       limit: parsedLimit,
       sort,
@@ -185,11 +195,15 @@ export class CoursesController {
   @Get('change-requests')
   listChangeRequests(
     @Query('status') status?: string,
+    @Query('kind') kind?: string,
+    @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.coursesService.listChangeRequests({
       status,
+      kind,
+      search,
       page: page !== undefined ? Number(page) : undefined,
       limit: limit !== undefined ? Number(limit) : undefined,
     });

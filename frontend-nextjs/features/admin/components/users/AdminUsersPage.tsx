@@ -97,6 +97,73 @@ function getFullName(user: AdminUser): string {
   return parts.length ? parts.join(" ") : "";
 }
 
+function UserActionsMenu({
+  user,
+  currentUserId,
+  onAction,
+}: {
+  user: AdminUser;
+  currentUserId?: number;
+  onAction: (action: ConfirmAction) => void;
+}) {
+  const isSelf = currentUserId === user.id;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Vai trò</DropdownMenuLabel>
+        {([
+          { role: ROLES.STUDENT, label: "Học viên" },
+          { role: ROLES.LECTURER, label: "Giảng viên" },
+          { role: ROLES.ADMIN, label: "Quản trị viên" },
+        ] as const)
+          .filter((r) => r.role !== user.role)
+          .map((r) => (
+            <DropdownMenuItem
+              key={r.role}
+              disabled={isSelf}
+              title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+              onClick={() => !isSelf && onAction({ type: "change-role", user, newRole: r.role })}
+            >
+              Đổi thành {r.label}
+            </DropdownMenuItem>
+          ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Tài khoản</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => onAction({ type: "reset-password", user })}>
+          <KeyRound className="mr-2 h-3.5 w-3.5" />
+          Đặt lại mật khẩu
+        </DropdownMenuItem>
+        {user.isBanned ? (
+          <DropdownMenuItem
+            disabled={isSelf}
+            className="text-emerald-600 focus:text-emerald-600"
+            title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+            onClick={() => !isSelf && onAction({ type: "unban", user })}
+          >
+            <Ban className="mr-2 h-3.5 w-3.5" />
+            Mở khoá tài khoản
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            disabled={isSelf}
+            className="text-destructive focus:text-destructive"
+            title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
+            onClick={() => !isSelf && onAction({ type: "ban", user })}
+          >
+            <Ban className="mr-2 h-3.5 w-3.5" />
+            Khoá tài khoản
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function AdminUsersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -188,7 +255,7 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4 border-b border-border/50 pb-5">
+      <div className="flex flex-col gap-3 border-b border-border/50 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <Users className="h-5 w-5 text-primary" />
@@ -198,7 +265,7 @@ export default function AdminUsersPage() {
             Xem, phân quyền và quản lý tài khoản người dùng
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="self-start sm:self-auto">
           <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isLoading && "animate-spin")} />
           Làm mới
         </Button>
@@ -212,7 +279,7 @@ export default function AdminUsersPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1" style={{ minWidth: 200, maxWidth: 340 }}>
+        <div className="relative w-full min-[480px]:w-auto min-[480px]:flex-1 min-[480px]:min-w-50 min-[480px]:max-w-85">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Tìm theo email hoặc tên..."
@@ -222,7 +289,7 @@ export default function AdminUsersPage() {
           />
         </div>
         <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as RoleFilter); resetPage(); }}>
-          <SelectTrigger className="h-9 w-36 text-sm">
+          <SelectTrigger className="h-9 w-[calc(50%-0.25rem)] text-sm sm:w-36">
             <SelectValue placeholder="Vai trò" />
           </SelectTrigger>
           <SelectContent>
@@ -233,7 +300,7 @@ export default function AdminUsersPage() {
           </SelectContent>
         </Select>
         <Select value={banFilter} onValueChange={(v) => { setBanFilter(v as BanFilter); resetPage(); }}>
-          <SelectTrigger className="h-9 w-36 text-sm">
+          <SelectTrigger className="h-9 w-[calc(50%-0.25rem)] text-sm sm:w-36">
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
           <SelectContent>
@@ -246,7 +313,7 @@ export default function AdminUsersPage() {
           const [by, ord] = v.split(":") as [UserSortBy, SortOrder];
           setSortBy(by); setSortOrder(ord); resetPage();
         }}>
-          <SelectTrigger className="h-9 w-44 text-sm">
+          <SelectTrigger className="h-9 w-full text-sm sm:w-44">
             <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -261,8 +328,8 @@ export default function AdminUsersPage() {
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      {/* Table (desktop, từ sm) */}
+      <div className="hidden rounded-xl border border-border/60 bg-card overflow-hidden sm:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -336,65 +403,7 @@ export default function AdminUsersPage() {
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52">
-                          <DropdownMenuLabel className="text-xs text-muted-foreground">Vai trò</DropdownMenuLabel>
-                          {([
-                            { role: ROLES.STUDENT, label: "Học viên" },
-                            { role: ROLES.LECTURER, label: "Giảng viên" },
-                            { role: ROLES.ADMIN, label: "Quản trị viên" },
-                          ] as const)
-                            .filter((r) => r.role !== user.role)
-                            .map((r) => {
-                              const isSelf = currentUser?.id === user.id;
-                              return (
-                                <DropdownMenuItem
-                                  key={r.role}
-                                  disabled={isSelf}
-                                  title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                  onClick={() => !isSelf && setConfirmAction({ type: "change-role", user, newRole: r.role })}
-                                >
-                                  Đổi thành {r.label}
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-xs text-muted-foreground">Tài khoản</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setConfirmAction({ type: "reset-password", user })}>
-                            <KeyRound className="mr-2 h-3.5 w-3.5" />
-                            Đặt lại mật khẩu
-                          </DropdownMenuItem>
-                          {(() => {
-                            const isSelf = currentUser?.id === user.id;
-                            return user.isBanned ? (
-                              <DropdownMenuItem
-                                disabled={isSelf}
-                                className="text-emerald-600 focus:text-emerald-600"
-                                title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                onClick={() => !isSelf && setConfirmAction({ type: "unban", user })}
-                              >
-                                <Ban className="mr-2 h-3.5 w-3.5" />
-                                Mở khoá tài khoản
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                disabled={isSelf}
-                                className="text-destructive focus:text-destructive"
-                                title={isSelf ? "Không thể thay đổi tài khoản của chính bạn" : undefined}
-                                onClick={() => !isSelf && setConfirmAction({ type: "ban", user })}
-                              >
-                                <Ban className="mr-2 h-3.5 w-3.5" />
-                                Khoá tài khoản
-                              </DropdownMenuItem>
-                            );
-                          })()}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <UserActionsMenu user={user} currentUserId={currentUser?.id} onAction={setConfirmAction} />
                     </td>
                   </tr>
                 ))
@@ -402,25 +411,83 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-border/60 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} người dùng
-            </p>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[4rem] text-center text-xs">Trang {page}/{totalPages}</span>
-              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Card list (mobile, dưới sm) */}
+      <div className="rounded-xl border border-border/60 bg-card overflow-hidden sm:hidden">
+        {isLoading ? (
+          <div className="divide-y divide-border/40">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+                <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        ) : users.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-3 h-8 w-8 opacity-30" />
+            <p className="font-medium">Không tìm thấy người dùng</p>
+            <p className="mt-1 text-xs">Thử thay đổi bộ lọc tìm kiếm</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/40">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-start gap-3 px-4 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarImage src={user.avatarUrl ?? undefined} />
+                  <AvatarFallback className="text-xs">{getUserInitials(user)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  {getFullName(user) && (
+                    <p className="truncate text-sm font-medium leading-tight">{getFullName(user)}</p>
+                  )}
+                  <p className={cn("truncate text-xs text-muted-foreground", !getFullName(user) && "text-sm font-medium text-foreground")}>
+                    {user.email}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className={cn("gap-1 text-[10px]", getRoleBadgeClass(user.role))}>
+                      {getRoleIcon(user.role)}
+                      {getRoleName(user.role)}
+                    </Badge>
+                    {user.isBanned ? (
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">
+                        Đã bị khoá
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px]">
+                        Hoạt động
+                      </Badge>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "—"}
+                    </span>
+                  </div>
+                </div>
+                <UserActionsMenu user={user} currentUserId={currentUser?.id} onAction={setConfirmAction} />
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} người dùng
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-16 text-center text-xs">Trang {page}/{totalPages}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialog */}
       <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>

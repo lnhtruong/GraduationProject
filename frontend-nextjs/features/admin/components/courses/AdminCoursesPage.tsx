@@ -25,7 +25,7 @@ import { AdminCourseReviewModal } from "./AdminCourseReviewModal";
 import { AdminChangeRequestTable } from "../change-requests/AdminChangeRequestTable";
 import { AdminChangeRequestReviewModal } from "../change-requests/AdminChangeRequestReviewModal";
 import {
-  useAdminCoursesPaginated, useAdminCourseStats,
+  useAdminCoursesPaginated,
   useApproveCourse, useRejectCourse,
 } from "../../api/admin-courses.hooks";
 import { useAdminChangeRequests, useReviewChangeRequest } from "../../api/admin-change-requests.hooks";
@@ -38,7 +38,7 @@ import type {
 
 type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
 type KindFilter = "all" | CourseChangeRequestKind;
-type CourseStatusFilter = "pending" | "publish" | "rejected" | "all";
+type CourseStatusFilter = "pending" | "approved_publish" | "rejected" | "all";
 type CRStatusFilter = "pending" | "approved" | "rejected" | "all";
 type ConfirmCourseAction = { type: "approve" | "reject"; course: Course };
 type ConfirmCRAction = { type: "approve" | "reject"; request: CourseChangeRequest };
@@ -65,10 +65,19 @@ const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
 
 const COURSE_STATUS_OPTIONS: { value: CourseStatusFilter; label: string }[] = [
   { value: "pending", label: "Chờ duyệt" },
-  { value: "publish", label: "Đã xuất bản" },
+  { value: "approved_publish", label: "Đã duyệt/Xuất bản" },
   { value: "rejected", label: "Đã từ chối" },
   { value: "all", label: "Tất cả" },
 ];
+
+// "approved_publish" gộp 2 trạng thái backend (approved + publish) vào 1 tab;
+// từng dòng vẫn phân biệt được nhờ CourseStatusBadge trong AdminCourseTable.
+const COURSE_STATUS_FILTER_TO_QUERY: Record<CourseStatusFilter, string | undefined> = {
+  pending: "pending",
+  approved_publish: "approved,publish",
+  rejected: "rejected",
+  all: undefined,
+};
 
 const CR_STATUS_OPTIONS: { value: CRStatusFilter; label: string }[] = [
   { value: "pending", label: "Chờ duyệt" },
@@ -237,13 +246,11 @@ export default function AdminCoursesPage() {
     level: levelFilter !== "all" ? levelFilter : undefined,
     minPrice: isPriceFiltered ? priceCommitted[0] : undefined,
     maxPrice: isPriceFiltered && priceCommitted[1] < PRICE_MAX ? priceCommitted[1] : undefined,
-    status: courseStatusFilter !== "all" ? courseStatusFilter : undefined,
+    status: COURSE_STATUS_FILTER_TO_QUERY[courseStatusFilter],
   };
 
   const { data: courseData, isLoading: isCourseLoading, isError: isCourseError, refetch: refetchCourses } =
     useAdminCoursesPaginated({ page: coursePage, limit: PAGE_SIZE, ...serverCourseFilters });
-
-  const { data: pendingStats } = useAdminCourseStats("pending");
 
   // ── Change-request query (single, server-side filtered) ──
   const { data: crData, isLoading: isCrLoading, isError: isCrError, refetch: refetchCR } =
@@ -254,8 +261,6 @@ export default function AdminCoursesPage() {
       page: crPage,
       limit: PAGE_SIZE,
     });
-
-  const stats = { pending: pendingStats?.pagination.totalItems ?? 0 };
 
   // ── Course mutations ──
   const approve = useApproveCourse();
@@ -313,11 +318,6 @@ export default function AdminCoursesPage() {
           <TabsTrigger value="courses" className="h-8 gap-2 rounded-md px-4 text-sm">
             <BookCheck className="h-3.5 w-3.5" />
             Khóa học
-            {stats.pending > 0 && (
-              <span className="min-w-4.5 rounded-full bg-amber-500 px-1 py-0.5 text-[10px] font-bold leading-none text-white">
-                {stats.pending}
-              </span>
-            )}
           </TabsTrigger>
           <TabsTrigger value="change-requests" className="h-8 gap-2 rounded-md px-4 text-sm">
             <FileEdit className="h-3.5 w-3.5" />
@@ -330,17 +330,17 @@ export default function AdminCoursesPage() {
           {/* Toolbar */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative">
+              <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Tìm theo tên khoá học..."
-                  className="h-9 w-64 pl-8 text-sm"
+                  className="h-9 w-full pl-8 text-sm"
                 />
               </div>
               {/* Status tabs inside toolbar */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
                 {COURSE_STATUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -353,11 +353,6 @@ export default function AdminCoursesPage() {
                     }`}
                   >
                     {opt.label}
-                    {opt.value === "pending" && stats.pending > 0 && (
-                      <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
-                        {stats.pending}
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -391,7 +386,7 @@ export default function AdminCoursesPage() {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">
                 {COURSE_STATUS_OPTIONS.find((o) => o.value === courseStatusFilter)?.label ?? "Khóa học"}
               </span>
@@ -442,17 +437,17 @@ export default function AdminCoursesPage() {
           {/* Toolbar */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative">
+              <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={crSearchInput}
                   onChange={(e) => setCrSearchInput(e.target.value)}
                   placeholder="Tìm theo tên khoá học..."
-                  className="h-9 w-64 pl-8 text-sm"
+                  className="h-9 w-full pl-8 text-sm"
                 />
               </div>
               {/* Status toggle */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
                 {CR_STATUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -490,7 +485,7 @@ export default function AdminCoursesPage() {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">
                 {CR_STATUS_OPTIONS.find((o) => o.value === crStatusFilter)?.label ?? "Yêu cầu thay đổi"}
               </span>
@@ -561,7 +556,7 @@ export default function AdminCoursesPage() {
                 : <>Bạn có chắc muốn <strong>từ chối</strong> khóa học <strong>"{confirmCourseAction?.course.name}"</strong>? Giảng viên sẽ cần chỉnh sửa và gửi lại.</>}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button variant="outline" onClick={() => setConfirmCourseAction(null)}>Huỷ</Button>
             <Button
               variant={confirmCourseAction?.type === "reject" ? "destructive" : "default"}
@@ -588,7 +583,7 @@ export default function AdminCoursesPage() {
                 : <>Xác nhận <strong>từ chối</strong> yêu cầu này? Giảng viên sẽ được thông báo.</>}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button variant="outline" onClick={() => setConfirmCRAction(null)}>Huỷ</Button>
             <Button
               variant={confirmCRAction?.type === "reject" ? "destructive" : "default"}
