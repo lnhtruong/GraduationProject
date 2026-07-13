@@ -174,13 +174,13 @@ export function AdminChangeRequestTable({
         return (
           <div
             key={req.id}
-            className="group flex cursor-pointer flex-col gap-2 px-5 py-4 transition-colors hover:bg-primary/2"
+            className="group flex cursor-pointer flex-col gap-2 px-4 py-3.5 transition-colors hover:bg-primary/2 sm:px-5 sm:py-4"
             onClick={() => onViewDetail?.(req)}
           >
-            {/* Row 1: course name + badges + actions */}
-            <div className="flex min-w-0 items-center gap-2">
+            {/* Row 1: course name + badges */}
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* Course name */}
-              <p className="min-w-0 truncate text-sm font-medium leading-snug">
+              <p className="min-w-0 flex-1 truncate text-sm font-medium leading-snug">
                 {req.course?.name ?? `Khoá học #${req.courseId}`}
               </p>
 
@@ -194,51 +194,14 @@ export function AdminChangeRequestTable({
 
               {/* Status badge */}
               <span
-                className={`ml-auto inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusCfg.colorClass}`}
+                className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusCfg.colorClass}`}
               >
                 {statusCfg.label}
               </span>
-
-              {/* Actions */}
-              <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                {isPending ? (
-                  <>
-                    <Button
-                      size="sm"
-                      className="h-7 gap-1 bg-emerald-600 px-2.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-                      onClick={() => onApprove?.(req)}
-                      disabled={isBusy}
-                    >
-                      {isApproving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      Duyệt
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 gap-1 border-destructive/30 px-2.5 text-[11px] font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
-                      onClick={() => onReject?.(req)}
-                      disabled={isBusy}
-                    >
-                      {isRejecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                      Từ chối
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 gap-1 px-2 text-[11px] text-muted-foreground"
-                    onClick={() => onViewDetail?.(req)}
-                  >
-                    <Eye className="h-3 w-3" />
-                    Xem
-                  </Button>
-                )}
-              </div>
             </div>
 
             {/* Row 2: inline diff preview + meta */}
-            <div className="flex min-w-0 items-center gap-4">
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
               <div className="min-w-0 flex-1">
                 <InlinePreview req={req} />
               </div>
@@ -254,6 +217,46 @@ export function AdminChangeRequestTable({
                   {formatDate(req.created_at)}
                 </span>
               </div>
+            </div>
+
+            {/* Row 3: actions — full-width trên mobile, gọn phải trên desktop */}
+            <div
+              className="flex items-center gap-2 sm:justify-end"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isPending ? (
+                <>
+                  <Button
+                    size="sm"
+                    className="h-8 flex-1 gap-1 bg-emerald-600 px-2.5 text-[11px] font-medium text-white hover:bg-emerald-700 sm:h-7 sm:flex-none"
+                    onClick={() => onApprove?.(req)}
+                    disabled={isBusy}
+                  >
+                    {isApproving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                    Duyệt
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 gap-1 border-destructive/30 px-2.5 text-[11px] font-medium text-destructive hover:bg-destructive/5 hover:text-destructive sm:h-7 sm:flex-none"
+                    onClick={() => onReject?.(req)}
+                    disabled={isBusy}
+                  >
+                    {isRejecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                    Từ chối
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-[11px] text-muted-foreground"
+                  onClick={() => onViewDetail?.(req)}
+                >
+                  <Eye className="h-3 w-3" />
+                  Xem
+                </Button>
+              )}
             </div>
           </div>
         );

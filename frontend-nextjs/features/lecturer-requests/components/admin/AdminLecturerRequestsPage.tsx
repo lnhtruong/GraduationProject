@@ -145,13 +145,13 @@ export default function AdminLecturerRequestsPage() {
             </TabsTrigger>
           </TabsList>
 
-          <div className="relative">
+          <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Tìm theo tên, email..."
-              className="h-9 w-64 pl-8 text-sm"
+              className="h-9 w-full pl-8 text-sm"
             />
           </div>
         </div>
@@ -159,8 +159,22 @@ export default function AdminLecturerRequestsPage() {
         {/* Tab: pending */}
         <TabsContent value="pending" className="mt-0">
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">Đang chờ duyệt</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {pendingData?.pagination.totalItems ?? 0} yêu cầu
+                </span>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => refetchPending()}
+                  disabled={isPendingLoading}
+                  title="Làm mới"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isPendingLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
             {isPendingError ? (
               <ErrorRetry onRetry={() => refetchPending()} />
@@ -192,11 +206,22 @@ export default function AdminLecturerRequestsPage() {
         {/* Tab: all */}
         <TabsContent value="all" className="mt-0">
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">Tất cả yêu cầu</span>
-              <span className="text-xs text-muted-foreground">
-                {allData?.pagination.totalItems ?? 0} yêu cầu
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {allData?.pagination.totalItems ?? 0} yêu cầu
+                </span>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => refetchAll()}
+                  disabled={isAllLoading}
+                  title="Làm mới"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isAllLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
             {isAllError ? (
               <ErrorRetry onRetry={() => refetchAll()} />

@@ -330,17 +330,17 @@ export default function AdminCoursesPage() {
           {/* Toolbar */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative">
+              <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Tìm theo tên khoá học..."
-                  className="h-9 w-64 pl-8 text-sm"
+                  className="h-9 w-full pl-8 text-sm"
                 />
               </div>
               {/* Status tabs inside toolbar */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
                 {COURSE_STATUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -386,7 +386,7 @@ export default function AdminCoursesPage() {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">
                 {COURSE_STATUS_OPTIONS.find((o) => o.value === courseStatusFilter)?.label ?? "Khóa học"}
               </span>
@@ -437,17 +437,17 @@ export default function AdminCoursesPage() {
           {/* Toolbar */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative">
+              <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={crSearchInput}
                   onChange={(e) => setCrSearchInput(e.target.value)}
                   placeholder="Tìm theo tên khoá học..."
-                  className="h-9 w-64 pl-8 text-sm"
+                  className="h-9 w-full pl-8 text-sm"
                 />
               </div>
               {/* Status toggle */}
-              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
                 {CR_STATUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -485,7 +485,7 @@ export default function AdminCoursesPage() {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">
                 {CR_STATUS_OPTIONS.find((o) => o.value === crStatusFilter)?.label ?? "Yêu cầu thay đổi"}
               </span>

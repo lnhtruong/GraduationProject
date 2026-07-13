@@ -81,31 +81,33 @@ export function AdminLecturerRequestTable({
         return (
           <div
             key={req.id}
-            className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors"
+            className="flex flex-col gap-2.5 px-4 py-3.5 hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4"
           >
-            {/* Avatar */}
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary overflow-hidden">
-              {user?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatarUrl} alt={fullName} className="h-full w-full object-cover" />
-              ) : (
-                initials
-              )}
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+              {/* Avatar */}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary overflow-hidden">
+                {user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatarUrl} alt={fullName} className="h-full w-full object-cover" />
+                ) : (
+                  initials
+                )}
+              </div>
+
+              {/* Name + email */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{fullName}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+
+              {/* Status */}
+              <LecturerRequestStatusBadge status={req.status} />
+
+              {/* Date */}
+              <span className="hidden text-xs text-muted-foreground sm:block whitespace-nowrap">
+                {formatDate(req.created_at)}
+              </span>
             </div>
-
-            {/* Name + email */}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{fullName}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-
-            {/* Status */}
-            <LecturerRequestStatusBadge status={req.status} />
-
-            {/* Date */}
-            <span className="hidden text-xs text-muted-foreground sm:block whitespace-nowrap">
-              {formatDate(req.created_at)}
-            </span>
 
             {/* Actions */}
             <div className="flex items-center gap-1.5 shrink-0">

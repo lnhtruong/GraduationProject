@@ -46,17 +46,9 @@ interface Props {
   onViewDetail?: (course: Course) => void;
 }
 
-export function AdminCourseTable({
-  courses,
-  isLoading,
-  isFiltering = false,
-  showActions = true,
-  approvingId,
-  rejectingId,
-  onApprove,
-  onReject,
-  onViewDetail,
-}: Props) {
+export function AdminCourseTable(props: Props) {
+  const { courses, isLoading, isFiltering = false } = props;
+
   if (isLoading) {
     return (
       <div className="divide-y divide-border/40 px-1">
@@ -83,6 +75,31 @@ export function AdminCourseTable({
     );
   }
 
+  return (
+    <>
+      {/* Desktop: bảng đầy đủ, từ sm trở lên */}
+      <div className="hidden sm:block">
+        <AdminCourseTableDesktop {...props} />
+      </div>
+      {/* Mobile: card danh sách, dưới sm */}
+      <div className="divide-y divide-border/40 sm:hidden">
+        {courses.map((course) => (
+          <AdminCourseCard key={course.id} course={course} {...props} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function AdminCourseTableDesktop({
+  courses,
+  showActions = true,
+  approvingId,
+  rejectingId,
+  onApprove,
+  onReject,
+  onViewDetail,
+}: Props) {
   return (
     <Table>
       <TableHeader>
@@ -196,5 +213,69 @@ export function AdminCourseTable({
         })}
       </TableBody>
     </Table>
+  );
+}
+
+function AdminCourseCard({
+  course,
+  showActions = true,
+  approvingId,
+  rejectingId,
+  onApprove,
+  onReject,
+  onViewDetail,
+}: Props & { course: Course }) {
+  const isApproving = approvingId === course.id;
+  const isRejecting = rejectingId === course.id;
+  const isBusy = isApproving || isRejecting;
+
+  return (
+    <div
+      className="flex flex-col gap-2.5 px-4 py-3.5 active:bg-muted/30"
+      onClick={() => onViewDetail?.(course)}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-medium leading-snug">{course.name}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {course.categories.slice(0, 2).map((cat) => (
+              <Badge key={cat} variant="secondary" className="h-4 px-1.5 text-[10px] font-normal">
+                {cat}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <CourseStatusBadge status={course.status} />
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{LEVEL_LABELS[course.level.toLowerCase()] ?? course.level} · {formatPrice(course.price)}</span>
+        <span>{formatDate(course.created_at)}</span>
+      </div>
+
+      {showActions && course.status === "pending" && (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="sm"
+            className="h-8 flex-1 gap-1.5 bg-emerald-600 text-[12px] font-medium text-white hover:bg-emerald-700"
+            onClick={() => onApprove?.(course)}
+            disabled={isBusy}
+          >
+            {isApproving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            Duyệt
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 flex-1 gap-1.5 border-destructive/30 text-[12px] font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+            onClick={() => onReject?.(course)}
+            disabled={isBusy}
+          >
+            {isRejecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+            Từ chối
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
