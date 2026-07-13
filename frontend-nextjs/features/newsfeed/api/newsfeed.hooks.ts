@@ -264,7 +264,7 @@ function applyInteraction(
   return updatedItem;
 }
 
-function updateFeedCommentCount(item: NewsfeedItem, feedId: number): NewsfeedItem {
+function incrementFeedCommentCount(item: NewsfeedItem, feedId: number): NewsfeedItem {
   if (item.feedId !== feedId) {
     return item;
   }
@@ -274,6 +274,24 @@ function updateFeedCommentCount(item: NewsfeedItem, feedId: number): NewsfeedIte
     stats: {
       ...item.stats,
       comments: item.stats.comments + 1,
+    },
+  };
+}
+
+function setFeedCommentCount(
+  item: NewsfeedItem,
+  feedId: number,
+  commentCount: number,
+): NewsfeedItem {
+  if (item.feedId !== feedId || commentCount <= item.stats.comments) {
+    return item;
+  }
+
+  return {
+    ...item,
+    stats: {
+      ...item.stats,
+      comments: commentCount,
     },
   };
 }
@@ -309,6 +327,21 @@ function updateFeedItemInQueries(
       },
     );
   }
+
+  queryClient.setQueryData<NewsfeedItem>(
+    newsfeedKeys.custom("feed-detail", feedId),
+    (oldData) => (oldData ? updater(oldData) : oldData),
+  );
+}
+
+export function syncNewsfeedCommentCount(
+  queryClient: QueryClient,
+  feedId: number,
+  commentCount: number,
+) {
+  updateFeedItemInQueries(queryClient, feedId, (item) =>
+    setFeedCommentCount(item, feedId, commentCount),
+  );
 }
 
 export function useNewsfeedInteractMutation() {
@@ -409,10 +442,13 @@ export function useCreateNewsfeedComment() {
   return useMutation({
     mutationKey: newsfeedKeys.custom("create-comment"),
     mutationFn: newsfeedApi.createComment,
-    onSuccess: (_data, variables) => {
-      if (!variables.originCmt) {
+    onSuccess: (data, variables) => {
+      const serverCommentCount = Number(data.comment_count);
+      if (Number.isFinite(serverCommentCount) && serverCommentCount >= 0) {
+        syncNewsfeedCommentCount(queryClient, variables.feedId, serverCommentCount);
+      } else {
         updateFeedItemInQueries(queryClient, variables.feedId, (item) =>
-          updateFeedCommentCount(item, variables.feedId),
+          incrementFeedCommentCount(item, variables.feedId),
         );
       }
       void queryClient.invalidateQueries({

@@ -4,4 +4,5 @@ export interface CloudinarySignature {
   cloud_name: string;
   api_key: string;
   folder: string;
+  context?: string;
 }

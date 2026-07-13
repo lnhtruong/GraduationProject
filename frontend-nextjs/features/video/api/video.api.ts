@@ -27,6 +27,8 @@ export type BunnyInitUploadResponse = {
   success: boolean;
   videoId: number;
   bunnyVideoId: string;
+  url?: string;
+  originalUrl?: string;
   libraryId: string;
   tus: {
     endpoint: string;
@@ -46,12 +48,31 @@ export type BunnyVideoStatusResponse = {
   [key: string]: unknown;
 };
 
+export type BunnyVideoPlayDataResponse = {
+  isPlayable?: boolean;
+  videoPlaylistUrl?: string;
+  fallbackUrl?: string;
+  originalUrl?: string;
+  thumbnailUrl?: string;
+  previewUrl?: string;
+  video?: {
+    title?: string;
+    length?: number;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
 type VideoApiResponse = {
   id?: number;
   user_id?: number;
+  job_id?: string | null;
+  jobId?: string | null;
   image_id?: number | null;
   mascot_image_id?: number | null;
   url?: string;
+  srt_raw_url?: string | null;
+  srtRawUrl?: string | null;
   name?: string | null;
   duration?: number | null;
   type?: string;
@@ -69,9 +90,13 @@ function mapVideo(raw: VideoApiResponse): Video {
   return {
     id: raw.id ?? 0,
     user_id: raw.user_id,
+    job_id: raw.job_id ?? raw.jobId ?? null,
+    jobId: raw.jobId ?? raw.job_id ?? null,
     image_id: raw.image_id ?? raw.mascot_image_id ?? null,
     name: raw.name ?? null,
     url: raw.url ?? "",
+    srt_raw_url: raw.srt_raw_url ?? raw.srtRawUrl ?? null,
+    srtRawUrl: raw.srtRawUrl ?? raw.srt_raw_url ?? null,
     duration: raw.duration ?? null,
     type: (raw.type ?? "mascot") as Video["type"],
     thumbnail: raw.thumbnail ?? raw.image?.thumbnail ?? null,
@@ -113,6 +138,12 @@ export const videoApi = {
   getBunnyVideoStatus: async (bunnyVideoId: string) => {
     const { data } = await apiClient.get<BunnyVideoStatusResponse>(
       `/media/bunny/videos/${bunnyVideoId}/status`,
+    );
+    return data;
+  },
+  getBunnyVideoPlayData: async (bunnyVideoId: string) => {
+    const { data } = await apiClient.get<BunnyVideoPlayDataResponse>(
+      `/media/bunny/videos/${bunnyVideoId}/play-data`,
     );
     return data;
   },

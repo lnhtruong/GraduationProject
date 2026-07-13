@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { Monitor, UploadCloud } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CoreEditor from "@/features/editor/components/CoreEditor";
 import type { ExternalEditorPanelBindings } from "@/features/editor/types";
 import { useStudioSession } from "@/features/editor/hooks/useStudioSession";
@@ -12,7 +11,17 @@ export default function Editor() {
   const [panelBindings, setPanelBindings] =
     useState<ExternalEditorPanelBindings | null>(null);
   const panelBindingsRef = useRef<ExternalEditorPanelBindings | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 1023px)").matches;
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+    const handleChange = () => setIsSidebarCollapsed(media.matches);
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
 
   const handlePanelBindingsChange = useCallback(
     (next: ExternalEditorPanelBindings) => {
@@ -93,32 +102,13 @@ export default function Editor() {
 
   return (
     <>
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground lg:hidden">
-        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Monitor className="h-7 w-7" />
-          </div>
-          <h1 className="mt-5 text-xl font-bold">Studio chỉnh sửa cần màn hình lớn</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Trình chỉnh sửa video có timeline, preview và nhiều bảng công cụ nên hiện chỉ hỗ trợ tốt trên desktop hoặc laptop.
-          </p>
-          <a
-            href="/upload"
-            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-          >
-            <UploadCloud className="h-4 w-4" />
-            Tải video lên
-          </a>
-        </div>
-      </div>
-
-      <div className="relative hidden min-h-screen w-full bg-background text-foreground lg:flex">
-      {!isSidebarCollapsed && (
-        <div
-          className="fixed inset-y-0 left-14 right-0 z-40 bg-black/35 backdrop-blur-[1px] transition-opacity"
-          onClick={() => setIsSidebarCollapsed(true)}
-        />
-      )}
+      <div className="relative flex min-h-[100dvh] w-full bg-background text-foreground">
+        {!isSidebarCollapsed && (
+          <div
+            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px] transition-opacity lg:hidden"
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+        )}
 
       <StudioSidebar
         highlightVideos={highlightVideos}
@@ -135,7 +125,11 @@ export default function Editor() {
         onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div className="ml-14 w-full flex-1">
+      <div
+        className={`min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] transition-[margin] duration-300 lg:pb-0 ${
+          isSidebarCollapsed ? "lg:ml-[4.5rem]" : "lg:ml-[28rem]"
+        }`}
+      >
         <StudioHeader
           activeSessionName={activeSessionName}
           activeEditId={activeEditId}
@@ -144,14 +138,13 @@ export default function Editor() {
           onSaveSession={(name) =>
             handleSaveSession(name, panelBindingsRef.current)
           }
-          hasMascotOverlay={Boolean(existingMascotOverlay)}
           isCreatingMascotVideo={panelBindings?.isCreatingMascotVideo ?? false}
           mascotProgress={panelBindings?.mascotProgress ?? ""}
           onCreateMascotVideo={panelBindings?.onMascotCreateVideo}
         />
 
-        <main className="min-h-[calc(100vh-56px)] bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-2 sm:p-3 lg:p-4">
-          <div className="h-full rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
+        <main className="flex min-h-[calc(100dvh-48px)] flex-col gap-2 bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-1.5 sm:min-h-[calc(100dvh-56px)] sm:gap-3 sm:p-3 lg:p-4">
+          <div className="flex h-full flex-1 min-h-0 rounded-xl border border-border bg-card/95 shadow-sm backdrop-blur-sm sm:rounded-2xl sm:shadow-xl">
             <CoreEditor
               initialVideoUrl={activeSourceVideoUrl}
               onFirstVideoAdded={handleCreateProjectOnFirstVideo}

@@ -1,19 +1,13 @@
 import { z } from "zod";
 
-/**
- * Upload Feature Schemas
- * Zod validation schemas for upload forms
- */
-
 export const highlightParamsSchema = z.object({
   topic: z
     .string()
-    .min(3, "Chủ đề phải có ít nhất 3 ký tự")
-    .max(200, "Chủ đề không được quá 200 ký tự"),
-  includeKeywords: z
-    .array(z.string())
-    .min(1, "Vui lòng chọn ít nhất 1 từ khóa cần giữ lại"),
+    .min(3, "Vui lòng nhập nội dung video rõ hơn một chút")
+    .max(200, "Nội dung mô tả không được quá 200 ký tự"),
+  includeKeywords: z.array(z.string()),
   excludeKeywords: z.array(z.string()),
+  isMultiOutput: z.boolean(),
 });
 
 export type HighlightParamsFormValues = z.infer<typeof highlightParamsSchema>;

@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bookmark,
   ChevronLeft,
+  ChevronRight,
   Eye,
   Heart,
   Plus,
@@ -26,16 +27,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
-  useCourseFeed,
+  useCourseFeedPage,
   useCourseFeedCandidateVideos,
   useDeleteCourseFeed,
   useInstructorCourseById,
 } from "./api/course-management.hooks";
 
 type FeedStatusFilter = "all" | "active" | "hidden" | "removed";
+const FEED_PAGE_SIZE = 6;
 
 interface Props {
   courseId: number;
@@ -45,12 +46,13 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>("all");
-  const { data: feeds, isLoading: feedLoading } = useCourseFeed(
+  const [page, setPage] = useState(1);
+  const { data: feedPage, isLoading: feedLoading } = useCourseFeedPage(
     courseId,
     true,
     {
-      page: 1,
-      pageSize: 100,
+      page,
+      pageSize: FEED_PAGE_SIZE,
       sortBy: "created_at",
       order: "desc",
       status: statusFilter === "all" ? undefined : statusFilter,
@@ -67,11 +69,19 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
     title: string;
   } | null>(null);
 
+  const feeds = useMemo(() => feedPage?.data ?? [], [feedPage?.data]);
+  const pagination = feedPage?.pagination ?? {
+    page,
+    pageSize: FEED_PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+  };
+
   const filteredFeeds = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return feeds ?? [];
+    if (!query) return feeds;
 
-    return (feeds ?? []).filter((feed) => {
+    return feeds.filter((feed) => {
       const text = [
         feed.title,
         feed.caption ?? "",
@@ -85,9 +95,9 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
   }, [feeds, search]);
 
   const stats = useMemo(() => {
-    const source = feeds ?? [];
+    const source = feeds;
     return {
-      total: source.length,
+      total: pagination.total,
       views: source.reduce(
         (sum, item) => sum + Number(item.stats?.views ?? 0),
         0,
@@ -101,7 +111,14 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
         0,
       ),
     };
-  }, [feeds]);
+  }, [feeds, pagination.total]);
+
+  const pageStart =
+    pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const pageEnd = Math.min(
+    pagination.page * pagination.pageSize,
+    pagination.total,
+  );
 
   const handleDelete = async (feedId: number) => {
     await deleteFeedMutation.mutateAsync(feedId);
@@ -172,6 +189,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
           </Button>
         </div>
       }
+      noCard
     >
       <div className="space-y-3 p-3 sm:p-4 lg:p-5">
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
@@ -220,9 +238,10 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
             <select
               className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as FeedStatusFilter)
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value as FeedStatusFilter);
+                setPage(1);
+              }}
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="active">Active</option>
@@ -231,7 +250,9 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
             </select>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Hiển thị {filteredFeeds.length}/{feeds?.length ?? 0} feed
+            {search.trim()
+              ? `Tìm thấy ${filteredFeeds.length} feed trong trang này`
+              : `Hiển thị ${pageStart}-${pageEnd} / ${pagination.total} feed`}
           </p>
         </div>
 
@@ -276,20 +297,6 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                       </div>
                     )}
 
-                    <div className="absolute left-2 top-2 flex items-center gap-1">
-                      <Badge
-                        variant="secondary"
-                        className="border-none bg-black/60 px-1.5 py-0 text-[10px] text-white backdrop-blur-md hover:bg-black/60"
-                      >
-                        {feed.video_type ?? "Feed"}
-                      </Badge>
-                      <Badge
-                        variant="secondary"
-                        className="border-none bg-black/60 px-1.5 py-0 text-[10px] text-white backdrop-blur-md hover:bg-black/60"
-                      >
-                        #{feed.feed_id}
-                      </Badge>
-                    </div>
                   </div>
 
                   <div className="flex min-w-0 flex-1 flex-col py-0.5">
@@ -339,13 +346,12 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                       <div className="flex min-h-6 flex-wrap gap-1.5">
                         {(feed.hashtags ?? []).length ? (
                           (feed.hashtags ?? []).map((tag) => (
-                            <Badge
+                            <span
                               key={`${feed.feed_id}-${tag}`}
-                              variant="outline"
-                              className="bg-muted/30 text-xs font-normal"
+                              className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5 text-xs font-normal text-muted-foreground"
                             >
                               #{tag}
-                            </Badge>
+                            </span>
                           ))
                         ) : (
                           <span className="text-xs italic text-muted-foreground">
@@ -380,6 +386,42 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
             </div>
           )}
         </div>
+
+        {pagination.totalPages > 1 ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Trang {pagination.page} / {pagination.totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                disabled={pagination.page <= 1 || feedLoading}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Trang trước"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                disabled={pagination.page >= pagination.totalPages || feedLoading}
+                onClick={() =>
+                  setPage((current) =>
+                    Math.min(pagination.totalPages, current + 1),
+                  )
+                }
+                aria-label="Trang sau"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <AlertDialog

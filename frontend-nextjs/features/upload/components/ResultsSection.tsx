@@ -1,166 +1,190 @@
 import { Button } from "@/components/ui/button";
-import { Download, Edit, FileArchive } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Edit3, FileArchive, RotateCcw } from "lucide-react";
 import type { Clip } from "@/features/upload/types";
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 interface ResultsSectionProps {
   clips: Clip[];
   isVisible: boolean;
-  createdProjectId?: number | null;
   onEditClip?: (clip: Clip) => void | Promise<void>;
+  onStartNew?: () => void;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function cleanFileName(value?: string | null): string {
+  const raw = (value ?? "").trim();
+  if (!raw) return "Highlight";
+
+  const withoutQuery = raw.split("?")[0];
+  const fileName = withoutQuery.split("/").pop() ?? withoutQuery;
+  const withoutExt = fileName.replace(/\.(mp4|mov|avi|webm|mkv|zip)$/i, "");
+  const cleaned = withoutExt
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "")
+    .replace(/[_-]?highlight$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || "Highlight";
+}
+
+function isGenericHighlightName(value: string): boolean {
+  return value === "Highlight" || /^highlight\s*\d*$/i.test(value);
+}
+
+function getClipTitle(clip: Clip, index: number, isSingle: boolean): string {
+  if (clip.topicId) return `Highlight ${clip.topicId}`;
+
+  const cleaned = cleanFileName(clip.name);
+  if (!isGenericHighlightName(cleaned)) return cleaned;
+
+  return isSingle ? "Highlight đã tạo" : `Highlight ${index + 1}`;
+}
+
+function getClipMeta(clip: Clip, title: string): string | null {
+  const description = clip.description?.trim();
+  if (description && cleanFileName(description) !== title) return description;
+
+  const cleanedName = cleanFileName(clip.name);
+  if (!isGenericHighlightName(cleanedName) && cleanedName !== title) return cleanedName;
+
+  return null;
+}
 
 export default function ResultsSection({
   clips,
   isVisible,
-  createdProjectId,
   onEditClip,
+  onStartNew,
 }: ResultsSectionProps) {
-  if (!isVisible || clips.length === 0) {
-    return null;
-  }
+  if (!isVisible || clips.length === 0) return null;
+
+  const isSingle = clips.length === 1;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
-          Kết quả ({clips.length} {clips.length === 1 ? "file" : "files"})
+    <section className="space-y-3" aria-label="Kết quả highlight">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-xl font-semibold">
+          {isSingle ? "Highlight đã tạo" : `${clips.length} highlight đã tạo`}
         </h3>
+        {onStartNew ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 sm:w-auto"
+            onClick={onStartNew}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Tạo highlight khác
+          </Button>
+        ) : null}
       </div>
 
-      <div className="grid gap-4">
+      <div className={cn("grid gap-4", !isSingle && "lg:grid-cols-2")}>
         {clips.map((clip, index) => (
           <ClipCard
-            key={index}
+            key={`${clip.url}-${index}`}
             clip={clip}
             index={index}
-            createdProjectId={createdProjectId}
+            isSingle={isSingle}
+            compact={!isSingle}
             onEditClip={onEditClip}
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 }
-
-// ============================================================================
-// CLIP CARD COMPONENT
-// ============================================================================
 
 interface ClipCardProps {
   clip: Clip;
   index: number;
-  createdProjectId?: number | null;
+  isSingle: boolean;
+  compact?: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
 }
 
 function ClipCard({
   clip,
   index,
-  createdProjectId,
+  isSingle,
+  compact = false,
   onEditClip,
 }: ClipCardProps) {
   const isZip = clip.url.endsWith(".zip") || clip.name.endsWith(".zip");
   const isVideo =
     !isZip &&
     (clip.url.startsWith("blob:") || /\.(mp4|mov|avi|webm)$/i.test(clip.url));
-  const editorParams = new URLSearchParams({ src: clip.url });
-  if (clip.videoId) {
-    editorParams.set("video_id", String(clip.videoId));
-  }
-  if (createdProjectId) {
-    editorParams.set("edit_id", String(createdProjectId));
-  }
-  const editorHref = `/editor?${editorParams.toString()}`;
+  const title = getClipTitle(clip, index, isSingle);
+  const meta = getClipMeta(clip, title);
+  const showCardTitle = !isSingle || Boolean(meta);
 
   return (
-    <div className="bg-card border rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b">
-        <div className="flex items-center gap-3">
-          {isZip ? (
-            <FileArchive className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-              <span className="text-xs font-semibold text-primary">
+    <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+        {showCardTitle ? (
+          <div className="flex min-w-0 gap-3">
+            {!isSingle ? (
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
                 {index + 1}
               </span>
+            ) : null}
+            <div className="min-w-0">
+              {!isSingle ? (
+                <h4 className="truncate font-semibold" title={title}>
+                  {title}
+                </h4>
+              ) : null}
+              {meta ? (
+                <p className={cn("line-clamp-2 text-sm text-muted-foreground", !isSingle && "mt-1")}>
+                  {meta}
+                </p>
+              ) : null}
             </div>
-          )}
-          <div>
-            <div className="font-medium">{clip.name}</div>
-            {isZip && (
-              <div className="text-xs text-muted-foreground">
-                File nén chứa các clip
-              </div>
-            )}
           </div>
-        </div>
+        ) : (
+          <div className="hidden sm:block" aria-hidden="true" />
+        )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* Download Button */}
-          <Button variant="outline" size="sm" asChild>
-            <a
-              href={clip.url}
-              download={clip.name}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Tải xuống
-            </a>
+        {isVideo ? (
+          <Button
+            type="button"
+            size="sm"
+            className="w-full gap-2 sm:w-auto"
+            onClick={() => {
+              void onEditClip?.(clip);
+            }}
+          >
+            <Edit3 className="h-4 w-4" />
+            Mở Studio
           </Button>
-
-          {/* Edit Button (only for videos) */}
-          {isVideo && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                console.log(
-                  "[ResultsSection] Navigating to editor with URL:",
-                  editorHref,
-                );
-                void onEditClip?.(clip);
-              }}
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Chỉnh sửa
-            </Button>
-          )}
-        </div>
+        ) : null}
       </div>
 
-      {/* Content */}
       <div className="p-4">
         {isZip ? (
-          <div className="text-sm text-muted-foreground p-6 bg-muted/20 rounded text-center">
-            <FileArchive className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-            <p>Tải file zip và giải nén để xem các clip.</p>
+          <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+            <FileArchive className="mx-auto mb-3 h-10 w-10" />
+            Kết quả này chưa hỗ trợ xem nhanh trong trình duyệt.
           </div>
         ) : isVideo ? (
           <video
-            className="w-full rounded border"
+            className={cn(
+              "w-full rounded-lg border bg-black",
+              compact ? "aspect-video" : "max-h-[520px]",
+            )}
             controls
             src={clip.url}
             preload="metadata"
           >
-            Trình duyệt của bạn không hỗ trợ video tag.
+            Trình duyệt của bạn không hỗ trợ phát video.
           </video>
         ) : (
-          <div className="text-sm text-muted-foreground p-6 bg-muted/20 rounded text-center">
-            <p>File không hỗ trợ xem trước. Vui lòng tải xuống để xem.</p>
+          <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+            File này chưa hỗ trợ xem nhanh trong trình duyệt.
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

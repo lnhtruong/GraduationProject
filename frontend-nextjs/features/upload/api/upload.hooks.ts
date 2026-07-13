@@ -4,32 +4,25 @@
 
 import { uploadApi } from "./upload.api";
 import { createMutationHooks } from "@/features/_shared/react-query-factories";
-import type { HighlightReelParams } from "../types";
+import type { HighlightReelLinkParams } from "../types";
 
 // ============================================================================
 // HOOKS
 // ============================================================================
 
-const useStartUploadJob = createMutationHooks<string, HighlightReelParams>(
-  "upload",
-  "start-job",
-  uploadApi.startJob,
-);
+const useStartHighlightLinkJob = createMutationHooks<
+  string,
+  HighlightReelLinkParams
+>("upload", "start-link-job", uploadApi.startJobFromLink);
 
-/**
- * Start upload job only.
- * Progress and completion are handled by socket events in useUpload.
- */
-export function useProcessHighlight(options?: {
+export function useProcessHighlightLink(options?: {
   onJobStarted?: (jobId: string) => void;
   onError?: (error: Error) => void;
 }) {
-  return useStartUploadJob({
+  return useStartHighlightLinkJob({
     onSuccess: (jobId) => {
       options?.onJobStarted?.(jobId);
     },
     onError: options?.onError,
   });
 }
-
-export const useUploadHighlight = useStartUploadJob;

@@ -1,7 +1,15 @@
+import Image from "next/image";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  ImageIcon,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { InstructorRoadmapCourse } from "../types";
 
 interface SortableRoadmapCourseCardProps {
@@ -16,39 +24,54 @@ interface RoadmapCourseDragOverlayProps {
   courseItem: InstructorRoadmapCourse;
 }
 
+function stripHtml(value?: string | null) {
+  if (!value) return "";
+  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function CourseThumbnail({
+  courseItem,
+}: {
+  courseItem: InstructorRoadmapCourse;
+}) {
+  const thumbnail = courseItem.course?.thumbnailUrl;
+  const title = courseItem.course?.name ?? "Khóa học";
+
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-muted sm:w-36">
+      {thumbnail ? (
+        <Image
+          src={thumbnail}
+          alt={title}
+          fill
+          sizes="144px"
+          className="object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+          <ImageIcon className="h-5 w-5" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RoadmapCourseDragOverlay({
   courseItem,
 }: RoadmapCourseDragOverlayProps) {
   return (
-    <div className="relative flex w-[min(840px,calc(100vw-2rem))] items-start gap-4 rounded-xl">
-      <div className="flex shrink-0 flex-col items-center">
-        <div className="grid h-11 w-11 place-items-center rounded-full border-2 border-primary/70 bg-background text-sm font-bold text-primary shadow-sm">
+    <div className="w-[min(860px,calc(100vw-2rem))] rounded-2xl border border-primary/50 bg-card p-3 shadow-xl">
+      <div className="flex gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
           {courseItem.orderIndex ?? 1}
         </div>
-      </div>
-
-      <div className="flex-1 rounded-xl border border-primary/50 bg-primary/5 p-3 shadow-lg">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="flex min-w-0 gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border/40 bg-muted/30 text-muted-foreground/70">
-              <GripVertical className="h-4 w-4" />
-            </div>
-
-            <div className="grid h-20 w-32 shrink-0 place-items-center overflow-hidden rounded-md border border-border/40 bg-linear-to-br from-primary/15 via-primary/5 to-transparent text-xs font-semibold text-primary/80">
-              {(courseItem.course?.name ?? "Khóa học")
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="line-clamp-2 text-sm font-semibold leading-snug">
-                {courseItem.course?.name ?? "Khóa học chưa liên kết"}
-              </p>
-              <p className="line-clamp-2 text-xs text-muted-foreground">
-                {courseItem.course?.description || "Chưa có mô tả"}
-              </p>
-            </div>
-          </div>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 font-semibold">
+            {courseItem.course?.name ?? "Khóa học chưa liên kết"}
+          </p>
+          <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+            {stripHtml(courseItem.course?.description) || "Chưa có mô tả"}
+          </p>
         </div>
       </div>
     </div>
@@ -75,100 +98,90 @@ export function SortableRoadmapCourseCard({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 1,
-    opacity: isDragging ? 0.45 : 1,
+    opacity: isDragging ? 0.55 : 1,
   };
+
+  const courseTitle = courseItem.course?.name ?? "Khóa học chưa liên kết";
+  const courseDescription =
+    stripHtml(courseItem.course?.description) || "Chưa có mô tả";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`group relative flex items-start gap-4 rounded-xl ${
+      className={cn(
+        "rounded-2xl border border-border/60 bg-card p-3 shadow-sm transition",
         isDragging
-          ? "ring-2 ring-primary/35 cursor-grabbing"
-          : "cursor-grab active:cursor-grabbing"
-      }`}
+          ? "border-primary/50 shadow-md"
+          : "hover:border-primary/35 hover:shadow-md",
+      )}
     >
-      <div className="flex shrink-0 flex-col items-center">
-        <div className="grid h-11 w-11 place-items-center rounded-full border-2 border-primary/70 bg-background text-sm font-bold text-primary shadow-sm transition group-hover:scale-105">
-          {courseItem.orderIndex ?? index + 1}
+      <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+        <div className="flex items-start gap-3 sm:items-center">
+          <button
+            type="button"
+            className="mt-1 grid h-10 w-10 shrink-0 cursor-grab place-items-center rounded-xl border border-border/60 bg-background text-muted-foreground transition hover:text-foreground active:cursor-grabbing sm:mt-0"
+            title="Giữ và kéo để sắp xếp"
+            aria-label="Giữ và kéo để sắp xếp"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-sm font-semibold text-primary">
+            {courseItem.orderIndex ?? index + 1}
+          </div>
         </div>
-        {index < total - 1 ? (
-          <div className="my-1 h-20 w-px bg-border/70 transition group-hover:bg-primary/40" />
-        ) : null}
-      </div>
 
-      <div
-        className={`flex-1 rounded-xl border bg-card p-3 shadow-sm transition ${
-          isDragging
-            ? "border-primary/50 bg-primary/5 shadow-md"
-            : "border-border/40 group-hover:shadow-md"
-        }`}
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="flex min-w-0 gap-3">
-            <div
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border/40 bg-muted/30 text-muted-foreground/70 hover:text-foreground"
-              title="Giữ và kéo để sắp xếp"
-            >
-              <GripVertical className="h-4 w-4" />
-            </div>
-
-            <div className="grid h-20 w-32 shrink-0 place-items-center overflow-hidden rounded-md border border-border/40 bg-linear-to-br from-primary/15 via-primary/5 to-transparent text-xs font-semibold text-primary/80">
-              {(courseItem.course?.name ?? "Khóa học")
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="line-clamp-2 text-sm font-semibold leading-snug">
-                {courseItem.course?.name ?? "Khóa học chưa liên kết"}
-              </p>
-              <p className="line-clamp-2 text-xs text-muted-foreground">
-                {courseItem.course?.description || "Chưa có mô tả"}
-              </p>
-            </div>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center">
+          <CourseThumbnail courseItem={courseItem} />
+          <div className="min-w-0 space-y-1">
+            <p className="line-clamp-2 font-semibold leading-snug">
+              {courseTitle}
+            </p>
+            <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+              {courseDescription}
+            </p>
           </div>
+        </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              disabled={index === 0}
-              onClick={() => onMoveCourse(index, -1)}
-              title="Di chuyển lên"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              disabled={index === total - 1}
-              onClick={() => onMoveCourse(index, 1)}
-              title="Di chuyển xuống"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-destructive"
-              onClick={() =>
-                courseItem.courseId
-                  ? onRemoveCourse(courseItem.courseId)
-                  : undefined
-              }
-              title="Xóa khóa học"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 rounded-xl"
+            disabled={index === 0}
+            onClick={() => onMoveCourse(index, -1)}
+            aria-label="Di chuyển lên"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 rounded-xl"
+            disabled={index === total - 1}
+            onClick={() => onMoveCourse(index, 1)}
+            aria-label="Di chuyển xuống"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 rounded-xl border-destructive/35 text-destructive hover:bg-destructive/10"
+            onClick={() =>
+              courseItem.courseId
+                ? onRemoveCourse(courseItem.courseId)
+                : undefined
+            }
+            aria-label="Xóa khóa học khỏi lộ trình"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

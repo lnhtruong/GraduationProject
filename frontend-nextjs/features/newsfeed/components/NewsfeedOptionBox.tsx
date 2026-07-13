@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,15 +27,35 @@ export function NewsfeedOptionBox({
   onClose,
 }: NewsfeedOptionBoxProps) {
   const [sortOrder, setSortOrder] = useState<CommentSortOrder>("newest");
-  const commentCount = video?.stats.comments ?? 0;
+  const [syncedCommentState, setSyncedCommentState] = useState<{
+    feedId: number | null;
+    count: number;
+  } | null>(null);
+  const sourceCommentCount = video?.stats.comments ?? 0;
+  const syncedCommentCount =
+    syncedCommentState?.feedId === (video?.feedId ?? null)
+      ? syncedCommentState.count
+      : null;
+  const commentCount =
+    syncedCommentCount === null
+      ? sourceCommentCount
+      : Math.max(sourceCommentCount, syncedCommentCount);
   const commentCountLabel = useMemo(() => commentCount.toLocaleString("vi-VN"), [commentCount]);
+  const handleCommentCountChange = useCallback(
+    (count: number) => {
+      setSyncedCommentState({ feedId: video?.feedId ?? null, count });
+    },
+    [video?.feedId],
+  );
 
   return (
     <aside
       className={cn(
-        "fixed bottom-0 right-0 z-40 h-[82vh] max-h-[calc(100vh-64px)] w-full rounded-t-3xl border-l border-border/70 bg-background/95 backdrop-blur transition-transform duration-300",
+        "fixed bottom-0 right-0 z-40 h-[82vh] max-h-[calc(100vh-64px)] w-full rounded-t-3xl border-l border-border/70 bg-background/95 backdrop-blur transition-[transform,visibility] duration-300",
         "md:top-16 md:bottom-auto md:right-[72px] md:h-[calc(100vh-64px)] md:w-[380px] md:rounded-none lg:w-[450px] xl:w-[520px]",
-        isOpen ? "translate-y-0 md:translate-x-0" : "translate-y-full md:translate-y-0 md:translate-x-full",
+        isOpen
+          ? "visible translate-y-0 md:translate-x-0"
+          : "invisible translate-y-full md:translate-y-0 md:translate-x-[calc(100%+72px)]",
       )}
     >
       <div className="flex h-full flex-col">
@@ -63,6 +83,8 @@ export function NewsfeedOptionBox({
             variant="ghost"
             size="icon"
             onClick={onClose}
+            aria-label={contentType === "comments" ? "Đóng bình luận" : "Đóng thông tin khóa học"}
+            title="Đóng"
             className="h-10 w-10 rounded-full border border-border/70 bg-background/90 hover:bg-accent"
           >
             <X className="h-5 w-5" />
@@ -71,7 +93,12 @@ export function NewsfeedOptionBox({
 
         <div className="flex-1 overflow-hidden">
           {contentType === "comments" ? (
-            <NewsfeedCommentsPanel video={video} viewerName={viewerName} sortOrder={sortOrder} />
+            <NewsfeedCommentsPanel
+              video={video}
+              viewerName={viewerName}
+              sortOrder={sortOrder}
+              onCommentCountChange={handleCommentCountChange}
+            />
           ) : video ? (
             <div className="h-full p-5">
               <NewsfeedCoursePanel video={video} />

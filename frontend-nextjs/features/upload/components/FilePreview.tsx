@@ -3,11 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FileVideo, X, Upload } from "lucide-react";
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { FileVideo, Upload, X } from "lucide-react";
 
 interface FilePreviewProps {
   file: File;
@@ -16,15 +12,6 @@ interface FilePreviewProps {
   isUploading?: boolean;
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Format file size to human readable string
- * @param bytes - File size in bytes
- * @returns Formatted string (e.g., "1.5 MB")
- */
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
 
@@ -35,11 +22,6 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
-/**
- * Get video duration from file
- * @param file - Video file
- * @returns Duration in seconds or null
- */
 async function getVideoDuration(file: File): Promise<number | null> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
@@ -59,11 +41,6 @@ async function getVideoDuration(file: File): Promise<number | null> {
   });
 }
 
-/**
- * Format duration to MM:SS
- * @param seconds - Duration in seconds
- * @returns Formatted string (e.g., "05:32")
- */
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -71,10 +48,6 @@ function formatDuration(seconds: number): string {
     .toString()
     .padStart(2, "0")}`;
 }
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export default function FilePreview({
   file,
@@ -85,18 +58,15 @@ export default function FilePreview({
   const [duration, setDuration] = React.useState<number | null>(null);
   const [thumbnail, setThumbnail] = React.useState<string | null>(null);
 
-  // Get video duration and thumbnail on mount
   React.useEffect(() => {
     const loadVideoMetadata = async () => {
       try {
-        // Get duration
         const videoDuration = await getVideoDuration(file);
         setDuration(videoDuration);
 
-        // Generate thumbnail
         const video = document.createElement("video");
         video.preload = "metadata";
-        video.currentTime = 1; // Get frame at 1 second
+        video.currentTime = 1;
 
         video.onloadeddata = () => {
           const canvas = document.createElement("canvas");
@@ -106,8 +76,7 @@ export default function FilePreview({
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const thumbnailUrl = canvas.toDataURL("image/jpeg", 0.7);
-            setThumbnail(thumbnailUrl);
+            setThumbnail(canvas.toDataURL("image/jpeg", 0.7));
           }
 
           window.URL.revokeObjectURL(video.src);
@@ -119,50 +88,47 @@ export default function FilePreview({
       }
     };
 
-    loadVideoMetadata();
+    void loadVideoMetadata();
   }, [file]);
 
   return (
     <Card className="p-4">
-      <div className="flex items-start gap-4">
-        {/* Thumbnail or Icon */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="shrink-0">
           {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnail}
               alt={file.name}
-              className="w-24 h-24 object-cover rounded-lg border"
+              className="h-32 w-full rounded-lg border object-cover sm:h-24 sm:w-32"
             />
           ) : (
-            <div className="w-24 h-24 bg-primary/10 rounded-lg flex items-center justify-center">
-              <FileVideo className="w-10 h-10 text-primary" />
+            <div className="flex h-24 w-32 items-center justify-center rounded-lg border bg-muted/20">
+              <FileVideo className="h-8 w-8 text-muted-foreground" />
             </div>
           )}
         </div>
 
-        {/* File Info */}
-        <div className="flex-1 min-w-0">
-          <div className="font-medium truncate" title={file.name}>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium" title={file.name}>
             {file.name}
           </div>
-          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
             <span>{formatFileSize(file.size)}</span>
             {duration && (
               <>
-                <span>•</span>
+                <span aria-hidden="true">•</span>
                 <span>{formatDuration(duration)}</span>
               </>
             )}
           </div>
 
-          {/* Video details */}
           <div className="mt-2 text-xs text-muted-foreground">
-            {file.type || "Video file"}
+            {file.type || "File video"}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -170,18 +136,18 @@ export default function FilePreview({
             disabled={isUploading}
             title="Xóa file"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </Button>
           <Button onClick={onUpload} disabled={isUploading} size="default">
             {isUploading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Đang tải...
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Đang tải lên
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" />
-                Tải lên
+                <Upload className="mr-2 h-4 w-4" />
+                Chọn cách cắt
               </>
             )}
           </Button>

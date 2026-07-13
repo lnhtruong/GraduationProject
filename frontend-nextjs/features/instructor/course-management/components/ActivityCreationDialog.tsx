@@ -52,6 +52,7 @@ import {
   createMediaUploadStream,
   type UploadStreamSubscription,
 } from "@/features/_shared/realtime/media-upload-stream";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Props {
   open: boolean;
@@ -61,11 +62,12 @@ interface Props {
   lessonVideoId?: number | null;
   draftVideoBlobUrl?: string | null;
   draftVideoDurationSeconds?: number;
+  isVideoPreparing?: boolean;
   userId?: number;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 export function ActivityCreationDialog({
@@ -76,6 +78,7 @@ export function ActivityCreationDialog({
   lessonVideoId,
   draftVideoBlobUrl,
   draftVideoDurationSeconds = 0,
+  isVideoPreparing = false,
   userId,
 }: Props) {
   const router = useRouter();
@@ -118,6 +121,22 @@ export function ActivityCreationDialog({
       draftDurationSeconds: draftVideoDurationSeconds,
       hasVideoId: Boolean(lessonVideoId),
     });
+
+  const hasAiQuizSource = Boolean(
+    lessonVideo?.srt_raw_url?.trim() ||
+      lessonVideo?.srtRawUrl?.trim() ||
+      lessonVideo?.url?.trim(),
+  );
+  const isAiQuizBlocked = Boolean(
+    isVideoPreparing || !lessonVideoId || !hasAiQuizSource,
+  );
+  const aiQuizBlockedReason = isVideoPreparing
+    ? "Video đang được upload hoặc xử lý trên Bunny. Vui lòng chờ hệ thống nhận URL video trước khi sinh Quiz AI."
+    : !lessonVideoId
+      ? "Bài học cần có video trước khi sinh Quiz AI."
+      : !hasAiQuizSource
+        ? "Video chưa có URL hoặc phụ đề để AI phân tích. Vui lòng chờ Bunny xử lý xong."
+        : "";
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
     hasVideoSource,
@@ -199,10 +218,11 @@ export function ActivityCreationDialog({
   };
 
   const handleCreateQuizAI = async (values: QuizAIFormValues) => {
-    if (!lessonVideoId) {
-      toast.error("Bài học cần có video để sinh câu hỏi bằng AI.");
+    if (isAiQuizBlocked) {
+      toast.error(aiQuizBlockedReason || "Video chưa sẵn sàng để sinh Quiz AI.");
       return;
     }
+    const readyVideoId = Number(lessonVideoId);
 
     try {
       const nextOrderIndex = (lessonActivities?.length ?? 0) + 1;
@@ -220,7 +240,7 @@ export function ActivityCreationDialog({
       setGeneratedActivityId(createdActivity.id);
 
       const jobResp = await generateQuizAIMutation.mutateAsync({
-        videoId: lessonVideoId,
+        videoId: readyVideoId,
         lessonActivityId: createdActivity.id,
         name: values.name,
         difficulty: values.difficulty,
@@ -251,7 +271,11 @@ export function ActivityCreationDialog({
         },
         onError: (payload) => {
           if (payload.jobId === jobId) {
-            toast.error(`Sinh quiz thất bại: ${payload.error?.message || "Lỗi từ worker"}`);
+            const message = getErrorMessage(
+              payload.error,
+              "Không thể sinh quiz. Vui lòng thử lại.",
+            );
+            toast.error(message);
             setView("create");
             setStage("");
 
@@ -426,10 +450,10 @@ export function ActivityCreationDialog({
                 <TabsContent value="quiz-ai" className="space-y-4 pt-4">
                   <QuizAIForm
                     lessonTitle={lessonTitle}
-                    hasVideo={hasVideoSource}
-                    isPending={generateQuizAIMutation.isPending}
+                    hasVideo={hasVideoSource && hasAiQuizSource && !isVideoPreparing}
+                    disabled={isAiQuizBlocked}
+                    disabledReason={aiQuizBlockedReason}
                     onSubmit={handleCreateQuizAI}
-                    onCancel={() => handleOpenChange(false)}
                     existingQuizzes={inVideoQuizzes}
                     videoDurationSeconds={activeVideoDurationSeconds}
                     videoUrl={activeVideoUrl}
@@ -456,6 +480,8 @@ export function ActivityCreationDialog({
               isAssignmentPending={createLessonActivityMutation.isPending}
               isQuizPending={createQuizMutation.isPending}
               isQuizAIPending={generateQuizAIMutation.isPending}
+              isQuizAIDisabled={isAiQuizBlocked}
+              quizAIDisabledReason={aiQuizBlockedReason}
             />
           )}
         </div>

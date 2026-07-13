@@ -1,64 +1,111 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
-  Layers3,
+  FileClock,
+  Pencil,
   Route,
   Search,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ManagementPageShell } from "@/features/instructor/course-management/components/ManagementPageShell";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useInstructorRoadmapsPaginated } from "./api/roadmap-management.hooks";
+import { ManagementPageShell } from "@/features/instructor/course-management/components/ManagementPageShell";
+import {
+  useDeleteRoadmap,
+  useInstructorRoadmapsPaginated,
+} from "./api/roadmap-management.hooks";
 
-const PAGE_SIZE = 8;
+const ROADMAP_PAGE_SIZE = {
+  base: 4,
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 12,
+};
+
+function getRoadmapPageSizeForWidth(width: number) {
+  if (width >= 1280) return ROADMAP_PAGE_SIZE.xl;
+  if (width >= 1024) return ROADMAP_PAGE_SIZE.lg;
+  if (width >= 768) return ROADMAP_PAGE_SIZE.md;
+  return ROADMAP_PAGE_SIZE.sm;
+}
+
+function useResponsiveRoadmapPageSize() {
+  const [pageSize, setPageSize] = useState(ROADMAP_PAGE_SIZE.base);
+
+  useEffect(() => {
+    const syncPageSize = () => {
+      setPageSize(getRoadmapPageSizeForWidth(window.innerWidth));
+    };
+
+    syncPageSize();
+    window.addEventListener("resize", syncPageSize);
+    return () => window.removeEventListener("resize", syncPageSize);
+  }, []);
+
+  return pageSize;
+}
 
 export default function RoadmapList() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
-    }, 500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
+  const debouncedSearch = useDebounce(search.trim(), 350);
+  const pageSize = useResponsiveRoadmapPageSize();
+  const deleteRoadmapMutation = useDeleteRoadmap();
 
   const { data, isLoading } = useInstructorRoadmapsPaginated(
     {
       userId: user?.id,
       page,
-      limit: PAGE_SIZE,
+      limit: pageSize,
       search: debouncedSearch || undefined,
     },
     Boolean(user?.id),
   );
 
-  const roadmaps = data?.data ?? [];
+  const roadmaps = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
-
+  const totalItems = Number(pagination?.totalItems ?? roadmaps.length);
   const totalPages = Math.max(1, Number(pagination?.totalPages ?? 1));
   const currentPage = Math.min(page, totalPages);
+  const showingFrom = totalItems ? (currentPage - 1) * pageSize + 1 : 0;
+  const showingTo = totalItems
+    ? Math.min(currentPage * pageSize, totalItems)
+    : 0;
+
+  const handleDeleteRoadmap = async (roadmapId: number, roadmapName: string) => {
+    const confirmed = window.confirm(`Xóa lộ trình "${roadmapName}"?`);
+
+    if (!confirmed) return;
+
+    try {
+      await deleteRoadmapMutation.mutateAsync(roadmapId);
+      toast.success("Đã xóa lộ trình");
+    } catch {
+      toast.error("Không thể xóa lộ trình");
+    }
+  };
 
   return (
     <ManagementPageShell
-      title="Quản lý lộ trình"
-      description="Quản lý danh sách lộ trình của bạn."
+      noCard
+      title="Lộ trình học"
+      description="Tổ chức các khóa học thành đường học rõ ràng để học viên biết nên bắt đầu từ đâu và học tiếp gì."
       breadcrumbs={[{ label: "Lộ trình" }]}
       action={
-        <Button asChild className="w-full sm:w-auto">
+        <Button asChild size="sm" className="h-10 rounded-xl px-4">
           <Link href="/instructor/roadmaps/new">
             <CirclePlus className="mr-2 h-4 w-4" />
             Tạo lộ trình
@@ -66,103 +113,180 @@ export default function RoadmapList() {
         </Button>
       }
     >
-      <div className="space-y-4 p-3 sm:space-y-5 sm:p-4 lg:p-5">
-        <div className="space-y-4 p-1 sm:p-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold">Danh sách lộ trình</h2>
-            </div>
-            <Badge variant="secondary" className="text-xs">
-              {pagination?.totalItems ?? roadmaps.length} lộ trình
-            </Badge>
-          </div>
-
-          <div className="relative w-full lg:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="space-y-5 sm:space-y-6">
+        <div className="rounded-2xl border border-border/50 bg-card p-3.5 shadow-xs">
+          <div className="relative w-full">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm lộ trình theo tên hoặc mô tả..."
-              className="pl-9"
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Tìm theo tên lộ trình hoặc mô tả..."
+              className="h-12 rounded-xl border-border/80 pl-11 text-base focus-visible:ring-1 focus-visible:ring-primary/20"
             />
           </div>
+        </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-28 w-full rounded-2xl" />
-              ))}
-            </div>
-          ) : roadmaps.length ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {roadmaps.map((roadmap) => (
-                <Link
-                  key={roadmap.id}
-                  href={`/instructor/roadmaps/${roadmap.id}`}
-                  className="group overflow-hidden rounded-2xl border border-border/40 bg-card shadow-sm transition hover:border-primary/40 hover:shadow-lg"
-                >
-                  <div className="relative h-28 border-b border-border/40 bg-linear-to-br from-primary/20 via-primary/5 to-transparent">
-                    <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] text-white backdrop-blur-sm">
-                      <Layers3 className="h-3.5 w-3.5" />
-                      Lộ trình học
-                    </div>
-                    <div className="absolute bottom-3 right-3 rounded-full bg-background/80 p-2 shadow-sm backdrop-blur-sm">
-                      <Route className="h-3.5 w-3.5 text-primary" />
-                    </div>
+        <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-xs">
+          <div className="border-b border-border/50 px-5 py-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-primary">
+              Danh sách lộ trình
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-foreground">
+              Các lộ trình đang vận hành
+            </h2>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: pageSize }).map((_, index) => (
+                  <Skeleton
+                    key={index}
+                    className="h-52 w-full rounded-2xl"
+                  />
+                ))}
+              </div>
+            ) : !totalItems && !debouncedSearch ? (
+              <Card className="rounded-2xl border-dashed border-border bg-background/80 shadow-xs">
+                <CardContent className="flex min-h-72 flex-col items-center justify-center space-y-4 p-6 text-center">
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-primary">
+                    <Route className="h-8 w-8" />
                   </div>
-
-                  <div className="space-y-3 p-5">
-                    <h3 className="line-clamp-2 text-base font-semibold leading-tight transition group-hover:text-primary">
-                      {roadmap.name}
+                  <div className="space-y-1.5">
+                    <h3 className="text-xl font-bold">
+                      Chưa có lộ trình học
                     </h3>
-                    <p className="line-clamp-2 text-sm font-light text-muted-foreground">
-                      {roadmap.description || "Chưa có mô tả"}
+                    <p className="max-w-md text-sm leading-6 text-muted-foreground">
+                      Tạo lộ trình để gom các khóa học theo thứ tự học rõ ràng.
                     </p>
                   </div>
-
-                  <div className="flex items-center gap-3 border-t border-border/40 bg-muted/30 px-4 py-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <BookOpen className="h-3.5 w-3.5 text-primary/80" />
-                      {Number(roadmap.totalCourses ?? 0)} khóa học
-                    </div>
+                  <Button asChild size="sm" className="rounded-xl">
+                    <Link href="/instructor/roadmaps/new">
+                      <CirclePlus className="mr-1.5 h-4 w-4" />
+                      Tạo lộ trình đầu tiên
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : !roadmaps.length ? (
+              <Card className="rounded-2xl border-border bg-background/80 shadow-xs">
+                <CardContent className="flex min-h-56 flex-col items-center justify-center space-y-3 p-6 text-center">
+                  <div className="rounded-full bg-muted p-3 text-muted-foreground">
+                    <FileClock className="h-5 w-5" />
                   </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-              Không có lộ trình phù hợp với từ khóa hiện tại.
-            </div>
-          )}
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-foreground">
+                      Không có lộ trình phù hợp
+                    </p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Thử đổi từ khóa tìm kiếm hoặc xóa bộ lọc hiện tại.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg"
+                    onClick={() => setSearch("")}
+                  >
+                    Xóa tìm kiếm
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {roadmaps.map((roadmap) => (
+                    <article
+                      key={roadmap.id}
+                      className="flex min-h-52 flex-col overflow-hidden rounded-2xl border border-border/50 bg-background shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                    >
+                      <div className="flex flex-1 flex-col p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                            <Route className="h-5 w-5" />
+                          </div>
+                          <div className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                            <BookOpen className="h-4 w-4" />
+                            {Number(roadmap.totalCourses ?? 0)} khóa học
+                          </div>
+                        </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-            <p className="text-xs text-muted-foreground">
-              Trang {currentPage}/{totalPages}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage <= 1}
-              >
-                <ChevronLeft className="mr-1 h-4 w-4" />
-                Trước
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setPage((prev) => Math.min(totalPages, prev + 1))
-                }
-                disabled={currentPage >= totalPages}
-              >
-                Sau
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
+                        <div className="mt-5 min-w-0 flex-1 space-y-2">
+                          <h3 className="line-clamp-2 text-base font-bold leading-snug text-foreground">
+                            {roadmap.name}
+                          </h3>
+                          <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
+                            {roadmap.description ||
+                              "Chưa có mô tả cho lộ trình này."}
+                          </p>
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border/60 pt-4">
+                          <Button asChild className="h-10 rounded-xl">
+                            <Link href={`/instructor/roadmaps/${roadmap.id}`}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Chỉnh sửa
+                            </Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-xl border-destructive/35 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={deleteRoadmapMutation.isPending}
+                            onClick={() =>
+                              void handleDeleteRoadmap(roadmap.id, roadmap.name)
+                            }
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Hiển thị {showingFrom}-{showingTo} / {totalItems} lộ trình
+                  </span>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                        aria-label="Trang trước"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="min-w-20 text-center text-sm font-semibold text-muted-foreground">
+                        Trang {currentPage}/{totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg"
+                        disabled={currentPage >= totalPages}
+                        onClick={() =>
+                          setPage((prev) => Math.min(totalPages, prev + 1))
+                        }
+                        aria-label="Trang sau"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        </section>
       </div>
     </ManagementPageShell>
   );

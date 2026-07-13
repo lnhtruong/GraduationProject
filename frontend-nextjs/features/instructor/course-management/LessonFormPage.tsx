@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NotebookText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,11 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
     selectedVideoId: null,
     draftVideoBlobUrl: null,
     draftVideoDurationSeconds: 0,
+    isVideoUploadBusy: false,
   });
+
+  // Ref to trigger the quiz modal inside LessonForm from this shell header
+  const openQuizModalRef = useRef<(() => void) | null>(null);
 
   const handleVideoContextChange = useCallback(
     (context: LessonFormVideoContext) => {
@@ -111,18 +115,33 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
       ]}
       action={
         <div className="flex flex-wrap items-center gap-2">
-          {isEdit ? (
-            <Button
-              onClick={() => setActivityDialogOpen(true)}
-              variant="outline"
-              className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all"
-            >
-              <NotebookText className="h-4 w-4 text-primary" />
-              Tạo hoạt động
-            </Button>
-          ) : null}
+          {/* "Tạo hoạt động" — in edit mode opens ActivityCreationDialog,
+              in create mode opens the pending-quiz modal inside LessonForm */}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all cursor-pointer"
+            onClick={() => {
+              if (isEdit) {
+                setActivityDialogOpen(true);
+              } else {
+                openQuizModalRef.current?.();
+              }
+            }}
+          >
+            <NotebookText className="h-4 w-4 text-primary" />
+            Tạo hoạt động
+          </Button>
 
-          <div id="lesson-form-actions-portal" className="flex items-center gap-2" />
+          {/* Submit button — targets the form by id so it works outside the form element */}
+          <Button
+            type="submit"
+            form="lesson-form"
+            className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+          >
+            {isEdit ? "Lưu bài học" : "Tạo bài học"}
+          </Button>
+
           <Button
             variant="outline"
             onClick={() => router.back()}
@@ -138,6 +157,9 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         courseId={course.id}
         course={course}
         onVideoContextChange={handleVideoContextChange}
+        onRegisterQuizModalOpener={(fn) => {
+          openQuizModalRef.current = fn;
+        }}
         onSave={async (payload) => {
           if (isEdit && lesson) {
             await updateLessonMutation.mutateAsync({
@@ -168,6 +190,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           lessonVideoId={activeLessonVideoId}
           draftVideoBlobUrl={videoContext.draftVideoBlobUrl}
           draftVideoDurationSeconds={videoContext.draftVideoDurationSeconds}
+          isVideoPreparing={Boolean(videoContext.isVideoUploadBusy)}
           userId={user?.id}
         />
       ) : null}

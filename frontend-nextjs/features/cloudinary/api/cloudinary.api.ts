@@ -6,10 +6,31 @@ import type { CloudinarySignature } from "../types";
 import { uploadToCloudinary } from "../utils/cloudinary.utils";
 
 export const cloudinaryApi = createApi({
-  getSignature: async (folderName: string = "editor-uploads") => {
+  getSignature: async (
+    options:
+      | string
+      | {
+          folderName?: string;
+          jobId?: string;
+          type?:
+            | "highlight"
+            | "mascot"
+            | "thumbnail_video"
+            | "thumbnail_course"
+            | "avt";
+        } = "editor-uploads",
+  ) => {
+    const payload =
+      typeof options === "string"
+        ? { folderName: options }
+        : {
+            folderName: options.folderName ?? "editor-uploads",
+            job_id: options.jobId,
+            type: options.type,
+          };
     const { data: response } = await apiClient.post<CloudinarySignature>(
       "/media/cloudinary/sign",
-      { folderName },
+      payload,
     );
     return response;
   },

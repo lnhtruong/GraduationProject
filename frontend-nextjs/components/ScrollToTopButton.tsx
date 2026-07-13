@@ -30,7 +30,7 @@ export function ScrollToTopButton() {
   return (
     <div
       className={cn(
-        "pointer-events-none fixed right-4 bottom-4 z-50 transition-all duration-200 sm:right-6 sm:bottom-6",
+        "pointer-events-none fixed right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 transition-all duration-200 sm:right-6 sm:bottom-6",
         isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
       )}
       aria-hidden={!isVisible}
@@ -39,7 +39,7 @@ export function ScrollToTopButton() {
         type="button"
         size="icon"
         variant="secondary"
-        className="pointer-events-auto h-10 w-10 rounded-full border border-border/70 bg-background/95 shadow-lg backdrop-blur hover:bg-background"
+        className="pointer-events-auto h-9 w-9 rounded-full border border-border/70 bg-background/95 shadow-lg backdrop-blur hover:bg-background sm:h-10 sm:w-10"
         onClick={handleScrollTop}
         aria-label="Cuộn lên đầu trang"
         title="Cuộn lên đầu trang"

@@ -1192,15 +1192,49 @@ export class WebhookService {
 
                 let videoId: number | undefined;
                 if (jobId) {
-                    const videoRow = await this.videoModel.findOne({
+                    let videoRow = await this.videoModel.findOne({
                         where: { job_id: jobId },
                     });
-                    if (videoRow) {
-                        videoId = videoRow.id;
-                        completedVideoId = videoRow.id;
+                    if (!videoRow) {
+                        const thumbnail =
+                            this.buildCloudinaryVideoThumbnailUrl(url) ??
+                            'https://placehold.co/320x180/png?text=thumbnail';
+                        videoRow = await this.videoModel.create({
+                            job_id: jobId,
+                            user_id: userId,
+                            type: VideoType.HIGHLIGHT,
+                            url,
+                            duration: typeof payload.duration === 'number' ? payload.duration : null,
+                            name:
+                                payload.source_original_filename ??
+                                `${jobId}_highlight.mp4`,
+                            thumbnail,
+                            srt_raw_url: payload.srt_url ?? null,
+                            upload_context: {
+                                sourceOriginalFilename: payload.source_original_filename ?? null,
+                                type: typeForSse,
+                            },
+                        });
+                        this.logger.log(`Created video row id=${videoRow.id} from AI completed job_id=${jobId}`);
                     } else {
-                        this.logger.warn(`AI model webhook completed event cannot find video by job_id=${jobId}`);
+                        const thumbnail = this.buildCloudinaryVideoThumbnailUrl(url);
+                        await videoRow.update({
+                            user_id: userId,
+                            type: VideoType.HIGHLIGHT,
+                            url,
+                            duration:
+                                typeof payload.duration === 'number'
+                                    ? payload.duration
+                                    : videoRow.duration,
+                            ...(payload.source_original_filename
+                                ? { name: payload.source_original_filename }
+                                : {}),
+                            ...(thumbnail ? { thumbnail } : {}),
+                            srt_raw_url: payload.srt_url ?? videoRow.srt_raw_url,
+                        });
                     }
+                    videoId = videoRow.id;
+                    completedVideoId = videoRow.id;
                 } else {
                     this.logger.warn('AI model webhook completed event missing job_id');
                 }

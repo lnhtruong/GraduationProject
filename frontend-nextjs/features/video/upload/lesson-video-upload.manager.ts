@@ -1,5 +1,6 @@
 import * as tus from "tus-js-client";
 import { videoApi } from "../api/video.api";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 type StartUploadPayload = {
   file: File;
@@ -12,6 +13,7 @@ type UploadLifecycleHandlers = {
   onSessionInit?: (payload: {
     videoId: number;
     bunnyVideoId: string;
+    initialVideoUrl?: string | null;
     fileName: string;
     fileSize: number;
   }) => void;
@@ -22,7 +24,11 @@ type UploadLifecycleHandlers = {
   }) => void;
   onUploadUrl?: (uploadUrl: string | null) => void;
   onProcessing?: () => void;
-  onCompleted?: (payload: { videoId: number; bunnyVideoId: string }) => void;
+  onCompleted?: (payload: {
+    videoId: number;
+    bunnyVideoId: string;
+    readyVideoUrl?: string | null;
+  }) => void;
   onError?: (message: string) => void;
 };
 
@@ -35,8 +41,18 @@ class LessonVideoUploadManager {
 
   private activeBunnyVideoId: string | null = null;
 
+  private activeInitialVideoUrl: string | null = null;
+
   isUploading() {
     return this.upload !== null;
+  }
+
+  completeFromRealtime(videoId: number | string): void {
+    if (this.activeVideoId && String(this.activeVideoId) !== String(videoId)) {
+      return;
+    }
+
+    this.cleanupAll();
   }
 
   async startUpload(
@@ -58,10 +74,16 @@ class LessonVideoUploadManager {
 
     this.activeVideoId = initResponse.videoId;
     this.activeBunnyVideoId = initResponse.bunnyVideoId;
+    this.activeInitialVideoUrl = initResponse.url ?? initResponse.originalUrl ?? null;
 
     handlers.onSessionInit?.({
       videoId: initResponse.videoId,
       bunnyVideoId: initResponse.bunnyVideoId,
+      // Backend returns an immediate Bunny `/original` URL so the lesson can
+      // have a usable video row before transcoding finishes. The local blob
+      // preview remains the primary preview during upload; SSE/polling swaps
+      // the row to the processed playback URL later.
+      initialVideoUrl: this.activeInitialVideoUrl,
       fileName: payload.file.name,
       fileSize: payload.file.size,
     });
@@ -83,7 +105,12 @@ class LessonVideoUploadManager {
       },
       onError: (error) => {
         this.cleanupAll();
-        handlers.onError?.(error.message || "Upload thất bại.");
+        handlers.onError?.(
+          getUserFacingErrorMessage(
+            error,
+            "Upload thất bại. Vui lòng thử lại.",
+          ),
+        );
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         const progressPercent = Math.min(
@@ -100,7 +127,10 @@ class LessonVideoUploadManager {
         handlers.onUploadUrl?.(upload.url ?? null);
         handlers.onProcessing?.();
         this.cleanupUploadOnly();
-        void this.waitUntilReady(handlers);
+        this.processingPollTimer = setTimeout(() => {
+          this.processingPollTimer = null;
+          void this.waitUntilReady(handlers);
+        }, 30000);
       },
     });
 
@@ -136,11 +166,13 @@ class LessonVideoUploadManager {
     }
     this.activeVideoId = null;
     this.activeBunnyVideoId = null;
+    this.activeInitialVideoUrl = null;
   }
 
   private async waitUntilReady(handlers: UploadLifecycleHandlers) {
     const bunnyVideoId = this.activeBunnyVideoId;
     const videoId = this.activeVideoId;
+    const initialVideoUrl = this.activeInitialVideoUrl;
 
     if (!bunnyVideoId || !videoId) {
       handlers.onError?.("Thiếu thông tin video để theo dõi trạng thái xử lý.");
@@ -162,9 +194,21 @@ class LessonVideoUploadManager {
               : null;
 
         if (status === 3 || status === 4) {
-          handlers.onCompleted?.({ videoId, bunnyVideoId });
-          this.cleanupAll();
-          return;
+          const video = await videoApi.findById(videoId);
+          const readyVideoUrl = video?.url?.trim() || null;
+          const isOriginalUrl = readyVideoUrl
+            ? /\/original(?:[?#].*)?$/i.test(readyVideoUrl)
+            : false;
+          const isStillInitialOriginalUrl =
+            Boolean(readyVideoUrl) &&
+            (readyVideoUrl === initialVideoUrl || isOriginalUrl);
+          const hasReadyUrl = Boolean(readyVideoUrl && !isStillInitialOriginalUrl);
+
+          if (hasReadyUrl) {
+            handlers.onCompleted?.({ videoId, bunnyVideoId, readyVideoUrl });
+            this.cleanupAll();
+            return;
+          }
         }
 
         if (Date.now() - startedAt > maxWaitMs) {
@@ -177,11 +221,12 @@ class LessonVideoUploadManager {
           void poll();
         }, 10000);
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Không thể kiểm tra trạng thái video.";
-        handlers.onError?.(message);
+        handlers.onError?.(
+          getUserFacingErrorMessage(
+            error,
+            "Không thể kiểm tra trạng thái video. Vui lòng thử lại sau.",
+          ),
+        );
         this.cleanupAll();
       }
     };

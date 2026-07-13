@@ -1,12 +1,8 @@
 import * as React from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -16,7 +12,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Sparkles, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
 import {
   highlightParamsSchema,
   type HighlightParamsFormValues,
@@ -30,39 +28,32 @@ interface HighlightParamsFormProps {
   noCard?: boolean;
 }
 
-// ============================================================================
-// CONSTANTS - Danh sách keywords có sẵn
-// ============================================================================
-
-const AVAILABLE_INCLUDE_KEYWORDS = [
-  "solution explanations",
-  "step-by-step problem solving",
-  "algorithm analysis",
-  "implementation details",
-  "time/space complexity discussion",
-  "code walkthrough",
-  "debugging tips",
-  "optimization techniques",
-  "best practices",
-  "common mistakes",
+const INCLUDE_PRESETS = [
+  "Ví dụ thực tế",
+  "Giải thích cốt lõi",
+  "Hướng dẫn từng bước",
+  "Mẹo quan trọng",
+  "Đoạn dễ hiểu",
 ];
 
-const AVAILABLE_EXCLUDE_KEYWORDS = [
-  "advertisements",
-  "course promotions",
-  "discount announcements",
-  "channel subscriptions",
-  "greetings and sign-offs",
-  "emotional filler",
-  "personal stories",
-  "off-topic discussions",
-  "Q&A sessions",
-  "thank you messages",
+const EXCLUDE_PRESETS = [
+  "Chào đầu video",
+  "Quảng cáo",
+  "Đoạn im lặng",
+  "Nội dung lặp lại",
+  "Phần ngoài chủ đề",
 ];
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function parsePreferences(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinPreferences(values: string[]) {
+  return values.join(", ");
+}
 
 export default function HighlightParamsForm({
   onSubmit,
@@ -70,240 +61,241 @@ export default function HighlightParamsForm({
   isSubmitting = false,
   noCard = false,
 }: HighlightParamsFormProps) {
+  const [includeInput, setIncludeInput] = React.useState("");
+  const [excludeInput, setExcludeInput] = React.useState("");
   const form = useForm<HighlightParamsFormValues>({
     resolver: zodResolver(highlightParamsSchema),
     defaultValues: {
       topic: "",
-      includeKeywords: [
-        "solution explanations",
-        "step-by-step problem solving",
-        "algorithm analysis",
-        "implementation details",
-        "time/space complexity discussion",
-      ],
-      excludeKeywords: [
-        "advertisements",
-        "course promotions",
-        "discount announcements",
-        "channel subscriptions",
-        "greetings and sign-offs",
-        "emotional filler",
-      ],
+      includeKeywords: [],
+      excludeKeywords: [],
+      isMultiOutput: false,
     },
   });
-
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
-
-  const handleIncludeToggle = (keyword: string) => {
-    const current = form.getValues("includeKeywords");
-    form.setValue(
-      "includeKeywords",
-      current.includes(keyword)
-        ? current.filter((k) => k !== keyword)
-        : [...current, keyword],
-      { shouldValidate: true },
-    );
-  };
-
-  const handleExcludeToggle = (keyword: string) => {
-    const current = form.getValues("excludeKeywords");
-    form.setValue(
-      "excludeKeywords",
-      current.includes(keyword)
-        ? current.filter((k) => k !== keyword)
-        : [...current, keyword],
-      { shouldValidate: true },
-    );
-  };
 
   const handleFormSubmit = form.handleSubmit((data) => {
     onSubmit({
       topic: data.topic.trim(),
       includeKeywords: data.includeKeywords,
       excludeKeywords: data.excludeKeywords,
+      isMultiOutput: data.isMultiOutput,
     });
   });
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
-
-  const includeKeywords = useWatch({
-    control: form.control,
-    name: "includeKeywords",
-  });
-  const excludeKeywords = useWatch({
-    control: form.control,
-    name: "excludeKeywords",
-  });
+  const applyPreset = React.useCallback(
+    (
+      fieldName: "includeKeywords" | "excludeKeywords",
+      value: string,
+      setInput: React.Dispatch<React.SetStateAction<string>>,
+    ) => {
+      const nextValues = Array.from(
+        new Set([...form.getValues(fieldName), value]),
+      );
+      form.setValue(fieldName, nextValues, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setInput(joinPreferences(nextValues));
+    },
+    [form],
+  );
 
   const content = (
     <Form {...form}>
       <form onSubmit={handleFormSubmit} className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">Cấu hình Highlight Reel</h3>
-            <p className="text-sm text-muted-foreground">
-              Cung cấp thông tin để tạo clips chất lượng cao
-            </p>
-          </div>
+        <div>
+          <h3 className="text-xl font-semibold">
+            Bạn muốn lấy phần nào trong video?
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Mô tả mục tiêu học để LearnHub ưu tiên đúng đoạn cần giữ.
+          </p>
         </div>
 
-        {/* Topic Input */}
         <FormField
           control={form.control}
           name="topic"
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-base font-medium">
-                Chủ đề video <span className="text-destructive">*</span>
+                Video này nói về gì? <span className="text-destructive">*</span>
               </FormLabel>
               <FormControl>
                 <Input
-                  placeholder="VD: Binary Tree data structures and problem-solving"
+                  placeholder="Ví dụ: React hooks, kỹ năng thuyết trình, thuật toán cây nhị phân..."
                   {...field}
                   disabled={isSubmitting}
-                  className="text-base"
+                  className="h-12 text-base"
                 />
               </FormControl>
               <FormDescription>
-                Mô tả ngắn gọn về nội dung chính của video
+                Càng rõ chủ đề thì đoạn highlight càng dễ đúng ý.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Include Keywords */}
         <FormField
           control={form.control}
-          name="includeKeywords"
-          render={() => (
+          name="isMultiOutput"
+          render={({ field }) => (
             <FormItem>
               <FormLabel className="text-base font-medium">
-                Từ khóa cần bao gồm{" "}
-                <span className="text-destructive">*</span>
+                Kiểu kết quả
               </FormLabel>
-              <FormDescription>
-                Chọn các loại nội dung bạn muốn giữ lại trong clips
-              </FormDescription>
-              <div className="space-y-2 max-h-64 overflow-y-auto p-4 bg-muted/20 rounded-lg">
-                {AVAILABLE_INCLUDE_KEYWORDS.map((keyword) => (
-                  <div key={keyword} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`include-${keyword}`}
-                      checked={includeKeywords.includes(keyword)}
-                      onCheckedChange={() => handleIncludeToggle(keyword)}
-                      disabled={isSubmitting}
-                    />
-                    <Label
-                      htmlFor={`include-${keyword}`}
-                      className="text-sm font-normal cursor-pointer flex-1"
-                    >
-                      {keyword}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {/* Selected badges */}
-              {includeKeywords.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {includeKeywords.map((keyword) => (
-                    <Badge key={keyword} variant="default" className="gap-1">
-                      {keyword}
-                      <X
-                        className="w-3 h-3 cursor-pointer"
-                        onClick={() => handleIncludeToggle(keyword)}
-                      />
-                    </Badge>
-                  ))}
+              <FormControl>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(false)}
+                    className={cn(
+                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      !field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div>
+                        <div className="font-semibold">Một đoạn hay nhất</div>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Dùng khi muốn mở Studio nhanh và chỉnh tiếp ngay.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(true)}
+                    className={cn(
+                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div>
+                        <div className="font-semibold">Nhiều đoạn để chọn</div>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Dùng khi video dài và cần so sánh vài phương án.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
                 </div>
-              )}
-              <FormMessage />
+              </FormControl>
             </FormItem>
           )}
         />
 
-        {/* Exclude Keywords */}
-        <FormField
-          control={form.control}
-          name="excludeKeywords"
-          render={() => (
-            <FormItem>
-              <FormLabel className="text-base font-medium">
-                Từ khóa cần loại trừ
-              </FormLabel>
-              <FormDescription>
-                Chọn các loại nội dung bạn muốn bỏ qua trong clips
-              </FormDescription>
-              <div className="space-y-2 max-h-64 overflow-y-auto p-4 bg-muted/20 rounded-lg">
-                {AVAILABLE_EXCLUDE_KEYWORDS.map((keyword) => (
-                  <div key={keyword} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`exclude-${keyword}`}
-                      checked={excludeKeywords.includes(keyword)}
-                      onCheckedChange={() => handleExcludeToggle(keyword)}
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="includeKeywords"
+            render={({ field }) => (
+              <FormItem className="flex h-full flex-col">
+                <FormLabel className="text-base font-medium">
+                  Muốn giữ lại nội dung gì?
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    value={includeInput}
+                    onChange={(event) => {
+                      setIncludeInput(event.target.value);
+                      field.onChange(parsePreferences(event.target.value));
+                    }}
+                    placeholder="Ví dụ: ví dụ thực tế, đoạn demo, công thức quan trọng"
+                    disabled={isSubmitting}
+                    className="h-11"
+                  />
+                </FormControl>
+                <div className="flex min-h-[5.75rem] content-start flex-wrap gap-2 pt-1">
+                  {INCLUDE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
                       disabled={isSubmitting}
-                    />
-                    <Label
-                      htmlFor={`exclude-${keyword}`}
-                      className="text-sm font-normal cursor-pointer flex-1"
+                      onClick={() =>
+                        applyPreset("includeKeywords", preset, setIncludeInput)
+                      }
+                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {keyword}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {/* Selected badges */}
-              {excludeKeywords.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {excludeKeywords.map((keyword) => (
-                    <Badge
-                      key={keyword}
-                      variant="secondary"
-                      className="gap-1"
-                    >
-                      {keyword}
-                      <X
-                        className="w-3 h-3 cursor-pointer"
-                        onClick={() => handleExcludeToggle(keyword)}
-                      />
-                    </Badge>
+                      {preset}
+                    </button>
                   ))}
                 </div>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormDescription className="mt-auto">
+                  Có thể nhập nhiều ý, cách nhau bằng dấu phẩy.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        {/* Actions */}
-        <div className="flex gap-3 pt-4">
+          <FormField
+            control={form.control}
+            name="excludeKeywords"
+            render={({ field }) => (
+              <FormItem className="flex h-full flex-col">
+                <FormLabel className="text-base font-medium">
+                  Muốn bỏ qua phần nào?
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    value={excludeInput}
+                    onChange={(event) => {
+                      setExcludeInput(event.target.value);
+                      field.onChange(parsePreferences(event.target.value));
+                    }}
+                    placeholder="Ví dụ: chào đầu, quảng cáo, đoạn nghỉ"
+                    disabled={isSubmitting}
+                    className="h-11"
+                  />
+                </FormControl>
+                <div className="flex min-h-[5.75rem] content-start flex-wrap gap-2 pt-1">
+                  {EXCLUDE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        applyPreset("excludeKeywords", preset, setExcludeInput)
+                      }
+                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <FormDescription className="mt-auto">
+                  Để trống nếu muốn LearnHub tự chọn tự nhiên.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="flex-1"
+            className="h-11 flex-1"
           >
-            Hủy
+            Quay lại
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="flex-1">
+          <Button type="submit" disabled={isSubmitting} className="h-11 flex-1">
             {isSubmitting ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Đang xử lý...
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Đang xử lý
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Tạo Highlight Clips
+                Tạo highlight
               </>
             )}
           </Button>
@@ -312,13 +304,8 @@ export default function HighlightParamsForm({
     </Form>
   );
 
-  if (noCard) {
-    return <div className="p-1">{content}</div>;
-  }
+  if (noCard) return <div className="p-1">{content}</div>;
 
-  return (
-    <Card className="p-6">
-      {content}
-    </Card>
-  );
+  return <Card className="p-5 sm:p-6">{content}</Card>;
 }
+

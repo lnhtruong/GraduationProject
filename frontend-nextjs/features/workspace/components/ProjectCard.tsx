@@ -30,12 +30,14 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const { project, thumbnail } = item;
   const [isNameEditing, setIsNameEditing] = useState(false);
+  const [prevSessionName, setPrevSessionName] = useState(project.session_name);
   const [draftName, setDraftName] = useState(project.session_name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  if (project.session_name !== prevSessionName) {
+    setPrevSessionName(project.session_name);
     setDraftName(project.session_name);
-  }, [project.session_name]);
+  }
 
   useEffect(() => {
     if (isNameEditing) {
