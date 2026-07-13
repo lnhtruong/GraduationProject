@@ -3,8 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type React from "react";
 import Hls from "hls.js";
-import { Sparkles, Languages, Trophy, Timer, Video, Shuffle, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles, Languages, Trophy, Timer, Video, Shuffle, Play, Pause, RotateCcw, RotateCw, Clock3 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -35,9 +34,9 @@ export interface QuizAIFormValues {
 interface Props {
   lessonTitle: string;
   hasVideo: boolean;
-  isPending: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
   onSubmit: (values: QuizAIFormValues) => void;
-  onCancel: () => void;
   existingQuizzes?: Quiz[];
   videoDurationSeconds?: number;
   videoUrl?: string;
@@ -188,9 +187,9 @@ function calculateSmartTimeScoping(
 export function QuizAIForm({
   lessonTitle,
   hasVideo,
-  isPending,
+  disabled = false,
+  disabledReason,
   onSubmit,
-  onCancel,
   existingQuizzes,
   videoDurationSeconds,
   videoUrl,
@@ -273,7 +272,7 @@ export function QuizAIForm({
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -414,11 +413,22 @@ export function QuizAIForm({
         payload.endTime = parsedEnd;
       }
     }
+    if (disabled) return;
     onSubmit(payload);
   };
 
   return (
     <form id="quiz-ai-form" onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-200">
+      {disabled && disabledReason ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-800 shadow-sm dark:text-amber-200">
+          <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-semibold">Quiz AI chưa sẵn sàng</p>
+            <p className="text-xs leading-relaxed opacity-90">{disabledReason}</p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Card 1: Core settings & Advanced Options */}
       <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-5">
         <h3 className="text-sm font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border/40">

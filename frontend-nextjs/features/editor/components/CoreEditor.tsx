@@ -107,6 +107,8 @@ export default function CoreEditor({
     handleReorderText,
     mascot,
     setMascot,
+    voice,
+    setVoice,
   } = editor;
 
   const selectedTextOverlay =
@@ -163,8 +165,8 @@ export default function CoreEditor({
         </div>
       )}
 
-      <div className="w-full px-2 sm:px-4 lg:px-6 py-2 sm:py-4 overflow-hidden flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 min-h-0 auto-rows-max">
+      <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden px-1.5 py-1.5 sm:gap-3 sm:px-4 sm:py-4 lg:px-6">
+        <div className="grid min-h-0 flex-[1.25] grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
           <DndContext
             sensors={sensors}
             onDragStart={handlePreviewDragStart}
@@ -172,7 +174,7 @@ export default function CoreEditor({
             onDragEnd={handlePreviewDragEnd}
             onDragCancel={handlePreviewDragCancel}
           >
-            <section className="bg-card rounded-xl border border-border/70 shadow-sm p-2 sm:p-4 flex flex-col min-h-0 lg:col-span-12 col-span-1">
+            <section className="col-span-1 flex min-h-0 flex-col rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:rounded-xl sm:p-4 lg:col-span-12">
               {needsVideoSelection && disableUpload ? (
                 <EditorMediaDropzone
                   onMediaSelect={(url, file, videoId) => {
@@ -225,13 +227,13 @@ export default function CoreEditor({
           </DndContext>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4">
+        <div className="grid min-h-0 flex-[0.75] grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
           {!hideLeftToolbar && <div className="col-span-1 hidden lg:block" />}
 
           <div
             className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}
           >
-            <section className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-sm h-52 sm:h-60 overflow-hidden">
+            <section className="h-full min-h-36 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:min-h-48 sm:rounded-xl sm:p-3 lg:h-60">
               <TimelinePanel
                 layers={layers}
                 selectedId={selectedTextId}
@@ -242,6 +244,26 @@ export default function CoreEditor({
                 videoDurationMs={videoDurationMs}
                 currentTimeMs={currentTimeMs}
                 onSeek={handleSeek}
+                mascot={mascot}
+                onRemoveMascot={() => {
+                  setMascot((prev) => ({
+                    ...prev,
+                    type: "none",
+                    presetId: undefined,
+                    presetUrl: undefined,
+                    imageId: undefined,
+                    customFile: undefined,
+                  }));
+                }}
+                voice={voice}
+                onRemoveVoice={() => {
+                  setVoice({
+                    type: "none",
+                    speed: 1,
+                    volume: 100,
+                    pitch: 0,
+                  });
+                }}
               />
             </section>
           </div>

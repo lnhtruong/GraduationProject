@@ -24,6 +24,7 @@ import type {
   InstructorLessonActivity,
   CourseFeedCreatePayload,
   CourseFeedItem,
+  CourseFeedPage,
   CourseFeedUpsertPayload,
   InstructorQuiz,
   LessonFormValues,
@@ -262,6 +263,43 @@ export function useCourseFeed(
   );
 }
 
+export function useCourseFeedPage(
+  courseId: number | null,
+  enabled = true,
+  params: CourseFeedListParams = {},
+) {
+  return useQuery({
+    queryKey: courseFeedKeys.custom("mine-page", courseId, params),
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      if (courseId !== null) {
+        searchParams.set("courseId", String(courseId));
+      }
+      Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.set(key, String(value));
+        }
+      });
+
+      const { data } = await apiHttpClient.get<CourseFeedPage>(
+        `/media/feed/mine?${searchParams.toString()}`,
+      );
+
+      return {
+        data: Array.isArray(data.data) ? data.data : [],
+        pagination: data.pagination ?? {
+          page: Number(params.page ?? 1),
+          pageSize: Number(params.pageSize ?? 20),
+          total: Array.isArray(data.data) ? data.data.length : 0,
+          totalPages: 1,
+        },
+      };
+    },
+    enabled: enabled && courseId !== null,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useCourseFeedCandidateVideos(
   courseId: number | null,
   enabled = true,
@@ -289,7 +327,7 @@ export function useCourseFeedCandidateVideos(
         )
         .map((video) => ({
           id: video.id,
-          name: video.name?.trim() || `Video #${video.id}`,
+          name: video.name?.trim() || "Video chưa đặt tên",
           url: video.url,
           thumbnail: video.thumbnail ?? null,
           duration: video.duration ?? null,

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { createPortal } from "react-dom";
 import { NotebookText, Clapperboard, X } from "lucide-react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,17 +61,16 @@ interface Props {
   onSave?: (payload: LessonFormValues) => Promise<number | void>;
   onSaved?: () => void;
   onVideoContextChange?: (context: LessonFormVideoContext) => void;
+  /** Callback to expose openQuizModal() so parent shell can trigger it from header */
+  onRegisterQuizModalOpener?: (fn: () => void) => void;
 }
 
-export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange }: Props) {
+export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange, onRegisterQuizModalOpener }: Props) {
   const { user } = useAuth();
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("lesson-form-actions-portal"));
-  }, []);
 
   const isEdit = isLessonEditMode(lesson);
   const lessonId = lesson?.id ?? null;
+
   const [editingOutsideQuizActivityId, setEditingOutsideQuizActivityId] =
     useState<number | null>(null);
   const [showQuizEditorModal, setShowQuizEditorModal] = useState(false);
@@ -89,6 +87,11 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   );
   const [quizTimestamp, setQuizTimestamp] = useState("00:00:00.000");
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+
+  // Expose openQuizModal to parent (shell header button)
+  useEffect(() => {
+    onRegisterQuizModalOpener?.(() => setShowQuizEditorModal(true));
+  }, [onRegisterQuizModalOpener]);
 
   const { data: activities, isLoading: activitiesLoading } =
     useLessonActivitiesByLessonId(lessonId, Boolean(lessonId));
@@ -120,14 +123,13 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     data: userVideos,
     isLoading: videosLoading,
     refetch: refetchUserVideos,
-  } = useVideosByUser("long", Boolean(user?.id && !selectedVideoId));
+  } = useVideosByUser("long", Boolean(user?.id));
 
   const { data: selectedVideo, isLoading: videoLoading } = useVideoById(
     selectedVideoId,
     Boolean(selectedVideoId),
   );
 
-  const selectedVideoDurationSeconds = Number(selectedVideo?.duration ?? 0);
   const {
     url: activeVideoUrl,
     durationSeconds: activeVideoDurationSeconds,
@@ -141,8 +143,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   });
 
   const isVideoProcessing = Boolean(
-    selectedVideo?.thumbnail === "processing" ||
-      (!activeVideoUrl && !videoLoading && !draftVideoBlobUrl && selectedVideoId)
+    !activeVideoUrl && !videoLoading && !draftVideoBlobUrl && selectedVideoId
   );
 
   const timestampOptions = useMemo(
@@ -175,17 +176,20 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
       selectedVideoId,
       draftVideoBlobUrl,
       draftVideoDurationSeconds,
+      isVideoUploadBusy: isUploadingVideo || isVideoProcessing,
     });
   }, [
     draftVideoBlobUrl,
     draftVideoDurationSeconds,
+    isUploadingVideo,
+    isVideoProcessing,
     onVideoContextChange,
     selectedVideoId,
   ]);
 
   useEffect(() => {
     if (!canUseInVideoQuiz && quizMode === "in_video") {
-      setQuizMode("outside_video");
+      queueMicrotask(() => setQuizMode("outside_video"));
     }
   }, [canUseInVideoQuiz, quizMode]);
 
@@ -252,7 +256,9 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     });
 
     if (hasAdjusted) {
-      setPendingQuizStates(adjusted);
+      queueMicrotask(() => {
+        setPendingQuizStates(adjusted);
+      });
       toast.warning(
         "Một số mốc thời gian Quiz trong video vượt quá thời lượng video mới và đã được tự động đưa về cuối video mới."
       );
@@ -350,7 +356,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     } else {
       const quizPayload = createQuizPayload(
         state,
-        null as any,
+        null,
         quizMode,
         quizTimestamp,
       );
@@ -394,31 +400,6 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
 
   return (
     <div className="w-full space-y-6">
-      {portalTarget && createPortal(
-        <>
-          {!isEdit && (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 text-xs font-semibold rounded-xl border-primary text-primary hover:bg-primary/5 hover:text-primary gap-1.5 shadow-sm transition-all"
-              onClick={() => setShowQuizEditorModal(true)}
-            >
-              <NotebookText className="h-4 w-4 text-primary" />
-              Tạo hoạt động
-            </Button>
-          )}
-          <Button
-            type="submit"
-            form="lesson-form"
-            className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
-            disabled={formState.isSubmitting || isUploadingVideo}
-          >
-            {isUploadingVideo ? "Đang tải video..." : (isEdit ? "Lưu bài học" : "Tạo bài học")}
-          </Button>
-        </>,
-        portalTarget
-      )}
-
       {/* Lesson Form Section */}
       <form id="lesson-form" onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
         {hasInvalidSavedQuizzes && (
@@ -540,11 +521,6 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         />
       </form>
 
-      {!isEdit && pendingQuizStates.length > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {pendingQuizStates.length} quiz đang chờ — sẽ lưu khi bạn tạo bài học.
-        </p>
-      ) : null}
 
       {/* Activities Section */}
       {lessonId && (

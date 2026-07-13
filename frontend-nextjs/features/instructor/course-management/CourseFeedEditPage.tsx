@@ -12,29 +12,21 @@ import {
   Tag,
   Video,
   X,
-  MessageCircle,
-  Bookmark,
-  Share2,
   NotebookText,
   Clapperboard,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useForm } from "react-hook-form";
-import { useQueryClient } from "@tanstack/react-query";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
-import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import {
-  courseFeedKeys,
   useCourseFeed,
   useCourseFeedById,
   useInstructorCourseById,
@@ -69,7 +61,6 @@ function normalizeCaption(value?: string): string | undefined {
 
 export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: feedDetail, isLoading: feedDetailLoading } =
@@ -78,7 +69,6 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const updateFeedMutation = useUpdateCourseFeed();
 
   const [hashtagDraft, setHashtagDraft] = useState("");
-  const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
 
   const feed = useMemo(() => {
     if (feedDetail?.feed_id) {
@@ -91,7 +81,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const isFeedLoading = feedDetailLoading || feedListLoading;
   const isReady = !courseLoading && !isFeedLoading && Boolean(course && feed);
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FeedFormValues>({
+  const { register, control, handleSubmit, setValue, reset, formState: { errors } } = useForm<FeedFormValues>({
     resolver: zodResolver(feedFormSchema),
     defaultValues: {
       title: "",
@@ -100,9 +90,10 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
     },
   });
 
-  const formTitle = watch("title") || "";
-  const formCaption = watch("caption") || "";
-  const formHashtags = watch("hashtags") || [];
+  const [formTitle = "", formCaption = "", formHashtags = []] = useWatch({
+    control,
+    name: ["title", "caption", "hashtags"],
+  });
 
   // Populate data when feed is loaded
   useEffect(() => {
@@ -202,7 +193,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
 
   return (
     <ManagementPageShell
-      title={`Sửa feed #${feed.feed_id}`}
+      title="Sửa bài viết feed"
       description="Chỉnh sửa title, caption và hashtags. Video được giữ nguyên."
       noCard
       breadcrumbs={[
@@ -292,10 +283,9 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                     <div className="space-y-3 rounded-xl border border-input bg-background p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         {formHashtags.map((hashtag, index) => (
-                          <Badge
+                          <span
                             key={`${hashtag}-${index}`}
-                            variant="secondary"
-                            className="gap-1 rounded-full border border-border/60 bg-primary/10 px-2.5 py-1 text-xs font-medium text-foreground"
+                            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1 text-xs font-medium text-foreground"
                           >
                             <Tag className="h-3 w-3 text-muted-foreground" />
                             {hashtag}
@@ -310,7 +300,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                             >
                               <X className="h-3 w-3" />
                             </button>
-                          </Badge>
+                          </span>
                         ))}
                       </div>
 
@@ -347,7 +337,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
               {/* Card 2: Video bài viết */}
               <Card className="border-border/60 shadow-sm">
                 <CardContent className="space-y-5 p-6">
-                  <div className="flex items-center gap-2 justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-center gap-2">
                       <div className="rounded-lg bg-primary/10 p-2 text-primary">
                         <Clapperboard className="h-4 w-4" />
@@ -359,64 +349,53 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
-                      title="Tạo highlight"
-                      onClick={() => setIsHighlightUploadOpen(true)}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      <span>Tạo video highlight</span>
-                    </Button>
                   </div>
 
-                  <div className="overflow-hidden rounded-xl border border-border/60 bg-black">
-                    <video
-                      className="block h-auto w-full max-h-[62vh] bg-black object-contain"
-                      src={feed.video?.url}
-                      poster={feed.video?.thumbnail ?? undefined}
-                      controls
-                      preload="metadata"
-                      playsInline
-                    >
-                      Trình duyệt không hỗ trợ phát video.
-                    </video>
-                  </div>
-
-                  <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">Feed #{feed.feed_id}</Badge>
-                      <Badge variant="secondary">
-                        {feed.video_type ?? "unknown"}
-                      </Badge>
-                      <Badge variant="outline" className="inline-flex items-center gap-1">
-                        <Video className="h-3.5 w-3.5" />
-                        Video giữ nguyên
-                      </Badge>
+                  <div className="grid gap-4 rounded-xl border border-border/60 bg-muted/10 p-4 sm:grid-cols-[176px_minmax(0,1fr)]">
+                    <div className="relative aspect-video overflow-hidden rounded-xl border border-border/60 bg-muted">
+                      {feed.video?.thumbnail ? (
+                        <img
+                          src={feed.video.thumbnail}
+                          alt={feed.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                          <Clapperboard className="h-7 w-7 opacity-60" />
+                          <span className="text-xs">Chưa có ảnh thu nhỏ</span>
+                        </div>
+                      )}
                     </div>
 
-                    <Separator className="my-3" />
-
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Lượt xem
+                    <div className="min-w-0 space-y-4">
+                      <div className="space-y-2">
+                        <p className="line-clamp-2 break-words text-sm font-semibold">
+                          {feed.title || "Video bài viết"}
                         </p>
-                        <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold">
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                          {feed.stats?.views ?? 0}
+                        <p className="text-xs text-muted-foreground">
+                          Video đang dùng cho bài viết này.
                         </p>
                       </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Lượt thích
-                        </p>
-                        <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold">
-                          <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                          {feed.stats?.likes ?? 0}
-                        </p>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border/60 bg-background p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Lượt xem
+                          </p>
+                          <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold">
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                            {feed.stats?.views ?? 0}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-background p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Lượt thích
+                          </p>
+                          <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold">
+                            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                            {feed.stats?.likes ?? 0}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -488,20 +467,6 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
           </div>
         </form>
       </div>
-
-      <HighlightUploadDialog
-        open={isHighlightUploadOpen}
-        onOpenChange={setIsHighlightUploadOpen}
-        onUploadSuccess={() => {
-          void queryClient.invalidateQueries({
-            queryKey: courseFeedKeys.custom("candidate-videos", courseId),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: courseFeedKeys.root,
-          });
-          router.refresh();
-        }}
-      />
     </ManagementPageShell>
   );
 }

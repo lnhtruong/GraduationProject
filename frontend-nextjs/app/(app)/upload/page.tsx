@@ -1,11 +1,10 @@
+import Upload from "@/features/upload";
 import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
-  "Tải nội dung lên",
-  "Tải và quản lý tài nguyên video, hình ảnh học tập trong LearnHub.",
+  "Tạo highlight",
+  "Tải video bài giảng lên LearnHub, tạo highlight và mở Studio để thêm Mascot.",
 );
-
-import Upload from "@/features/upload";
 
 export default function UploadPage() {
   return <Upload />;

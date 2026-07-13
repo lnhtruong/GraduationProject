@@ -1,4 +1,4 @@
-import type { InstructorCourse, InstructorLesson } from "../types";
+import type { InstructorLesson } from "../types";
 
 /**
  * Format seconds into MM:SS or HH:MM:SS format
@@ -50,7 +50,17 @@ export function buildInitialLessonValues(
  */
 export function cleanVideoTitle(title?: string | null): string {
   if (!title) return "";
-  return title.trim();
+  const withoutExtension = title.trim().replace(/\.(mp4|mov|avi|webm|mkv)$/i, "");
+  const readable = withoutExtension
+    .replace(/[_-]+/g, " ")
+    .replace(/^YTSave\s+YouTube\s+/i, "")
+    .replace(/^YTDown\s+com\s+Shorts\s+/i, "")
+    .replace(/\s+Media\s+\S+.*$/i, "")
+    .replace(/\s+\d{3,4}p$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return readable || withoutExtension;
 }
 
 export function getVideoCardTitle(
@@ -58,7 +68,7 @@ export function getVideoCardTitle(
   videoId?: number,
 ): string {
   if (!title) return `Video #${videoId}`;
-  return title.trim();
+  return cleanVideoTitle(title);
 }
 
 /**

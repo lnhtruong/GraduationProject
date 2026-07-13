@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import { createKeyFactory } from "@/lib/queryKeys";
 import { createCrudHooks } from "@/features/_shared/crud-factories";
-import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import {
   roadmapApi,
   roadmapCourseApi,
@@ -57,7 +56,34 @@ export function useInstructorRoadmapsPaginated(
     ),
     queryFn: async () => {
       if (roadmapApi.listPaginated) {
-        return roadmapApi.listPaginated(params);
+        const result = await roadmapApi.listPaginated(params);
+
+        if (Array.isArray(result)) {
+          return {
+            data: result,
+            pagination: {
+              page: params?.page ?? 1,
+              limit: params?.limit ?? result.length,
+              totalItems: result.length,
+              totalPages: 1,
+            },
+          };
+        }
+
+        return {
+          data: result.data ?? [],
+          pagination: {
+            page: result.pagination?.page ?? params?.page ?? 1,
+            limit:
+              result.pagination?.limit ??
+              params?.limit ??
+              result.data?.length ??
+              0,
+            totalItems:
+              result.pagination?.totalItems ?? result.data?.length ?? 0,
+            totalPages: Math.max(1, result.pagination?.totalPages ?? 1),
+          },
+        };
       }
 
       const items = roadmapApi.list ? await roadmapApi.list(params) : [];

@@ -13,9 +13,6 @@ import {
   NotebookText,
   Target,
   ShoppingBag,
-  Star,
-  Users,
-  Clock,
   RefreshCw,
   Plus,
   X,
@@ -23,6 +20,7 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -71,15 +68,15 @@ function getCourseSaveErrorMessage(error: unknown) {
     response?: { data?: { message?: unknown } };
   }).response?.data?.message;
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "Không thể lưu khóa học. Vui lòng thử lại.";
+  return getUserFacingErrorMessage(error, "Không thể lưu khóa học. Vui lòng thử lại.");
 }
 
 const LANGUAGE_OPTIONS = [
@@ -100,10 +97,14 @@ const LEVEL_LABELS: Record<CourseFormValues["level"], string> = {
 };
 
 const DEFAULT_DURATION = "00:00:00";
+const CATEGORY_SUGGESTION_LIMIT = 5;
+const CATEGORY_SUGGESTION_EXPANDED_LIMIT = 14;
 
 export function CourseForm({ course, onSave }: Props) {
   const { user } = useAuth();
   const [categoryInput, setCategoryInput] = useState("");
+  const [showAllCategorySuggestions, setShowAllCategorySuggestions] =
+    useState(false);
   const { data: categorySuggestions = [] } = useCourseCategories();
   const [filledAt, setFilledAt] = useState<string | null>(null);
   const formOpenedAt = useMemo(() => new Date().toISOString(), []);
@@ -197,11 +198,14 @@ export function CourseForm({ course, onSave }: Props) {
   const nameValue = useWatch({ control, name: "name" });
   const descriptionValue = useWatch({ control, name: "description" });
   const thumbnailUrlValue = useWatch({ control, name: "thumbnailUrl" });
-  const categoriesValue = useWatch({ control, name: "categories" }) ?? [];
+  const rawCategoriesValue = useWatch({ control, name: "categories" });
+  const categoriesValue = useMemo(
+    () => rawCategoriesValue ?? [],
+    [rawCategoriesValue],
+  );
   const levelValue = useWatch({ control, name: "level" });
   const languageValue = useWatch({ control, name: "language" });
   const priceValue = useWatch({ control, name: "price" });
-  const stars = Array.from({ length: 5 }, (_, i) => i + 1);
   const instructorName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
     "Giảng viên của bạn";
@@ -221,12 +225,39 @@ export function CourseForm({ course, onSave }: Props) {
   const categorySuggestionItems = useMemo(() => {
     const selected = new Set(categoriesValue.map((item) => item.toLowerCase()));
     const keyword = categoryInput.trim().toLowerCase();
+    const limit = showAllCategorySuggestions
+      ? CATEGORY_SUGGESTION_EXPANDED_LIMIT
+      : CATEGORY_SUGGESTION_LIMIT;
 
     return categorySuggestions
       .filter((category) => !selected.has(category.name.toLowerCase()))
       .filter((category) => !keyword || category.name.toLowerCase().includes(keyword))
-      .slice(0, 6);
-  }, [categoriesValue, categoryInput, categorySuggestions]);
+      .slice(0, limit);
+  }, [
+    categoriesValue,
+    categoryInput,
+    categorySuggestions,
+    showAllCategorySuggestions,
+  ]);
+
+  const hiddenCategorySuggestionCount = useMemo(() => {
+    if (showAllCategorySuggestions) return 0;
+
+    const selected = new Set(categoriesValue.map((item) => item.toLowerCase()));
+    const keyword = categoryInput.trim().toLowerCase();
+
+    const availableCount = categorySuggestions
+      .filter((category) => !selected.has(category.name.toLowerCase()))
+      .filter((category) => !keyword || category.name.toLowerCase().includes(keyword))
+      .length;
+
+    return Math.max(0, availableCount - CATEGORY_SUGGESTION_LIMIT);
+  }, [
+    categoriesValue,
+    categoryInput,
+    categorySuggestions,
+    showAllCategorySuggestions,
+  ]);
 
   useEffect(() => {
     if (filledAt) return;
@@ -281,6 +312,7 @@ export function CourseForm({ course, onSave }: Props) {
 
     onChange([...current, normalized]);
     setCategoryInput("");
+    setShowAllCategorySuggestions(false);
   };
 
   const removeCategory = (
@@ -356,23 +388,6 @@ export function CourseForm({ course, onSave }: Props) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-bold text-primary">5.0</span>
-          <div className="flex items-center gap-0.5">
-            {stars.map((star) => (
-              <Star
-                key={star}
-                className="h-3.5 w-3.5 fill-amber-500 text-amber-500"
-              />
-            ))}
-          </div>
-          <span>(1.234 đánh giá)</span>
-          <span className="text-border">•</span>
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            1.234 học viên
-          </span>
-        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -386,23 +401,7 @@ export function CourseForm({ course, onSave }: Props) {
         </span>
         <span className="flex items-center gap-1.5">
           <BarChart2 className="h-3.5 w-3.5" />
-          <span
-            className={cn(
-              "rounded-full border px-2 py-0.5 text-[11px]",
-              levelValue === "Beginner" &&
-                "border-primary/30 bg-primary/10 text-primary",
-              levelValue === "Intermediate" &&
-                "border-orange-400/30 bg-orange-400/10 text-orange-500",
-              levelValue === "Advanced" &&
-                "border-destructive/30 bg-destructive/10 text-destructive",
-            )}
-          >
-            {getLevelLabel(levelValue)}
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Clock className="h-3.5 w-3.5" />
-          12h 30p
+          {getLevelLabel(levelValue)}
         </span>
         <span className="flex items-center gap-1.5">
           <RefreshCw className="h-3.5 w-3.5" />
@@ -426,19 +425,18 @@ export function CourseForm({ course, onSave }: Props) {
       <div className="flex flex-wrap gap-1.5">
         {categoriesValue.length ? (
           categoriesValue.map((category) => (
-            <Badge
+            <span
               key={category}
-              variant="secondary"
-              className="border-border/60 bg-muted text-foreground"
+              className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs text-foreground"
             >
               <Tag className="mr-1 h-3 w-3" />
               {category}
-            </Badge>
+            </span>
           ))
         ) : (
-          <Badge variant="outline" className="border-border/60 text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Chưa có danh mục
-          </Badge>
+          </span>
         )}
       </div>
     </div>
@@ -609,10 +607,9 @@ export function CourseForm({ course, onSave }: Props) {
                       <div className="flex flex-wrap gap-1.5">
                         {(field.value ?? []).length ? (
                           (field.value ?? []).map((category) => (
-                            <Badge
+                            <span
                               key={category}
-                              variant="secondary"
-                              className="gap-1 border-border/70 bg-muted text-foreground"
+                              className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-2 py-1 text-xs text-foreground"
                             >
                               {category}
                               <button
@@ -629,7 +626,7 @@ export function CourseForm({ course, onSave }: Props) {
                               >
                                 <X className="h-3 w-3" />
                               </button>
-                            </Badge>
+                            </span>
                           ))
                         ) : (
                           <p className="text-xs text-muted-foreground">
@@ -641,7 +638,10 @@ export function CourseForm({ course, onSave }: Props) {
                       <div className="flex gap-2">
                         <Input
                           value={categoryInput}
-                          onChange={(event) => setCategoryInput(event.target.value)}
+                          onChange={(event) => {
+                            setCategoryInput(event.target.value);
+                            setShowAllCategorySuggestions(false);
+                          }}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === ",") {
                               event.preventDefault();
@@ -689,6 +689,26 @@ export function CourseForm({ course, onSave }: Props) {
                               {category.name}
                             </button>
                           ))}
+                          {hiddenCategorySuggestionCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllCategorySuggestions(true)}
+                              className="rounded-full border border-dashed border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                            >
+                              Xem thêm
+                            </button>
+                          ) : null}
+                          {showAllCategorySuggestions &&
+                          categorySuggestionItems.length >
+                            CATEGORY_SUGGESTION_LIMIT ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllCategorySuggestions(false)}
+                              className="rounded-full border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                            >
+                              Thu gọn
+                            </button>
+                          ) : null}
                         </div>
                       )}
                     </div>

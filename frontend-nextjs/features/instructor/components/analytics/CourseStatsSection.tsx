@@ -54,7 +54,7 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
   }
 
   return (
-    <Table>
+    <Table className="min-w-[56rem]">
       <TableHeader>
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableHead className="pl-5 font-medium text-muted-foreground">Khóa học</TableHead>

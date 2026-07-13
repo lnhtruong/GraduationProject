@@ -7,15 +7,6 @@ export interface JobIdResponse {
   status: string;
 }
 
-/**
- * Upload status states
- * - idle: Chưa bắt đầu upload
- * - uploading: Đang tải file lên server
- * - pending: Đã tải lên, đang chờ xử lý
- * - processing: Đang xử lý video
- * - completed: Hoàn thành
- * - failed: Thất bại
- */
 export type UploadStatus =
   | "idle"
   | "uploading"
@@ -24,46 +15,49 @@ export type UploadStatus =
   | "completed"
   | "failed";
 
-/**
- * Clip data structure
- */
+export type HighlightSource = "file" | "existing-video";
+
 export interface Clip {
   name: string;
   url: string;
   videoId?: number;
+  topicId?: number | string | null;
+  description?: string | null;
+  srtUrl?: string | null;
+  thumbnail?: string | null;
+  duration?: number | null;
 }
 
-/**
- * Upload state interface
- */
 export interface UploadState {
   file: File | null;
+  source: HighlightSource | null;
   progress: number | null;
   status: UploadStatus;
   jobId: string | null;
+  bunnyVideoId: string | null;
+  sourceVideoId: number | null;
+  sourceVideoUrl: string | null;
   createdProjectId: number | null;
   clips: Clip[];
   isDownloading: boolean;
   error: string | null;
-  stage?: string; // Stage message from backend
-  progressPercent?: number; // Progress percentage from backend (0-100)
+  stage?: string;
+  progressPercent?: number;
+  jobType?: string;
 }
 
-/**
- * Highlight parameters for form
- */
 export interface HighlightParams {
   topic: string;
   includeKeywords: string[];
   excludeKeywords: string[];
+  isMultiOutput?: boolean;
+  isOpenAI?: boolean;
 }
 
-/**
- * Upload hook return type
- */
 export interface UploadHookReturn extends UploadState {
   setFile: (file: File | null) => void;
   startUpload: (file: File, params: HighlightParams) => Promise<void>;
+  startFromExistingVideo: (videoUrl: string, params: HighlightParams) => Promise<void>;
   ensureProjectForClip: (clip: Clip) => Promise<{
     projectId: number;
     videoId?: number;
@@ -72,15 +66,14 @@ export interface UploadHookReturn extends UploadState {
   reset: () => void;
 }
 
-// ============================================================================
-// API REQUEST/RESPONSE TYPES
-// ============================================================================
-
-export interface HighlightReelParams {
-  file: File;
+export interface HighlightReelLinkParams {
+  videoUrl: string;
+  videoId?: number | null;
+  userId?: number | string | null;
+  sourceOriginalFilename?: string;
   topic?: string;
   includeKeywords?: string;
   excludeKeywords?: string;
-  /** Called with 0–100 as file bytes are sent to the server */
-  onUploadProgress?: (percent: number) => void;
+  isMultiOutput?: boolean;
+  isOpenAI?: boolean;
 }

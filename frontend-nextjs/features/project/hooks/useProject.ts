@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	useCreateProject,
 	useDeleteProject,
@@ -25,25 +25,25 @@ export function useProject(initialProjectId?: number | null) {
 	const updateProjectMutation = useUpdateProject();
 	const deleteProjectMutation = useDeleteProject();
 
-	const createProject = async (payload: CreateProjectRequest) => {
+	const createProject = useCallback(async (payload: CreateProjectRequest) => {
 		const created = await createProjectMutation.mutateAsync(payload);
 		setSelectedProjectId(created.edit_id);
 		return created;
-	};
+	}, [createProjectMutation]);
 
-	const updateProject = async (id: number, payload: UpdateProjectRequest) => {
+	const updateProject = useCallback(async (id: number, payload: UpdateProjectRequest) => {
 		const updated = await updateProjectMutation.mutateAsync({ id, data: payload });
 		setSelectedProjectId(updated.edit_id);
 		return updated;
-	};
+	}, [updateProjectMutation]);
 
-	const deleteProject = async (id: number) => {
+	const deleteProject = useCallback(async (id: number) => {
 		const result = await deleteProjectMutation.mutateAsync(id);
 		if (selectedProjectId === id) {
 			setSelectedProjectId(null);
 		}
 		return result;
-	};
+	}, [deleteProjectMutation, selectedProjectId]);
 
 	const isLoading =
 		projectsQuery.isLoading ||
@@ -84,6 +84,9 @@ export function useProject(initialProjectId?: number | null) {
 			error,
 			projectsQuery.refetch,
 			selectedProjectQuery.refetch,
+			createProject,
+			updateProject,
+			deleteProject,
 			createProjectMutation,
 			updateProjectMutation,
 			deleteProjectMutation,

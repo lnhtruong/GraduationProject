@@ -240,6 +240,7 @@ export interface NewsfeedCommentMutationResponse {
 	id: number;
 	content: string;
 	origin_cmt?: number | null;
+	comment_count?: number;
 	created_at: string;
 	updated_at: string;
 	is_owner: boolean;

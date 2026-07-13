@@ -48,7 +48,7 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
   }
 
   return (
-    <Table>
+    <Table className="min-w-[58rem]">
       <TableHeader>
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableHead className="pl-5 font-medium text-muted-foreground">Tên feed</TableHead>
