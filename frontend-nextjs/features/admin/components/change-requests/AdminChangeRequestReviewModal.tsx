@@ -27,8 +27,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewChangeRequest } from "../../api/admin-change-requests.hooks";
-import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
+import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, HTML_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
 import { VideoDiffPreview } from "./VideoDiffPreview";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import type {
   CourseChangeRequest,
   CourseChangeRequestKind,
@@ -65,6 +66,50 @@ function formatDate(iso?: string | null) {
 
 function DiffRow({ field, before, after }: { field: string; before?: unknown; after?: unknown }) {
   const label = FIELD_LABELS[field] ?? field;
+  const isHtml = HTML_DIFF_FIELDS.has(field);
+
+  // Field HTML (vd. mô tả khoá học) — render đúng định dạng thay vì strip
+  // thành text, vì modal có đủ không gian để hiển thị nội dung có định dạng.
+  if (isHtml) {
+    const beforeHtml = typeof before === "string" && before.trim() ? sanitizeHtml(before) : null;
+    const afterHtml = typeof after === "string" && after.trim() ? sanitizeHtml(after) : null;
+
+    return (
+      <div className="rounded-lg border border-border/60 bg-background px-3 py-2.5 text-sm">
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <div className="flex flex-col gap-2">
+          {beforeHtml !== null && (
+            <div>
+              <span className="mb-1 inline-block rounded bg-rose-100 px-1 text-[10px] font-bold text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                Cũ
+              </span>
+              <div
+                className="rounded-md bg-muted/30 px-2.5 py-2 text-muted-foreground opacity-70 **:line-through [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: beforeHtml }}
+              />
+            </div>
+          )}
+          {afterHtml !== null && (
+            <div>
+              <span className="mb-1 inline-block rounded bg-emerald-100 px-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                Mới
+              </span>
+              <div
+                className="rounded-md bg-muted/30 px-2.5 py-2 text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: afterHtml }}
+              />
+            </div>
+          )}
+          {beforeHtml === null && afterHtml !== null && (
+            <span className="text-xs text-muted-foreground italic">(trường mới thêm)</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const beforeStr = formatDiffValue(field, before);
   const afterStr = formatDiffValue(field, after);
 
@@ -118,7 +163,10 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
   }
 
   if (kind === "lesson.create") {
-    const textDiffs = (changes ?? []).filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
+    const textDiffs = (changes ?? []).filter(
+      (c) => !NON_TEXT_DIFF_FIELDS.has(c.field) && !HTML_DIFF_FIELDS.has(c.field),
+    );
+    const htmlDiffs = (changes ?? []).filter((c) => HTML_DIFF_FIELDS.has(c.field));
     const lessonTitle = (changes ?? []).find((c) => c.field === "title")?.to as string | undefined;
     const contentType = (changes ?? []).find((c) => c.field === "contentType")?.to as string | undefined;
     const videoId = (changes ?? []).find((c) => c.field === "videoId")?.to as number | null | undefined;
@@ -134,6 +182,19 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
             </p>
           ))}
         </div>
+        {htmlDiffs.map((c) => {
+          const html = typeof c.to === "string" && c.to.trim() ? sanitizeHtml(c.to) : null;
+          if (!html) return null;
+          return (
+            <div key={c.field} className="mt-1.5">
+              <span className="text-sm font-medium">{FIELD_LABELS[c.field] ?? c.field}:</span>
+              <div
+                className="mt-1 rounded-md bg-background px-2.5 py-2 text-sm [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            </div>
+          );
+        })}
         {contentType === "video" && typeof videoId === "number" && (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-sm font-medium">Video:</span>

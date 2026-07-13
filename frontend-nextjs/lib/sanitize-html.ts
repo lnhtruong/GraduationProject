@@ -62,3 +62,11 @@ export function sanitizeHtml(html?: string | null, fallback = "") {
     FORBID_TAGS: ["button", "embed", "form", "iframe", "input", "object", "script", "style"],
   });
 }
+
+/** Bỏ toàn bộ tag HTML, chỉ giữ lại text thuần — dùng cho nơi hiển thị dạng
+ * text đơn giản (vd. preview rút gọn trong danh sách), không phải render nội
+ * dung có định dạng. */
+export function stripHtml(html?: string | null): string {
+  if (!html?.trim()) return "";
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+}

@@ -2,6 +2,8 @@
 // AdminChangeRequestReviewModal và AdminChangeRequestTable để tránh 2 bản
 // FIELD_LABELS lệch nhau theo thời gian.
 
+import { stripHtml } from "@/lib/sanitize-html";
+
 // Field theo course.update, lesson.create/update/delete (kind còn hoạt động).
 // Field quiz.* (lessonActivityId, shuffleQuestion, shuffleOption, passingScore,
 // timeLimitMinutes, isInVideo, questions) không có ở đây: không còn code nào
@@ -27,6 +29,11 @@ export const FIELD_LABELS: Record<string, string> = {
 // content là JSON object (preview riêng), videoId cần resolve qua API riêng
 // để lấy URL nên cũng được render riêng (xem VideoDiffPreview).
 export const NON_TEXT_DIFF_FIELDS = new Set(["content", "videoId"]);
+
+// Field lưu HTML từ trình soạn thảo WYSIWYG — nơi có đủ không gian (modal chi
+// tiết) nên render đúng định dạng thay vì strip; formatDiffValue() vẫn strip
+// tag cho các chỗ chỉ cần preview dạng text ngắn gọn (bảng danh sách).
+export const HTML_DIFF_FIELDS = new Set(["description"]);
 
 const LEVEL_VALUE_LABELS: Record<string, string> = {
   beginner: "Sơ cấp",
@@ -78,6 +85,11 @@ export function formatDiffValue(field: string, value: unknown): string | null {
   if (field === "price") {
     const n = Number(value);
     return Number.isFinite(n) ? `${n.toLocaleString("vi-VN")}đ` : String(value);
+  }
+
+  if (HTML_DIFF_FIELDS.has(field)) {
+    const text = stripHtml(String(value));
+    return text.length > 0 ? text : null;
   }
 
   return String(value);
