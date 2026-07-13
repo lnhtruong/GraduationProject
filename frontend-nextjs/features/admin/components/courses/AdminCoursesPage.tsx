@@ -556,7 +556,7 @@ export default function AdminCoursesPage() {
                 : <>Bạn có chắc muốn <strong>từ chối</strong> khóa học <strong>"{confirmCourseAction?.course.name}"</strong>? Giảng viên sẽ cần chỉnh sửa và gửi lại.</>}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button variant="outline" onClick={() => setConfirmCourseAction(null)}>Huỷ</Button>
             <Button
               variant={confirmCourseAction?.type === "reject" ? "destructive" : "default"}
@@ -583,7 +583,7 @@ export default function AdminCoursesPage() {
                 : <>Xác nhận <strong>từ chối</strong> yêu cầu này? Giảng viên sẽ được thông báo.</>}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button variant="outline" onClick={() => setConfirmCRAction(null)}>Huỷ</Button>
             <Button
               variant={confirmCRAction?.type === "reject" ? "destructive" : "default"}
