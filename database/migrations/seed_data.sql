@@ -413,9 +413,9 @@ INSERT INTO
 VALUES (
         1,
         2,
-        'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953276/png_bddk0a.png',
         'job-mascot-eng-001',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000001/mascot/english_owl.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953276/png_bddk0a.png',
         'mascot/english_owl',
         'png',
         'Owl Teacher',
@@ -426,9 +426,9 @@ VALUES (
     (
         2,
         4,
-        'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953339/png_loer8y.png',
         'job-mascot-web-002',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000002/mascot/web_robot.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953339/png_loer8y.png',
         'mascot/web_robot',
         'png',
         'Web Robot',
@@ -439,9 +439,9 @@ VALUES (
     (
         3,
         5,
-        'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953354/png_zi24hq.png',
         'job-mascot-sys-003',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000003/mascot/server_cat.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953354/png_zi24hq.png',
         'mascot/server_cat',
         'png',
         'Server Cat',
@@ -452,9 +452,9 @@ VALUES (
     (
         4,
         6,
-        'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953363/png_xckpdj.png',
         'job-mascot-py-004',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000004/mascot/python_snake.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953363/png_xckpdj.png',
         'mascot/python_snake',
         'png',
         'Python Snake',
@@ -465,9 +465,9 @@ VALUES (
     (
         5,
         7,
-        'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953373/png_tkka1b.png',
         'job-mascot-des-005',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953373/png_tkka1b.png',
         'mascot/design_fox',
         'png',
         'Designer Fox',
@@ -478,9 +478,9 @@ VALUES (
     (
         6,
         8,
-        'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953391/png_sv3uxc.png',
         'job-mascot-mkt-006',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953391/png_sv3uxc.png',
         'mascot/marketing_dog',
         'png',
         'Marketing Dog',
@@ -491,9 +491,9 @@ VALUES (
     (
         7,
         9,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953404/png_i4acit.png',
         'job-mascot-vid-007',
-        'https://res.cloudinary.com/demo/image/upload/c_thumb,w_180/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953404/png_i4acit.png',
         'mascot/editor_panda',
         'png',
         'Editor Panda',
@@ -5518,7 +5518,7 @@ VALUES (
         2,
         'publish',
         3,
-        'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949711/pexels-photo-31666035_t5mara.jpg',
         '2025-09-20 12:00:00',
         '2025-09-20 12:00:00'
     ),
@@ -5534,7 +5534,7 @@ VALUES (
         2,
         'publish',
         21,
-        'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949766/pexels-photo-3182765_bxqrz1.jpg',
         '2025-09-20 12:30:00',
         '2025-09-20 12:30:00'
     ),
@@ -5550,7 +5550,7 @@ VALUES (
         3,
         'publish',
         30,
-        'https://res.cloudinary.com/demo/image/upload/v1700000001/mascot/english_owl.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949822/pexels-photo-6893112_ee7vkx.jpg',
         '2025-09-20 13:00:00',
         '2025-09-20 13:00:00'
     ),
@@ -5566,7 +5566,7 @@ VALUES (
         4,
         'publish',
         5,
-        'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949857/pexels-photo-34803990_vmcrcw.jpg',
         '2025-09-21 12:00:00',
         '2025-09-21 12:00:00'
     ),
@@ -5582,7 +5582,7 @@ VALUES (
         4,
         'publish',
         7,
-        'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949914/pexels-photo-31177212_pa5tqg.jpg',
         '2025-09-21 12:30:00',
         '2025-09-21 12:30:00'
     ),
@@ -5598,7 +5598,7 @@ VALUES (
         4,
         'publish',
         9,
-        'https://res.cloudinary.com/demo/image/upload/v1700000002/mascot/web_robot.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949948/pexels-photo-14553705_jj1mto.jpg',
         '2025-09-21 13:00:00',
         '2025-09-21 13:00:00'
     ),
@@ -5614,7 +5614,7 @@ VALUES (
         5,
         'publish',
         4,
-        'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783949976/pexels-photo-4508751_msegn9.jpg',
         '2025-09-22 12:00:00',
         '2025-09-22 12:00:00'
     ),
@@ -5630,7 +5630,7 @@ VALUES (
         5,
         'publish',
         29,
-        'https://res.cloudinary.com/demo/image/upload/v1700000003/mascot/server_cat.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950082/images_y4wuu0.jpg',
         '2025-09-22 12:30:00',
         '2025-09-22 12:30:00'
     ),
@@ -5646,7 +5646,7 @@ VALUES (
         6,
         'publish',
         8,
-        'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950118/pexels-photo-1181359_wus48n.jpg',
         '2025-09-23 12:00:00',
         '2025-09-23 12:00:00'
     ),
@@ -5662,7 +5662,7 @@ VALUES (
         6,
         'publish',
         28,
-        'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950146/pexels-photo-17483868_p8cpd0.jpg',
         '2025-09-23 12:30:00',
         '2025-09-23 12:30:00'
     ),
@@ -5678,7 +5678,7 @@ VALUES (
         6,
         'banned',
         19,
-        'https://res.cloudinary.com/demo/image/upload/v1700000004/mascot/python_snake.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950177/pexels-photo-16094041_ok7yfn.jpg',
         '2025-09-23 13:00:00',
         '2025-09-23 13:00:00'
     ),
@@ -5694,7 +5694,7 @@ VALUES (
         7,
         'publish',
         13,
-        'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950262/images_fvov6g.jpg',
         '2025-09-24 12:00:00',
         '2025-09-24 12:00:00'
     ),
@@ -5710,7 +5710,7 @@ VALUES (
         7,
         'publish',
         14,
-        'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950298/pexels-photo-7598019_lhl8an.jpg',
         '2025-09-24 12:30:00',
         '2025-09-24 12:30:00'
     ),
@@ -5726,7 +5726,7 @@ VALUES (
         7,
         'publish',
         24,
-        'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950343/images_gyr4qx.jpg',
         '2025-09-24 13:00:00',
         '2025-09-24 13:00:00'
     ),
@@ -5742,7 +5742,7 @@ VALUES (
         7,
         'publish',
         27,
-        'https://res.cloudinary.com/demo/image/upload/v1700000005/mascot/design_fox.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950412/images_k2cwt8.jpg',
         '2025-09-24 13:30:00',
         '2025-09-24 13:30:00'
     ),
@@ -5758,7 +5758,7 @@ VALUES (
         8,
         'publish',
         17,
-        'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950461/images_czrlfe.jpg',
         '2025-09-25 12:00:00',
         '2025-09-25 12:00:00'
     ),
@@ -5774,7 +5774,7 @@ VALUES (
         8,
         'publish',
         25,
-        'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950504/pexels-photo-4067126_czsunn.jpg',
         '2025-09-25 12:30:00',
         '2025-09-25 12:30:00'
     ),
@@ -5790,7 +5790,7 @@ VALUES (
         8,
         'publish',
         26,
-        'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950539/images_ilthxk.png',
         '2025-09-25 13:00:00',
         '2025-09-25 13:00:00'
     ),
@@ -5806,7 +5806,7 @@ VALUES (
         8,
         'pending',
         15,
-        'https://res.cloudinary.com/demo/image/upload/v1700000006/mascot/marketing_dog.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950600/images_j6mesq.jpg',
         '2025-09-25 13:30:00',
         '2025-09-25 13:30:00'
     ),
@@ -5822,7 +5822,7 @@ VALUES (
         9,
         'publish',
         18,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950655/images_ntkgvm.jpg',
         '2025-09-27 12:00:00',
         '2025-09-27 12:00:00'
     ),
@@ -5838,7 +5838,7 @@ VALUES (
         9,
         'publish',
         20,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950694/images_griys7.jpg',
         '2025-09-27 12:30:00',
         '2025-09-27 12:30:00'
     ),
@@ -5854,7 +5854,7 @@ VALUES (
         10,
         'publish',
         12,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950737/images_ybtmjm.jpg',
         '2025-09-26 12:00:00',
         '2025-09-26 12:00:00'
     ),
@@ -5870,7 +5870,7 @@ VALUES (
         10,
         'publish',
         22,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950784/images_vztls4.jpg',
         '2025-09-26 12:30:00',
         '2025-09-26 12:30:00'
     ),
@@ -5886,7 +5886,7 @@ VALUES (
         10,
         'pending',
         23,
-        'https://res.cloudinary.com/demo/image/upload/v1700000007/mascot/editor_panda.png',
+        'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950823/images_h4ymhq.jpg',
         '2025-09-26 13:00:00',
         '2025-09-26 13:00:00'
     );
