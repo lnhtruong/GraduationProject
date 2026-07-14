@@ -14,7 +14,6 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Film, ImageIcon, Users, VideoIcon } from "lucide-react";
 import { FollowingInstructorsGrid } from "./components/FollowingInstructorsGrid";
 import { ImageGrid } from "./components/ImageGrid";
@@ -94,17 +93,17 @@ export default function LibraryFeature() {
 							<TabsTrigger value="video" className="min-w-0 gap-1.5 px-2">
 								<VideoIcon className="h-4 w-4" />
 								<span className="truncate">{TAB_LABEL.video}</span>
-								<Badge variant="secondary">{tabStats.video}</Badge>
+								<span className="text-xs text-muted-foreground tabular-nums">{tabStats.video}</span>
 							</TabsTrigger>
 							<TabsTrigger value="mascot" className="min-w-0 gap-1.5 px-2">
 								<Film className="h-4 w-4" />
 								<span className="truncate">{TAB_LABEL.mascot}</span>
-								<Badge variant="secondary">{tabStats.mascot}</Badge>
+								<span className="text-xs text-muted-foreground tabular-nums">{tabStats.mascot}</span>
 							</TabsTrigger>
 							<TabsTrigger value="image" className="min-w-0 gap-1.5 px-2">
 								<ImageIcon className="h-4 w-4" />
 								<span className="truncate">{TAB_LABEL.image}</span>
-								<Badge variant="secondary">{tabStats.image}</Badge>
+								<span className="text-xs text-muted-foreground tabular-nums">{tabStats.image}</span>
 							</TabsTrigger>
 							<TabsTrigger value="following" className="min-w-0 gap-1.5 px-2">
 								<Users className="h-4 w-4" />
@@ -118,13 +117,13 @@ export default function LibraryFeature() {
 								tabLabel="Video"
 								isLoading={library.isLoading}
 								onPreview={(item) => {
-									setPreviewItem({ kind: "video", item, label: `Video #${item.id}` });
+									setPreviewItem({ kind: "video", item, label: getVideoLibraryLabel(item) });
 								}}
 								onDelete={(item) => {
 									setDeleteDialog({
 										tab: "video",
 										id: item.id,
-										label: `Video #${item.id}`,
+										label: getVideoLibraryLabel(item),
 									});
 								}}
 							/>
@@ -136,13 +135,13 @@ export default function LibraryFeature() {
 								tabLabel="Mascot"
 								isLoading={library.isLoading}
 								onPreview={(item) => {
-									setPreviewItem({ kind: "video", item, label: `Mascot #${item.id}` });
+									setPreviewItem({ kind: "video", item, label: getVideoLibraryLabel(item) });
 								}}
 								onDelete={(item) => {
 									setDeleteDialog({
 										tab: "mascot",
 										id: item.id,
-										label: `Mascot #${item.id}`,
+										label: getVideoLibraryLabel(item),
 									});
 								}}
 							/>
@@ -153,13 +152,13 @@ export default function LibraryFeature() {
 								items={library.images}
 								isLoading={library.isLoading}
 								onPreview={(item) => {
-									setPreviewItem({ kind: "image", item, label: `Image #${item.id}` });
+									setPreviewItem({ kind: "image", item, label: getImageLibraryLabel(item) });
 								}}
 								onDelete={(item) => {
 									setDeleteDialog({
 										tab: "image",
 										id: item.id,
-										label: `Image #${item.id}`,
+										label: getImageLibraryLabel(item),
 									});
 								}}
 							/>
@@ -209,6 +208,26 @@ export default function LibraryFeature() {
 			</AlertDialog>
 		</div>
 	);
+}
+
+function getVideoLibraryLabel(item: { name?: string | null; type?: string }): string {
+	const cleaned = formatLibraryLabel(item.name);
+	if (cleaned) return cleaned;
+	return item.type === "mascot" ? "Video mascot" : "Video highlight";
+}
+
+function getImageLibraryLabel(item: { created_at?: string }): string {
+	const formattedDate = item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "";
+	return formattedDate ? `Hình ảnh ${formattedDate}` : "Hình ảnh thư viện";
+}
+
+function formatLibraryLabel(value?: string | null): string | null {
+	const normalized = value?.trim();
+	if (!normalized) return null;
+	return normalized
+		.replace(/\.[a-z0-9]{2,5}$/i, "")
+		.replace(/[_-]+/g, " ")
+		.replace(/\s+/g, " ");
 }
 
 function toErrorMessage(error: unknown): string {

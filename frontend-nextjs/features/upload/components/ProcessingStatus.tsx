@@ -2,7 +2,6 @@
 
 import { type ElementType, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { UploadStatus } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
@@ -65,21 +64,21 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Loader2,
     progress: 50,
-    description: "Đang tải video lên LearnHub",
+    description: "Đang tải video lên StudyLoop",
   },
   pending: {
     label: "Đang chờ",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
     progress: 3,
-    description: "Video đã được nhận và đang chờ AI xử lý",
+    description: "Video đã được nhận và đang chờ xử lý",
   },
   processing: {
     label: "Đang cắt highlight",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Loader2,
     progress: 60,
-    description: "LearnHub đang phân tích nội dung và chọn đoạn đáng giữ",
+    description: "StudyLoop đang phân tích nội dung và chọn đoạn đáng giữ",
   },
   completed: {
     label: "Hoàn thành",
@@ -280,6 +279,22 @@ function getStageInfo(stage?: string, jobType?: string): StageInfo | undefined {
   return fallbackStageInfo(stage, isMultiHighlight);
 }
 
+function resolveTargetProgress(
+  status: UploadStatus,
+  statusProgress: number,
+  stageProgress?: number,
+  progressPercent?: number,
+) {
+  if (status === "failed") return 0;
+  if (status === "completed") return 100;
+
+  const values = [stageProgress, progressPercent, statusProgress].filter(
+    (value): value is number => typeof value === "number" && Number.isFinite(value),
+  );
+
+  return Math.max(0, Math.min(100, Math.max(...values)));
+}
+
 function ProcessingSteps({
   stage,
   jobType,
@@ -340,10 +355,12 @@ export default function ProcessingStatus({
   const Icon = config.icon;
   const stageInfo = getStageInfo(stage, jobType);
   const isMultiHighlight = isMultiHighlightJob(jobType, stage);
-  const targetProgress =
-    stageInfo?.progress ??
-    progressPercent ??
-    (status === "pending" ? STATUS_CONFIG.pending.progress : config.progress);
+  const targetProgress = resolveTargetProgress(
+    status,
+    status === "pending" ? STATUS_CONFIG.pending.progress : config.progress,
+    stageInfo?.progress,
+    progressPercent,
+  );
   const displayProgress = useAnimatedProgress(targetProgress);
   const displayLabel =
     status === "processing" && isMultiHighlight
@@ -390,9 +407,11 @@ export default function ProcessingStatus({
             <p className="text-sm text-muted-foreground">{displayStage}</p>
           </div>
         </div>
-        <Badge variant="outline" className={`w-fit shrink-0 ${config.color}`}>
-          {status === "failed" ? "Lỗi" : displayLabel}
-        </Badge>
+        {status === "failed" && (
+          <span className="w-fit shrink-0 rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700">
+            Lỗi
+          </span>
+        )}
       </div>
 
       {status !== "failed" && (
@@ -412,18 +431,12 @@ export default function ProcessingStatus({
         </Alert>
       )}
 
-      <div className="space-y-2">
-        {isDownloading && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Đang tải kết quả về...
-          </div>
-        )}
-
-        <div className="text-xs text-muted-foreground">
-          Cập nhật lần cuối: {new Date().toLocaleTimeString("vi-VN")}
+      {isDownloading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Đang chuẩn bị kết quả...
         </div>
-      </div>
+      )}
 
       {status === "processing" && (
         <ProcessingSteps stage={stage} jobType={jobType} />

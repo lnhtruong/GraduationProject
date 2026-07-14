@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { BRAND } from "@/lib/brand";
 
-const SITE_NAME = "LearnHub";
-const DEFAULT_IMAGE = "/logo.png";
+const SITE_NAME = BRAND.name;
+const DEFAULT_IMAGE = BRAND.ogImage;
 
 interface PageMetadataOptions {
   title: string;
@@ -84,11 +85,11 @@ export function buildCourseMetadata(
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 160) + "..."
-    : "Chi tiết khóa học hấp dẫn trên LearnHub.";
+    : `Chi tiết khóa học trên ${BRAND.name}.`;
 
   const title = titleSuffix ? `${course.name} ${titleSuffix}` : course.name;
     
-  const thumbnailUrl = course.video?.thumbnail || "/logo.png";
+  const thumbnailUrl = course.video?.thumbnail || BRAND.ogImage;
   const videoUrl = course.video?.url || undefined;
 
   return {

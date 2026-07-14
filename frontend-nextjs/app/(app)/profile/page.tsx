@@ -4,7 +4,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Hồ sơ cá nhân",
-  "Xem và cập nhật thông tin tài khoản, vai trò và hồ sơ cá nhân trên LearnHub.",
+  "Xem và cập nhật thông tin tài khoản, vai trò và hồ sơ cá nhân trên StudyLoop.",
 );
 
 export default function ProfilePage() {

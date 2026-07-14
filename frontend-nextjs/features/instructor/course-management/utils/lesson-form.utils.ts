@@ -45,7 +45,7 @@ export function buildInitialLessonValues(
 /**
  * Format video card content
  * @param title Video title
- * @param videoId Fallback ID for display
+ * @param videoId Legacy caller value, not shown to learners
  * @returns Formatted title for display
  */
 export function cleanVideoTitle(title?: string | null): string {
@@ -65,9 +65,10 @@ export function cleanVideoTitle(title?: string | null): string {
 
 export function getVideoCardTitle(
   title?: string | null,
-  videoId?: number,
+  _videoId?: number,
 ): string {
-  if (!title) return `Video #${videoId}`;
+  void _videoId;
+  if (!title) return "Video bài học";
   return cleanVideoTitle(title);
 }
 

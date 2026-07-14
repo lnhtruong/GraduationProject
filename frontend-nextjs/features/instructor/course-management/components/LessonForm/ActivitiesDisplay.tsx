@@ -21,7 +21,6 @@ interface Props {
 export function ActivitiesDisplay({
   activities,
   isLoading,
-  timelineCount = 0,
   onEditQuiz,
 }: Props) {
   return (
@@ -50,8 +49,6 @@ export function ActivitiesDisplay({
             <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs">
               {activities.map((activity) => {
                 const isQuiz = activity.activityType === "quiz";
-                const isPublic = activity.status === "published" || activity.status === "public";
-                const isDraft = activity.status === "draft";
 
                 return (
                   <button
@@ -83,8 +80,7 @@ export function ActivitiesDisplay({
                       </div>
                       <div className="min-w-0">
                         <p className="line-clamp-1 text-sm font-semibold text-foreground/95 group-hover:text-primary transition-colors duration-200">
-                          {activity.title ||
-                            `${isQuiz ? "Trắc nghiệm" : "Bài tập"} #${activity.id}`}
+                          {activity.title || getActivityFallbackTitle(isQuiz)}
                         </p>
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">
                           {isQuiz ? "Trắc nghiệm (Quiz)" : "Bài tập bổ trợ"}
@@ -116,4 +112,8 @@ export function ActivitiesDisplay({
       </CardContent>
     </Card>
   );
+}
+
+function getActivityFallbackTitle(isQuiz: boolean): string {
+  return isQuiz ? "Trắc nghiệm chưa đặt tên" : "Bài tập chưa đặt tên";
 }

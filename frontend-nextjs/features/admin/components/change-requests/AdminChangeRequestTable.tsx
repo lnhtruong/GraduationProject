@@ -181,7 +181,7 @@ export function AdminChangeRequestTable({
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* Course name */}
               <p className="min-w-0 flex-1 truncate text-sm font-medium leading-snug">
-                {req.course?.name ?? `Khoá học #${req.courseId}`}
+                {req.course?.name ?? "Khóa học liên quan"}
               </p>
 
               {/* Kind badge */}
@@ -210,7 +210,7 @@ export function AdminChangeRequestTable({
                   <User className="h-3 w-3" />
                   {req.requester
                     ? `${req.requester.firstName} ${req.requester.lastName}`.trim()
-                    : `#${req.requestedBy}`}
+                    : "Giảng viên"}
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />

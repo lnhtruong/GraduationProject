@@ -131,11 +131,11 @@ export function ActivityCreationDialog({
     isVideoPreparing || !lessonVideoId || !hasAiQuizSource,
   );
   const aiQuizBlockedReason = isVideoPreparing
-    ? "Video đang được upload hoặc xử lý trên Bunny. Vui lòng chờ hệ thống nhận URL video trước khi sinh Quiz AI."
+    ? "Video đang được upload hoặc xử lý trên Bunny. Vui lòng chờ hệ thống nhận URL video trước khi tạo quiz."
     : !lessonVideoId
-      ? "Bài học cần có video trước khi sinh Quiz AI."
+      ? "Bài học cần có video trước khi tạo quiz."
       : !hasAiQuizSource
-        ? "Video chưa có URL hoặc phụ đề để AI phân tích. Vui lòng chờ Bunny xử lý xong."
+        ? "Video chưa có URL hoặc phụ đề để tạo câu hỏi. Vui lòng chờ Bunny xử lý xong."
         : "";
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
@@ -219,7 +219,7 @@ export function ActivityCreationDialog({
 
   const handleCreateQuizAI = async (values: QuizAIFormValues) => {
     if (isAiQuizBlocked) {
-      toast.error(aiQuizBlockedReason || "Video chưa sẵn sàng để sinh Quiz AI.");
+      toast.error(aiQuizBlockedReason || "Video chưa sẵn sàng để tạo quiz.");
       return;
     }
     const readyVideoId = Number(lessonVideoId);
@@ -229,7 +229,7 @@ export function ActivityCreationDialog({
       const createdActivity = await createLessonActivityMutation.mutateAsync({
         lessonId,
         activityType: "quiz",
-        title: values.name.trim() || `Quiz AI: ${lessonTitle}`,
+        title: values.name.trim() || `Quiz từ video: ${lessonTitle}`,
         description: "AI_REVIEW_PENDING", // Hold from appearing on player timeline until approved
         orderIndex: nextOrderIndex,
         status: "draft",
@@ -256,7 +256,7 @@ export function ActivityCreationDialog({
       });
 
       const jobId = jobResp.jobId;
-      setStage("Đang gửi yêu cầu sinh câu hỏi...");
+      setStage("Đang gửi yêu cầu tạo câu hỏi...");
       setView("generating");
 
       if (sseRef.current) {
@@ -273,7 +273,7 @@ export function ActivityCreationDialog({
           if (payload.jobId === jobId) {
             const message = getErrorMessage(
               payload.error,
-              "Không thể sinh quiz. Vui lòng thử lại.",
+              "Không thể tạo quiz. Vui lòng thử lại.",
             );
             toast.error(message);
             setView("create");
@@ -284,11 +284,11 @@ export function ActivityCreationDialog({
         onQuizGenerated: (payload) => {
           if (payload.jobId === jobId) {
             if (payload.status === "completed") {
-              toast.success("Đã sinh câu hỏi thành công!");
+              toast.success("Đã tạo câu hỏi.");
               setGeneratedQuizId(payload.quizId);
               setView("review");
             } else {
-              toast.error("AI worker báo lỗi khi sinh câu hỏi.");
+              toast.error("Không thể tạo câu hỏi từ video.");
               setView("create");
             }
             setStage("");
@@ -303,7 +303,7 @@ export function ActivityCreationDialog({
 
 
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, "Không thể tạo yêu cầu sinh quiz."));
+      toast.error(getErrorMessage(err, "Không thể bắt đầu tạo quiz."));
     }
   };
 
@@ -324,7 +324,7 @@ export function ActivityCreationDialog({
     setView("create");
     setStage("");
     setGeneratedActivityId(null);
-    toast.info("Đã hủy và loại bỏ hoạt động Quiz AI đang sinh.");
+    toast.info("Đã hủy bản nháp quiz đang tạo.");
   };
 
   const handleCompleteReview = async () => {
@@ -340,7 +340,7 @@ export function ActivityCreationDialog({
         });
       } catch (err) {
         console.error("Failed to finalize activity description:", err);
-        toast.error("Không thể lưu Quiz AI. Vui lòng thử lại.");
+        toast.error("Không thể lưu quiz. Vui lòng thử lại.");
         return;
       }
       finalizedActivityIdsRef.current.add(activityId);
@@ -357,7 +357,7 @@ export function ActivityCreationDialog({
       ]);
     }
     setGeneratedActivityId(null);
-    toast.success("Đã lưu và hoàn tất Quiz AI!");
+    toast.success("Đã lưu quiz.");
     handleOpenChange(false);
     router.refresh();
   };
@@ -371,11 +371,11 @@ export function ActivityCreationDialog({
         <div className="flex h-full min-h-0 flex-col">
           <DialogHeader className="sticky top-0 z-20 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 pr-14 text-left sm:px-6 sm:pr-16">
             <DialogTitle className="text-xl font-bold">
-              {view === "review" ? "Duyệt bộ câu hỏi AI" : "Tạo hoạt động mới"}
+              {view === "review" ? "Duyệt câu hỏi" : "Tạo hoạt động mới"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
               {view === "review" 
-                ? "Kiểm tra và tinh chỉnh các câu hỏi được sinh bằng trí tuệ nhân tạo trước khi áp dụng." 
+                ? "Kiểm tra và chỉnh lại câu hỏi trước khi áp dụng vào bài học." 
                 : "Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học."}
             </DialogDescription>
             <Button
@@ -415,7 +415,7 @@ export function ActivityCreationDialog({
                     Quiz thủ công
                   </TabsTrigger>
                   <TabsTrigger value="quiz-ai" className="rounded-lg">
-                    Quiz AI ✨
+                    Quiz từ video
                   </TabsTrigger>
                   <TabsTrigger value="assignment" className="rounded-lg">
                     Bài tập

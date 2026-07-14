@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 
 interface Slide {
   title: string;
@@ -13,7 +13,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     title: "Trích xuất khoảnh khắc",
-    description: "Phân tích bài giảng và tự động cắt ghép các phân đoạn video ngắn (Highlights) cốt lõi.",
+    description: "Tìm các đoạn đáng xem trong bài giảng dài và biến chúng thành video ngắn dễ chia sẻ.",
     renderMockup: () => (
       <div className="w-full rounded-2xl border border-border/80 bg-card/60 p-4 shadow-xl backdrop-blur-md relative overflow-hidden h-72 flex flex-col justify-between">
         {/* Window header */}
@@ -24,7 +24,7 @@ const SLIDES: Slide[] = [
             <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
           </div>
           <div className="text-[11px] text-muted-foreground font-mono select-none">
-            trinh-bien-tap-video.app
+            studyloop.video
           </div>
           <div className="w-12" />
         </div>
@@ -78,7 +78,7 @@ const SLIDES: Slide[] = [
             <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
           </div>
           <div className="text-[11px] text-muted-foreground font-mono select-none">
-            trac-nghiem-on-tap.app
+            studyloop.quiz
           </div>
           <div className="w-12" />
         </div>
@@ -87,7 +87,7 @@ const SLIDES: Slide[] = [
         <div className="rounded-xl bg-background border border-border p-4 flex flex-col justify-between flex-1 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-[10px] font-bold text-primary tracking-wider uppercase flex items-center gap-1">
-              <Brain className="h-3 w-3" /> Câu hỏi ôn tập nhanh
+              <CircleCheck className="h-3 w-3" /> Câu hỏi ôn tập nhanh
             </div>
             <span className="text-[9px] text-muted-foreground">Câu hỏi 1/3</span>
           </div>
@@ -118,7 +118,7 @@ const SLIDES: Slide[] = [
   },
   {
     title: "Học tập tương tác",
-    description: "Đồng hành cùng Mascot AI giải đáp thắc mắc và tương tác trực quan ngay trong bài giảng.",
+    description: "Xem video ngắn, ôn tập nhanh và quay lại bài học gốc khi cần học sâu hơn.",
     renderMockup: () => (
       <div className="w-full rounded-2xl border border-border/80 bg-card/60 p-4 shadow-xl backdrop-blur-md relative overflow-hidden h-72 flex flex-col justify-between">
         {/* Window header */}
@@ -129,7 +129,7 @@ const SLIDES: Slide[] = [
             <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
           </div>
           <div className="text-[11px] text-muted-foreground font-mono select-none">
-            lop-hoc-tuong-tac.app
+            studyloop.learn
           </div>
           <div className="w-12" />
         </div>
@@ -148,11 +148,11 @@ const SLIDES: Slide[] = [
           <div className="z-10 flex flex-col items-center justify-center space-y-3 flex-1">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-primary to-amber-400 p-0.5 animate-pulse shadow-[0_0_15px_rgba(234,179,8,0.2)]">
               <div className="w-full h-full rounded-full bg-card flex items-center justify-center text-3xl">
-                🤖
+                SL
               </div>
             </div>
             <div className="px-3 py-1.5 rounded-2xl bg-card/95 border border-border text-[10px] text-foreground max-w-[80%] text-center shadow-md leading-relaxed">
-              &quot;Chào bạn! Mình có thể giúp gì cho bạn trong bài giảng hôm nay?&quot;
+              &quot;Mở bài học gốc khi bạn muốn học sâu hơn.&quot;
             </div>
           </div>
 

@@ -205,7 +205,7 @@ export function ProfileContent() {
             <CardHeader>
               <CardTitle>Chỉnh sửa thông tin cá nhân</CardTitle>
               <CardDescription>
-                Cập nhật tên và họ của bạn để mọi người dễ nhận ra bạn trên LearnHub.
+                Cập nhật tên và họ của bạn để mọi người dễ nhận ra bạn trên StudyLoop.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

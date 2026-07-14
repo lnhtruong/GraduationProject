@@ -2,7 +2,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Học khóa học",
-  "Tiếp tục học bài giảng, xem video và làm bài kiểm tra trong khóa học LearnHub.",
+  "Tiếp tục học bài giảng, xem video và làm bài kiểm tra trong khóa học StudyLoop.",
 );
 
 import CourseLearnPage from "@/features/courses/learn";

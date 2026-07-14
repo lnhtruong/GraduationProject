@@ -2,7 +2,7 @@ import { buildPageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPageMetadata({
   title: "Tìm kiếm bảng tin",
-  description: "Tìm các video bài học ngắn, chủ đề và nội dung học tập trên bảng tin LearnHub.",
+  description: "Tìm các video bài học ngắn, chủ đề và nội dung học tập trên bảng tin StudyLoop.",
   path: "/newsfeed/search",
 });
 

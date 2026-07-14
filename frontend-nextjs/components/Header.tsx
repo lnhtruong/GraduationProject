@@ -6,6 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   Briefcase,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   GraduationCap,
   Heart,
   LayoutDashboard,
@@ -25,6 +28,7 @@ import {
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/lib/brand";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -47,8 +51,8 @@ import { useUiModeStore } from "@/store/ui-mode";
 
 const LEARNER_NAV_ITEMS = [
   { label: "Trang chủ", href: "/" },
-  { label: "Newsfeed", href: "/newsfeed" },
-  { label: "Tạo Highlight", href: "/upload" },
+  { label: "Bảng tin", href: "/newsfeed" },
+  { label: "Tạo highlight", href: "/upload" },
 ];
 
 const TEACHER_NAV_ITEMS = [
@@ -71,6 +75,7 @@ export function Header() {
   const { viewMode, setViewMode } = useUiModeStore();
   const { theme, setTheme } = useTheme();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [menuView, setMenuView] = useState<"main" | "theme">("main");
   const canUseTeacherMode = canAccessInstructor(user?.role);
   const isTeacherMode = canUseTeacherMode && viewMode === "teacher";
   const shouldHideHeaderSearch = pathname.startsWith("/courses/search");
@@ -81,13 +86,8 @@ export function Header() {
   const navItems = useMemo(() => {
     if (isTeacherMode) return TEACHER_NAV_ITEMS;
 
-    return isAuthenticated
-      ? [
-          ...LEARNER_NAV_ITEMS,
-          { label: "Học của tôi", href: "/my-courses" },
-        ]
-      : LEARNER_NAV_ITEMS;
-  }, [isAuthenticated, isTeacherMode]);
+    return LEARNER_NAV_ITEMS;
+  }, [isTeacherMode]);
 
   useEffect(() => {
     if (
@@ -125,6 +125,29 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center gap-2 px-2 sm:gap-3 sm:px-5 lg:px-8">
         <BrandLogo />
 
+        {/* Nút menu Hamburger di động - Đặt bên phải logo */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-full border border-border/70 sm:h-10 sm:w-10 lg:hidden"
+              aria-label="Mở điều hướng"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60 lg:hidden">
+            <DropdownMenuLabel>Điều hướng</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {navItems.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link href={item.href}>{item.label}</Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href);
@@ -160,7 +183,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden h-9 w-9 rounded-full border border-border/70 sm:inline-flex sm:h-10 sm:w-10 lg:hidden"
+              className="h-9 w-9 rounded-full border border-border/70 sm:h-10 sm:w-10 lg:hidden"
               onClick={() => setIsMobileSearchOpen((value) => !value)}
               aria-label={isMobileSearchOpen ? "Đóng tìm kiếm" : "Mở tìm kiếm"}
             >
@@ -172,12 +195,13 @@ export function Header() {
             </Button>
           ) : null}
 
+
           {isAuthenticated && !isTeacherMode ? (
             <Button
               asChild
               variant="ghost"
               size="icon"
-              className="relative hidden h-10 w-10 rounded-full border border-border/70 sm:inline-flex"
+              className="relative h-9 w-9 rounded-full border border-border/70 sm:h-10 sm:w-10"
             >
               <Link href="/cart" aria-label="Giỏ hàng">
                 <ShoppingCart className="h-5 w-5" />
@@ -190,78 +214,58 @@ export function Header() {
             </Button>
           ) : null}
 
-          {isAuthenticated ? <NotificationBell className="hidden sm:inline-flex" /> : null}
+          {isAuthenticated ? <NotificationBell className="h-9 w-9 sm:h-10 sm:w-10 bg-transparent hover:bg-muted focus-visible:bg-muted data-[state=open]:bg-muted" /> : null}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-9 w-9 rounded-full border border-border/70 sm:inline-flex sm:h-10 sm:w-10"
-                aria-label="Đổi giao diện"
-              >
-                <ThemeIcon className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Giao diện</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={theme === "system"}
-                onCheckedChange={() => setTheme("system")}
-              >
-                <MonitorSmartphone className="mr-2 h-4 w-4" />
-                Theo thiết bị
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={theme === "light"}
-                onCheckedChange={() => setTheme("light")}
-              >
-                <Sun className="mr-2 h-4 w-4" />
-                Sáng
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={theme === "dark"}
-                onCheckedChange={() => setTheme("dark")}
-              >
-                <Moon className="mr-2 h-4 w-4" />
-                Tối
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full border border-border/70 sm:h-10 sm:w-10"
+                  aria-label="Đổi giao diện"
+                >
+                  <ThemeIcon className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Giao diện</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={theme === "system"}
+                  onCheckedChange={() => setTheme("system")}
+                >
+                  <MonitorSmartphone className="mr-2 h-4 w-4" />
+                  Theo thiết bị
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={theme === "light"}
+                  onCheckedChange={() => setTheme("light")}
+                >
+                  <Sun className="mr-2 h-4 w-4" />
+                  Sáng
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={theme === "dark"}
+                  onCheckedChange={() => setTheme("dark")}
+                >
+                  <Moon className="mr-2 h-4 w-4" />
+                  Tối
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0 rounded-full border border-border/70 sm:h-10 sm:w-10 lg:hidden"
-                aria-label="Mở điều hướng"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 lg:hidden">
-              <DropdownMenuLabel>Điều hướng</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {navItems.map((item) => (
-                <DropdownMenuItem key={item.href} asChild>
-                  <Link href={item.href}>{item.label}</Link>
-                </DropdownMenuItem>
-              ))}
-              {isAuthenticated && !isTeacherMode ? (
-                <DropdownMenuItem asChild>
-                  <Link href="/cart">
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Giỏ hàng của tôi
-                  </Link>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Menu cũ đã chuyển sang bên trái */}
 
           {isAuthenticated ? (
-            <DropdownMenu>
+            <DropdownMenu
+              onOpenChange={(open) => {
+                if (!open) {
+                  setMenuView("main");
+                }
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -274,92 +278,173 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>
-                  <div className="space-y-1">
-                    <p className="truncate text-sm font-semibold">{displayName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {getRoleName(user?.role ?? 0)}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                {user?.role === ROLES.ADMIN ? (
-                  <DropdownMenuItem asChild>
-                    <Link href={pathname.startsWith("/admin") ? "/" : "/admin"}>
-                      <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-                      {pathname.startsWith("/admin") ? "Về LearnHub" : "Quản trị"}
-                    </Link>
-                  </DropdownMenuItem>
-                ) : null}
-
-                {canUseTeacherMode ? (
-                  <DropdownMenuItem onClick={switchMode}>
-                    <MonitorPlay className="mr-2 h-4 w-4 text-primary" />
-                    {isTeacherMode ? "Chế độ học viên" : "LearnHub Studio"}
-                  </DropdownMenuItem>
-                ) : null}
-
-                <DropdownMenuSeparator />
-                {isTeacherMode ? (
+                {menuView === "main" ? (
                   <>
+                    <DropdownMenuLabel>
+                      <div className="space-y-1">
+                        <p className="truncate text-sm font-semibold">{displayName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {getRoleName(user?.role ?? 0)}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    {user?.role === ROLES.ADMIN ? (
+                      <DropdownMenuItem asChild>
+                        <Link href={pathname.startsWith("/admin") ? "/" : "/admin"}>
+                          <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
+                          {pathname.startsWith("/admin") ? `Về ${BRAND.name}` : "Quản trị"}
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : null}
+
+                    {canUseTeacherMode ? (
+                      <DropdownMenuItem onClick={switchMode}>
+                        <MonitorPlay className="mr-2 h-4 w-4 text-primary" />
+                        {isTeacherMode ? "Chế độ học viên" : "Khu giảng viên"}
+                      </DropdownMenuItem>
+                    ) : null}
+
+                    <DropdownMenuSeparator />
+                    {isTeacherMode ? (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/instructor/dashboard">
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                            Bảng điều khiển
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/instructor/courses">
+                            <BookOpen className="mr-2 h-4 w-4" />
+                            Quản lý khóa học
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/library">
+                            <Library className="mr-2 h-4 w-4" />
+                            Thư viện media
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/my-courses">
+                            <GraduationCap className="mr-2 h-4 w-4" />
+                            Học tập của tôi
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/workspace">
+                            <Briefcase className="mr-2 h-4 w-4" />
+                            Workspace của tôi
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/wishlist">
+                            <Heart className="mr-2 h-4 w-4" />
+                            Khóa học đã lưu
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setMenuView("theme");
+                      }}
+                      className="justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <ThemeIcon className="mr-2 h-4 w-4" />
+                        Giao diện:{" "}
+                        {theme === "light"
+                          ? "Sáng"
+                          : theme === "dark"
+                            ? "Tối"
+                            : "Theo thiết bị"}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/80" />
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/instructor/dashboard">
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Bảng điều khiển
+                      <Link href="/profile">
+                        <User className="mr-2 h-4 w-4" />
+                        Hồ sơ
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/instructor/courses">
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        Quản lý khóa học
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/library">
-                        <Library className="mr-2 h-4 w-4" />
-                        Thư viện media
-                      </Link>
+                    <DropdownMenuItem
+                      onClick={() => void logout()}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Đăng xuất
                     </DropdownMenuItem>
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/my-courses">
-                        <GraduationCap className="mr-2 h-4 w-4" />
-                        Học tập của tôi
-                      </Link>
+                    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/70 text-xs font-semibold text-muted-foreground">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-full hover:bg-muted"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuView("main");
+                        }}
+                      >
+                        <ChevronLeft className="h-4 w-4 text-foreground" />
+                      </Button>
+                      <span>Giao diện</span>
+                    </div>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTheme("system");
+                      }}
+                      className="flex items-center cursor-pointer"
+                    >
+                      <div className="w-6 flex shrink-0 items-center justify-center">
+                        {theme === "system" && <Check className="h-4 w-4 text-foreground" />}
+                      </div>
+                      <MonitorSmartphone className="mr-2 h-4 w-4" />
+                      <span>Theo thiết bị</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/workspace">
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        Workspace của tôi
-                      </Link>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTheme("light");
+                      }}
+                      className="flex items-center cursor-pointer"
+                    >
+                      <div className="w-6 flex shrink-0 items-center justify-center">
+                        {theme === "light" && <Check className="h-4 w-4 text-foreground" />}
+                      </div>
+                      <Sun className="mr-2 h-4 w-4" />
+                      <span>Sáng</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/wishlist">
-                        <Heart className="mr-2 h-4 w-4" />
-                        Khóa học đã lưu
-                      </Link>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTheme("dark");
+                      }}
+                      className="flex items-center cursor-pointer"
+                    >
+                      <div className="w-6 flex shrink-0 items-center justify-center">
+                        {theme === "dark" && <Check className="h-4 w-4 text-foreground" />}
+                      </div>
+                      <Moon className="mr-2 h-4 w-4" />
+                      <span>Tối</span>
                     </DropdownMenuItem>
                   </>
                 )}
-
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Hồ sơ
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => void logout()}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Đăng xuất
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -370,10 +455,10 @@ export function Header() {
               <Link
                 href={`/signin?returnUrl=${encodeURIComponent(pathname)}`}
                 aria-label="Đăng nhập"
-                className="flex items-center gap-1.5 overflow-hidden sm:overflow-visible"
+                className="flex items-center justify-center gap-1.5 overflow-hidden sm:overflow-visible"
               >
                 <User className="h-4 w-4" />
-                <span className="max-[420px]:sr-only">Đăng nhập</span>
+                <span className="hidden sm:inline">Đăng nhập</span>
               </Link>
             </Button>
           )}

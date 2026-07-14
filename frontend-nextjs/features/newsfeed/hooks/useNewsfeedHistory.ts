@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { NewsfeedItem } from "../types";
 
-const HISTORY_STORAGE_KEY = "learnhub.newsfeed.history.v1";
+const HISTORY_STORAGE_KEY = "studyloop.newsfeed.history.v1";
+const LEGACY_HISTORY_STORAGE_KEY = "learnhub.newsfeed.history.v1";
 const MAX_HISTORY_ITEMS = 60;
 
 function readHistoryFromStorage(): NewsfeedItem[] {
@@ -12,7 +13,9 @@ function readHistoryFromStorage(): NewsfeedItem[] {
 	}
 
 	try {
-		const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+		const raw =
+			window.localStorage.getItem(HISTORY_STORAGE_KEY) ??
+			window.localStorage.getItem(LEGACY_HISTORY_STORAGE_KEY);
 		if (!raw) {
 			return [];
 		}
@@ -36,18 +39,15 @@ function writeHistoryToStorage(items: NewsfeedItem[]) {
 	}
 
 	window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items.slice(0, MAX_HISTORY_ITEMS)));
+	window.localStorage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
 }
 
 export function useNewsfeedHistory() {
-	const [items, setItems] = useState<NewsfeedItem[]>([]);
-
-	useEffect(() => {
-		setItems(readHistoryFromStorage());
-	}, []);
+	const [items, setItems] = useState<NewsfeedItem[]>(() => readHistoryFromStorage());
 
 	useEffect(() => {
 		const handleStorage = (event: StorageEvent) => {
-			if (event.key !== HISTORY_STORAGE_KEY) {
+			if (event.key !== HISTORY_STORAGE_KEY && event.key !== LEGACY_HISTORY_STORAGE_KEY) {
 				return;
 			}
 			setItems(readHistoryFromStorage());
@@ -74,6 +74,7 @@ export function useNewsfeedHistory() {
 		setItems([]);
 		if (typeof window !== "undefined") {
 			window.localStorage.removeItem(HISTORY_STORAGE_KEY);
+			window.localStorage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
 		}
 	}, []);
 

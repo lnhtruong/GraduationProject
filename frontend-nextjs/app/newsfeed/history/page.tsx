@@ -2,7 +2,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Lịch sử xem",
-  "Theo dõi lịch sử xem video bài học ngắn của bạn trên LearnHub.",
+  "Theo dõi lịch sử xem video bài học ngắn của bạn trên StudyLoop.",
 );
 
 import { NewsfeedCollectionPage } from "@/features/newsfeed/components/NewsfeedCollectionPage";
