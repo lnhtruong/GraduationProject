@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, Clapperboard, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Loader2, Upload, Clapperboard, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
@@ -107,8 +107,16 @@ export function VideoSelectionSection({
   const [isVideoPickerOpen, setIsVideoPickerOpen] = useState(!selectedVideoId);
   const [isVideoSseConnected, setIsVideoSseConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const selectedUploadVideoRef = useRef<number | null>(null);
+  const refreshedUploadVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
+
+  const {
+    session,
+    startUpload,
+    retryUpload,
+    clearSession,
+    isUploadBlocking,
+  } = useLessonVideoUpload();
 
   useEffect(() => {
     onDraftVideoChangeRef.current = onDraftVideoChange;
@@ -117,8 +125,44 @@ export function VideoSelectionSection({
   // Video Library Pagination
   const PAGE_SIZE = 6;
   const [page, setPage] = useState(1);
-  const totalItems = userVideos?.length ?? 0;
+
+  const libraryVideos = useMemo(() => {
+    const videos = userVideos ?? [];
+    if (!session.videoId) return videos;
+
+    const hasPendingUploadRow = videos.some(
+      (video) => String(video.id) === String(session.videoId),
+    );
+    if (hasPendingUploadRow) return videos;
+
+    return [
+      {
+        id: session.videoId,
+        url: session.readyVideoUrl ?? session.initialVideoUrl,
+        duration: previewDuration,
+        created_at: new Date().toISOString(),
+        type: "long",
+        thumbnail: "processing",
+        name: session.fileName,
+      },
+      ...videos,
+    ];
+  }, [
+    previewDuration,
+    session.fileName,
+    session.initialVideoUrl,
+    session.readyVideoUrl,
+    session.videoId,
+    userVideos,
+  ]);
+
+  const totalItems = libraryVideos.length;
   const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+
+  const displayedVideos = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE;
+    return libraryVideos.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [libraryVideos, page]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -126,22 +170,6 @@ export function VideoSelectionSection({
       return () => window.clearTimeout(timer);
     }
   }, [page, totalPages]);
-
-  const displayedVideos = useMemo(() => {
-    if (!userVideos) return [];
-    const startIndex = (page - 1) * PAGE_SIZE;
-    return userVideos.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [userVideos, page]);
-
-
-  const {
-    session,
-    startUpload,
-    retryUpload,
-    cancelUpload,
-    clearSession,
-    isUploadBlocking,
-  } = useLessonVideoUpload();
 
   useEffect(() => {
     onUploadStateChange?.(isUploadBlocking);
@@ -167,10 +195,11 @@ export function VideoSelectionSection({
 
   useEffect(() => {
     if (!session.videoId) return;
-    if (selectedUploadVideoRef.current === session.videoId) return;
-    selectedUploadVideoRef.current = session.videoId;
-    onVideoSelect(session.videoId);
-  }, [session.videoId, onVideoSelect]);
+    if (refreshedUploadVideoRef.current === session.videoId) return;
+
+    refreshedUploadVideoRef.current = session.videoId;
+    void onRefreshVideos?.();
+  }, [onRefreshVideos, session.videoId]);
 
   const onPickFile = () => {
     if (isUploadBlocking) return;
@@ -193,6 +222,7 @@ export function VideoSelectionSection({
     const fileName = file.name;
     setPreviewBlobUrl(blobUrl);
     setPreviewFileName(fileName);
+    setIsVideoPickerOpen(false);
     onDraftVideoChangeRef.current?.({
       blobUrl,
       durationSeconds: null,
@@ -370,12 +400,6 @@ export function VideoSelectionSection({
     setIsVideoPickerOpen(true);
   };
 
-  const handleCancelVideoPicker = () => {
-    if (hasActiveVideo) {
-      setIsVideoPickerOpen(false);
-    }
-  };
-
   const handleLibraryVideoSelect = (videoId: number) => {
     onVideoSelect(videoId);
     setIsVideoPickerOpen(false);
@@ -397,6 +421,8 @@ export function VideoSelectionSection({
       statusText = "Đang tải lên...";
     } else if (session.status === "failed") {
       statusText = "Lỗi tải lên";
+    } else if (session.status === "processing") {
+      statusText = "Đang xử lý...";
     } else if (session.status !== "completed") {
       statusText = "Đang chuẩn bị";
     }
@@ -421,7 +447,8 @@ export function VideoSelectionSection({
         onChange={onFileChange}
       />
 
-      {hasActiveVideo ? (
+      {/* Active Video Card (only render if there is an active video and picker is closed) */}
+      {hasActiveVideo && !isVideoPickerOpen ? (
         <div className="space-y-4 min-w-0">
           <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm transition hover:shadow-md">
             {/* Header info */}
@@ -461,135 +488,97 @@ export function VideoSelectionSection({
               />
             </div>
 
-
-            {/* Actions Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-4 py-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleOpenVideoPicker}
-                className="h-9 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
-              >
-                <Clapperboard className="mr-1.5 h-3.5 w-3.5" />
-                Chọn video khác
-              </Button>
-            </div>
-          </div>
-
-          {/* Upload progress if active */}
-          {showStatus && (
-            <div className="rounded-xl border border-border/60 bg-background/80 px-4 py-3.5 text-xs shadow-sm">
-              <div className="flex items-center justify-between gap-2 font-medium">
-                {session.status === "processing" ? (
-                  <p className="text-foreground flex items-center gap-1.5">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                    Video vẫn đang được xử lý.
-                  </p>
-                ) : session.status === "initializing" ? (
-                  <p className="text-foreground">Đang khởi tạo upload...</p>
-                ) : session.status === "uploading" ? (
-                  <p className="text-foreground">
-                    Đang upload...{" "}
-                    <span className="font-semibold text-primary">
-                      {Math.max(0, Math.min(100, session.progressPercent))}%
-                    </span>
-                  </p>
-                ) : session.status === "failed" ? (
-                  <p className="text-destructive">
-                    {getUserFacingErrorMessage(
-                      session.error,
-                      "Upload thất bại. Vui lòng thử lại.",
-                    )}
-                  </p>
-                ) : session.status === "canceled" ? (
-                  <p className="text-muted-foreground">Đã hủy upload.</p>
-                ) : null}
-              </div>
-
-              {(session.status === "uploading" ||
-                session.status === "initializing") && (
-                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted shadow-inner">
-                  <div
-                    className="h-full bg-primary transition-[width] duration-300 rounded-full"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, session.progressPercent))}%`,
-                    }}
-                  />
+            {/* Upload progress if active */}
+            {showStatus && (
+              <div className="border-t border-border/60 bg-background/80 px-4 py-3.5 text-xs">
+                <div className="flex items-center justify-between gap-2 font-medium">
+                  {session.status === "processing" ? (
+                    <p className="text-foreground flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      Video vẫn đang được xử lý.
+                    </p>
+                  ) : session.status === "initializing" ? (
+                    <p className="text-foreground">Đang khởi tạo upload...</p>
+                  ) : session.status === "uploading" ? (
+                    <p className="text-foreground">
+                      Đang tải lên...{" "}
+                      <span className="font-semibold text-primary">
+                        {Math.max(0, Math.min(100, session.progressPercent))}%
+                      </span>
+                    </p>
+                  ) : session.status === "failed" ? (
+                    <p className="text-destructive">
+                      {getUserFacingErrorMessage(
+                        session.error,
+                        "Upload thất bại. Vui lòng thử lại.",
+                      )}
+                    </p>
+                  ) : session.status === "canceled" ? (
+                    <p className="text-muted-foreground">Đã hủy upload.</p>
+                  ) : null}
                 </div>
-              )}
 
-              <div className="mt-3 flex items-center gap-2">
                 {(session.status === "uploading" ||
                   session.status === "initializing") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2.5 text-[11px] font-medium"
-                    onClick={() => {
-                      void cancelUpload();
-                    }}
-                  >
-                    Hủy upload
-                  </Button>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted shadow-inner">
+                    <div
+                      className="h-full bg-primary transition-[width] duration-300 rounded-full"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, session.progressPercent))}%`,
+                      }}
+                    />
+                  </div>
                 )}
-                {(session.status === "failed" || session.status === "canceled") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2.5 text-[11px] font-medium"
-                    onClick={() => {
-                      void retryUpload();
-                    }}
-                  >
-                    Thử lại
-                  </Button>
-                )}
+
                 {(session.status === "failed" ||
                   session.status === "canceled") && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 rounded-lg border-border/70 px-3 text-[11px] font-semibold text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
-                    onClick={clearSession}
-                  >
-                    Ẩn thông báo
-                  </Button>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-[11px] font-medium"
+                      onClick={() => {
+                        void retryUpload();
+                      }}
+                    >
+                      Thử lại
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg border-border/70 px-3 text-[11px] font-semibold text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                      onClick={clearSession}
+                    >
+                      Ẩn thông báo
+                    </Button>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Actions Footer */}
+            {!isUploadBlocking && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-4 py-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenVideoPicker}
+                  className="h-9 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                >
+                  <Clapperboard className="mr-1.5 h-3.5 w-3.5" />
+                  Chọn video khác
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
-      {isVideoPickerOpen ? (
+      {isVideoPickerOpen && !isUploadBlocking ? (
         <div className="space-y-6 animate-fadeIn">
-          {hasActiveVideo ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Chọn video thay thế
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Video hiện tại vẫn giữ nguyên cho đến khi bạn chọn video mới.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-fit gap-1.5 text-xs"
-                onClick={handleCancelVideoPicker}
-              >
-                <X className="h-3.5 w-3.5" />
-                Đóng
-              </Button>
-            </div>
-          ) : null}
-
           {/* Upload Zone */}
           <div
             role="button"

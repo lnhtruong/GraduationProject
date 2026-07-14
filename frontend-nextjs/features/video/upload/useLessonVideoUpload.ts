@@ -277,11 +277,15 @@ export function useLessonVideoUpload() {
 
     const stream = createMediaUploadStream(
       {
+        onOpen: () => {
+          lessonVideoUploadManager.notifySSEConnection(true);
+        },
         onProgress: (data) => {
           try {
             // Support both old format (videoId) and new format (jobId/stage)
             const vid = data?.videoId ?? null;
             if (vid && String(vid) === String(session.videoId)) {
+              lessonVideoUploadManager.notifySSEActivity();
               patchSession({
                 status: "processing",
                 progressPercent: data.progress ?? 100,
@@ -322,6 +326,7 @@ export function useLessonVideoUpload() {
               null;
             // Match by videoId from webhook/SSE. Polling remains the fallback.
             if (videoId && String(videoId) === String(session.videoId)) {
+              lessonVideoUploadManager.notifySSEActivity();
               void (async () => {
                 lessonVideoUploadManager.completeFromRealtime(Number(videoId));
                 let readyVideoUrl = completedUrl;
@@ -364,6 +369,7 @@ export function useLessonVideoUpload() {
         },
 
         onConnectionError: (error) => {
+          lessonVideoUploadManager.notifySSEConnection(false);
           console.error("[useLessonVideoUpload] SSE connection error:", error);
         },
       },
