@@ -58,7 +58,7 @@ function buildCartItems(raw: CartItemRaw[]): CartItem[] {
     return {
       id: item.id,
       courseId: item.courseId,
-      title: c?.name ?? `Khoá học #${item.courseId}`,
+      title: c?.name ?? "Khóa học trong giỏ",
       instructorName,
       thumbnailUrl: c?.video?.thumbnail,
       level: c?.level ?? "Beginner",

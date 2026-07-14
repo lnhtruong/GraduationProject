@@ -23,6 +23,7 @@ import type {
   HighlightParams,
   UploadHookReturn,
   UploadState,
+  UploadStatus,
 } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { videoApi } from "@/features/video/api/video.api";
@@ -422,11 +423,11 @@ async function uploadFileToBunny(
 
   const videoUrl = initResponse.url ?? initResponse.originalUrl ?? null;
   if (!videoUrl) {
-    throw new Error("LearnHub chưa trả về URL video gốc để xử lý.");
+    throw new Error("Hệ thống chưa trả về URL video gốc để xử lý.");
   }
 
   if (!isBunnyOriginalUrl(videoUrl)) {
-    throw new Error("LearnHub chÆ°a tráº£ vá» URL /original cá»§a Bunny Ä‘á»ƒ táº¡o highlight.");
+    throw new Error("Hệ thống chưa trả về URL /original của Bunny để tạo highlight.");
   }
 
   // TUS completion means the original file is available. Highlight processing
@@ -647,7 +648,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           isDownloading: false,
           progress: null,
           progressPercent: 100,
-          jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
+          jobType: readJobType(payload as unknown as UploadEventEnvelope) ?? prev.jobType,
           stage: "Hoàn thành",
         };
       });
@@ -657,7 +658,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       lastSseEventAtRef.current = Date.now();
       sseConnectionFailedRef.current = false;
       setState((prev) => {
-        const errorJobId = readEventJobId(payload as UploadEventEnvelope);
+        const errorJobId = readEventJobId(payload as unknown as UploadEventEnvelope);
         if (prev.jobId && !errorJobId) {
           return prev;
         }
@@ -938,7 +939,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       sourceVideoUrl: null,
       createdProjectId: null,
       error: null,
-      stage: "Đang tải video lên LearnHub",
+      stage: "Đang tải video lên hệ thống",
       progressPercent: undefined,
       jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
     });
@@ -970,7 +971,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
         progress: null,
         error: getUserFacingErrorMessage(
           error,
-          "Không thể tải video lên LearnHub hoặc tạo highlight.",
+          "Không thể tải video lên hệ thống hoặc tạo highlight.",
         ),
       }));
     }

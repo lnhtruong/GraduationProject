@@ -193,7 +193,7 @@ export function CourseTransactionSheet({ course, open, onClose }: Props) {
                           {item.paidAt ? formatDateTime(item.paidAt) : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                          Người dùng #{item.buyerUserId}
+                          Người mua
                         </td>
                         <td className="px-3 py-2.5 text-right text-xs font-medium tabular-nums">
                           {formatVND(item.price)}

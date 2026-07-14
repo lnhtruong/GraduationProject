@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -80,14 +79,13 @@ export function VideoGrid({
 								<span>{formatDate(item.created_at)}</span>
 							</div>
 							<div className="flex items-center justify-between gap-2">
-								<Badge variant="outline" className="text-[11px]">
-									{item.type}
-								</Badge>
+								<span className="text-[11px] text-muted-foreground">{formatVideoKind(item.type)}</span>
 								<Button
 									size="icon"
 									variant="ghost"
 									className="h-7 w-7 text-destructive hover:bg-destructive/10"
 									onClick={() => onDelete(item)}
+									aria-label="Xóa video khỏi thư viện"
 								>
 									<Trash2 className="h-4 w-4" />
 								</Button>
@@ -135,4 +133,10 @@ function formatDuration(duration: number | null): string {
 	const minutes = Math.floor((total % 3600) / 60);
 	const seconds = total % 60;
 	return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function formatVideoKind(type: string): string {
+	if (type === "mascot") return "Video hoàn chỉnh";
+	if (type === "long" || type === "full") return "Video bài học";
+	return "Video highlight";
 }

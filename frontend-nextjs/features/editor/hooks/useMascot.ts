@@ -95,10 +95,10 @@ export function useMascot() {
         try {
           return (
             new URL(videoSrc).pathname.split("/").filter(Boolean).pop() ||
-            "learnhub-video.mp4"
+            "studyloop-video.mp4"
           );
         } catch {
-          return "learnhub-video.mp4";
+          return "studyloop-video.mp4";
         }
       })(),
     position: mascotOption.position,

@@ -26,7 +26,7 @@ import type { HighlightParams } from "@/features/upload/types";
 
 type SourceMode = "file" | "existing-video";
 
-function isAllowedLearnHubVideoUrl(value: string) {
+function isAllowedStudyLoopVideoUrl(value: string) {
   try {
     const url = new URL(value);
     const hostname = url.hostname.toLowerCase();
@@ -119,8 +119,8 @@ export function HighlightUploadDialog({
       void startUpload(file, params);
     } else {
       const trimmedUrl = existingVideoUrl.trim();
-      if (!isAllowedLearnHubVideoUrl(trimmedUrl)) {
-        toast.error("Vui lòng nhập link video LearnHub hợp lệ.");
+      if (!isAllowedStudyLoopVideoUrl(trimmedUrl)) {
+        toast.error("Vui lòng nhập link video StudyLoop hợp lệ.");
         return;
       }
       void startFromExistingVideo(trimmedUrl, params);
@@ -223,7 +223,7 @@ export function HighlightUploadDialog({
                 <TabsContent value="existing-video" className="mt-4">
                   <Card className="flex min-h-[20rem] flex-col justify-center space-y-5 rounded-2xl border-2 border-dashed border-slate-300 bg-background p-4 shadow-none transition-all duration-200 focus-within:border-primary/60 sm:p-6">
                     <div>
-                      <h2 className="font-semibold">Nhập link video LearnHub</h2>
+                      <h2 className="font-semibold">Nhập link video StudyLoop</h2>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         Dán đường dẫn video đã upload hoặc link CDN để tạo highlight ngay trong feed.
                       </p>
@@ -231,13 +231,13 @@ export function HighlightUploadDialog({
 
                     <div className="space-y-2">
                       <Label htmlFor="feed-existing-video-url">
-                        Link video LearnHub
+                        Link video StudyLoop
                       </Label>
                       <Input
                         id="feed-existing-video-url"
                         value={existingVideoUrl}
                         onChange={(event) => setExistingVideoUrl(event.target.value)}
-                        placeholder="Dán link video đã upload trên LearnHub..."
+                        placeholder="Dán link video đã upload trên StudyLoop..."
                         className="h-11"
                       />
                       <p className="text-xs text-muted-foreground">
@@ -248,8 +248,8 @@ export function HighlightUploadDialog({
                     <Button
                       type="button"
                       onClick={() => {
-                        if (!isAllowedLearnHubVideoUrl(existingVideoUrl.trim())) {
-                          toast.error("Vui lòng nhập link video LearnHub hợp lệ.");
+                        if (!isAllowedStudyLoopVideoUrl(existingVideoUrl.trim())) {
+                          toast.error("Vui lòng nhập link video StudyLoop hợp lệ.");
                           return;
                         }
                         setShowForm(true);

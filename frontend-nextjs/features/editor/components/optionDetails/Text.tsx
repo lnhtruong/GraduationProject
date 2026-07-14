@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Plus, Trash2 } from "lucide-react";
 import type { TextOption } from "@/features/editor/types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,9 +70,9 @@ export default function TextOptions({
           <Label htmlFor="text-content" className="text-sm font-semibold">
             Nội dung
           </Label>
-          <Badge variant="secondary" className="font-mono text-[10px]">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {value.text.length} ký tự
-          </Badge>
+          </span>
         </div>
         <Textarea
           id="text-content"
@@ -279,6 +278,7 @@ export default function TextOptions({
               )}
               style={{ backgroundColor: color.value }}
               title={color.name}
+              aria-label={`Chọn màu ${color.name}`}
             />
           ))}
         </div>
@@ -291,6 +291,7 @@ export default function TextOptions({
               update({ color: event.target.value });
             }}
             className="h-10 w-14 cursor-pointer rounded-xl p-1"
+            aria-label="Chọn màu chữ"
           />
           <Input
             type="text"
@@ -298,6 +299,7 @@ export default function TextOptions({
             onChange={(event) => update({ color: event.target.value })}
             placeholder="#FFFFFF"
             className="h-10 min-w-0 flex-1 rounded-xl font-mono text-sm"
+            aria-label="Mã màu chữ"
           />
         </div>
       </section>
@@ -349,9 +351,9 @@ function PositionSlider({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">{label}</Label>
-        <Badge variant="secondary" className="font-mono text-xs">
+        <span className="font-mono text-xs text-muted-foreground">
           {value}%
-        </Badge>
+        </span>
       </div>
       <Slider
         value={[value]}

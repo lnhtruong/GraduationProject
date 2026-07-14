@@ -44,7 +44,7 @@ export default function UploadProgress({
             <p className="text-sm font-medium">
               {(progress ?? 0) >= 99
                 ? "Đang chuẩn bị phân tích video..."
-                : "Đang tải video lên LearnHub..."}
+                : "Đang tải video lên StudyLoop..."}
             </p>
             <p className="text-xs text-muted-foreground">
               Vui lòng giữ trang này mở cho đến khi upload hoàn tất.

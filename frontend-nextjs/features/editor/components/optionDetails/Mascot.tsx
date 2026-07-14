@@ -16,7 +16,6 @@ import {
 import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
 import type { MascotOption } from "@/features/editor/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -405,9 +404,9 @@ export default function MascotOptions({
           <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Kích thước</Label>
-              <Badge variant="secondary" className="font-mono text-xs">
+              <span className="font-mono text-xs text-muted-foreground">
                 {value.scale.toFixed(2)}x
-              </Badge>
+              </span>
             </div>
             <Slider
               value={[value.scale * 100]}
@@ -676,10 +675,10 @@ function RangeSetting({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">{label}</Label>
-        <Badge variant="secondary" className="font-mono text-xs">
+        <span className="font-mono text-xs text-muted-foreground">
           {value.toFixed(1)}
           {suffix}
-        </Badge>
+        </span>
       </div>
       <Slider
         value={[value]}

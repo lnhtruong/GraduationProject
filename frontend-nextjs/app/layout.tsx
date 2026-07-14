@@ -5,26 +5,20 @@ import { QueryProvider } from "../components/providers/QueryProvider";
 import { AuthProvider } from "../components/providers/AuthProvider";
 import { Toaster } from "../components/ui/sonner";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
-  applicationName: "LearnHub",
+  applicationName: BRAND.name,
   title: {
-    template: "%s | LearnHub",
-    default: "LearnHub - Nền tảng học tập qua video ngắn thông minh",
+    template: `%s | ${BRAND.name}`,
+    default: BRAND.title,
   },
-  description: "Nền tảng học tập qua video ngắn và công cụ AI biên tập video, dựng khóa học tối ưu.",
-  keywords: [
-    "LearnHub",
-    "hoc truc tuyen",
-    "khoa hoc online",
-    "video bai hoc ngan",
-    "AI video editor",
-    "lms",
-  ],
-  authors: [{ name: "LearnHub" }],
-  creator: "LearnHub",
-  publisher: "LearnHub",
+  description: BRAND.description,
+  keywords: [...BRAND.keywords],
+  authors: [{ name: BRAND.name }],
+  creator: BRAND.name,
+  publisher: BRAND.name,
   robots: {
     index: true,
     follow: true,
@@ -39,28 +33,28 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "vi_VN",
-    siteName: "LearnHub",
-    title: "LearnHub - Nền tảng học tập qua video ngắn thông minh",
-    description: "Nền tảng học tập qua video ngắn và công cụ AI biên tập video, dựng khóa học tối ưu.",
+    siteName: BRAND.name,
+    title: BRAND.title,
+    description: BRAND.description,
     images: [
       {
-        url: "/logo.png",
+        url: BRAND.ogImage,
         width: 1200,
         height: 630,
-        alt: "LearnHub",
+        alt: BRAND.name,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "LearnHub - Nền tảng học tập qua video ngắn thông minh",
-    description: "Nền tảng học tập qua video ngắn và công cụ AI biên tập video, dựng khóa học tối ưu.",
-    images: ["/logo.png"],
+    title: BRAND.title,
+    description: BRAND.description,
+    images: [BRAND.ogImage],
   },
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: BRAND.icon,
+    shortcut: BRAND.icon,
+    apple: BRAND.appleIcon,
   },
 };
 

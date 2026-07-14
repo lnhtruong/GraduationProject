@@ -201,6 +201,7 @@ export default function RoadmapCreate() {
 
   return (
     <ManagementPageShell
+      noCard
       title="Tạo lộ trình mới"
       description="Đặt thông tin và chọn khóa học theo đúng thứ tự học."
       breadcrumbs={[
@@ -208,19 +209,24 @@ export default function RoadmapCreate() {
         { label: "Tạo mới" },
       ]}
       action={
-        <Button type="submit" form="create-roadmap-form" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          form="create-roadmap-form"
+          disabled={isSubmitting}
+          className="h-11 rounded-xl px-5"
+        >
           {isSubmitting ? "Đang tạo..." : "Tạo lộ trình"}
         </Button>
       }
     >
-      <div className="space-y-6 p-3 sm:p-4 lg:p-5">
+      <div className="space-y-5">
         <form
           id="create-roadmap-form"
-          className="space-y-6"
+          className="space-y-5"
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
         >
-          <Card className="border-border/40 shadow-sm">
-            <CardContent className="space-y-5 p-4 sm:p-5">
+          <Card className="rounded-2xl border-border/60 shadow-sm">
+            <CardContent className="space-y-5 p-5 sm:p-6">
               <div className="grid gap-2">
                 <Label className="text-sm font-medium">
                   Tên lộ trình <span className="text-destructive">*</span>

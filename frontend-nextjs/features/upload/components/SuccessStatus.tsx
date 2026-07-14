@@ -31,7 +31,7 @@ export default function SuccessStatus({
             {isFeedMode
               ? "Video đã được tạo xong và có thể dùng cho feed khóa học."
               : isSingleClip
-                ? "Bạn có thể xem lại kết quả, tải xuống hoặc mở Studio để chỉnh tiếp."
+                ? "Bạn có thể xem lại kết quả hoặc mở Studio để chỉnh tiếp."
                 : `${clipsCount} đoạn đã được tạo. Hãy chọn đoạn phù hợp trong danh sách kết quả bên dưới.`}
           </p>
         </div>

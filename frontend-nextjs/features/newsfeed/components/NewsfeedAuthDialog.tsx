@@ -34,7 +34,7 @@ const authActionContent: Record<
 > = {
   like: {
     title: "Đăng nhập để thả tim",
-    description: "LearnHub sẽ đưa bạn quay lại đúng video này sau khi đăng nhập.",
+    description: "StudyLoop sẽ đưa bạn quay lại đúng video này sau khi đăng nhập.",
     Icon: Heart,
     iconClassName: "fill-primary/15 text-primary",
   },

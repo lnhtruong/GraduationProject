@@ -3,7 +3,7 @@ import AdminRevenuePage from "@/features/admin/components/revenue/AdminRevenuePa
 
 export const metadata = buildPrivatePageMetadata(
   "Doanh thu",
-  "Theo dõi doanh thu, giao dịch và hiệu quả kinh doanh của LearnHub.",
+  "Theo dõi doanh thu, giao dịch và hiệu quả kinh doanh của StudyLoop.",
 );
 
 export default function Page() {

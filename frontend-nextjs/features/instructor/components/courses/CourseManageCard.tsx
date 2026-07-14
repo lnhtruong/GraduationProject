@@ -159,7 +159,7 @@ export function CourseManageCard({
           course.thumbnailUrl ? "hidden" : ""
         )}>
           <GraduationCap className="h-10 w-10 text-primary/40 stroke-[1.5] mb-2" />
-          <span className="text-[10px] font-semibold tracking-wider uppercase opacity-60">LearnHub Course</span>
+          <span className="text-[10px] font-semibold tracking-wider uppercase opacity-60">StudyLoop Course</span>
         </div>
 
         {/* Absolute status badge at top-right */}

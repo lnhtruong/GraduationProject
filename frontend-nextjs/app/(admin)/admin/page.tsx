@@ -1,8 +1,8 @@
 import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
-  "Quản trị LearnHub",
-  "Không gian quản trị hệ thống LearnHub.",
+  "Quản trị StudyLoop",
+  "Không gian quản trị hệ thống StudyLoop.",
 );
 
 import { redirect } from "next/navigation";

@@ -4,7 +4,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Học tập của tôi",
-  description: "Quản lý và tiếp tục các khóa học bạn đang tham gia trên LearnHub.",
+  description: "Quản lý và tiếp tục các khóa học bạn đang tham gia trên StudyLoop.",
 };
 
 export default function Page() {

@@ -88,7 +88,7 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 					<div className="max-w-xl rounded-3xl border border-border/70 bg-background/85 p-8 text-center shadow-xl backdrop-blur">
 						<p className="text-xl font-semibold">VIDEO ĐÃ LƯU</p>
 						<p className="mt-2 text-sm text-muted-foreground">
-							Đăng nhập để xem lại các video bạn đã lưu trên LearnHub.
+							Đăng nhập để xem lại các video bạn đã lưu trên StudyLoop.
 						</p>
 						<Button asChild className="mt-5 rounded-full">
 							<Link href="/signin?returnUrl=/newsfeed/saved">Đăng nhập</Link>

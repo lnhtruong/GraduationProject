@@ -3,7 +3,7 @@ import AdminDashboardPage from "@/features/admin/components/dashboard/AdminDashb
 
 export const metadata = buildPrivatePageMetadata(
   "Bảng điều khiển quản trị",
-  "Theo dõi số liệu vận hành và trạng thái hệ thống LearnHub.",
+  "Theo dõi số liệu vận hành và trạng thái hệ thống StudyLoop.",
 );
 
 export default function Page() {

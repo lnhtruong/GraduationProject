@@ -22,6 +22,20 @@ interface Props {
   onComplete: () => void;
 }
 
+type ReviewQuestionOption = {
+  id: number;
+  optionText: string;
+  isCorrect: boolean;
+};
+
+type ReviewQuestion = {
+  id: number;
+  quesText: string;
+  point: number;
+  videoTimestamp?: string | null;
+  options: ReviewQuestionOption[];
+};
+
 export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const videoRefDesktop = useRef<HTMLVideoElement | null>(null);
   const videoRefMobile = useRef<HTMLVideoElement | null>(null);
@@ -33,8 +47,8 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const restoreMutation = useRestoreQuizQuestionsMutation(quizId);
   const filterMutation = useFilterQuizQuestionsMutation(quizId);
 
-  const activeQuestions = data?.active ?? [];
-  const deletedQuestions = data?.deleted ?? [];
+  const activeQuestions = (data?.active ?? []) as ReviewQuestion[];
+  const deletedQuestions = (data?.deleted ?? []) as ReviewQuestion[];
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<number[]>([]);
@@ -102,7 +116,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsDesktopRef.current) {
         hlsDesktopRef.current.destroy();
@@ -170,7 +184,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsMobileRef.current) {
         hlsMobileRef.current.destroy();
@@ -213,7 +227,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
       await Promise.all(selectedIds.map((id) => deleteMutation.mutateAsync(id)));
       setSelectedIds([]);
       toast.success(`Đã loại bỏ ${selectedIds.length} câu hỏi đã chọn.`);
-    } catch (err) {
+    } catch {
       toast.error("Đã xảy ra lỗi khi loại bỏ câu hỏi.");
     }
   };
@@ -224,7 +238,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
       await restoreMutation.mutateAsync(selectedDeletedIds);
       setSelectedDeletedIds([]);
       toast.success(`Đã khôi phục ${selectedDeletedIds.length} câu hỏi đã chọn.`);
-    } catch (err) {
+    } catch {
       toast.error("Đã xảy ra lỗi khi khôi phục câu hỏi.");
     }
   };
@@ -236,7 +250,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
       await restoreMutation.mutateAsync(allIds);
       setSelectedDeletedIds([]);
       toast.success("Đã khôi phục toàn bộ câu hỏi đã loại bỏ.");
-    } catch (err) {
+    } catch {
       toast.error("Đã xảy ra lỗi khi khôi phục câu hỏi.");
     }
   };
@@ -276,7 +290,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     onComplete();
   };
 
-  const renderActiveQuestionCard = (q: any, idx: number) => {
+  const renderActiveQuestionCard = (q: ReviewQuestion, idx: number) => {
     return (
       <Card key={q.id} className="border-border bg-card shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
         <CardContent className="p-4 space-y-3">
@@ -308,7 +322,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                 {q.videoTimestamp && (
                   <button
                     type="button"
-                    onClick={() => handleSeek(q.videoTimestamp)}
+                    onClick={() => handleSeek(q.videoTimestamp ?? null)}
                     className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-500 border border-sky-500/20 hover:bg-sky-500/20 transition-colors"
                   >
                     📍 {q.videoTimestamp.split(".")[0].slice(3)}
@@ -332,7 +346,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
           </p>
 
           <div className="grid gap-2 sm:grid-cols-2 mt-2">
-            {q.options.map((opt: any) => (
+            {q.options.map((opt: ReviewQuestionOption) => (
               <div
                 key={opt.id}
                 className={cn(
@@ -357,7 +371,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     );
   };
 
-  const renderDeletedQuestionItem = (q: any) => {
+  const renderDeletedQuestionItem = (q: ReviewQuestion) => {
     return (
       <div key={q.id} className="flex items-start justify-between gap-3 rounded-xl border border-dashed border-border bg-background p-3 text-xs">
         <div className="flex items-start gap-2 min-w-0 flex-1">
@@ -388,7 +402,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     return (
       <div className="flex h-64 items-center justify-center gap-2">
         <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">Đang tải danh sách câu hỏi AI...</span>
+        <span className="text-sm text-muted-foreground">Đang tải danh sách câu hỏi...</span>
       </div>
     );
   }
@@ -572,7 +586,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
             className="w-full h-11 rounded-xl font-bold shadow-md flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="h-4 w-4" />
-            {filterMutation.isPending ? "Đang lưu..." : "Lưu & Hoàn tất Quiz AI"}
+            {filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
           </Button>
         </div>
 
@@ -587,7 +601,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         {/* Header toolbar */}
         <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h3 className="text-base font-bold text-foreground">Duyệt & Lọc câu hỏi AI</h3>
+              <h3 className="text-base font-bold text-foreground">Duyệt câu hỏi</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Chọn các câu hỏi bạn muốn giữ lại. Những câu không được chọn sẽ bị loại bỏ.
             </p>
@@ -718,7 +732,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
           className="w-full h-11 rounded-xl font-bold shadow-md shrink-0 flex items-center justify-center gap-2"
         >
           <CheckCircle2 className="h-4 w-4" />
-          {filterMutation.isPending ? "Đang lưu..." : "Lưu & Hoàn tất Quiz AI"}
+              {filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
         </Button>
       </div>
 

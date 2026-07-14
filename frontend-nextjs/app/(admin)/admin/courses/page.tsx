@@ -3,7 +3,7 @@ import AdminCoursesPage from "@/features/admin/components/courses/AdminCoursesPa
 
 export const metadata = buildPrivatePageMetadata(
   "Quản lý khóa học",
-  "Kiểm duyệt và quản trị danh sách khóa học trên LearnHub.",
+  "Kiểm duyệt và quản trị danh sách khóa học trên StudyLoop.",
 );
 
 export default function Page() {

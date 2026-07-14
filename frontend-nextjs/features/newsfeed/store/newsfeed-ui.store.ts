@@ -28,11 +28,11 @@ export const useNewsfeedUiStore = create<NewsfeedUiState>((set) => ({
   activeVideoId: null,
   isGlobalPaused: false,
   openMenu: () => set({ isMenuOpen: true, isOptionBoxOpen: false }),
-  closeMenu: () => set({ isMenuOpen: false }),
+  closeMenu: () => set({ isMenuOpen: false, isOptionBoxOpen: false }),
   toggleMenu: () =>
     set((state) => ({
       isMenuOpen: !state.isMenuOpen,
-      isOptionBoxOpen: state.isMenuOpen ? state.isOptionBoxOpen : false,
+      isOptionBoxOpen: false,
     })),
   openOptionBox: (type) =>
     set({ isMenuOpen: false, isOptionBoxOpen: true, optionBoxContentType: type }),

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 interface BrandLogoProps {
@@ -12,7 +13,7 @@ interface BrandLogoProps {
 
 export function BrandLogo({
   href = "/",
-  subtitle = "Học tập thông minh",
+  subtitle = BRAND.tagline,
   badge,
   compact = false,
   className,
@@ -26,8 +27,8 @@ export function BrandLogo({
       )}
     >
       <Image
-        src="/logo.png"
-        alt="LearnHub"
+        src={BRAND.logo}
+        alt={BRAND.name}
         width={42}
         height={42}
         priority
@@ -36,7 +37,7 @@ export function BrandLogo({
       <div className={cn("leading-tight", compact ? "hidden sm:block" : "hidden sm:block")}>
         <div className="flex items-center gap-2">
           <p className="text-base font-extrabold tracking-tight text-foreground">
-            LearnHub
+            {BRAND.name}
           </p>
           {badge ? (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">

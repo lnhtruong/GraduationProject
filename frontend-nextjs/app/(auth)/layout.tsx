@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { PageLoader } from "@/components/PageLoader";
 import AuthSlider from "@/components/AuthSlider";
+import { BRAND } from "@/lib/brand";
 
 export default function AuthLayout({
   children,
@@ -21,15 +22,15 @@ export default function AuthLayout({
           <div className="mb-8">
             <Link href="/" className="flex flex-col items-center gap-2.5 group">
               <Image
-                src="/logo.png"
-                alt="LearnHub Logo"
+                src={BRAND.logo}
+                alt="StudyLoop Logo"
                 width={52}
                 height={52}
                 className="object-contain transition-transform group-hover:scale-105"
                 priority
               />
               <span className="text-2xl font-bold text-primary tracking-tight font-display">
-                LearnHub
+                StudyLoop
               </span>
             </Link>
           </div>

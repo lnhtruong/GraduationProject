@@ -3,7 +3,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Tạo highlight",
-  "Tải video bài giảng lên LearnHub, tạo highlight và mở Studio để thêm Mascot.",
+  "Tải video bài giảng lên StudyLoop, tạo highlight và mở Studio để chỉnh sửa.",
 );
 
 export default function UploadPage() {

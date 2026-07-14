@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Mail } from "lucide-react";
 
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import { BRAND } from "@/lib/brand";
 
 const productLinks = [
   { label: "Tìm khóa học", href: "/courses/search" },
-  { label: "Newsfeed", href: "/newsfeed" },
-  { label: "Tạo Highlight", href: "/upload" },
-  { label: "Editor", href: "/editor" },
+  { label: "Bảng tin", href: "/newsfeed" },
+  { label: "Tạo highlight", href: "/upload" },
+  { label: "Trình chỉnh sửa", href: "/editor" },
 ];
 
 const learnerLinks = [
@@ -34,15 +35,17 @@ function FooterColumn({
   links,
 }: {
   title: string;
-  links: Array<{ label: string; href: string }>;
+  links: { label: string; href: string }[];
 }) {
   return (
-    <div>
-      <h3 className="text-sm font-bold text-foreground">{title}</h3>
-      <nav className="mt-4 flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
+        {title}
+      </h3>
+      <nav className="flex flex-col gap-2.5">
         {links.map((link) => (
           <Link
-            key={link.href}
+            key={link.label}
             href={link.href}
             className="w-fit text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
           >
@@ -68,33 +71,34 @@ export default function Footer() {
           <div className="max-w-sm">
             <Link href="/" className="flex w-fit items-center gap-3">
               <Image
-                src="/logo.png"
-                alt="LearnHub"
+                src={BRAND.logo}
+                alt={BRAND.name}
                 width={44}
                 height={44}
                 className="rounded-xl"
               />
               <div>
                 <p className="text-lg font-black tracking-tight text-foreground">
-                  LearnHub
+                  {BRAND.name}
                 </p>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Học tập thông minh
+                  {BRAND.tagline}
                 </p>
               </div>
             </Link>
 
             <p className="mt-5 text-sm leading-7 text-muted-foreground">
-              Nơi người học tìm khóa học, xem video ngắn và theo dõi lộ trình
-              học tập rõ ràng hơn.
+              Video dài được rút gọn thành video ngắn nổi bật, chỉnh sửa trong trình
+              biên tập và kết nối vào bảng tin, trắc nghiệm, khóa học theo một lộ
+              trình học rõ ràng.
             </p>
 
             <Link
-              href="mailto:support@learnhub.edu.vn"
+              href={`mailto:${BRAND.supportEmail}`}
               className="mt-5 inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
             >
               <Mail className="h-4 w-4" />
-              support@learnhub.edu.vn
+              {BRAND.supportEmail}
             </Link>
           </div>
 
@@ -109,7 +113,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 border-t border-border/70 pt-6 text-center text-sm text-muted-foreground">
-          <p>© 2026 LearnHub. All rights reserved.</p>
+          <p>{BRAND.copyright}</p>
         </div>
       </div>
     </footer>
