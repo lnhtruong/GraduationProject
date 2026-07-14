@@ -42,7 +42,7 @@ export function CourseCard({ course }: CourseCardProps) {
       />
 
       <Link href={`/courses/${course.id}`} className="block sm:h-full">
-      <Card className="sm:h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
+      <Card className="p-0 gap-0 sm:h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-muted">
           {course.thumbnailUrl && !imageError ? (
