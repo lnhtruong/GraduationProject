@@ -106,7 +106,7 @@ export class AdminRevenueService {
           ORDER BY revenue DESC, c.id ASC
           LIMIT ${TOP_LIMIT}
           `,
-          { type: QueryTypes.SELECT },
+          { type: QueryTypes.SELECT, replacements },
         ),
         this.sequelize.query<Record<string, unknown>>(
           `
@@ -124,7 +124,7 @@ export class AdminRevenueService {
           ORDER BY revenue DESC, c.user_id ASC
           LIMIT ${TOP_LIMIT}
           `,
-          { type: QueryTypes.SELECT },
+          { type: QueryTypes.SELECT, replacements },
         ),
       ]);
 

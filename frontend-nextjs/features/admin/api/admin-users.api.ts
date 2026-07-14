@@ -38,6 +38,13 @@ export interface AdminUsersResponse {
   pagination: { page: number; limit: number; totalItems: number; totalPages: number };
 }
 
+export interface AdminUserStats {
+  total: number;
+  admins: number;
+  students: number;
+  lecturers: number;
+}
+
 export const adminUsersApi = {
   listAll: async (params?: AdminUsersParams): Promise<AdminUsersResponse> => {
     const query: Record<string, string | number | boolean> = {
@@ -56,6 +63,11 @@ export const adminUsersApi = {
       return { data, pagination: { page: 1, limit: data.length, totalItems: data.length, totalPages: 1 } };
     }
     return data as AdminUsersResponse;
+  },
+
+  getStats: async (): Promise<AdminUserStats> => {
+    const { data } = await apiHttpClient.get<AdminUserStats>("/users/stats");
+    return data;
   },
 
   getById: async (id: number): Promise<AdminUser> => {

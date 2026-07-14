@@ -60,7 +60,11 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const speechWindow = window as SpeechRecognitionWindow;
+    return !!(speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition);
+  });
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef("");
@@ -86,11 +90,9 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}) {
       speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setIsSupported(false);
       return;
     }
 
-    setIsSupported(true);
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;

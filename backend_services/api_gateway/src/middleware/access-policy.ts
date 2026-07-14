@@ -96,6 +96,13 @@ const ACCESS_RULES: AccessRule[] = [
     pattern: '/api/users/following',
     access: 'authenticated',
   },
+  // User stats overview — admin only. Must precede /api/users/:id matcher.
+  {
+    method: 'GET',
+    pattern: '/api/users/stats',
+    access: 'roles',
+    roles: [UserRole.ADMIN],
+  },
   { method: 'GET', pattern: '/api/users/:id', access: 'authenticated' },
   // BE-06: instructor follow / stats endpoints proxied via /api/instructors.
   {

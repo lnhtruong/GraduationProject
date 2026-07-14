@@ -7,8 +7,6 @@ import {
   PencilLine,
   Clapperboard,
   Clock3,
-  BadgeCheck,
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
@@ -16,19 +14,17 @@ import {
   Search,
   Filter,
   Trash2,
-  Send,
   Rocket,
   ShieldAlert,
   Play,
   FileText,
-  XCircle,
   Coins,
   MoreVertical,
   ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -55,9 +51,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDuration, formatPrice } from "@/features/courses/utils";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Props {
   courseId: number;
@@ -102,7 +98,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
     useInstructorCourseById(courseId);
   const lessons = course?.lessons;
   const lessonsLoading = courseLoading;
-  const { user } = useAuth();
   const deleteLessonMutation = useDeleteLesson();
   const submitForReviewMutation = useSubmitCourseForReview();
   const publishCourseMutation = usePublishCourse();
@@ -173,18 +168,16 @@ export default function CourseOverviewPage({ courseId }: Props) {
     try {
       if (course.status === "draft") {
         await submitForReviewMutation.mutateAsync(course.id);
-        toast.success("Đã gửi khóa học chờ duyệt");
+        toast.success("Đã gửi khóa học để xét duyệt");
         return;
       }
 
       if (course.status === "approved") {
         await publishCourseMutation.mutateAsync(course.id);
-        toast.success("Đã publish khóa học");
+        toast.success("Đã xuất bản khóa học");
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Cập nhật trạng thái thất bại";
-      toast.error(message);
+      toast.error(getUserFacingErrorMessage(error, "Cập nhật trạng thái thất bại"));
     }
   };
 
@@ -307,7 +300,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
           {course.status === "draft" && (
             <Button
               type="button"
-              variant="outline"
               size="sm"
               className="h-9 px-3.5 rounded-xl shadow-xs cursor-pointer flex-1 sm:flex-initial justify-center"
               disabled={submitForReviewMutation.isPending}
@@ -315,8 +307,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
                 void handleCourseStatusAction();
               }}
             >
-              <ClipboardCheck className="mr-1.5 h-3.5 w-3.5 text-primary" />
-              {submitForReviewMutation.isPending ? "Đang gửi..." : "Gửi duyệt"}
+              <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
+              {submitForReviewMutation.isPending ? "Đang gửi..." : "Gửi xét duyệt"}
             </Button>
           )}
           {course.status === "pending" && (
@@ -328,25 +320,28 @@ export default function CourseOverviewPage({ courseId }: Props) {
           {course.status === "approved" && (
             <Button
               type="button"
-              variant="outline"
               size="sm"
-              className="h-9 px-3.5 rounded-xl shadow-xs cursor-pointer border-emerald-500/30 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 flex-1 sm:flex-initial justify-center"
+              className="h-9 px-3.5 rounded-xl shadow-xs cursor-pointer flex-1 sm:flex-initial justify-center"
               disabled={publishCourseMutation.isPending}
               onClick={() => {
                 void handleCourseStatusAction();
               }}
             >
               <Rocket className="mr-1.5 h-3.5 w-3.5" />
-              {publishCourseMutation.isPending ? "Đang chạy..." : "Xuất bản"}
+              {publishCourseMutation.isPending ? "Đang xuất bản..." : "Xuất bản"}
             </Button>
           )}
 
-          <Button asChild size="sm" className="h-9 px-3.5 rounded-xl shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer flex-1 sm:flex-initial justify-center">
-            <Link href={`/instructor/courses/${course.id}/edit`}>
-              <PencilLine className="mr-1.5 h-3.5 w-3.5" />
-              Sửa khóa học
-            </Link>
-          </Button>
+          <Link
+            href={`/instructor/courses/${course.id}/edit`}
+            className={cn(
+              buttonVariants({ size: "sm" }),
+              "h-9 px-3.5 rounded-xl shadow-xs cursor-pointer flex-1 sm:flex-initial justify-center"
+            )}
+          >
+            <PencilLine className="mr-1.5 h-3.5 w-3.5" />
+            Sửa khóa học
+          </Link>
 
           {/* Three-dots menu for extra teaching tools */}
           <DropdownMenu>
@@ -440,12 +435,16 @@ export default function CourseOverviewPage({ courseId }: Props) {
                   <BookOpen className="h-4 w-4 text-primary" />
                   Bài giảng của khóa học
                 </h3>
-                <Button asChild size="sm" className="h-8 sm:h-8.5 rounded-xl shadow-xs cursor-pointer text-xs">
-                  <Link href={`/instructor/courses/${course.id}/lessons/new`}>
-                    <CirclePlus className="mr-1 sm:mr-1.5 h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                    Thêm bài học
-                  </Link>
-                </Button>
+                <Link
+                  href={`/instructor/courses/${course.id}/lessons/new`}
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "h-8 sm:h-8.5 rounded-xl shadow-xs cursor-pointer text-xs"
+                  )}
+                >
+                  <CirclePlus className="mr-1 sm:mr-1.5 h-3.5 sm:h-4 w-3.5 sm:w-4" />
+                  Thêm bài học
+                </Link>
               </div>
 
               {/* Toolbar */}
@@ -538,13 +537,15 @@ export default function CourseOverviewPage({ courseId }: Props) {
                         
                         {/* Lesson Action buttons */}
                         <div className="flex items-center gap-2 self-end sm:self-center">
-                          <Button asChild size="sm" variant="outline" className="h-8 rounded-lg text-xs cursor-pointer">
-                            <Link
-                              href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
-                            >
-                              Chỉnh sửa
-                            </Link>
-                          </Button>
+                          <Link
+                            href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
+                            className={cn(
+                              buttonVariants({ size: "sm", variant: "outline" }),
+                              "h-8 rounded-lg text-xs cursor-pointer"
+                            )}
+                          >
+                            Chỉnh sửa
+                          </Link>
                           <Button
                             size="sm"
                             variant="ghost"

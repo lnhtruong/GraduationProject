@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
@@ -31,6 +31,7 @@ import {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { useDebounce } from "@/hooks/useDebounce";
 
 type StatusFilter =
@@ -41,22 +42,51 @@ type StatusFilter =
   | "approved"
   | "rejected";
 
-const PAGE_SIZE = 4;
+const COURSE_PAGE_SIZE = {
+  base: 4,
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 12,
+};
+
+function getCoursePageSizeForWidth(width: number) {
+  if (width >= 1280) return COURSE_PAGE_SIZE.xl;
+  if (width >= 1024) return COURSE_PAGE_SIZE.lg;
+  if (width >= 768) return COURSE_PAGE_SIZE.md;
+  return COURSE_PAGE_SIZE.sm;
+}
+
+function useResponsiveCoursePageSize() {
+  const [pageSize, setPageSize] = useState(COURSE_PAGE_SIZE.base);
+
+  useEffect(() => {
+    const syncPageSize = () => {
+      setPageSize(getCoursePageSizeForWidth(window.innerWidth));
+    };
+
+    syncPageSize();
+    window.addEventListener("resize", syncPageSize);
+    return () => window.removeEventListener("resize", syncPageSize);
+  }, []);
+
+  return pageSize;
+}
 
 function getWorkflowErrorMessage(error: unknown, fallback: string) {
   const responseMessage = (error as {
     response?: { data?: { message?: unknown } };
   }).response?.data?.message;
 
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
+  if (
+    typeof responseMessage === "string" &&
+    responseMessage.trim() &&
+    !/request failed|status code|service unavailable|internal server error/i.test(responseMessage)
+  ) {
     return responseMessage;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 export default function CoursesPage() {
@@ -77,6 +107,7 @@ export default function CoursesPage() {
   const [activeWorkflowCourseId, setActiveWorkflowCourseId] = useState<
     number | null
   >(null);
+  const pageSize = useResponsiveCoursePageSize();
 
   // Sync state if URL changes externally (e.g. browser back/forward buttons)
   useEffect(() => {
@@ -126,7 +157,7 @@ export default function CoursesPage() {
   };
 
   // Handle page change & sync to URL query parameter
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setPage(newPage);
     const params = new URLSearchParams(window.location.search);
     if (newPage <= 1) {
@@ -135,7 +166,7 @@ export default function CoursesPage() {
       params.set("page", String(newPage));
     }
     router.replace(`${pathname}?${params.toString()}`);
-  };
+  }, [pathname, router]);
 
   // 1. STATS QUERY: Fetch all courses to calculate statistics counts (cached, runs once)
   // Backend returns all instructor courses (including rejected ones) when status parameter is omitted.
@@ -173,23 +204,23 @@ export default function CoursesPage() {
     true
   );
 
-  const filteredCourses = listCourses ?? [];
+  const filteredCourses = useMemo(() => listCourses ?? [], [listCourses]);
 
   // Pagination helper calculations
   const totalItems = filteredCourses.length;
-  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
 
   // Correct page if it falls out of range due to filters change
   useEffect(() => {
     if (page > totalPages) {
       handlePageChange(totalPages);
     }
-  }, [page, totalPages]);
+  }, [handlePageChange, page, totalPages]);
 
   const displayedCourses = useMemo(() => {
-    const startIndex = (page - 1) * PAGE_SIZE;
-    return filteredCourses.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredCourses, page]);
+    const startIndex = (page - 1) * pageSize;
+    return filteredCourses.slice(startIndex, startIndex + pageSize);
+  }, [filteredCourses, page, pageSize]);
 
   const deleteCourseMutation = useDeleteCourse();
   const submitCourseForReviewMutation = useSubmitCourseForReview();
@@ -211,9 +242,9 @@ export default function CoursesPage() {
     setActiveWorkflowCourseId(id);
     try {
       await submitCourseForReviewMutation.mutateAsync(id);
-      toast.success("Đã gửi duyệt khóa học");
+      toast.success("Đã gửi khóa học để xét duyệt");
     } catch (error) {
-      toast.error(getWorkflowErrorMessage(error, "Gửi duyệt khóa học thất bại"));
+      toast.error(getWorkflowErrorMessage(error, "Gửi khóa học xét duyệt thất bại"));
     } finally {
       setActiveWorkflowCourseId(null);
     }
@@ -223,9 +254,9 @@ export default function CoursesPage() {
     setActiveWorkflowCourseId(id);
     try {
       await publishCourseMutation.mutateAsync(id);
-      toast.success("Đã publish khóa học");
+      toast.success("Đã xuất bản khóa học");
     } catch (error) {
-      toast.error(getWorkflowErrorMessage(error, "Publish khóa học thất bại"));
+      toast.error(getWorkflowErrorMessage(error, "Xuất bản khóa học thất bại"));
     } finally {
       setActiveWorkflowCourseId(null);
     }
@@ -371,7 +402,7 @@ export default function CoursesPage() {
         <div className="relative p-4 sm:p-5">
           {listLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {Array.from({ length: pageSize }).map((_, i) => (
                 <div
                   key={i}
                   className="overflow-hidden rounded-2xl border border-border/50 bg-background/80 shadow-xs"
@@ -468,7 +499,7 @@ export default function CoursesPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-border/40 mt-5 pt-4">
                   <span className="text-xs text-muted-foreground">
-                    Hiển thị {Math.min((page - 1) * PAGE_SIZE + 1, totalItems)}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} khóa học
+                    Hiển thị {Math.min((page - 1) * pageSize + 1, totalItems)}–{Math.min(page * pageSize, totalItems)} / {totalItems} khóa học
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button

@@ -60,17 +60,19 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 		return uniqueByFeedId(feedItems);
 	}, [feedItems, historyItems, isAuthenticated, mode, savedApiItems, viewedItems]);
 
+	const isLocalHistory = mode === "history" && !isAuthenticated;
+
 	const pageTitle = useMemo(() => {
 		switch (mode) {
 			case "history":
-				return "VIDEO ĐÃ XEM";
+				return isLocalHistory ? "LỊCH SỬ TRÊN THIẾT BỊ" : "VIDEO ĐÃ XEM";
 			case "saved":
 				return "VIDEO ĐÃ LƯU";
 			case "search":
 			default:
-				return normalizedSearchTerm ? `TÌM KIẾM: ${normalizedSearchTerm}` : "TÌM KIẾM...";
+				return normalizedSearchTerm ? `TÌM KIẾM: ${normalizedSearchTerm}` : "TÌM KIẾM";
 		}
-	}, [mode, normalizedSearchTerm]);
+	}, [isLocalHistory, mode, normalizedSearchTerm]);
 
 	const isLoading =
 		(shouldLoadFeed && feedQuery.isLoading) ||
@@ -80,7 +82,7 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 	const needsLoginForSaved = mode === "saved" && !isAuthenticated;
 
 	return (
-		<div className={cn("min-h-[calc(100vh-64px)] pb-8", isMenuOpen ? "lg:pl-60" : "lg:pl-16") }>
+		<div className={cn("min-h-[calc(100vh-64px)] pb-8", isMenuOpen ? "lg:pl-72" : "lg:pl-16") }>
 			{needsLoginForSaved ? (
 				<div className="flex min-h-[50vh] items-center justify-center px-4">
 					<div className="max-w-xl rounded-3xl border border-border/70 bg-background/85 p-8 text-center shadow-xl backdrop-blur">
@@ -108,7 +110,9 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 							? normalizedSearchTerm
 								? `Không có kết quả cho “${normalizedSearchTerm}”.`
 								: "Nhập từ khóa để bắt đầu tìm kiếm."
-							: "Chưa có video nào để hiển thị."
+							: isLocalHistory
+								? "Các video đã xem trên trình duyệt này sẽ hiển thị tại đây."
+								: "Chưa có video nào để hiển thị."
 					}
 					badgeLabel={pageTitle}
 					className="pb-8"
@@ -122,7 +126,7 @@ export function NewsfeedCollectionPage({ mode, searchTerm = "" }: NewsfeedCollec
 						onClick={clearHistory}
 						className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 					>
-						Xóa lịch sử xem
+						Xóa lịch sử trên thiết bị này
 					</button>
 				</div>
 			) : null}

@@ -1,47 +1,50 @@
-/**
- * Upload Feature Utilities
- * Helper functions for building FormData and handling uploads
- */
+import { authStorageHelper } from "@/store/auth";
 
-import type { HighlightReelParams } from "../types";
+export type HighlightReelLinkPayload = {
+  video_url: string;
+  video_id?: number;
+  user_id: string;
+  source_original_filename?: string;
+  topic?: string;
+  include_keywords?: string;
+  exclude_keywords?: string;
+  isOpenAI: string;
+  isMultiOutput: string;
+};
 
-/**
- * Build FormData for highlight reel upload request
- */
-export function buildHighlightReelFormData(
-  params: HighlightReelParams,
-): FormData {
-  const formData = new FormData();
-  formData.append("video", params.file);
+export function buildHighlightReelLinkPayload(params: {
+  videoUrl: string;
+  videoId?: number | null;
+  userId?: number | string | null;
+  sourceOriginalFilename?: string;
+  topic?: string;
+  includeKeywords?: string;
+  excludeKeywords?: string;
+  isMultiOutput?: boolean;
+  isOpenAI?: boolean;
+}): HighlightReelLinkPayload {
+  const videoUrl = params.videoUrl.trim();
+  let userIdVal = params.userId;
+  if (userIdVal === undefined || userIdVal === null) {
+    const stored = authStorageHelper.getUser() as { id?: number; user_id?: number } | null;
+    userIdVal = stored?.id ?? stored?.user_id ?? null;
+  }
 
-  if (params.topic) formData.append("topic", params.topic);
-  if (params.includeKeywords)
-    formData.append("include_keywords", params.includeKeywords);
-  if (params.excludeKeywords)
-    formData.append("exclude_keywords", params.excludeKeywords);
-  formData.append("isOpenAI", "false");
-
-  return formData;
-}
-
-/**
- * Build the request config for highlight reel upload.
- */
-export function buildHighlightReelRequestConfig(
-  params: HighlightReelParams,
-) {
   return {
-    headers: {
-      // Remove default "application/json" so browser sets correct
-      // "multipart/form-data; boundary=..." for the FormData upload
-      "Content-Type": undefined,
-    },
-    timeout: 0, // Disable timeout for file uploads (large files need more time)
-    onUploadProgress: (event: { loaded: number; total?: number }) => {
-      if (event.total && params.onUploadProgress) {
-        const percent = Math.round((event.loaded * 100) / event.total);
-        params.onUploadProgress(percent);
-      }
-    },
+    video_url: videoUrl,
+    ...(params.videoId ? { video_id: params.videoId } : {}),
+    user_id: userIdVal != null ? String(userIdVal) : "",
+    ...(params.sourceOriginalFilename
+      ? { source_original_filename: params.sourceOriginalFilename }
+      : {}),
+    ...(params.topic ? { topic: params.topic } : {}),
+    ...(params.includeKeywords
+      ? { include_keywords: params.includeKeywords }
+      : {}),
+    ...(params.excludeKeywords
+      ? { exclude_keywords: params.excludeKeywords }
+      : {}),
+    isOpenAI: String(params.isOpenAI ?? false),
+    isMultiOutput: String(params.isMultiOutput ?? false),
   };
 }

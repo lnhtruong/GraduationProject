@@ -35,7 +35,7 @@ export async function uploadToCloudinary(
   formData.append("timestamp", signature.timestamp.toString());
   formData.append("signature", signature.signature);
   formData.append("folder", signature.folder);
-  formData.append("context", `userId=${userId}`);
+  formData.append("context", signature.context ?? `userId=${userId}`);
   formData.append("resource_type", resourceType);
 
   const xhr = new XMLHttpRequest();

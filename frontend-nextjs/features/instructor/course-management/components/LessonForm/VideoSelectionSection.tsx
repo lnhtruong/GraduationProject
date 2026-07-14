@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, Clapperboard, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Upload, Clapperboard, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { useLessonVideoUpload } from "@/features/video/upload/useLessonVideoUpload";
+import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
-import { useVideoById } from "@/features/video/api/video.hooks";
+import { useVideoById, videoKeys } from "@/features/video/api/video.hooks";
+import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { getVideoCardTitle, formatDuration } from "../../utils/lesson-form.utils";
 import { VideoPreview } from "./VideoPreview";
 import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Video {
   id: number;
@@ -94,10 +98,14 @@ export function VideoSelectionSection({
   timelineMarkers = [],
   isProcessing = false,
 }: Props) {
+  const queryClient = useQueryClient();
+  const { user } = useAuthState();
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string | null>(null);
   const [previewDuration, setPreviewDuration] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isVideoPickerOpen, setIsVideoPickerOpen] = useState(!selectedVideoId);
+  const [isVideoSseConnected, setIsVideoSseConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const selectedUploadVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
@@ -132,12 +140,12 @@ export function VideoSelectionSection({
     retryUpload,
     cancelUpload,
     clearSession,
-    isUploading,
+    isUploadBlocking,
   } = useLessonVideoUpload();
 
   useEffect(() => {
-    onUploadStateChange?.(isUploading);
-  }, [isUploading, onUploadStateChange]);
+    onUploadStateChange?.(isUploadBlocking);
+  }, [isUploadBlocking, onUploadStateChange]);
 
   useEffect(() => {
     return () => {
@@ -165,7 +173,7 @@ export function VideoSelectionSection({
   }, [session.videoId, onVideoSelect]);
 
   const onPickFile = () => {
-    if (isUploading) return;
+    if (isUploadBlocking) return;
     fileInputRef.current?.click();
   };
 
@@ -200,6 +208,18 @@ export function VideoSelectionSection({
       });
     });
 
+    const clearLocalPreview = () => {
+      URL.revokeObjectURL(blobUrl);
+      setPreviewBlobUrl(null);
+      setPreviewFileName(null);
+      setPreviewDuration(null);
+      onDraftVideoChangeRef.current?.({
+        blobUrl: null,
+        durationSeconds: null,
+        fileName: null,
+      });
+    };
+
     try {
       await startUpload({
         file,
@@ -207,14 +227,26 @@ export function VideoSelectionSection({
         courseId,
         lessonId,
         onCompleted: async (videoId) => {
+          await queryClient.invalidateQueries({
+            queryKey: videoKeys.detail(videoId),
+          });
+          await queryClient.refetchQueries({
+            queryKey: videoKeys.detail(videoId),
+            type: "active",
+          });
           await onRefreshVideos?.();
           onVideoSelect(videoId);
+          setIsVideoPickerOpen(false);
+          clearLocalPreview();
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Không thể bắt đầu upload.";
-      toast.error(message);
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "Không thể bắt đầu upload. Vui lòng thử lại.",
+        ),
+      );
     }
   };
 
@@ -227,7 +259,7 @@ export function VideoSelectionSection({
   const onDropFile = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragOver(false);
-    if (isUploading) return;
+    if (isUploadBlocking) return;
     const file = event.dataTransfer.files?.[0] ?? null;
     await handleSelectedFile(file);
   };
@@ -236,25 +268,125 @@ export function VideoSelectionSection({
     selectedVideoId,
     Boolean(selectedVideoId)
   );
+  const selectedVideoUrl = selectedVideo?.url?.trim() ?? "";
+  const isSelectedOriginalUrl = /\/original(?:[?#].*)?$/i.test(selectedVideoUrl);
 
-  const handleClearSelection = () => {
-    if (previewBlobUrl) {
-      URL.revokeObjectURL(previewBlobUrl);
+  useEffect(() => {
+    if (!user?.id || !selectedVideoId) return;
+    if (session.videoId && String(session.videoId) === String(selectedVideoId)) {
+      return;
     }
-    setPreviewBlobUrl(null);
-    setPreviewFileName(null);
-    setPreviewDuration(null);
-    clearSession();
-    onVideoSelect(null);
-    onDraftVideoChangeRef.current?.({
-      blobUrl: null,
-      durationSeconds: null,
-      fileName: null,
-    });
+
+    const stream = createMediaUploadStream(
+      {
+        onOpen: () => {
+          setIsVideoSseConnected(true);
+        },
+        onCompleted: (payload) => {
+          const data = payload as unknown as {
+            videoId?: number | string;
+            video_id?: number | string;
+            data?: {
+              videoId?: number | string;
+              video_id?: number | string;
+            };
+          };
+          const completedVideoId =
+            data.data?.videoId ??
+            data.data?.video_id ??
+            data.videoId ??
+            data.video_id;
+
+          if (!completedVideoId) return;
+          if (String(completedVideoId) !== String(selectedVideoId)) return;
+
+          void (async () => {
+            await queryClient.invalidateQueries({
+              queryKey: videoKeys.detail(Number(selectedVideoId)),
+            });
+            await queryClient.refetchQueries({
+              queryKey: videoKeys.detail(Number(selectedVideoId)),
+              type: "active",
+            });
+            await onRefreshVideos?.();
+          })();
+        },
+        onConnectionError: (error) => {
+          setIsVideoSseConnected(false);
+          console.error("[VideoSelectionSection] SSE connection error:", error);
+        },
+      },
+      { userId: user.id },
+    );
+
+    return () => {
+      setIsVideoSseConnected(false);
+      stream.close();
+    };
+  }, [
+    onRefreshVideos,
+    queryClient,
+    selectedVideoId,
+    session.videoId,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (!selectedVideoId || !isSelectedOriginalUrl) return;
+
+    let canceled = false;
+    const refreshSelectedVideo = async () => {
+      if (canceled) return;
+      await queryClient.invalidateQueries({
+        queryKey: videoKeys.detail(Number(selectedVideoId)),
+      });
+      await queryClient.refetchQueries({
+        queryKey: videoKeys.detail(Number(selectedVideoId)),
+        type: "active",
+      });
+      await onRefreshVideos?.();
+    };
+
+    void refreshSelectedVideo();
+    if (isVideoSseConnected) return;
+
+    const timer = window.setInterval(() => {
+      void refreshSelectedVideo();
+    }, 60000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    isSelectedOriginalUrl,
+    isVideoSseConnected,
+    onRefreshVideos,
+    queryClient,
+    selectedVideoId,
+  ]);
+
+  const handleOpenVideoPicker = () => {
+    setIsVideoPickerOpen(true);
+  };
+
+  const handleCancelVideoPicker = () => {
+    if (hasActiveVideo) {
+      setIsVideoPickerOpen(false);
+    }
+  };
+
+  const handleLibraryVideoSelect = (videoId: number) => {
+    onVideoSelect(videoId);
+    setIsVideoPickerOpen(false);
   };
 
   const hasActiveVideo = Boolean(selectedVideoId || previewBlobUrl);
-  const videoUrl = previewBlobUrl ?? selectedVideo?.url ?? null;
+  // While the file is still uploading, keep the local blob preview so the user
+  // can see the selected file immediately. Once Bunny's webhook/SSE reports the
+  // processed playback URL, prefer that URL over the initial `/original` URL
+  // stored at init-upload time.
+  const videoUrl = previewBlobUrl ?? session.readyVideoUrl ?? selectedVideo?.url ?? null;
   const videoName = previewFileName ?? (selectedVideo ? getVideoCardTitle(selectedVideo.name, selectedVideo.id) : "Đang tải thông tin video...");
   const durationSec = previewDuration ?? selectedVideo?.duration ?? null;
   const formattedDur = formatDuration(durationSec);
@@ -270,12 +402,12 @@ export function VideoSelectionSection({
     }
   }
 
-  const showStatus = session.status !== "idle";
+  const showStatus = session.status !== "idle" && session.status !== "completed";
 
   return (
     <div className="grid gap-4 min-w-0">
       {/* Header section (only show if not active video or if we want labels) */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="hidden items-center justify-between gap-2">
         <Label className="text-sm font-semibold text-foreground/90">
           {hasActiveVideo ? "Video bài học đã chọn" : "Chọn video bài học"}
         </Label>
@@ -336,10 +468,10 @@ export function VideoSelectionSection({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleClearSelection}
-                className="h-9 text-xs font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                onClick={handleOpenVideoPicker}
+                className="h-9 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
               >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                <Clapperboard className="mr-1.5 h-3.5 w-3.5" />
                 Chọn video khác
               </Button>
             </div>
@@ -363,11 +495,12 @@ export function VideoSelectionSection({
                       {Math.max(0, Math.min(100, session.progressPercent))}%
                     </span>
                   </p>
-                ) : session.status === "completed" ? (
-                  <p className="text-green-600 dark:text-green-400">Upload hoàn tất.</p>
                 ) : session.status === "failed" ? (
                   <p className="text-destructive">
-                    Upload thất bại{session.error ? `: ${session.error}` : "."}
+                    {getUserFacingErrorMessage(
+                      session.error,
+                      "Upload thất bại. Vui lòng thử lại.",
+                    )}
                   </p>
                 ) : session.status === "canceled" ? (
                   <p className="text-muted-foreground">Đã hủy upload.</p>
@@ -415,8 +548,7 @@ export function VideoSelectionSection({
                   </Button>
                 )}
                 {(session.status === "failed" ||
-                  session.status === "canceled" ||
-                  session.status === "completed") && (
+                  session.status === "canceled") && (
                   <Button
                     type="button"
                     variant="outline"
@@ -431,8 +563,33 @@ export function VideoSelectionSection({
             </div>
           )}
         </div>
-      ) : (
+      ) : null}
+
+      {isVideoPickerOpen ? (
         <div className="space-y-6 animate-fadeIn">
+          {hasActiveVideo ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Chọn video thay thế
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Video hiện tại vẫn giữ nguyên cho đến khi bạn chọn video mới.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-fit gap-1.5 text-xs"
+                onClick={handleCancelVideoPicker}
+              >
+                <X className="h-3.5 w-3.5" />
+                Đóng
+              </Button>
+            </div>
+          ) : null}
+
           {/* Upload Zone */}
           <div
             role="button"
@@ -446,7 +603,7 @@ export function VideoSelectionSection({
             }}
             onDragOver={(event) => {
               event.preventDefault();
-              if (!isUploading) setIsDragOver(true);
+              if (!isUploadBlocking) setIsDragOver(true);
             }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={onDropFile}
@@ -454,10 +611,10 @@ export function VideoSelectionSection({
               isDragOver
                 ? "border-primary bg-primary/5 ring-4 ring-primary/10"
                 : "border-border bg-background/50 hover:border-primary/50 hover:bg-muted/30"
-            } ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+            } ${isUploadBlocking ? "pointer-events-none opacity-70" : ""}`}
           >
             <div className="mb-3.5 grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110 shadow-sm">
-              {isUploading ? (
+              {isUploadBlocking ? (
                 <Loader2 className="h-5.5 w-5.5 animate-spin" />
               ) : (
                 <Upload className="h-5.5 w-5.5" />
@@ -499,7 +656,7 @@ export function VideoSelectionSection({
                       <button
                         key={video.id}
                         type="button"
-                        onClick={() => onVideoSelect(video.id)}
+                        onClick={() => handleLibraryVideoSelect(video.id)}
                         className={`group relative overflow-hidden rounded-xl border text-left bg-card transition-all duration-200 hover:shadow-sm ${
                           isSelected
                             ? "border-primary ring-2 ring-primary/20 shadow-sm"
@@ -576,7 +733,7 @@ export function VideoSelectionSection({
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

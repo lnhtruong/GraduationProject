@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Project API
  * CRUD endpoints for editing sessions/projects
  */
@@ -59,7 +59,7 @@ function mapProject(raw: ProjectApiResponse): Project {
     user_id: raw.user_id ?? 0,
     video_id: raw.video_id ?? null,
     video: mapVideo(raw.video),
-    session_name: raw.session_name ?? "Untitled project",
+    session_name: raw.session_name ?? "Dự án chưa đặt tên",
     status: (raw.status ?? "draft") as Project["status"],
     created_at: raw.created_at,
     updated_at: raw.updated_at,

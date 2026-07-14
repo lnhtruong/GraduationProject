@@ -13,6 +13,7 @@ import { type VideoCompletedPayload } from "@/features/_shared/realtime/media-up
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { useQueryClient } from "@tanstack/react-query";
 import { videoKeys } from "@/features/video/api/video.hooks";
+import { videoApi } from "@/features/video/api/video.api";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
@@ -74,6 +75,7 @@ export default function EditorMediaDropzone({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [dragOverInternal, setDragOverInternal] = React.useState(false);
   const inFlightUploadKeyRef = React.useRef<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
     setUploadProgress(percent),
@@ -92,7 +94,7 @@ export default function EditorMediaDropzone({
 
   const waitForUploadedVideoId = (
     uploadedUrl: string,
-    timeoutMs = 12000,
+    timeoutMs = 30000,
   ): Promise<number | undefined> => {
     const userId = resolveUserId();
     if (!userId || !uploadedUrl) {
@@ -112,13 +114,30 @@ export default function EditorMediaDropzone({
 
       const targetUrl = normalizeUrl(uploadedUrl);
       let settled = false;
+      let polling = false;
+      let pollTimer: number | null = null;
 
       const finish = (videoId?: number) => {
         if (settled) return;
         settled = true;
         stream.close();
         clearTimeout(timeout);
+        if (pollTimer) clearInterval(pollTimer);
         resolve(videoId);
+      };
+
+      const findPersistedVideo = async () => {
+        if (polling || settled) return;
+        polling = true;
+        try {
+          const videos = await videoApi.getAllByUser("highlight");
+          const matched = videos.find(
+            (video) => normalizeUrl(video.url) === targetUrl,
+          );
+          if (matched?.id) finish(matched.id);
+        } finally {
+          polling = false;
+        }
       };
 
       const timeout = window.setTimeout(() => {
@@ -139,11 +158,16 @@ export default function EditorMediaDropzone({
           },
 
           onConnectionError: () => {
-            finish(undefined);
+            void findPersistedVideo();
           },
         },
         { userId },
       );
+
+      pollTimer = window.setInterval(() => {
+        void findPersistedVideo();
+      }, 2000);
+      void findPersistedVideo();
     });
   };
 
@@ -220,11 +244,6 @@ export default function EditorMediaDropzone({
       }
 
       inFlightUploadKeyRef.current = uploadKey;
-      console.log("[EditorMediaDropzone] File selected:", {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-      });
 
       // Validate video duration
       const isValidDuration = await validateVideoDuration(file);
@@ -238,13 +257,21 @@ export default function EditorMediaDropzone({
       setUploadProgress(0);
 
       try {
+        const uploadJobId = crypto.randomUUID();
         const response = await uploadMutation.mutateAsync({
           file,
           folderName: "editor-uploads",
+          jobId: uploadJobId,
+          type: "highlight",
         });
 
         const uploadedUrl = response.secure_url;
         const videoId = await waitForUploadedVideoId(uploadedUrl);
+        if (!videoId) {
+          throw new Error(
+            "Video đã tải lên nhưng máy chủ chưa xác nhận lưu. Vui lòng thử lại sau.",
+          );
+        }
         await queryClient.invalidateQueries({ queryKey: videoKeys.root });
         onMediaSelect(uploadedUrl, undefined, videoId);
         onUploadComplete?.();
@@ -284,10 +311,6 @@ export default function EditorMediaDropzone({
       try {
         const data = JSON.parse(videoData) as VideoDropData;
         if (data.type === "video" && data.url) {
-          console.log(
-            "[EditorMediaDropzone] Video dropped from sidebar:",
-            data,
-          );
           onVideoDrop?.(data);
           return;
         }
@@ -309,6 +332,21 @@ export default function EditorMediaDropzone({
 
   const isUploading = uploadMutation.isPending || isLoading;
 
+  React.useEffect(() => {
+    const handleUploadRequest = () => {
+      if (isUploading) return;
+      fileInputRef.current?.click();
+    };
+
+    window.addEventListener("editor-media-upload-request", handleUploadRequest);
+    return () => {
+      window.removeEventListener(
+        "editor-media-upload-request",
+        handleUploadRequest,
+      );
+    };
+  }, [isUploading]);
+
   return (
     <FileUpload
       maxFiles={1}
@@ -319,6 +357,19 @@ export default function EditorMediaDropzone({
       onFileReject={onFileReject}
       disabled={isUploading}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(event) => {
+          const selectedFiles = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          if (selectedFiles.length > 0) {
+            void onValueChange(selectedFiles);
+          }
+        }}
+      />
       <FileUploadDropzone>
         <div
           className={`flex flex-col items-center justify-center gap-4 p-8 text-center h-full min-h-96 transition-colors ${

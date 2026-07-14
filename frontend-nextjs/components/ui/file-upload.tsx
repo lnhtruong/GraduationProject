@@ -1,5 +1,6 @@
 "use client";
 
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { Slot } from "@radix-ui/react-slot";
 import {
@@ -414,7 +415,10 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
                 store.dispatch({
                   variant: "SET_ERROR",
                   file,
-                  error: error.message ?? "Tải lên thất bại",
+                  error: getUserFacingErrorMessage(
+                    error,
+                    "Tải lên thất bại. Vui lòng thử lại.",
+                  ),
                 });
               },
             });
@@ -424,8 +428,10 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
             }
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Tải lên thất bại";
+          const errorMessage = getUserFacingErrorMessage(
+            error,
+            "Tải lên thất bại. Vui lòng thử lại.",
+          );
           for (const file of files) {
             store.dispatch({
               variant: "SET_ERROR",

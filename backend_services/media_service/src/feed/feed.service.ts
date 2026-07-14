@@ -360,7 +360,7 @@ export class FeedService {
         raw: true,
       }),
       this.feedCommentModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
+        where: { highlight_id: { [Op.in]: feedIds } },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
         group: ['highlight_id'],
         raw: true,
@@ -450,7 +450,7 @@ export class FeedService {
         raw: true,
       }),
       this.feedCommentModel.findAll({
-        where: { highlight_id: { [Op.in]: feedIds }, origin_cmt: null },
+        where: { highlight_id: { [Op.in]: feedIds } },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
         group: ['highlight_id'],
         raw: true,
@@ -546,7 +546,6 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
-          origin_cmt: null,
           created_at: { [Op.gte]: startDate },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -1655,7 +1654,6 @@ export class FeedService {
       this.feedCommentModel.findAll({
         where: {
           highlight_id: { [Op.in]: feedIds },
-          origin_cmt: null,
           created_at: { [Op.gte]: since },
         },
         attributes: ['highlight_id', [fn('COUNT', col('id')), 'comments']],
@@ -2122,7 +2120,6 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
-      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 
@@ -2289,7 +2286,6 @@ export class FeedService {
     };
     const commentWhere = {
       highlight_id: { [Op.in]: feedIds },
-      origin_cmt: null,
       ...(startDate && { created_at: { [Op.gte]: startDate } }),
     };
 
@@ -2640,8 +2636,15 @@ export class FeedService {
       }
     }
 
+    const commentCount = await this.feedCommentModel.count({
+      where: { highlight_id: feedId },
+    });
+
     comment.user = user as User;
-    return this.mapCommentResponse(comment, userId, 0);
+    return {
+      ...this.mapCommentResponse(comment, userId, 0),
+      comment_count: commentCount,
+    };
   }
 
   async getComments(feedId: number, cursor?: number, limit = 20, userId?: number) {

@@ -13,7 +13,7 @@ export function useMascotJob() {
   return useMascotJobBase({
     onError: (error: Error) => {
       console.error("[useMascotJob] Error:", error);
-      toast.error("Failed to start mascot processing. Please try again.");
+      toast.error("Không thể bắt đầu tạo video mascot. Vui lòng thử lại.");
     },
   });
 }

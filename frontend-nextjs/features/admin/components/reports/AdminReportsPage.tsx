@@ -165,8 +165,22 @@ export default function AdminReportsPage() {
         {/* Tab: pending */}
         <TabsContent value="pending" className="mt-0">
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="border-b border-border/50 px-5 py-3">
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">Báo cáo chờ xử lý</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {pendingData?.pagination.totalItems ?? 0} báo cáo
+                </span>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => refetchPending()}
+                  disabled={isPendingLoading}
+                  title="Làm mới"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isPendingLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
             {isPendingError ? (
               <ErrorRetry onRetry={() => refetchPending()} />
@@ -194,9 +208,20 @@ export default function AdminReportsPage() {
           <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
             <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
               <span className="text-sm font-semibold">Tất cả báo cáo</span>
-              <span className="text-xs text-muted-foreground">
-                {allData?.pagination.totalItems ?? 0} báo cáo
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {allData?.pagination.totalItems ?? 0} báo cáo
+                </span>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => refetchAll()}
+                  disabled={isAllLoading}
+                  title="Làm mới"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isAllLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
             {isAllError ? (
               <ErrorRetry onRetry={() => refetchAll()} />

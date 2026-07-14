@@ -6,6 +6,7 @@ import { buildMascotFormData } from "../utils/mascot.utils";
 import type { MascotParams } from "../types";
 
 export const MASCOT_ENDPOINT = "/mascot_colab/mascot";
+export const MASCOT_JOB_STATUS_ENDPOINT = "/mascot_colab/jobs/status";
 
 export const mascotApi = createApi({
   startJob: async (params: MascotParams) => {
@@ -15,5 +16,11 @@ export const mascotApi = createApi({
       formData,
     );
     return data.job_id;
+  },
+  getJobStatus: async (jobId: string) => {
+    const { data } = await inferenceClient.get<Record<string, unknown>>(
+      `${MASCOT_JOB_STATUS_ENDPOINT}/${encodeURIComponent(jobId)}`,
+    );
+    return data;
   },
 });

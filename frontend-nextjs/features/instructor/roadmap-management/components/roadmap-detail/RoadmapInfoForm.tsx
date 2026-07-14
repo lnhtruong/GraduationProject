@@ -1,6 +1,8 @@
+import { Route } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface RoadmapInfoFormProps {
   formId: string;
@@ -20,38 +22,42 @@ export function RoadmapInfoForm({
   onDescriptionChange,
 }: RoadmapInfoFormProps) {
   return (
-    <form id={formId} className="space-y-5" onSubmit={onSubmit}>
+    <form id={formId} onSubmit={onSubmit}>
       <Card className="border-border/60 shadow-sm">
-        <CardContent className="space-y-4 p-4 sm:p-5">
-          <div>
-            <h3 className="text-base font-semibold">Thông tin lộ trình</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Chỉnh sửa tên và mô tả lộ trình của bạn.
-            </p>
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Route className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">Thông tin chính</h2>
+              <p className="text-sm text-muted-foreground">
+                Đặt tên và mô tả để học viên hiểu lộ trình trước khi bắt đầu.
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-5">
             <div className="grid gap-2">
-              <Label className="text-sm font-medium">Tên lộ trình</Label>
+              <Label className="text-sm font-medium">
+                Tên lộ trình <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={name}
                 onChange={(event) => onNameChange(event.target.value)}
                 placeholder="VD: Backend JavaScript cho người mới"
+                className="h-11 rounded-xl"
               />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium">Mô tả</Label>
-              <Input
+              <Textarea
                 value={description}
                 onChange={(event) => onDescriptionChange(event.target.value)}
-                placeholder="Mục tiêu, level, nội dung trọng tâm..."
+                placeholder="Mục tiêu học, trình độ phù hợp, kết quả sau khi hoàn thành..."
+                className="min-h-32 rounded-xl"
               />
             </div>
-          </div>
-
-          <div className="border-t border-border/60 pt-4 text-xs text-muted-foreground">
-            Cập nhật thông tin và sắp xếp khóa học xong rồi bấm{" "}
-            <strong>Lưu thay đổi</strong> ở góc trên bên phải để áp dụng.
           </div>
         </CardContent>
       </Card>

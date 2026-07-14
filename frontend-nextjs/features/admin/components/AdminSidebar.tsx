@@ -1,23 +1,23 @@
-﻿"use client";
+"use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  ChevronRight,
-  Flag,
-  Wallet,
-  GraduationCap,
-  ArrowLeft,
-  LogOut,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { BrandLogo } from "@/components/BrandLogo";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import { getUserDisplayName } from "@/lib/user-display";
+import {
+  ArrowLeft,
+  BookOpen,
+  ChevronRight,
+  Flag,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Users,
+  Wallet,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   {
@@ -48,23 +48,13 @@ const NAV_ITEMS = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const displayName = getUserDisplayName(user, "Quản trị viên");
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border/60 bg-background">
-      {/* Sidebar header */}
-      <div className="border-b border-border/60 px-4 py-3">
-        <BrandLogo
-          compact
-          badge="Admin"
-          subtitle="Quản trị hệ thống"
-          className="px-0 hover:bg-transparent"
-        />
-      </div>
-      {/* Navigation */}
+    <>
       <nav className="flex-1 space-y-0.5 p-3">
         <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
           Chức năng
@@ -80,6 +70,7 @@ export function AdminSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                 isActive
@@ -102,7 +93,6 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
       <div className="space-y-2 border-t border-border/60 px-3 py-3">
         <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
           <UserAvatar
@@ -120,19 +110,37 @@ export function AdminSidebar() {
         </div>
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+          onClick={onNavigate}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
           Quay về trang chủ
         </Link>
         <button
+          type="button"
           onClick={() => logout()}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive/80 hover:bg-destructive/5 hover:text-destructive transition-colors"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive/80 transition-colors hover:bg-destructive/5 hover:text-destructive"
         >
           <LogOut className="h-3.5 w-3.5 shrink-0" />
           Đăng xuất
         </button>
       </div>
+    </>
+  );
+}
+
+export function AdminSidebar() {
+  return (
+    <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-border/60 bg-background lg:flex">
+      <div className="border-b border-border/60 px-4 py-3">
+        <BrandLogo
+          compact
+          badge="Admin"
+          subtitle="Quản trị hệ thống"
+          className="px-0 hover:bg-transparent"
+        />
+      </div>
+      <AdminSidebarNav />
     </aside>
   );
 }

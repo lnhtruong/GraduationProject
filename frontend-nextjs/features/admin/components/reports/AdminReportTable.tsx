@@ -73,32 +73,44 @@ interface Props {
 export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
   if (isLoading) {
     return (
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/20">
-            <TableHead className="w-16">#ID</TableHead>
-            <TableHead className="w-28">Loại</TableHead>
-            <TableHead>Lý do</TableHead>
-            <TableHead className="w-40">Người báo cáo</TableHead>
-            <TableHead className="w-28">Trạng thái</TableHead>
-            <TableHead className="w-28">Ngày tạo</TableHead>
-            <TableHead className="w-24 text-right">Hành động</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <>
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/20">
+                <TableHead className="w-16">#ID</TableHead>
+                <TableHead className="w-28">Loại</TableHead>
+                <TableHead>Lý do</TableHead>
+                <TableHead className="w-40">Người báo cáo</TableHead>
+                <TableHead className="w-28">Trạng thái</TableHead>
+                <TableHead className="w-28">Ngày tạo</TableHead>
+                <TableHead className="w-24 text-right">Hành động</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="divide-y divide-border/40 sm:hidden">
           {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-              <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
-            </TableRow>
+            <div key={i} className="flex flex-col gap-2 px-4 py-3.5">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-full" />
+            </div>
           ))}
-        </TableBody>
-      </Table>
+        </div>
+      </>
     );
   }
 
@@ -112,79 +124,124 @@ export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted/20">
-          <TableHead className="w-16">#ID</TableHead>
-          <TableHead className="w-28">Loại</TableHead>
-          <TableHead>Lý do</TableHead>
-          <TableHead className="w-40">Người báo cáo</TableHead>
-          <TableHead className="w-28">Trạng thái</TableHead>
-          <TableHead className="w-28">Ngày tạo</TableHead>
-          <TableHead className="w-24 text-right">Hành động</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* Desktop: bảng đầy đủ, từ sm trở lên */}
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/20">
+              <TableHead className="w-16">#ID</TableHead>
+              <TableHead className="w-28">Loại</TableHead>
+              <TableHead>Lý do</TableHead>
+              <TableHead className="w-40">Người báo cáo</TableHead>
+              <TableHead className="w-28">Trạng thái</TableHead>
+              <TableHead className="w-28">Ngày tạo</TableHead>
+              <TableHead className="w-24 text-right">Hành động</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reports.map((report) => {
+              const typeConfig = TARGET_TYPE_CONFIG[report.targetType];
+              const statusConfig = STATUS_CONFIG[report.status];
+              return (
+                <TableRow
+                  key={report.id}
+                  className="cursor-pointer hover:bg-muted/30"
+                  onClick={() => onViewDetail?.(report)}
+                >
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    #{report.id}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={`flex w-fit items-center gap-1 text-xs font-medium ${typeConfig.className}`}
+                    >
+                      {typeConfig.icon}
+                      {typeConfig.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-xs">
+                    <span className="line-clamp-2 text-sm text-foreground/80">
+                      {report.reason.length > 80
+                        ? report.reason.slice(0, 80) + "…"
+                        : report.reason}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {reporterName(report)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-medium ${statusConfig.className}`}
+                    >
+                      {statusConfig.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDate(report.created_at)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 gap-1.5 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetail?.(report);
+                      }}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Chi tiết
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile: card danh sách, dưới sm */}
+      <div className="divide-y divide-border/40 sm:hidden">
         {reports.map((report) => {
           const typeConfig = TARGET_TYPE_CONFIG[report.targetType];
           const statusConfig = STATUS_CONFIG[report.status];
           return (
-            <TableRow
+            <div
               key={report.id}
-              className="cursor-pointer hover:bg-muted/30"
+              className="flex flex-col gap-2 px-4 py-3.5 active:bg-muted/30"
               onClick={() => onViewDetail?.(report)}
             >
-              <TableCell className="font-mono text-xs text-muted-foreground">
-                #{report.id}
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant="outline"
-                  className={`flex w-fit items-center gap-1 text-xs font-medium ${typeConfig.className}`}
-                >
-                  {typeConfig.icon}
-                  {typeConfig.label}
-                </Badge>
-              </TableCell>
-              <TableCell className="max-w-xs">
-                <span className="line-clamp-2 text-sm text-foreground/80">
-                  {report.reason.length > 80
-                    ? report.reason.slice(0, 80) + "…"
-                    : report.reason}
-                </span>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {reporterName(report)}
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant="outline"
-                  className={`text-xs font-medium ${statusConfig.className}`}
-                >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono text-xs text-muted-foreground">#{report.id}</span>
+                  <Badge
+                    variant="outline"
+                    className={`flex w-fit items-center gap-1 text-[11px] font-medium ${typeConfig.className}`}
+                  >
+                    {typeConfig.icon}
+                    {typeConfig.label}
+                  </Badge>
+                </div>
+                <Badge variant="outline" className={`shrink-0 text-[11px] font-medium ${statusConfig.className}`}>
                   {statusConfig.label}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {formatDate(report.created_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 gap-1.5 px-2 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewDetail?.(report);
-                  }}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  Chi tiết
-                </Button>
-              </TableCell>
-            </TableRow>
+              </div>
+
+              <p className="line-clamp-2 text-sm text-foreground/80">
+                {report.reason.length > 80 ? report.reason.slice(0, 80) + "…" : report.reason}
+              </p>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{reporterName(report)}</span>
+                <span>{formatDate(report.created_at)}</span>
+              </div>
+            </div>
           );
         })}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }

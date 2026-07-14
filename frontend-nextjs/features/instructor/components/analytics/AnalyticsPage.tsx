@@ -256,34 +256,34 @@ export default function AnalyticsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         {/* Tab bar + period selector */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="h-10 gap-0.5 rounded-xl bg-muted/60 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1 sm:inline-flex sm:w-auto">
             <TabsTrigger
               value="courses"
-              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
             >
               <BookOpen className="h-3.5 w-3.5" />
-              Khóa học
+              <span className="truncate">Khóa học</span>
             </TabsTrigger>
             <TabsTrigger
               value="feed"
-              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
             >
               <TrendingUp className="h-3.5 w-3.5" />
-              Feed
+              <span className="truncate">Feed</span>
             </TabsTrigger>
             <TabsTrigger
               value="trending"
-              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
             >
               <Flame className="h-3.5 w-3.5" />
-              Trending
+              <span className="truncate">Trending</span>
             </TabsTrigger>
             <TabsTrigger
               value="revenue"
-              className="h-8 gap-1.5 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
             >
               <DollarSign className="h-3.5 w-3.5" />
-              Thu nhập
+              <span className="truncate">Thu nhập</span>
             </TabsTrigger>
           </TabsList>
 
@@ -335,7 +335,7 @@ export default function AnalyticsPage() {
               },
             ]}
           />
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+          <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-border/60 bg-background shadow-sm">
             <CourseStatsSection
               courses={courseStats?.courses ?? []}
               isLoading={courseLoading}
@@ -386,7 +386,7 @@ export default function AnalyticsPage() {
               },
             ]}
           />
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+          <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-border/60 bg-background shadow-sm">
             <FeedStatsSection
               feeds={feedStats?.data ?? []}
               isLoading={feedLoading}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { createMediaUploadStream } from "@/features/_shared/realtime/media-upload-stream";
 import { lessonVideoUploadManager } from "./lesson-video-upload.manager";
+import { videoApi } from "../api/video.api";
 
 type LessonVideoUploadStatus =
   | "idle"
@@ -24,6 +25,8 @@ export interface LessonVideoUploadSession {
   videoId: number | null;
   bunnyVideoId: string | null;
   uploadUrl: string | null;
+  initialVideoUrl: string | null;
+  readyVideoUrl: string | null;
   error: string | null;
   startedAt: number | null;
   updatedAt: number | null;
@@ -49,6 +52,8 @@ const INITIAL_SESSION: LessonVideoUploadSession = {
   videoId: null,
   bunnyVideoId: null,
   uploadUrl: null,
+  initialVideoUrl: null,
+  readyVideoUrl: null,
   error: null,
   startedAt: null,
   updatedAt: null,
@@ -73,7 +78,11 @@ export function useLessonVideoUpload() {
 
   const startUpload = useCallback(
     async ({ file, title, courseId, lessonId, onCompleted }: StartUploadArgs) => {
-      if (session.status === "uploading" || session.status === "initializing") {
+      if (
+        session.status === "uploading" ||
+        session.status === "initializing" ||
+        session.status === "processing"
+      ) {
         throw new Error(
           "Đang có upload dở dang. Vui lòng chờ hoàn tất hoặc hủy.",
         );
@@ -96,11 +105,18 @@ export function useLessonVideoUpload() {
       await lessonVideoUploadManager.startUpload(
         { file, title, courseId, lessonId },
         {
-          onSessionInit: ({ videoId, bunnyVideoId, fileName, fileSize }) => {
+          onSessionInit: ({
+            videoId,
+            bunnyVideoId,
+            initialVideoUrl,
+            fileName,
+            fileSize,
+          }) => {
             patchSession({
               status: "uploading",
               videoId,
               bunnyVideoId,
+              initialVideoUrl: initialVideoUrl ?? null,
               fileName,
               fileSize,
               error: null,
@@ -111,6 +127,7 @@ export function useLessonVideoUpload() {
               const pending = {
                 videoId,
                 bunnyVideoId,
+                initialVideoUrl: initialVideoUrl ?? null,
                 fileName,
                 fileSize,
                 startedAt: Date.now(),
@@ -142,10 +159,11 @@ export function useLessonVideoUpload() {
               progressPercent: 100,
             });
           },
-          onCompleted: ({ videoId }) => {
+          onCompleted: ({ videoId, readyVideoUrl }) => {
             patchSession({
               status: "completed",
               progressPercent: 100,
+              readyVideoUrl: readyVideoUrl ?? null,
               error: null,
             });
             lastUploadArgsRef.current = null;
@@ -207,6 +225,7 @@ export function useLessonVideoUpload() {
       return JSON.parse(raw) as {
         videoId: number;
         bunnyVideoId: string;
+        initialVideoUrl?: string | null;
         fileName: string;
         fileSize?: number;
         startedAt?: number;
@@ -218,7 +237,9 @@ export function useLessonVideoUpload() {
 
   useEffect(() => {
     const shouldWarn =
-      session.status === "initializing" || session.status === "uploading";
+      session.status === "initializing" ||
+      session.status === "uploading" ||
+      session.status === "processing";
 
     if (!shouldWarn) return;
 
@@ -272,23 +293,60 @@ export function useLessonVideoUpload() {
 
         onCompleted: (payload) => {
           try {
-            const videoId = payload?.data?.videoId;
-            const jobId = payload?.data?.job_id ?? payload?.data?.jobId;
-
-            // Match by videoId (primary) or jobId (fallback for AI processing)
+            const flatPayload = payload as unknown as {
+              videoId?: number;
+              video_id?: number;
+              job_id?: string;
+              jobId?: string;
+              url?: string;
+              video_url?: string;
+              data?: {
+                videoId?: number;
+                video_id?: number;
+                job_id?: string;
+                jobId?: string;
+                url?: string;
+                video_url?: string;
+              };
+            };
+            const videoId =
+              flatPayload.data?.videoId ??
+              flatPayload.data?.video_id ??
+              flatPayload.videoId ??
+              flatPayload.video_id;
+            const completedUrl =
+              flatPayload.data?.url ??
+              flatPayload.data?.video_url ??
+              flatPayload.url ??
+              flatPayload.video_url ??
+              null;
+            // Match by videoId from webhook/SSE. Polling remains the fallback.
             if (videoId && String(videoId) === String(session.videoId)) {
-              patchSession({
-                status: "completed",
-                progressPercent: 100,
-                error: null,
-              });
-              // call completion callback if provided
-              try {
-                lastUploadArgsRef.current?.onCompleted?.(Number(videoId));
-              } catch {}
-              try {
-                localStorage.removeItem("lessonUploadSession");
-              } catch {}
+              void (async () => {
+                lessonVideoUploadManager.completeFromRealtime(Number(videoId));
+                let readyVideoUrl = completedUrl;
+                if (!readyVideoUrl) {
+                  try {
+                    const video = await videoApi.findById(Number(videoId));
+                    readyVideoUrl = video?.url ?? null;
+                  } catch {}
+                }
+
+                patchSession({
+                  status: "completed",
+                  progressPercent: 100,
+                  readyVideoUrl,
+                  error: null,
+                });
+                // call completion callback if provided
+                try {
+                  lastUploadArgsRef.current?.onCompleted?.(Number(videoId));
+                } catch {}
+                lastUploadArgsRef.current = null;
+                try {
+                  localStorage.removeItem("lessonUploadSession");
+                } catch {}
+              })();
             }
           } catch {}
         },
@@ -323,8 +381,13 @@ export function useLessonVideoUpload() {
     retryUpload,
     cancelUpload,
     clearSession,
+    isUploadBlocking:
+      session.status === "initializing" ||
+      session.status === "uploading",
     isUploading:
-      session.status === "initializing" || session.status === "uploading",
+      session.status === "initializing" ||
+      session.status === "uploading" ||
+      session.status === "processing",
     getPendingSession,
   };
 }

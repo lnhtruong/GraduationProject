@@ -1,10 +1,6 @@
-import { CheckCircle, Play, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { Edit3, ListVideo, RotateCcw } from "lucide-react";
 
 interface SuccessStatusProps {
   clipsCount: number;
@@ -14,10 +10,6 @@ interface SuccessStatusProps {
   onClose?: () => void;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export default function SuccessStatus({
   clipsCount,
   onViewResults,
@@ -26,94 +18,48 @@ export default function SuccessStatus({
   onClose,
 }: SuccessStatusProps) {
   const isFeedMode = mode === "feed";
+  const isSingleClip = clipsCount === 1;
 
   return (
-    <Card className="p-6 bg-accent/10 border-accent/30">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        {/* Icon */}
-        <div className="shrink-0">
-          <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center shadow-lg">
-            <CheckCircle className="w-6 h-6 text-accent-foreground" />
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-accent">
-            Xử lý thành công!
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold">
+            {isSingleClip ? "Highlight đã sẵn sàng" : "Các highlight đã sẵn sàng"}
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isFeedMode ? (
-              "Video highlight đã được xử lý thành công và tự động thêm vào Thư viện video của khóa học."
-            ) : clipsCount === 1 ? (
-              "Video đã được xử lý và sẵn sàng xem."
-            ) : (
-              `${clipsCount} clips đã được tạo và sẵn sàng xem.`
-            )}
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            {isFeedMode
+              ? "Video đã được tạo xong và có thể dùng cho feed khóa học."
+              : isSingleClip
+                ? "Bạn có thể xem lại kết quả, tải xuống hoặc mở Studio để chỉnh tiếp."
+                : `${clipsCount} đoạn đã được tạo. Hãy chọn đoạn phù hợp trong danh sách kết quả bên dưới.`}
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {isFeedMode ? (
-            <>
-              {onClose && (
-                <Button
-                  onClick={onClose}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                  size="default"
-                >
-                  Hoàn tất & Đóng
-                </Button>
-              )}
-              <Button
-                onClick={onViewResults}
-                variant="outline"
-                size="default"
-                className="border-accent/40 text-accent hover:bg-accent/10"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Chỉnh sửa trong Studio (Tùy chọn)
-              </Button>
-              {onStartNew && (
-                <Button onClick={onStartNew} variant="ghost" size="default">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Tải video mới
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                onClick={onViewResults}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                size="default"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Xem kết quả
-              </Button>
-              {onStartNew && (
-                <Button onClick={onStartNew} variant="outline" size="default">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Tải video mới
-                </Button>
-              )}
-            </>
-          )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {isFeedMode && onClose ? (
+            <Button type="button" onClick={onClose}>
+              Hoàn tất
+            </Button>
+          ) : null}
+
+          <Button type="button" onClick={onViewResults}>
+            {isSingleClip ? (
+              <Edit3 className="mr-2 h-4 w-4" />
+            ) : (
+              <ListVideo className="mr-2 h-4 w-4" />
+            )}
+            {isSingleClip ? "Mở Studio" : "Xem kết quả"}
+          </Button>
+
+          {onStartNew ? (
+            <Button type="button" onClick={onStartNew} variant="outline">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Tạo highlight khác
+            </Button>
+          ) : null}
         </div>
       </div>
-
-      {/* Additional info */}
-      {clipsCount > 1 && !isFeedMode && (
-        <div className="mt-4 pt-4 border-t border-accent/20">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Download className="w-3 h-3" />
-            <span>
-              Bạn có thể tải xuống từng clip hoặc chỉnh sửa trong trình biên tập
-            </span>
-          </div>
-        </div>
-      )}
     </Card>
   );
 }

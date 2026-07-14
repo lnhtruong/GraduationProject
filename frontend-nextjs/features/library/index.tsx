@@ -16,8 +16,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Film, ImageIcon, Users, VideoIcon } from "lucide-react";
-import type { Image } from "@/features/image";
-import type { Video } from "@/features/video";
 import { FollowingInstructorsGrid } from "./components/FollowingInstructorsGrid";
 import { ImageGrid } from "./components/ImageGrid";
 import { LibraryHeader } from "./components/LibraryHeader";
@@ -30,6 +28,7 @@ import {
 	type LibraryTabValue,
 	type PreviewItem,
 } from "./types";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export default function LibraryFeature() {
 	const router = useRouter();
@@ -91,25 +90,25 @@ export default function LibraryFeature() {
 						}}
 						className="h-full"
 					>
-						<TabsList>
-							<TabsTrigger value="video">
+						<TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+							<TabsTrigger value="video" className="min-w-0 gap-1.5 px-2">
 								<VideoIcon className="h-4 w-4" />
-								{TAB_LABEL.video}
+								<span className="truncate">{TAB_LABEL.video}</span>
 								<Badge variant="secondary">{tabStats.video}</Badge>
 							</TabsTrigger>
-							<TabsTrigger value="mascot">
+							<TabsTrigger value="mascot" className="min-w-0 gap-1.5 px-2">
 								<Film className="h-4 w-4" />
-								{TAB_LABEL.mascot}
+								<span className="truncate">{TAB_LABEL.mascot}</span>
 								<Badge variant="secondary">{tabStats.mascot}</Badge>
 							</TabsTrigger>
-							<TabsTrigger value="image">
+							<TabsTrigger value="image" className="min-w-0 gap-1.5 px-2">
 								<ImageIcon className="h-4 w-4" />
-								{TAB_LABEL.image}
+								<span className="truncate">{TAB_LABEL.image}</span>
 								<Badge variant="secondary">{tabStats.image}</Badge>
 							</TabsTrigger>
-							<TabsTrigger value="following">
+							<TabsTrigger value="following" className="min-w-0 gap-1.5 px-2">
 								<Users className="h-4 w-4" />
-								{TAB_LABEL.following}
+								<span className="truncate">{TAB_LABEL.following}</span>
 							</TabsTrigger>
 						</TabsList>
 
@@ -213,16 +212,8 @@ export default function LibraryFeature() {
 }
 
 function toErrorMessage(error: unknown): string {
-	if (error instanceof Error) {
-		return error.message;
-	}
-
-	if (typeof error === "object" && error !== null) {
-		const maybeMessage = (error as { message?: unknown }).message;
-		if (typeof maybeMessage === "string") {
-			return maybeMessage;
-		}
-	}
-
-	return "Vui lòng thử lại sau.";
+	return getUserFacingErrorMessage(
+		error,
+		"Hiện chưa thể tải thư viện. Vui lòng thử lại sau.",
+	);
 }

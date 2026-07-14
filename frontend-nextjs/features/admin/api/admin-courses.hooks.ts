@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminCourseApi } from "./admin-courses.api";
+import { ADMIN_DASHBOARD_KEY } from "./admin-dashboard.hooks";
 import type { PaginatedCourseResponse } from "./admin-courses.api";
 import {
   USE_MOCK,
@@ -59,6 +60,7 @@ export function useApproveCourse() {
     mutationFn: (courseId: number) => adminCourseApi.approveCourse(courseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_COURSE_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_KEY });
     },
   });
 }
@@ -69,6 +71,7 @@ export function useRejectCourse() {
     mutationFn: (courseId: number) => adminCourseApi.rejectCourse(courseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_COURSE_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_KEY });
     },
   });
 }

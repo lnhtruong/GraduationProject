@@ -24,11 +24,8 @@ import {
   deriveBackendMascotFromPreview,
   getMascotDisplaySize,
 } from "@/features/editor/utils/mascotPlacement";
-import {
-  type VideoCompletedPayload,
-  type VideoErrorPayload,
-  createMediaUploadStream,
-} from "@/features/_shared/realtime/media-upload-stream";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { waitForMascotJobCompletion } from "@/features/editor/utils/mascot-job.utils";
 
 export interface CoreEditorControllerProps {
   disableUpload?: boolean;
@@ -444,6 +441,12 @@ export function useCoreEditorController({
       ({ blobUrl }) => {
         setVideoSrc(blobUrl);
       },
+      {
+        effect,
+        textOverlays: layers
+          .filter((layer): layer is Extract<LayerItem, { type: "text" }> => layer.type === "text")
+          .map((layer) => layer.data),
+      },
     );
   }, [
     videoSrc,
@@ -452,6 +455,8 @@ export function useCoreEditorController({
     applyMascot,
     mascot,
     mascotFrameSize,
+    effect,
+    layers,
     sourceVideoName,
     setVideoSrc,
   ]);
@@ -497,6 +502,12 @@ export function useCoreEditorController({
         computedMascot,
         videoSrc,
         sourceVideoName,
+        {
+          effect,
+          textOverlays: layers
+            .filter((layer): layer is Extract<LayerItem, { type: "text" }> => layer.type === "text")
+            .map((layer) => layer.data),
+        },
       );
       if (!jobId) return;
 
@@ -515,68 +526,48 @@ export function useCoreEditorController({
         );
       }
 
-      await new Promise<void>((resolve, reject) => {
-        const stream = createMediaUploadStream(
-          {
-            onProgress: (payload) => {
-              // Handle job stage updates
-              if (payload.jobId === jobId && payload.stage) {
-                toast(`Processing: ${payload.stage}`);
-              }
-            },
+      const stageTranslations: Record<string, string> = {
+        transcribing: "Đang phân tích âm thanh...",
+        generating_mascot: "Đang tạo cử động mascot...",
+        processing: "Đang xử lý video...",
+        merging: "Đang ghép video và mascot...",
+        completed: "Hoàn tất!",
+        failed: "Thất bại",
+      };
 
-            onCompleted: async (payload: VideoCompletedPayload) => {
-              // Only process completion for this specific job
-              const payloadJobId =
-                payload?.data?.job_id ?? payload?.data?.jobId;
-              if (payloadJobId && payloadJobId !== jobId) {
-                return; // Ignore other jobs
-              }
-
-              if (payload.data.type !== "mascot") return;
-
-              try {
-                await onFinalizeMascotProject?.({
-                  videoId: payload.data.videoId,
-                  videoUrl: payload.data.url,
-                });
-                stream.close();
-                resolve();
-              } catch (error) {
-                stream.close();
-                reject(error);
-              }
-            },
-
-            onError: (payload: VideoErrorPayload) => {
-              // Only process error for this specific job
-              const errorJobId = payload.jobId;
-              if (errorJobId && errorJobId !== jobId) {
-                return; // Ignore other jobs
-              }
-
-              stream.close();
-              reject(
-                new Error(
-                  payload.error?.message ?? "Tạo mascot video thất bại.",
-                ),
-              );
-            },
-
-            onConnectionError: (error) => {
-              stream.close();
-              reject(error);
-            },
-          },
-          { userId },
-        );
+      const completedMascot = await waitForMascotJobCompletion({
+        jobId,
+        userId,
+        onProgress: (stage) => {
+          const friendlyStage =
+            stageTranslations[stage.toLowerCase()] ?? stage;
+          toast(`Đang tiến hành: ${friendlyStage}`);
+        },
       });
 
-      toast.success("Tạo mascot video thành công, chuyển sang thư viện...");
-      router.push("/library");
+      await onFinalizeMascotProject?.({
+        videoId: completedMascot.videoId,
+        videoUrl: completedMascot.url,
+      });
+
+      toast.success("Video đã được tạo hoàn chỉnh!", {
+        duration: 10000,
+        action: {
+          label: "Xem trong thư viện",
+          onClick: () => router.push("/library"),
+        },
+        cancel: {
+          label: "Tiếp tục chỉnh sửa",
+          onClick: () => {},
+        },
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Tạo mascot video thất bại: ${message}`);
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "Không thể tạo video hoàn chỉnh. Vui lòng thử lại.",
+        ),
+      );
     } finally {
       setIsCreatingMascotVideo(false);
     }
@@ -590,6 +581,8 @@ export function useCoreEditorController({
     sourceVideoName,
     onFinalizeMascotProject,
     router,
+    effect,
+    layers,
   ]);
 
   const hasSelectedVideo =
@@ -708,6 +701,7 @@ export function useCoreEditorController({
       onTextRemove: handleRemoveText,
       selectedTextId,
       onTextSelect: setSelectedTextId,
+      currentTimeMs,
     });
   }, [
     editId,
@@ -733,6 +727,7 @@ export function useCoreEditorController({
     handleAddText,
     handleUpdateText,
     handleRemoveText,
+    currentTimeMs,
   ]);
 
   const buildEditorPayload = () => {
@@ -793,9 +788,8 @@ export function useCoreEditorController({
   };
 
   const handleSave = () => {
-    const payload = buildEditorPayload();
-    console.log("[EditorExport] Payload sẵn sàng gửi backend:", payload);
-    console.log("[EditorExport] JSON:\n", JSON.stringify(payload, null, 2));
+    // TODO: Implement save/export logic
+    buildEditorPayload();
   };
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminUsersApi, type UpdateUserDto, type AdminUsersParams } from "./admin-users.api";
+import { ADMIN_DASHBOARD_KEY } from "./admin-dashboard.hooks";
 
 const QUERY_KEY_ROOT = ["admin", "users"] as const;
 const queryKey = (params?: AdminUsersParams) => [...QUERY_KEY_ROOT, params] as const;
@@ -18,7 +19,10 @@ export function useAdminUpdateUser() {
   return useMutation({
     mutationFn: ({ id, dto }: { id: number; dto: UpdateUserDto }) =>
       adminUsersApi.update(id, dto),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_ROOT }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY_ROOT });
+      queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_KEY });
+    },
   });
 }
 

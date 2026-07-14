@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowBigDownDash, ArrowBigUpDash, Clapperboard } from "lucide-react";
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useNewsfeedVideoFeed } from "../hooks/useNewsfeedVideoFeed";
@@ -140,6 +141,12 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		shareMutation.mutate({ feedId: shareFeedId, type: "share" });
 	}, [isAuthenticated, shareFeedId, shareMutation]);
 
+	useEffect(() => {
+		if (isMenuOpen && isOptionBoxOpen) {
+			closeOptionBox();
+		}
+	}, [closeOptionBox, isMenuOpen, isOptionBoxOpen]);
+
 	if (feed.isLoading) {
 		return (
 			<div className="min-h-[calc(100vh-64px)] bg-background">
@@ -149,12 +156,17 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	}
 
 	if (feed.error) {
-		const message = feed.error instanceof Error ? feed.error.message : "Không thể tải bảng tin";
+		const message = getUserFacingErrorMessage(
+			feed.error,
+			"Hiện chưa thể tải bảng tin. Vui lòng thử lại sau.",
+		);
 
 		return (
 			<div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col items-center justify-center px-6 text-center gap-4">
-				<Clapperboard className="h-12 w-12 text-destructive" />
-				<h2 className="text-2xl font-bold">Tải bảng tin thất bại</h2>
+				<div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+					<Clapperboard className="h-8 w-8" />
+				</div>
+				<h2 className="text-2xl font-bold">Chưa tải được bảng tin</h2>
 				<p className="text-muted-foreground max-w-xl">
 					{message}
 				</p>
@@ -197,6 +209,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 					"h-[calc(100vh-64px)] pt-0 transition-all duration-300",
 					isMenuOpen ? "lg:pl-60" : "lg:pl-16",
 					isOptionBoxOpen ? "md:pr-[452px] lg:pr-[522px] xl:pr-[592px] pr-0" : "pr-0 md:pr-[72px]",
+					isMenuOpen && "pointer-events-none",
 				)}
 			>
 				<div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-center">
@@ -215,7 +228,7 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 			</main>
 
 			<NewsfeedOptionBox
-				isOpen={isOptionBoxOpen}
+				isOpen={isOptionBoxOpen && !isMenuOpen}
 				contentType={optionBoxContentType}
 				video={activeVideo}
 				viewerName="bạn"
@@ -229,10 +242,17 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				onShareRecorded={handleShareRecorded}
 			/>
 
-			<div className="fixed right-0 top-16 z-40 hidden md:flex h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur">
+			<div
+				className={cn(
+					"fixed right-0 top-16 z-40 hidden h-[calc(100vh-64px)] w-[72px] flex-col items-center justify-center gap-3 border-l border-border/60 bg-background/90 backdrop-blur transition-opacity md:flex",
+					isMenuOpen && "pointer-events-none opacity-0",
+				)}
+			>
 				<Button
 					size="icon"
 					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
+					aria-label="Video trước"
+					title="Video trước"
 					onClick={() => {
 						goPrev();
 					}}
@@ -242,6 +262,8 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				<Button
 					size="icon"
 					className="h-11 w-11 rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
+					aria-label="Video tiếp theo"
+					title="Video tiếp theo"
 					onClick={() => {
 						goNext();
 					}}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Hls from "hls.js";
 import {
   Bookmark,
   Ellipsis,
@@ -75,6 +76,10 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
+function isHlsUrl(url: string) {
+  return /\.m3u8(?:$|[?#])/i.test(url);
+}
+
 interface CaptionSegment {
   kind: "text" | "hashtag";
   text: string;
@@ -106,7 +111,9 @@ export function NewsfeedVideoCard({
 }: NewsfeedVideoCardProps) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
 
@@ -186,7 +193,76 @@ export function NewsfeedVideoCard({
     element.playbackRate = Number(playbackRate);
   }, [playbackRate, video.id]);
 
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) {
+      return;
+    }
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    element.pause();
+    element.removeAttribute("src");
+    element.load();
+
+    const sourceUrl = video.videoUrl;
+    if (!sourceUrl) {
+      return;
+    }
+
+    if (isHlsUrl(sourceUrl)) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          maxBufferLength: 20,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(sourceUrl);
+        hls.attachMedia(element);
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (!data.fatal) {
+            return;
+          }
+
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls.startLoad();
+            return;
+          }
+
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+            return;
+          }
+
+          hls.destroy();
+          hlsRef.current = null;
+        });
+      } else if (element.canPlayType("application/vnd.apple.mpegurl")) {
+        element.src = sourceUrl;
+      }
+    } else {
+      element.src = sourceUrl;
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [video.id, video.videoUrl]);
+
   const isPortraitVideo = videoAspectRatio < 1;
+  const setContainerNode = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setPortalContainer(node);
+  }, []);
+
   const captionText = useMemo(
     () => stripHtml(video.caption ?? video.description),
     [video.caption, video.description],
@@ -211,41 +287,6 @@ export function NewsfeedVideoCard({
 
     return segments;
   }, [captionText, hashtagItems]) as CaptionSegment[];
-  const collapsedCaptionSegments = useMemo(() => {
-    const limit = 110;
-    const segments: CaptionSegment[] = [];
-    let consumedLength = 0;
-
-    for (const segment of fullCaptionSegments) {
-      const separatorLength = segments.length > 0 ? 1 : 0;
-      const availableLength = limit - consumedLength - separatorLength;
-
-      if (availableLength <= 0) {
-        break;
-      }
-
-      if (separatorLength > 0) {
-        consumedLength += separatorLength;
-      }
-
-      if (segment.text.length <= availableLength) {
-        segments.push(segment);
-        consumedLength += segment.text.length;
-        continue;
-      }
-
-      if (segment.kind === "text") {
-        const clippedText = segment.text.slice(0, availableLength).trimEnd();
-        if (clippedText) {
-          segments.push({ kind: "text", text: clippedText });
-        }
-      }
-
-      break;
-    }
-
-    return segments;
-  }, [fullCaptionSegments]);
   const displayStats = video.stats;
   const volumePercent = isMuted ? 0 : volume * 100;
 
@@ -388,9 +429,7 @@ export function NewsfeedVideoCard({
           .then(() => {
             if (shouldRestoreAudio) {
               window.setTimeout(() => {
-                if (videoRef.current) {
-                  videoRef.current.muted = false;
-                }
+                element.muted = false;
               }, 0);
             }
           })
@@ -400,15 +439,21 @@ export function NewsfeedVideoCard({
           });
       });
     }
-  }, [isActive, isGlobalPaused, setGlobalPaused]);
+  }, [isActive, isGlobalPaused, setGlobalPaused, video.id, video.videoUrl]);
 
   useEffect(() => {
+    const element = videoRef.current;
+
     return () => {
       if (longPressTimer.current) {
         window.clearTimeout(longPressTimer.current);
       }
 
-      const element = videoRef.current;
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
       if (element) {
         try {
           element.pause();
@@ -462,7 +507,7 @@ export function NewsfeedVideoCard({
 
   return (
     <article
-      ref={containerRef}
+      ref={setContainerNode}
       className="relative flex h-full w-full snap-start items-center justify-center"
     >
       <NewsfeedAuthDialog
@@ -514,9 +559,26 @@ export function NewsfeedVideoCard({
               }
               setDuration(event.currentTarget.duration || 0);
             }}
-          >
-            <source src={video.videoUrl} type="video/mp4" />
-          </video>
+            onCanPlay={(event) => {
+              if (!isActive || isGlobalPaused) {
+                return;
+              }
+
+              const element = event.currentTarget;
+              void element
+                .play()
+                .then(() => setIsPaused(false))
+                .catch(() => {
+                  element.muted = true;
+                  void element
+                    .play()
+                    .then(() => setIsPaused(false))
+                    .catch(() => setIsPaused(true));
+                });
+            }}
+            onPlay={() => setIsPaused(false)}
+            onPause={() => setIsPaused(true)}
+          />
 
           <div
             className={cn(
@@ -532,6 +594,8 @@ export function NewsfeedVideoCard({
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              aria-label={isPaused ? "Phát video" : "Tạm dừng video"}
+              title={isPaused ? "Phát" : "Tạm dừng"}
               onClick={(event) => {
                 event.stopPropagation();
                 void handleTogglePlay();
@@ -547,6 +611,8 @@ export function NewsfeedVideoCard({
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              aria-label={isMuted || volume <= 0 ? "Bật âm thanh" : "Tắt âm thanh"}
+              title={isMuted || volume <= 0 ? "Bật âm thanh" : "Tắt âm thanh"}
               onClick={(event) => {
                 event.stopPropagation();
                 handleToggleMute();
@@ -578,6 +644,7 @@ export function NewsfeedVideoCard({
                 max={1}
                 step={0.01}
                 value={isMuted ? 0 : volume}
+                aria-label="Âm lượng video"
                 onChange={(event) => handleVolumeChange(Number(event.target.value))}
                 className={cn(
                   "relative z-10 h-full w-full appearance-none bg-transparent",
@@ -612,6 +679,8 @@ export function NewsfeedVideoCard({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/15 dark:bg-black/60 dark:text-white dark:hover:bg-white/10 md:border-white/15 md:bg-black/60 md:text-white md:hover:bg-white/10"
+                  aria-label="Mở tùy chọn video"
+                  title="Tùy chọn"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Ellipsis className="h-4 w-4" />
@@ -620,7 +689,7 @@ export function NewsfeedVideoCard({
               <DropdownMenuContent
                 align="end"
                 className="z-[2147483647] w-60"
-                portalContainer={containerRef.current}
+                portalContainer={portalContainer}
               >
                 <DropdownMenuLabel>Tùy chọn video</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -676,6 +745,7 @@ export function NewsfeedVideoCard({
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              aria-label={isOverlayHidden ? "Hiện thông tin video" : "Ẩn thông tin video"}
               onClick={(event) => {
                 event.stopPropagation();
                 setIsOverlayHidden((prev) => !prev);
@@ -692,6 +762,8 @@ export function NewsfeedVideoCard({
               variant="ghost"
               size="icon"
               className="hidden h-9 w-9 rounded-full border border-border/40 bg-background/80 text-foreground hover:bg-muted dark:border-white/20 dark:bg-black/70 dark:text-white dark:hover:bg-white/15 md:inline-flex md:border-white/20 md:bg-black/70 md:text-white md:hover:bg-white/15"
+              aria-label={isFullscreen ? "Thoát toàn màn hình" : "Xem toàn màn hình"}
+              title={isFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
               onClick={(event) => {
                 event.stopPropagation();
                 handleFullscreen();
@@ -711,6 +783,7 @@ export function NewsfeedVideoCard({
               variant="ghost"
               size="icon"
               className="absolute right-4 top-4 h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/70 hover:bg-black/60 hover:text-white z-30 md:hidden"
+              aria-label="Hiện thông tin video"
               onClick={(event) => {
                 event.stopPropagation();
                 setIsOverlayHidden(false);
@@ -721,9 +794,9 @@ export function NewsfeedVideoCard({
             </Button>
           )}
 
-          {/* Subtle gradient overlay at the bottom to ensure text readability */}
+          {/* Keep the caption readable without washing out the video. */}
           <div className={cn(
-            "absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background via-background/60 to-transparent dark:from-black/85 dark:via-black/25 dark:to-transparent md:from-black/85 md:via-black/25 md:to-transparent pointer-events-none z-10 transition-opacity duration-300 hidden md:block",
+            "absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none z-10 transition-opacity duration-300 hidden md:block",
             isOverlayHidden && "opacity-0"
           )} />
 
@@ -747,7 +820,7 @@ export function NewsfeedVideoCard({
                       event.stopPropagation();
                       setIsCaptionExpanded(true);
                     }}
-                    className="rounded-full bg-black/40 hover:bg-black/60 border border-white/20 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:scale-105 active:scale-95 flex items-center shadow-sm"
+                    className="rounded-full bg-black/55 hover:bg-black/70 border border-white/20 px-2.5 py-0.5 text-xs font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95 flex items-center shadow-sm"
                   >
                     Xem thêm
                   </button>
@@ -758,7 +831,7 @@ export function NewsfeedVideoCard({
             <div
               className={cn(
                 "absolute bottom-0 left-0 right-0 z-20 text-white transition-all duration-300",
-                "bg-black/50 backdrop-blur-xl border-t border-white/10 px-6 pt-2.5 pb-3.5",
+                "bg-black/70 border-t border-white/10 px-6 pt-2.5 pb-3.5",
                 "rounded-b-none md:rounded-b-2xl", // Khớp bo góc dưới của video container ở desktop
                 isOverlayHidden && "opacity-0 pointer-events-none"
               )}
@@ -828,6 +901,8 @@ export function NewsfeedVideoCard({
               event.stopPropagation();
               onOpenCourse();
             }}
+            aria-label={`Mở thông tin khóa học ${video.course.name}`}
+            title={`Mở thông tin khóa học ${video.course.name}`}
             className="h-12 w-12 rounded-full border border-border bg-background shadow-sm hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card flex items-center justify-center p-0 cursor-pointer"
           >
             <Avatar className="h-10 w-10">
@@ -842,6 +917,8 @@ export function NewsfeedVideoCard({
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             disabled={likeMutation.isPending}
+            aria-label={isLiked ? "Bỏ thích video" : "Thích video"}
+            title={isLiked ? "Bỏ thích" : "Thích"}
             onClick={(event) => {
               event.stopPropagation();
               void toggleInteraction("like");
@@ -856,6 +933,8 @@ export function NewsfeedVideoCard({
           <Button
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
+            aria-label="Mở bình luận"
+            title="Bình luận"
             onClick={(event) => {
               event.stopPropagation();
               onOpenComments();
@@ -871,6 +950,8 @@ export function NewsfeedVideoCard({
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
             disabled={saveMutation.isPending}
+            aria-label={isSaved ? "Bỏ lưu video" : "Lưu video"}
+            title={isSaved ? "Bỏ lưu" : "Lưu"}
             onClick={async (event) => {
               event.stopPropagation();
               void toggleInteraction("save");
@@ -885,6 +966,8 @@ export function NewsfeedVideoCard({
           <Button
             variant="ghost"
             className="h-11 w-11 rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-110 active:scale-95 hover:shadow transition-all duration-200 dark:border-border/80 dark:bg-card dark:hover:bg-accent dark:hover:text-accent-foreground cursor-pointer flex items-center justify-center"
+            aria-label="Chia sẻ video"
+            title="Chia sẻ"
             onClick={(event) => {
               event.stopPropagation();
               onOpenShare(

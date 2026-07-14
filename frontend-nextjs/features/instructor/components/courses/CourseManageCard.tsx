@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   Trash2,
   FolderKanban,
-  Send,
+  ClipboardCheck,
   Rocket,
   GraduationCap,
 } from "lucide-react";
@@ -172,23 +172,23 @@ export function CourseManageCard({
           {canSubmitForReview && (
             <Button
               size="sm"
-              className="h-8 rounded-full px-3 gap-1 text-[11px] font-bold bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all duration-200 cursor-pointer"
+              className="h-8 rounded-full border border-primary/20 px-3 gap-1 text-[11px] font-bold shadow-md transition-all duration-200 cursor-pointer hover:bg-primary/90"
               onClick={() => onSubmitForReview?.(course.id)}
               disabled={workflowLoading}
             >
-              <Send className="h-3.5 w-3.5" />
-              Gửi duyệt
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              Gửi xét duyệt
             </Button>
           )}
           {canPublishCourse && (
             <Button
               size="sm"
-              className="h-8 rounded-full px-3 gap-1 text-[11px] font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-all duration-200 cursor-pointer"
+              className="h-8 rounded-full px-3 gap-1 text-[11px] font-bold shadow-md transition-all duration-200 cursor-pointer"
               onClick={() => onPublishCourse?.(course.id)}
               disabled={workflowLoading}
             >
               <Rocket className="h-3.5 w-3.5" />
-              Publish
+              Xuất bản
             </Button>
           )}
         </div>
