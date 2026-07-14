@@ -214,7 +214,7 @@ export function Header() {
             </Button>
           ) : null}
 
-          {isAuthenticated ? <NotificationBell className="h-9 w-9 sm:h-10 sm:w-10 bg-transparent hover:bg-muted focus-visible:bg-muted data-[state=open]:bg-muted" /> : null}
+          {isAuthenticated ? <NotificationBell className="h-9 w-9 sm:h-10 sm:w-10 bg-transparent hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground" /> : null}
 
           {!isAuthenticated ? (
             <DropdownMenu>
