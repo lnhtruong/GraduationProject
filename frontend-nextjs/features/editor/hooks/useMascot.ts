@@ -5,16 +5,23 @@ import type {
   EffectOption,
   MascotOption,
   MascotParams,
-  TextOption,
+  MascotRenderTextOverlay,
 } from "@/features/editor/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { waitForMascotJobCompletion } from "@/features/editor/utils/mascot-job.utils";
 import { useMascotJob } from "../api/mascot.hooks";
 
 export type MascotRenderOptions = {
-  textOverlays?: TextOption[];
+  textOverlays?: MascotRenderTextOverlay[];
   effect?: EffectOption;
 };
+
+function resolvePublicAssetUrl(value: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+  const fallbackOrigin =
+    typeof window !== "undefined" ? window.location.origin : undefined;
+  return new URL(value, siteUrl || fallbackOrigin).toString();
+}
 
 export function useMascot() {
   const [mascot, setMascot] = useState<MascotOption>({
@@ -52,10 +59,7 @@ export function useMascot() {
 
     if (mascotOption.type === "preset" && mascotOption.presetUrl) {
       try {
-        return new URL(
-          mascotOption.presetUrl,
-          typeof window !== "undefined" ? window.location.origin : undefined,
-        ).toString();
+        return resolvePublicAssetUrl(mascotOption.presetUrl);
       } catch {
         toast.warning("Không thể xác định URL ảnh mascot.");
         return null;
@@ -111,13 +115,9 @@ export function useMascot() {
     contrast: renderOptions?.effect?.contrast,
     saturation: renderOptions?.effect?.saturation,
     removeBackground: mascotOption.removeBackground,
-    bgMode: mascotOption.bgMode,
+    bgMode:
+      mascotOption.bgMode === "transparent" ? "original" : mascotOption.bgMode,
     bgQualityMode: mascotOption.bgQualityMode,
-    greenScreenColor: mascotOption.greenScreenColor,
-    chromakeySimilarity: mascotOption.chromakeySimilarity,
-    chromakeyBlend: mascotOption.chromakeyBlend,
-    alphaContractPx: mascotOption.alphaContractPx,
-    alphaBlurPx: mascotOption.alphaBlurPx,
     animationMode: mascotOption.animationMode,
     qualityMode: mascotOption.qualityMode,
     drivingMultiplier: mascotOption.drivingMultiplier,

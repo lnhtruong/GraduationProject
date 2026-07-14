@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Loader, Save, Wand2 } from "lucide-react";
+import { ArrowLeft, Clapperboard, Loader, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ interface StudioHeaderProps {
   isCreatingMascotVideo?: boolean;
   mascotProgress?: string;
   onCreateMascotVideo?: () => void | Promise<void>;
+  canCreateMascotVideo?: boolean;
 }
 
 export function StudioHeader({
@@ -26,6 +27,7 @@ export function StudioHeader({
   isCreatingMascotVideo = false,
   mascotProgress = "",
   onCreateMascotVideo,
+  canCreateMascotVideo = true,
 }: StudioHeaderProps) {
   const [draftName, setDraftName] = useState(activeSessionName);
   const [isNameEditing, setIsNameEditing] = useState(false);
@@ -50,13 +52,13 @@ export function StudioHeader({
     if (!canSave) return;
     const nextName = trimmedDraftName || activeSessionName;
     setIsSaving(true);
-    const toastId = toast.loading("Đang lưu nháp...");
+    const toastId = toast.loading("Đang lưu dự án...");
     try {
       await onSaveSession(nextName);
-      toast.success("Đã lưu nháp thành công!", { id: toastId });
+      toast.success("Đã lưu dự án.", { id: toastId });
     } catch (error) {
-      console.error("Save draft failed:", error);
-      toast.error("Không thể lưu nháp. Vui lòng thử lại.", { id: toastId });
+      console.error("Save project failed:", error);
+      toast.error("Không thể lưu dự án. Vui lòng thử lại.", { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -146,7 +148,7 @@ export function StudioHeader({
               }}
               disabled={!canSave}
               className="h-9 gap-1.5 px-2.5 sm:px-3"
-              title="Lưu nháp"
+              title="Lưu dự án"
             >
               {isSaving ? (
                 <Loader size={15} className="animate-spin" />
@@ -154,7 +156,7 @@ export function StudioHeader({
                 <Save size={15} />
               )}
               <span className="hidden sm:inline">
-                {isSaving ? "Đang lưu" : "Lưu nháp"}
+                {isSaving ? "Đang lưu" : "Lưu dự án"}
               </span>
             </Button>
           ) : null}
@@ -162,7 +164,7 @@ export function StudioHeader({
           {activeEditId && onCreateMascotVideo ? (
             <Button
               size="sm"
-              disabled={isCreatingMascotVideo || isLoading}
+              disabled={!canCreateMascotVideo || isCreatingMascotVideo || isLoading}
               onClick={() => {
                 void onCreateMascotVideo?.();
               }}
@@ -180,7 +182,7 @@ export function StudioHeader({
                 </>
               ) : (
                 <>
-                  <Wand2 size={16} />
+                  <Clapperboard size={16} />
                   <span className="hidden sm:inline">Tạo video hoàn chỉnh</span>
                   <span className="sm:hidden">Tạo</span>
                 </>

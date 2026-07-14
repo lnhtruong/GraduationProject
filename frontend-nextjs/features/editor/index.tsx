@@ -6,15 +6,19 @@ import type { ExternalEditorPanelBindings } from "@/features/editor/types";
 import { useStudioSession } from "@/features/editor/hooks/useStudioSession";
 import { StudioHeader } from "@/features/editor/components/studio/StudioHeader";
 import { StudioSidebar } from "@/features/editor/components/studio/StudioSidebar";
+import { MascotRenderDialog } from "@/features/editor/components/optionDetails/Mascot";
 
 export default function Editor() {
   const [panelBindings, setPanelBindings] =
     useState<ExternalEditorPanelBindings | null>(null);
   const panelBindingsRef = useRef<ExternalEditorPanelBindings | null>(null);
+  const panelBindingsKeyRef = useRef<string>("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(max-width: 1023px)").matches;
   });
+  const [isMascotRenderDialogOpen, setIsMascotRenderDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 1023px)");
@@ -26,28 +30,44 @@ export default function Editor() {
   const handlePanelBindingsChange = useCallback(
     (next: ExternalEditorPanelBindings) => {
       panelBindingsRef.current = next;
+      const nextKey = JSON.stringify({
+        editId: next.editId ?? null,
+        effect: next.effect,
+        mascot: next.mascot,
+        existingMascotOverlayId: next.existingMascotOverlayId ?? null,
+        voice: {
+          type: next.voice.type,
+          presetId: next.voice.presetId ?? null,
+          speed: next.voice.speed,
+          volume: next.voice.volume,
+          pitch: next.voice.pitch,
+          hasCustomFile: Boolean(next.voice.customFile),
+        },
+        layers: next.layers,
+        selectedTextId: next.selectedTextId ?? null,
+        hasVideoFile: Boolean(next.videoFile),
+        videoSourceUrl: next.videoSourceUrl ?? null,
+        mascotFrameSize: next.mascotFrameSize
+          ? {
+              width: next.mascotFrameSize.width,
+              height: next.mascotFrameSize.height,
+              displayWidth: next.mascotFrameSize.displayWidth,
+              displayHeight: next.mascotFrameSize.displayHeight,
+            }
+          : null,
+        isApplyingMascot: next.isApplyingMascot,
+        isCreatingMascotVideo: next.isCreatingMascotVideo,
+        mascotProgress: next.mascotProgress,
+      });
+
+      if (panelBindingsKeyRef.current === nextKey) {
+        return;
+      }
+
+      panelBindingsKeyRef.current = nextKey;
 
       setPanelBindings((prev) => {
         if (!prev) return next;
-
-        const sameState =
-          prev.editId === next.editId &&
-          prev.effect === next.effect &&
-          prev.mascot === next.mascot &&
-          prev.existingMascotOverlayId === next.existingMascotOverlayId &&
-          prev.voice === next.voice &&
-          prev.layers === next.layers &&
-          prev.selectedTextId === next.selectedTextId &&
-          prev.videoFile === next.videoFile &&
-          prev.videoSourceUrl === next.videoSourceUrl &&
-          prev.mascotFrameSize === next.mascotFrameSize &&
-          prev.isApplyingMascot === next.isApplyingMascot &&
-          prev.isCreatingMascotVideo === next.isCreatingMascotVideo &&
-          prev.mascotProgress === next.mascotProgress;
-
-        if (sameState) {
-          return prev;
-        }
 
         return {
           ...prev,
@@ -100,6 +120,17 @@ export default function Editor() {
     handleFinalizeMascotProject,
   } = useStudioSession();
 
+  const canCreateMascotVideo = Boolean(
+    panelBindings &&
+      panelBindings.mascot.type !== "none" &&
+      (panelBindings.videoFile || panelBindings.videoSourceUrl) &&
+      panelBindings.mascot.scale >= 0.1 &&
+      panelBindings.mascot.scale <= 2 &&
+      !panelBindings.isApplyingMascot &&
+      !panelBindings.isCreatingMascotVideo &&
+      panelBindings.onMascotCreateVideo,
+  );
+
   return (
     <>
       <div className="relative flex min-h-[100dvh] w-full bg-background text-foreground">
@@ -125,11 +156,7 @@ export default function Editor() {
         onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div
-        className={`min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] transition-[margin] duration-300 lg:pb-0 ${
-          isSidebarCollapsed ? "lg:ml-[4.5rem]" : "lg:ml-[28rem]"
-        }`}
-      >
+      <div className="min-w-0 flex-1 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:ml-[4.5rem] lg:w-[calc(100%_-_4.5rem)] lg:flex-none lg:pb-0">
         <StudioHeader
           activeSessionName={activeSessionName}
           activeEditId={activeEditId}
@@ -140,7 +167,8 @@ export default function Editor() {
           }
           isCreatingMascotVideo={panelBindings?.isCreatingMascotVideo ?? false}
           mascotProgress={panelBindings?.mascotProgress ?? ""}
-          onCreateMascotVideo={panelBindings?.onMascotCreateVideo}
+          canCreateMascotVideo={canCreateMascotVideo}
+          onCreateMascotVideo={() => setIsMascotRenderDialogOpen(true)}
         />
 
         <main className="flex min-h-[calc(100dvh-48px)] flex-col gap-2 bg-[linear-gradient(180deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_100%)] p-1.5 sm:min-h-[calc(100dvh-56px)] sm:gap-3 sm:p-3 lg:p-4">
@@ -165,6 +193,18 @@ export default function Editor() {
         </main>
       </div>
       </div>
+
+      {panelBindings ? (
+        <MascotRenderDialog
+          open={isMascotRenderDialogOpen}
+          onOpenChange={setIsMascotRenderDialogOpen}
+          value={panelBindings.mascot}
+          onChange={panelBindings.onMascotChange}
+          onCreateVideo={panelBindings.onMascotCreateVideo}
+          canCreateVideo={canCreateMascotVideo}
+          isCreatingVideo={panelBindings.isCreatingMascotVideo}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,14 +1,16 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
   Film,
   FolderOpen,
+  Library,
   Mic,
-  Sparkles,
+  SlidersHorizontal,
   Sticker,
   Type,
   UploadCloud,
@@ -35,25 +37,9 @@ import EffectOptions from "@/features/editor/components/optionDetails/Effect";
 import TextOptions from "@/features/editor/components/optionDetails/Text";
 import MascotOptions from "@/features/editor/components/optionDetails/Mascot";
 import VoiceOptions from "@/features/editor/components/optionDetails/Voice";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useQueryClient } from "@tanstack/react-query";
-import { useCloudinaryDirectUpload } from "@/features/cloudinary";
-import {
-  createMediaUploadStream,
-  type VideoCompletedPayload,
-} from "@/features/_shared/realtime/media-upload-stream";
-import { videoKeys } from "@/features/video/api/video.hooks";
-import { videoApi } from "@/features/video/api/video.api";
 import { BRAND } from "@/lib/brand";
-import { authStorageHelper } from "@/store/auth";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
+const VIDEO_PAGE_SIZE = 12;
 
 interface StudioSidebarProps {
   highlightVideos: UserVideo[];
@@ -84,194 +70,14 @@ export function StudioSidebar({
   collapsed,
   onToggleCollapsed,
 }: StudioSidebarProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "files" | "effect" | "mascot" | "text" | "voice"
   >("files");
   const [search, setSearch] = useState("");
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploadPending, setIsUploadPending] = useState(false);
-  const inFlightUploadKeyRef = useRef<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const uploadMutation = useCloudinaryDirectUpload((percent: number) =>
-    setUploadProgress(percent),
-  );
-
-  const resolveUserId = (): number | undefined => {
-    if (typeof user?.id === "number") return user.id;
-    const stored = authStorageHelper.getUser() as {
-      id?: number;
-      user_id?: number;
-    } | null;
-    if (typeof stored?.id === "number") return stored.id;
-    if (typeof stored?.user_id === "number") return stored.user_id;
-    return undefined;
-  };
-
-  const validateVideoDuration = (file: File): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      const url = URL.createObjectURL(file);
-
-      const onLoadedMetadata = () => {
-        const duration = Math.round(video.duration);
-        const maxDuration = 180; // 3 minutes in seconds
-
-        URL.revokeObjectURL(url);
-        video.removeEventListener("loadedmetadata", onLoadedMetadata);
-
-        if (duration > maxDuration) {
-          const minutes = Math.ceil(duration / 60);
-          toast.error(`Video quá dài (${minutes} phút). Tối đa 3 phút.`);
-          resolve(false);
-          return;
-        }
-
-        resolve(true);
-      };
-
-      const onError = () => {
-        URL.revokeObjectURL(url);
-        video.removeEventListener("loadedmetadata", onLoadedMetadata);
-        video.removeEventListener("error", onError);
-        toast.error("Không thể xác định độ dài video. Vui lòng thử tệp khác.");
-        resolve(false);
-      };
-
-      video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
-      video.addEventListener("error", onError, { once: true });
-      video.src = url;
-    });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsUploadOpen(true);
-      void handleUploadFile(file);
-    }
-    e.target.value = "";
-  };
-
-  const waitForUploadedVideoId = (
-    uploadedUrl: string,
-    timeoutMs = 30000,
-  ): Promise<number | undefined> => {
-    const userId = resolveUserId();
-    if (!userId || !uploadedUrl) {
-      return Promise.resolve(undefined);
-    }
-
-    return new Promise((resolve) => {
-      const normalizeUrl = (value?: string) => {
-        if (!value) return "";
-        try {
-          const parsed = new URL(value);
-          return `${parsed.origin}${parsed.pathname}`;
-        } catch {
-          return value;
-        }
-      };
-
-      const targetUrl = normalizeUrl(uploadedUrl);
-      let settled = false;
-      let polling = false;
-      let pollTimer: number | null = null;
-
-      const finish = (videoId?: number) => {
-        if (settled) return;
-        settled = true;
-        stream.close();
-        clearTimeout(timeout);
-        if (pollTimer) clearInterval(pollTimer);
-        resolve(videoId);
-      };
-
-      const findPersistedVideo = async () => {
-        if (polling || settled) return;
-        polling = true;
-        try {
-          const videos = await videoApi.getAllByUser("highlight");
-          const matched = videos.find(
-            (video) => normalizeUrl(video.url) === targetUrl,
-          );
-          if (matched?.id) finish(matched.id);
-        } finally {
-          polling = false;
-        }
-      };
-
-      const timeout = window.setTimeout(() => {
-        finish(undefined);
-      }, timeoutMs);
-
-      const stream = createMediaUploadStream(
-        {
-          onCompleted: (payload: VideoCompletedPayload) => {
-            const eventUrl = payload?.data?.url;
-            const eventId = payload?.data?.videoId;
-            if (normalizeUrl(eventUrl) === targetUrl && eventId) {
-              finish(eventId);
-            }
-          },
-          onProgress: () => {},
-        },
-        { userId },
-      );
-
-      // fallback polling
-      pollTimer = window.setInterval(findPersistedVideo, 2500);
-      void findPersistedVideo();
-    });
-  };
-
-  const handleUploadFile = async (file: File) => {
-    const uploadKey = `${file.name}:${file.size}:${file.lastModified}`;
-    if (inFlightUploadKeyRef.current === uploadKey) return;
-    inFlightUploadKeyRef.current = uploadKey;
-
-    setIsUploadPending(true);
-    setUploadProgress(0);
-
-    // Validate video duration
-    const isValidDuration = await validateVideoDuration(file);
-    if (!isValidDuration) {
-      setIsUploadOpen(false);
-      setIsUploadPending(false);
-      inFlightUploadKeyRef.current = null;
-      return;
-    }
-
-    try {
-      const uploadJobId = crypto.randomUUID();
-      const response = await uploadMutation.mutateAsync({
-        file,
-        folderName: "editor-uploads",
-        jobId: uploadJobId,
-        type: "highlight",
-      });
-
-      const uploadedUrl = response.secure_url;
-      const videoId = await waitForUploadedVideoId(uploadedUrl);
-      if (!videoId) {
-        throw new Error(
-          "Video đã tải lên nhưng máy chủ chưa xác nhận lưu. Vui lòng thử lại sau.",
-        );
-      }
-      await queryClient.invalidateQueries({ queryKey: videoKeys.root });
-      toast.success("Video đã được thêm vào thư viện");
-      setIsUploadOpen(false);
-    } catch (error) {
-      console.error("[StudioSidebar] Upload failed:", error);
-      setIsUploadOpen(false);
-    } finally {
-      setIsUploadPending(false);
-      inFlightUploadKeyRef.current = null;
-    }
-  };
+  const [visibleVideoCount, setVisibleVideoCount] =
+    useState(VIDEO_PAGE_SIZE);
+  const loadMoreVideosRef = useRef<HTMLDivElement | null>(null);
   const [draftText, setDraftText] = useState<TextOption>(() => ({
     id: crypto.randomUUID(),
     text: "",
@@ -306,7 +112,60 @@ export function StudioSidebar({
   };
 
   const filteredHighlightVideos = filterByUrl(highlightVideos);
-  const filteredMascotImages = filterByUrl(mascotImages);
+  const normalizedVisibleVideoCount = Math.min(
+    visibleVideoCount,
+    Math.max(filteredHighlightVideos.length, VIDEO_PAGE_SIZE),
+  );
+  const visibleHighlightVideos = filteredHighlightVideos.slice(
+    0,
+    normalizedVisibleVideoCount,
+  );
+  const hasMoreHighlightVideos =
+    normalizedVisibleVideoCount < filteredHighlightVideos.length;
+
+  useEffect(() => {
+    if (!hasMoreHighlightVideos || highlightVideosLoading) return;
+    const node = loadMoreVideosRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setVisibleVideoCount((prev) =>
+          Math.min(prev + VIDEO_PAGE_SIZE, filteredHighlightVideos.length),
+        );
+      },
+      { rootMargin: "160px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    filteredHighlightVideos.length,
+    hasMoreHighlightVideos,
+    highlightVideosLoading,
+  ]);
+
+  const handleOpenVideoUpload = () => {
+    if (!collapsed) {
+      onToggleCollapsed();
+    }
+
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event("editor-media-upload-request"));
+    }, 0);
+  };
+
+  const handleSelectVideo = (video: {
+    id?: number;
+    video_id?: number;
+    url: string;
+  }) => {
+    onSelectVideo(video);
+    if (!collapsed) {
+      onToggleCollapsed();
+    }
+  };
 
   const formatDuration = (duration?: number | null) => {
     if (!duration || duration <= 0) return null;
@@ -322,14 +181,6 @@ export function StudioSidebar({
       .filter((l) => l.type === "text")
       .map((l) => l.data as TextOption);
   }, [panelBindings]);
-
-  useEffect(() => {
-    if (panelBindings?.selectedTextId) return;
-    setDraftText((prev) => ({
-      ...prev,
-      id: crypto.randomUUID(),
-    }));
-  }, [panelBindings?.selectedTextId]);
 
   const currentText = useMemo<TextOption>(() => {
     if (!panelBindings) {
@@ -390,14 +241,18 @@ export function StudioSidebar({
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-50 h-screen bg-muted/55 text-foreground shadow-2xl motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] lg:shadow-sm ${"translate-x-0"} ${
-        collapsed ? "w-14 lg:w-[4.5rem]" : "w-[88vw] sm:w-[28rem] lg:w-[28rem]"
+      className={`fixed z-50 bg-muted/55 text-foreground shadow-2xl motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] lg:left-0 lg:top-0 lg:h-screen lg:shadow-sm ${
+        collapsed
+          ? "inset-x-0 bottom-0 h-16 w-full lg:inset-auto lg:w-[4.5rem]"
+          : "inset-x-0 bottom-0 h-[72dvh] w-full rounded-t-2xl lg:inset-auto lg:h-screen lg:w-[28rem] lg:rounded-none"
       }`}
     >
-      <div className="flex h-full w-full overflow-hidden border-r border-border">
+      <div className="flex h-full w-full overflow-hidden border-t border-border lg:border-r lg:border-t-0">
         <div
           className={`flex h-full shrink-0 ${
-            collapsed ? "w-14 lg:w-[4.5rem]" : "w-[88vw] sm:w-[28rem] lg:w-[28rem]"
+            collapsed
+              ? "w-full lg:w-[4.5rem]"
+              : "w-full lg:w-[28rem]"
           }`}
         >
           <Tabs
@@ -407,11 +262,31 @@ export function StudioSidebar({
                 value as "files" | "effect" | "mascot" | "text" | "voice",
               );
             }}
-            className="flex h-full w-full flex-row gap-0"
+            className={`flex h-full w-full gap-0 ${
+              collapsed ? "flex-row" : "flex-col-reverse lg:flex-row"
+            }`}
           >
-            <nav className="flex w-14 shrink-0 flex-col items-center border-r border-border bg-muted p-1.5 lg:w-18 lg:p-2">
-              <div className="mb-3 flex items-center justify-center">
-                <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-lg">
+            <nav
+              className={`flex shrink-0 items-center border-border bg-muted p-1.5 lg:w-18 lg:flex-col lg:border-r lg:p-2 ${
+                collapsed
+                  ? "h-full w-full flex-row justify-between border-t bg-background/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:h-auto lg:w-18 lg:flex-col lg:justify-start lg:border-t-0 lg:bg-muted lg:px-2 lg:py-2 lg:shadow-none"
+                  : "h-16 w-full flex-row justify-between border-t bg-background/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:h-full lg:w-18 lg:flex-col lg:justify-start lg:border-r lg:border-t-0 lg:bg-muted lg:px-2 lg:py-2 lg:shadow-none"
+              }`}
+            >
+              <div
+                className={`items-center justify-center ${
+                  collapsed
+                    ? "hidden lg:mb-3 lg:flex lg:h-10 lg:w-10 lg:shrink-0"
+                    : "hidden lg:mb-3 lg:flex lg:h-10 lg:w-10 lg:shrink-0"
+                }`}
+              >
+                <button
+                  type="button"
+                  aria-label="Về trang chủ"
+                  title="Về trang chủ"
+                  onClick={() => router.push("/")}
+                  className="grid h-9 w-9 cursor-pointer place-items-center overflow-hidden rounded-lg"
+                >
                   <Image
                     src={BRAND.logo}
                     alt="Logo"
@@ -419,11 +294,15 @@ export function StudioSidebar({
                     height={28}
                     className="object-contain"
                   />
-                </div>
+                </button>
               </div>
 
               <TabsList
-                className="flex h-auto w-full flex-col gap-0 border-0 bg-transparent p-0"
+                className={`h-auto border-0 bg-transparent p-0 ${
+                  collapsed
+                    ? "grid flex-1 grid-cols-5 gap-1 lg:flex lg:w-full lg:flex-none lg:flex-col lg:justify-start lg:gap-0"
+                    : "grid flex-1 grid-cols-5 gap-1 lg:flex lg:w-full lg:flex-none lg:flex-col lg:gap-0"
+                }`}
                 onClick={() => {
                   if (collapsed) {
                     onToggleCollapsed();
@@ -432,67 +311,80 @@ export function StudioSidebar({
               >
                 <TabsTrigger
                   value="files"
-                  className="mb-2 flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"
+                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <FolderOpen size={16} className="lg:mb-1" />
-                  <span className="hidden lg:block">Tệp</span>
+                  <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
+                    Tệp
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="effect"
-                  className="mb-2 flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"
+                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
-                  <Sparkles size={16} className="lg:mb-1" />
-                  <span className="hidden lg:block">Hiệu ứng</span>
+                  <SlidersHorizontal size={16} className="lg:mb-1" />
+                  <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
+                    Hiệu ứng
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="mascot"
-                  className="mb-2 flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"
+                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Sticker size={16} className="lg:mb-1" />
-                  <span className="hidden lg:block">Mascot</span>
+                  <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
+                    Mascot
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="text"
-                  className="flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"
+                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Type size={16} className="lg:mb-1" />
-                  <span className="hidden lg:block">Văn bản</span>
+                  <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
+                    Text
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="voice"
-                  className="mt-2 flex w-full flex-col items-center rounded-lg px-1 py-2 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0"
+                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mt-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Mic size={16} className="lg:mb-1" />
-                  <span className="hidden lg:block">Giọng nói</span>
+                  <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
+                    Audio
+                  </span>
                 </TabsTrigger>
               </TabsList>
             </nav>
 
             <div
-              className={`min-w-0 flex-1 shrink-0 overflow-hidden bg-card p-3 sm:p-4 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out ${
+              className={`min-h-0 min-w-0 flex-1 overflow-hidden bg-card p-3 sm:p-4 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out ${
                 collapsed
-                  ? "hidden pointer-events-none -translate-x-2 opacity-0 lg:block"
-                  : "block translate-x-0 opacity-100"
+                  ? "hidden pointer-events-none translate-y-2 opacity-0 lg:block lg:-translate-x-2 lg:translate-y-0"
+                  : "block translate-y-0 opacity-100 lg:translate-x-0"
               }`}
             >
-              <TabsContent value="files" className="m-0 space-y-3">
-                <div className="mb-3 rounded-xl border border-border bg-background/70 px-3 py-2">
+              <TabsContent value="files" className="m-0 flex h-full min-h-0 flex-col gap-3">
+                <div className="rounded-xl border border-border bg-background/70 px-3 py-2">
                   <h3 className="text-sm font-semibold">Tệp</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Highlight videos
                   </p>
                 </div>
 
-                <div className="mb-3 rounded-xl border border-border bg-background/70 p-2">
+                <div className="rounded-xl border border-border bg-background/70 p-2">
                   <Input
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setVisibleVideoCount(VIDEO_PAGE_SIZE);
+                    }}
                     placeholder="Tìm video..."
                     className="h-8 border-border bg-background"
                   />
                 </div>
 
-                <div className="mb-3 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="rounded-full border border-border bg-accent px-2 py-1 font-medium text-accent-foreground">
                       Tất cả
@@ -501,39 +393,50 @@ export function StudioSidebar({
                       {filteredHighlightVideos.length} video
                     </span>
                   </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="video/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
                   <Button
-                    onClick={() => {
-                      window.dispatchEvent(
-                        new Event("editor-media-upload-request"),
-                      );
-                    }}
+                    onClick={handleOpenVideoUpload}
                     className="h-8 gap-2 px-3 shadow-sm"
                     size="sm"
                   >
                     <UploadCloud size={14} />
-                    Tải lên
+                    Từ máy
                   </Button>
                 </div>
 
-                <ScrollArea className="h-[calc(100dvh-230px)] w-full overflow-x-hidden pr-2">
-                  <div className="space-y-2 pb-4">
+                <ScrollArea className="min-h-0 flex-1 w-full overflow-x-hidden pr-2">
+                  <div className="space-y-2 pb-20 lg:pb-6">
                     {highlightVideosLoading ? (
                       <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
                         Đang tải media...
                       </div>
                     ) : filteredHighlightVideos.length === 0 ? (
-                      <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Không tìm thấy video phù hợp.
+                      <div className="rounded-xl border border-dashed border-border bg-background px-4 py-8 text-center shadow-sm">
+                        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
+                          <Library size={22} />
+                        </div>
+                        <p className="mt-4 text-sm font-semibold text-foreground">
+                          {search.trim()
+                            ? "Không có video phù hợp"
+                            : "Chưa có video trong thư viện"}
+                        </p>
+                        <p className="mx-auto mt-1 max-w-[16rem] text-xs leading-5 text-muted-foreground">
+                          {search.trim()
+                            ? "Thử từ khóa khác hoặc chọn video từ máy để thêm vào thư viện."
+                            : "Chọn video từ máy để bắt đầu dựng project đầu tiên."}
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="mt-4 gap-2"
+                          onClick={handleOpenVideoUpload}
+                        >
+                          <UploadCloud size={14} />
+                          Chọn video từ máy
+                        </Button>
                       </div>
                     ) : (
-                      filteredHighlightVideos.map((video) => {
+                      <>
+                        {visibleHighlightVideos.map((video) => {
                         const key = video.video_id ?? video.id ?? video.url;
                         const isCurrentVideo =
                           Boolean(panelBindings?.videoSourceUrl) &&
@@ -547,7 +450,7 @@ export function StudioSidebar({
                             key={key}
                             type="button"
                             draggable
-                            onClick={() => onSelectVideo(video)}
+                            onClick={() => handleSelectVideo(video)}
                             onDragStart={(e) => {
                               const dragData = {
                                 type: "video",
@@ -562,14 +465,14 @@ export function StudioSidebar({
                               );
                               e.dataTransfer.effectAllowed = "copy";
                             }}
-                            className={`w-full rounded-xl border p-2 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                            className={`w-full rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
                               isCurrentVideo
                                 ? "border-primary bg-primary/[0.02] shadow-xs ring-1 ring-primary/20"
                                 : "border-border bg-background hover:border-primary/70 hover:bg-accent/25"
                             }`}
                           >
-                            <div className="space-y-2">
-                              <div className="h-24 w-full overflow-hidden rounded-lg border border-border bg-muted/45 relative">
+                            <div className="grid min-w-0 grid-cols-[132px_minmax(0,1fr)] gap-3">
+                              <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-lg border border-border bg-muted/45">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={thumbnailSrc}
@@ -590,25 +493,53 @@ export function StudioSidebar({
                                 )}
                               </div>
 
-                              <div className="px-0.5">
-                                <p className="truncate font-semibold text-xs text-foreground block w-full" title={video.name || fileName}>
+                              <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 py-0.5">
+                                <p
+                                  className="line-clamp-2 text-sm font-semibold leading-snug text-foreground"
+                                  title={video.name || fileName}
+                                >
                                   {video.name || fileName}
                                 </p>
-                              </div>
 
-                              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
-                                <span className="rounded-full border border-border px-1.5 py-0.5 bg-muted/40">
-                                  <Film size={10} className="mr-1 inline" />
-                                  {video.type ?? "video"}
-                                </span>
-                                {formatDuration(video.duration) ? (
-                                  <span>{formatDuration(video.duration)}</span>
-                                ) : null}
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                                  <span className="inline-flex min-w-0 items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5">
+                                    <Film size={10} className="mr-1 shrink-0" />
+                                    <span className="truncate">
+                                      {video.type ?? "video"}
+                                    </span>
+                                  </span>
+                                  {formatDuration(video.duration) ? (
+                                    <span className="shrink-0 rounded-full border border-border bg-muted/30 px-1.5 py-0.5">
+                                      {formatDuration(video.duration)}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </button>
                         );
-                      })
+                        })}
+
+                        <div
+                          ref={loadMoreVideosRef}
+                          className="flex min-h-10 items-center justify-center pb-1 pt-2 text-xs text-muted-foreground"
+                        >
+                          {hasMoreHighlightVideos ? (
+                            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+                              <Loader2 size={12} className="animate-spin" />
+                              Đang tải thêm video
+                            </span>
+                          ) : visibleHighlightVideos.length > VIDEO_PAGE_SIZE ? (
+                            <span>
+                              Đã hiển thị {visibleHighlightVideos.length} video
+                            </span>
+                          ) : (
+                            <span className="sr-only">
+                              Đã hiển thị {visibleHighlightVideos.length} video
+                            </span>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 </ScrollArea>
@@ -622,7 +553,7 @@ export function StudioSidebar({
                   </p>
                 </div>
                 {panelBindings ? (
-                  <div className="max-h-[calc(100dvh-170px)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pr-2">
+                  <div className="max-h-[calc(72dvh-10rem)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pb-20 pr-2 lg:max-h-[calc(100dvh-170px)] lg:pb-3">
                     <EffectOptions
                       value={panelBindings.effect}
                       onChange={panelBindings.onEffectChange}
@@ -639,92 +570,14 @@ export function StudioSidebar({
                 <div className="mb-3 rounded-xl border border-border bg-background/70 px-3 py-2">
                   <h3 className="text-sm font-semibold">Mascot</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Quản lý mascot cho project
+                    Chọn mascot và cấu hình video hoàn chỉnh
                   </p>
                 </div>
 
-                <div className="mb-3 rounded-xl border border-border bg-background/70 p-2">
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm ảnh mascot..."
-                    className="h-8 border-border bg-background"
-                  />
-                </div>
-
-                <ScrollArea className="h-[calc(100dvh-210px)] w-full overflow-x-hidden pr-2">
-                  <div className="space-y-2 pb-6">
-                    {mascotImagesLoading ? (
-                      <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Đang tải ảnh mascot...
-                      </div>
-                    ) : filteredMascotImages.length === 0 ? (
-                      <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Chưa có ảnh mascot cá nhân.
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-border bg-background p-2">
-                        <div className="mb-2 text-[11px] text-muted-foreground">
-                          {filteredMascotImages.length} ảnh mascot cá nhân
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {filteredMascotImages.map((image) => {
-                            const key = image.image_id ?? image.url;
-                            const isSelected =
-                              typeof image.image_id === "number" &&
-                              image.image_id === selectedMascotImageId;
-
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => {
-                                  onSelectMascotImage?.(image);
-
-                                  panelBindings?.onMascotChange({
-                                    ...panelBindings.mascot,
-                                    type: "custom",
-                                    customFile: undefined,
-                                    imageId: image.image_id,
-                                    presetUrl: image.url,
-                                    presetId: undefined,
-                                    position:
-                                      panelBindings.mascot.position ===
-                                      "replace"
-                                        ? "bottom-right"
-                                        : panelBindings.mascot.position,
-                                    margin_x:
-                                      panelBindings.mascot.margin_x || 40,
-                                    margin_y:
-                                      panelBindings.mascot.margin_y || 40,
-                                    scale: panelBindings.mascot.scale || 1,
-                                    previewPlacement:
-                                      panelBindings.mascot.previewPlacement,
-                                  });
-                                }}
-                                className={`relative aspect-square min-w-0 overflow-hidden rounded-lg border transition-all ${
-                                  isSelected
-                                    ? "border-primary bg-primary/10 ring-2 ring-primary"
-                                    : "border-border hover:border-primary/50 hover:scale-105"
-                                }`}
-                                title="Chọn mascot"
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={image.url}
-                                  alt="Ảnh mascot"
-                                  className="h-full w-full object-contain p-1"
-                                  loading="lazy"
-                                />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
+                <ScrollArea className="h-[calc(72dvh-9rem)] min-h-44 w-full overflow-x-hidden pr-2 lg:h-[calc(100dvh-160px)]">
+                  <div className="space-y-2 pb-20 lg:pb-6">
                     {panelBindings ? (
-                      <div className="min-w-0 rounded-xl border border-border bg-background p-3">
+                      <div className="min-w-0">
                         <MascotOptions
                           value={panelBindings.mascot}
                           onChange={panelBindings.onMascotChange}
@@ -733,6 +586,10 @@ export function StudioSidebar({
                           isApplying={panelBindings.isApplyingMascot}
                           isCreatingVideo={panelBindings.isCreatingMascotVideo}
                           mascotProgress={panelBindings.mascotProgress}
+                          mascotImages={mascotImages}
+                          mascotImagesLoading={mascotImagesLoading}
+                          selectedMascotImageId={selectedMascotImageId}
+                          onSelectMascotImage={onSelectMascotImage}
                           onMascotImageIdChange={(imageId) =>
                             onSelectMascotImage?.({
                               image_id:
@@ -761,7 +618,7 @@ export function StudioSidebar({
                   </p>
                 </div>
                 {panelBindings ? (
-                  <div className="max-h-[calc(100dvh-170px)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pr-2">
+                  <div className="max-h-[calc(72dvh-10rem)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pb-20 pr-2 lg:max-h-[calc(100dvh-170px)] lg:pb-3">
                     <TextOptions
                       value={currentText}
                       onChange={handleTextChange}
@@ -788,7 +645,7 @@ export function StudioSidebar({
                   </p>
                 </div>
                 {panelBindings ? (
-                  <div className="max-h-[calc(100dvh-170px)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pr-2">
+                  <div className="max-h-[calc(72dvh-10rem)] min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-background p-3 pb-20 pr-2 lg:max-h-[calc(100dvh-170px)] lg:pb-3">
                     <VoiceOptions
                       value={panelBindings.voice}
                       onChange={panelBindings.onVoiceChange}
@@ -820,47 +677,6 @@ export function StudioSidebar({
           {collapsed ? "Mở rộng" : "Thu gọn"} bảng công cụ
         </TooltipContent>
       </Tooltip>
-
-      <Dialog open={isUploadOpen} onOpenChange={(next) => {
-        if (!isUploadPending) {
-          setIsUploadOpen(next);
-        }
-      }}>
-        <DialogContent
-          className="w-[92vw] max-w-md overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col"
-        >
-          <div className="flex flex-col">
-            <DialogHeader className="border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 text-left relative pr-12">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <UploadCloud className="h-3.5 w-3.5 animate-pulse" />
-                <span>Tải lên video thư viện</span>
-              </div>
-              <DialogTitle className="text-lg font-bold mt-2">
-                Đang tải video
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
-                Tệp video của bạn đang được tải trực tiếp lên hệ thống. Vui lòng chờ trong giây lát.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="px-5 py-6">
-              <div className="flex flex-col items-center justify-center gap-4 text-center">
-                <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold">Đang tải video lên hệ thống...</p>
-                  <p className="text-xs text-muted-foreground">Tiến trình: {uploadProgress}%</p>
-                </div>
-                <div className="w-full max-w-xs bg-muted rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className="bg-primary h-2.5 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </aside>
   );
 }

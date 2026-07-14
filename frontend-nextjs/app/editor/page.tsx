@@ -1,5 +1,6 @@
 import { buildPrivatePageMetadata } from "@/lib/metadata";
 import Editor from "@/features/editor";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export const metadata = buildPrivatePageMetadata(
   "Trình chỉnh sửa video",
@@ -7,5 +8,9 @@ export const metadata = buildPrivatePageMetadata(
 );
 
 export default function Page() {
-  return <Editor />;
+  return (
+    <ProtectedRoute>
+      <Editor />
+    </ProtectedRoute>
+  );
 }

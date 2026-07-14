@@ -11,9 +11,13 @@ import type {
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
 import type {
+  EffectOption,
   ExternalEditorPanelBindings,
   LayerItem,
+  MascotOption,
+  MascotRenderTextOverlay,
   TextOption,
+  VoiceOption,
   VideoFrameSize,
 } from "@/features/editor/types";
 import useEditor from "./useEditor";
@@ -26,6 +30,75 @@ import {
 } from "@/features/editor/utils/mascotPlacement";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { waitForMascotJobCompletion } from "@/features/editor/utils/mascot-job.utils";
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value));
+}
+
+function toSeconds(ms?: number) {
+  return Math.max(0, (ms ?? 0) / 1000);
+}
+
+function toFfmpegColor(color: string) {
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    return `0x${color.slice(1)}`;
+  }
+
+  return color || "white";
+}
+
+function mapTextOverlayForMascotRender(
+  text: TextOption,
+): MascotRenderTextOverlay | null {
+  const content = text.text.trim();
+  if (!content) return null;
+
+  const start = toSeconds(text.startTime);
+  const duration = text.duration && text.duration > 0 ? text.duration : 0;
+  const end = duration > 0 ? start + duration / 1000 : undefined;
+  const xPct = clampPercent(text.position.x) / 100;
+  const yPct = clampPercent(text.position.y) / 100;
+
+  return {
+    text: content,
+    x: `(W*${xPct.toFixed(4)})`,
+    y: `(H*${yPct.toFixed(4)})`,
+    fontsize: Math.max(8, Math.round(text.fontSize || 24)),
+    fontcolor: toFfmpegColor(text.color),
+    start,
+    end,
+  };
+}
+
+function buildMascotRenderTextOverlays(layers: LayerItem[]) {
+  return layers
+    .filter(
+      (layer): layer is Extract<LayerItem, { type: "text" }> =>
+        layer.type === "text",
+    )
+    .map((layer) => mapTextOverlayForMascotRender(layer.data))
+    .filter((overlay): overlay is MascotRenderTextOverlay => Boolean(overlay));
+}
+
+function buildMascotRenderEffect(effect: EffectOption): EffectOption {
+  return {
+    ...effect,
+    brightness: Number(((effect.brightness - 100) / 100).toFixed(3)),
+    contrast: Number((effect.contrast / 100).toFixed(3)),
+    saturation: Number((effect.saturation / 100).toFixed(3)),
+  };
+}
+
+function attachVoiceAudioToMascot(
+  mascotOption: MascotOption,
+  voiceOption: VoiceOption,
+): MascotOption {
+  return {
+    ...mascotOption,
+    audioFile:
+      voiceOption.type === "custom" ? voiceOption.customFile : undefined,
+  };
+}
 
 export interface CoreEditorControllerProps {
   disableUpload?: boolean;
@@ -429,10 +502,12 @@ export function useCoreEditorController({
       }
     }
 
-    const computedMascot =
+    const computedMascot = attachVoiceAudioToMascot(
       mascot.position !== "replace" && mascotFrameSize
         ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
-        : mascot;
+        : mascot,
+      voice,
+    );
 
     await applyMascot(
       computedMascot,
@@ -442,10 +517,8 @@ export function useCoreEditorController({
         setVideoSrc(blobUrl);
       },
       {
-        effect,
-        textOverlays: layers
-          .filter((layer): layer is Extract<LayerItem, { type: "text" }> => layer.type === "text")
-          .map((layer) => layer.data),
+        effect: buildMascotRenderEffect(effect),
+        textOverlays: buildMascotRenderTextOverlays(layers),
       },
     );
   }, [
@@ -457,6 +530,7 @@ export function useCoreEditorController({
     mascotFrameSize,
     effect,
     layers,
+    voice,
     sourceVideoName,
     setVideoSrc,
   ]);
@@ -490,10 +564,12 @@ export function useCoreEditorController({
       }
     }
 
-    const computedMascot =
+    const computedMascot = attachVoiceAudioToMascot(
       mascot.position !== "replace" && mascotFrameSize
         ? deriveBackendMascotFromPreview(mascot, mascotFrameSize)
-        : mascot;
+        : mascot,
+      voice,
+    );
 
     setIsCreatingMascotVideo(true);
 
@@ -503,10 +579,8 @@ export function useCoreEditorController({
         videoSrc,
         sourceVideoName,
         {
-          effect,
-          textOverlays: layers
-            .filter((layer): layer is Extract<LayerItem, { type: "text" }> => layer.type === "text")
-            .map((layer) => layer.data),
+          effect: buildMascotRenderEffect(effect),
+          textOverlays: buildMascotRenderTextOverlays(layers),
         },
       );
       if (!jobId) return;
@@ -583,6 +657,7 @@ export function useCoreEditorController({
     router,
     effect,
     layers,
+    voice,
   ]);
 
   const hasSelectedVideo =

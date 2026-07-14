@@ -16,6 +16,7 @@ import {
   useUpdateProject,
 } from "@/features/project/api/project.hooks";
 import { useImagesByUser } from "@/features/image/api/image.hooks";
+import { imageApi } from "@/features/image/api/image.api";
 import { useVideosByUser } from "@/features/video/api/video.hooks";
 import type {
   ExternalEditorPanelBindings,
@@ -23,7 +24,10 @@ import type {
   UserVideo,
 } from "@/features/editor/types";
 import type { Project } from "@/features/project";
-import { normalizeMascotScale } from "@/features/editor/utils/mascotPlacement";
+import {
+  clampPreviewPlacement,
+  normalizeMascotScale,
+} from "@/features/editor/utils/mascotPlacement";
 import { toast } from "sonner";
 import type { Video } from "@/features/video";
 import type { Image } from "@/features/image";
@@ -34,6 +38,28 @@ function getErrorMessage(error: unknown): string {
     error,
     "Không thể tải phiên chỉnh sửa. Vui lòng thử lại.",
   );
+}
+
+function normalizeAssetUrl(value?: string) {
+  if (!value) return "";
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+    const fallbackOrigin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    return new URL(value, siteUrl || fallbackOrigin).toString();
+  } catch {
+    return value;
+  }
+}
+
+function normalizeComparableUrl(value?: string) {
+  if (!value) return "";
+  try {
+    const parsed = new URL(normalizeAssetUrl(value));
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value;
+  }
 }
 
 export function useStudioSession() {
@@ -140,20 +166,48 @@ export function useStudioSession() {
       })),
     [rawMascotImages],
   );
+  const ensureMascotImageId = async (url?: string) => {
+    if (!url) return undefined;
+
+    const absoluteUrl = normalizeAssetUrl(url);
+    const matched = mascotImages.find(
+      (image) =>
+        normalizeComparableUrl(image.url) === normalizeComparableUrl(absoluteUrl),
+    );
+    if (matched?.image_id) return matched.image_id;
+
+    const created = await imageApi.create({ url: absoluteUrl });
+    return created.id || undefined;
+  };
   const projectVideos = useMemo(
     () => [...rawHighlightVideos, ...rawMascotVideos],
     [rawHighlightVideos, rawMascotVideos],
+  );
+  const projectVideo = useMemo(
+    () =>
+      projectVideos.find((video) => video.id === currentProject?.video_id) ??
+      null,
+    [currentProject?.video_id, projectVideos],
+  );
+  const queryVideo = useMemo(
+    () =>
+      selectedVideoId
+        ? projectVideos.find((video) => video.id === selectedVideoId) ?? null
+        : null,
+    [projectVideos, selectedVideoId],
   );
   const firstOverlayId =
     projectLayers.length > 0 ? projectLayers[0].mascot_overlay_id : null;
   const { data: overlayDetail } = useLayer(firstOverlayId);
   const activeSessionName = currentProject?.session_name ?? sessionName;
   const activeSourceVideoUrl =
-    projectVideos.find((video) => video.id === currentProject?.video_id)?.url ??
+    projectVideo?.url ??
+    queryVideo?.url ??
     querySourceUrl ??
     undefined;
   const activeSourceVideoName =
-    projectVideos.find((video) => video.id === currentProject?.video_id)?.name ??
+    projectVideo?.name ??
+    queryVideo?.name ??
     undefined;
   const existingMascotOverlay = useMemo(() => {
     const rawOverlay = overlayDetail ?? projectLayers[0] ?? null;
@@ -517,13 +571,30 @@ export function useStudioSession() {
         return;
       }
 
-      const placement = bindings.mascot.previewPlacement;
-      const position_x = placement ? placement.x : bindings.mascot.margin_x;
-      const position_y = placement ? placement.y : bindings.mascot.margin_y;
+      const placement =
+        bindings.mascot.previewPlacement && bindings.mascotFrameSize
+          ? clampPreviewPlacement(
+              bindings.mascot.previewPlacement,
+              bindings.mascotFrameSize,
+              bindings.mascot.scale,
+              bindings.mascot.sourceWidth,
+              bindings.mascot.sourceHeight,
+            )
+          : bindings.mascot.previewPlacement;
+      const position_x = Math.round(
+        placement ? placement.x : bindings.mascot.margin_x,
+      );
+      const position_y = Math.round(
+        placement ? placement.y : bindings.mascot.margin_y,
+      );
+      const imageId =
+        bindings.mascot.imageId ??
+        selectedMascotImageId ??
+        existingMascotOverlay?.image_id ??
+        (await ensureMascotImageId(bindings.mascot.presetUrl));
 
       const payload = {
-        image_id:
-          selectedMascotImageId ?? existingMascotOverlay?.image_id ?? undefined,
+        image_id: imageId,
         position_x,
         position_y,
         scale: normalizeMascotScale(bindings.mascot.scale),
