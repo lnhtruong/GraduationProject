@@ -201,6 +201,13 @@ export function VideoSelectionSection({
     void onRefreshVideos?.();
   }, [onRefreshVideos, session.videoId]);
 
+  useEffect(() => {
+    if (!session.videoId) return;
+    if (String(session.videoId) === String(selectedVideoId)) return;
+
+    onVideoSelect(session.videoId);
+  }, [onVideoSelect, selectedVideoId, session.videoId]);
+
   const onPickFile = () => {
     if (isUploadBlocking) return;
     fileInputRef.current?.click();
