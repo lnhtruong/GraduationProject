@@ -58,9 +58,9 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 	useEffect(() => {
 		if (activeVideo) {
 			const cleanTitle = activeVideo.title || activeVideo.caption || "Video ngắn";
-			document.title = `${cleanTitle} #shorts | LearnHub`;
+			document.title = `${cleanTitle} | StudyLoop`;
 		} else {
-			document.title = "Bảng tin bài học ngắn | LearnHub";
+			document.title = "Bảng tin bài học ngắn | StudyLoop";
 		}
 	}, [activeVideo]);
 

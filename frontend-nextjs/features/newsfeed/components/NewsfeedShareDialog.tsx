@@ -43,7 +43,7 @@ const SHARE_CHANNELS = [
     label: "Email",
     icon: Mail,
     buildUrl: (url: string) =>
-      `mailto:?subject=${encodeURIComponent("Video học trên LearnHub")}&body=${encodeURIComponent(url)}`,
+      `mailto:?subject=${encodeURIComponent("Video học trên StudyLoop")}&body=${encodeURIComponent(url)}`,
   },
 ];
 

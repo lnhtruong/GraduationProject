@@ -1,6 +1,7 @@
 import NewsfeedPage from "@/features/newsfeed";
 import { API_URL } from "@/lib/env";
 import { buildCourseMetadata } from "@/lib/metadata";
+import { BRAND } from "@/lib/brand";
 
 interface NewsfeedProps {
 	searchParams?: Promise<{ videoId?: string | string[]; courseId?: string | string[] }>;
@@ -20,7 +21,7 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 			});
 			if (res.ok) {
 				const course = await res.json();
-				return buildCourseMetadata(course, "#shorts", "video.episode");
+				return buildCourseMetadata(course, "video ngắn", "video.episode");
 			}
 		} catch {
 			// Fall through
@@ -33,23 +34,23 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 
 	if (rawVideoId) {
 		return {
-			title: "Xem video ngắn #shorts",
-			description: "Xem các bài học ngắn, sinh động trên bảng tin LearnHub.",
+			title: "Xem video ngắn",
+			description: "Xem các bài học ngắn, sinh động trên bảng tin StudyLoop.",
 			openGraph: {
-				title: "Xem video ngắn #shorts",
-				description: "Xem các bài học ngắn, sinh động trên bảng tin LearnHub.",
-				images: ["/logo.png"],
+				title: "Xem video ngắn",
+				description: "Xem các bài học ngắn, sinh động trên bảng tin StudyLoop.",
+				images: [BRAND.ogImage],
 			},
 		};
 	}
 
 	return {
 		title: "Bảng tin bài học ngắn",
-		description: "Khám phá các video bài học ngắn hấp dẫn trên LearnHub.",
+		description: "Khám phá các video bài học ngắn hấp dẫn trên StudyLoop.",
 		openGraph: {
 			title: "Bảng tin bài học ngắn",
-			description: "Khám phá các video bài học ngắn hấp dẫn trên LearnHub.",
-			images: ["/logo.png"],
+			description: "Khám phá các video bài học ngắn hấp dẫn trên StudyLoop.",
+			images: [BRAND.ogImage],
 		},
 	};
 }

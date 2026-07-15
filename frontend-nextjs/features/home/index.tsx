@@ -4,43 +4,74 @@ import { FormEvent, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  CheckCircle2,
-  GraduationCap,
-  Play,
-  Search,
-} from "lucide-react";
+import { ArrowRight, GraduationCap, Play, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/PageLoader";
+import { Button } from "@/components/ui/button";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
+import { BRAND } from "@/lib/brand";
 import { useFeaturedCourses } from "./api/home.hooks";
 import { CourseCard } from "./component/CourseCard";
 
-const feedHighlights = [
-  "Học nhanh qua video ngắn",
-  "Lưu bài học đáng xem lại",
-  "Đi thẳng từ highlight sang khóa học",
+const demoCases = [
+  {
+    id: "toeic-participles",
+    course: "TOEIC Grammar Foundation",
+    longTitle: "TOEIC Grammar: Participles",
+    longDuration: "49:53",
+    longVideo:
+      "https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/play_360p.mp4",
+    longThumbnail:
+      "https://vz-e0f2a12f-935.b-cdn.net/10506623-c382-4062-bb6c-27c8185fed19/thumbnail.jpg",
+    shortTitle: "Introduction to Participles",
+    shortDuration: "02:00",
+    videoId: 32,
+    shortVideo:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779542387/jobs/7470b5e8-d2ae-4c23-a81d-bb53e2366ccb/topics/1/highlight_topic1_7470b5e8-d2ae-4c23-a81d-bb53e2366ccb.mp4",
+    shortThumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/so_2,c_thumb,w_640,h_360/v1779542387/jobs/7470b5e8-d2ae-4c23-a81d-bb53e2366ccb/topics/1/highlight_topic1_7470b5e8-d2ae-4c23-a81d-bb53e2366ccb.jpg",
+  },
+  {
+    id: "toeic-two-verbs",
+    course: "TOEIC Grammar Foundation",
+    longTitle: "TOEIC Grammar: To V1, V-ing",
+    longDuration: "49:53",
+    longVideo:
+      "https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/play_360p.mp4",
+    longThumbnail:
+      "https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/thumbnail.jpg",
+    shortTitle: "Two-Verb Structures",
+    shortDuration: "02:05",
+    videoId: 35,
+    shortVideo:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779543612/jobs/f451598a-dde9-448f-ac7e-2cc54a453379/topics/1/highlight_topic1_f451598a-dde9-448f-ac7e-2cc54a453379.mp4",
+    shortThumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/so_2,c_thumb,w_640,h_360/v1779543612/jobs/f451598a-dde9-448f-ac7e-2cc54a453379/topics/1/highlight_topic1_f451598a-dde9-448f-ac7e-2cc54a453379.jpg",
+  },
+  {
+    id: "toeic-tenses",
+    course: "TOEIC Grammar Foundation",
+    longTitle: "TOEIC Grammar: Tenses",
+    longDuration: "1:20:33",
+    longVideo:
+      "https://vz-e0f2a12f-935.b-cdn.net/f53ee3cc-c963-43dd-883b-99fcd55c07cf/play_360p.mp4",
+    longThumbnail:
+      "https://vz-e0f2a12f-935.b-cdn.net/f53ee3cc-c963-43dd-883b-99fcd55c07cf/thumbnail.jpg",
+    shortTitle: "Common Tenses in TOEIC",
+    shortDuration: "02:49",
+    videoId: 42,
+    shortVideo:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779544415/jobs/2e069ab1-fe01-486c-a863-8d307e338fe8/topics/1/highlight_topic1_2e069ab1-fe01-486c-a863-8d307e338fe8.mp4",
+    shortThumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/video/upload/so_2,c_thumb,w_640,h_360/v1779544415/jobs/2e069ab1-fe01-486c-a863-8d307e338fe8/topics/1/highlight_topic1_2e069ab1-fe01-486c-a863-8d307e338fe8.jpg",
+  },
 ];
 
-const workflowSteps = [
-  {
-    title: "Tải video bài giảng",
-    description:
-      "Tải video dài lên LearnHub hoặc chọn video đã có trong thư viện.",
-  },
-  {
-    title: "Chọn kiểu highlight",
-    description:
-      "Chọn một đoạn hay nhất hoặc nhiều đoạn theo chủ đề để xem lại, chia sẻ hoặc gắn vào bài học.",
-  },
-  {
-    title: "Hoàn thiện trong Studio",
-    description:
-      "Mở video ngắn trong Studio để thêm chữ, mascot hoặc chỉnh lại trước khi lưu.",
-  },
+const feedMoments = [
+  "Xem nhanh nội dung chính trước khi học sâu",
+  "Lưu đoạn cần ôn lại trong feed",
+  "Mở khóa học liên quan khi muốn học đầy đủ",
 ];
 
 export default function Home() {
@@ -50,6 +81,9 @@ export default function Home() {
   const uploadHref = user ? "/upload" : "/signin?returnUrl=%2Fupload";
   const { data: featuredCourses, isLoading: coursesLoading } =
     useFeaturedCourses();
+
+  const activeDemo = demoCases[0];
+  const newsfeedHref = `/newsfeed?videoId=${activeDemo.videoId}`;
 
   const visibleCourses = useMemo(
     () => (featuredCourses ?? []).slice(0, 8),
@@ -61,23 +95,24 @@ export default function Home() {
     const query = searchValue.trim();
     router.push(
       query
-      ? `/courses/search?q=${encodeURIComponent(query)}`
-      : "/courses/search",
+        ? `/courses/search?q=${encodeURIComponent(query)}`
+        : "/courses/search",
     );
   };
 
   return (
     <main className="min-h-screen bg-background">
       <section className="border-b border-border/70 bg-linear-to-b from-primary/8 via-background to-background">
-        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-14">
+        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_0.92fr] lg:px-8 lg:py-14">
           <div className="space-y-6">
             <div className="space-y-4">
+              <p className="text-sm font-bold text-primary">{BRAND.name}</p>
               <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Biến bài giảng dài thành video ngắn để học dễ hơn.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Tải video bài giảng lên, chọn cách cắt highlight, chỉnh nhanh trong
-                Studio nếu cần rồi xuất bản vào feed hoặc khóa học.
+                Từ một video bài giảng, bạn có thể tạo highlight, chỉnh nhanh
+                trong Studio rồi dùng lại ở feed, quiz hoặc bài học.
               </p>
             </div>
 
@@ -99,8 +134,12 @@ export default function Home() {
               </Button>
             </form>
 
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="rounded-xl px-5 font-bold">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button
+                asChild
+                size="lg"
+                className="w-full rounded-xl px-5 font-bold sm:w-auto"
+              >
                 <Link href={uploadHref}>
                   Tạo highlight
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -110,43 +149,26 @@ export default function Home() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="rounded-xl px-5 font-bold"
+                className="w-full rounded-xl px-5 font-bold sm:w-auto"
               >
-                <Link href="/courses/search">Tìm khóa học</Link>
+                <Link href={newsfeedHref}>
+                  Lướt xem feed
+                  <Play className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
-
           </div>
 
-          <div className="relative">
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl shadow-primary/10">
-              <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-                <div>
-                  <h2 className="text-base font-black text-foreground">
-                    Video ngắn sau khi cắt
-                  </h2>
-                </div>
-              </div>
-              <div className="relative aspect-[4/3] bg-muted">
-                <Image
-                  src="/homepage.png"
-                  alt="Giao diện học tập LearnHub"
-                  fill
-                  priority
-                  className="object-cover"
-                />
-                <div className="absolute inset-x-4 bottom-4 rounded-xl bg-background/95 p-3 shadow-lg backdrop-blur">
-                  <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
-                    <span>Dòng thời gian</span>
-                    <span>Highlight 02:14</span>
-                  </div>
-                  <div className="mt-2 grid h-8 grid-cols-[1.2fr_0.7fr_1fr] gap-1">
-                    <div className="rounded-md bg-primary/25" />
-                    <div className="rounded-md bg-violet-500/25" />
-                    <div className="rounded-md bg-emerald-500/25" />
-                  </div>
-                </div>
-              </div>
+          <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl shadow-primary/10">
+            <div className="relative aspect-[4/3]">
+              <Image
+                src="/homepage.png"
+                alt={`${BRAND.name} homepage preview`}
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 46vw"
+              />
             </div>
           </div>
         </div>
@@ -154,64 +176,84 @@ export default function Home() {
 
       <section className="border-b border-border/70 py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-7 max-w-3xl">
-            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              Một bài giảng có thể thành nhiều điểm chạm học tập.
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
-              Video dài có thể được cắt thành các đoạn ngắn để xem lại, chia sẻ
-              trên feed hoặc gắn vào bài học khi cần học sâu hơn.
+          <div className="mb-7">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">
+              Luồng highlight
             </p>
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
+              Video dài được rút thành highlight ngắn.
+            </h2>
           </div>
 
-          <div className="grid overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="border-b border-border/70 p-4 sm:p-5 lg:border-b-0 lg:border-r">
-              <div className="relative overflow-hidden rounded-xl bg-muted">
-                <div className="relative aspect-video">
-                  <Image
-                    src="/homepage.png"
-                    alt="Video dài được cắt thành highlight"
-                    fill
-                    className="object-cover"
-                  />
+          <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-5">
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+              <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Video gốc
+                    </p>
+                    <h3 className="mt-1 line-clamp-1 text-base font-black text-foreground">
+                      {activeDemo.longTitle}
+                    </h3>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-primary">
+                    {activeDemo.longDuration}
+                  </span>
                 </div>
-                <div className="absolute inset-x-3 bottom-3 rounded-xl bg-background/95 p-3 shadow-sm backdrop-blur">
-                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                    <span>Video dài 58:21</span>
-                    <span>Đã tạo 3 highlight</span>
+                <div className="relative aspect-video bg-muted">
+                  <video
+                    className="h-full w-full object-cover"
+                    src={activeDemo.longVideo}
+                    poster={activeDemo.longThumbnail}
+                    preload="metadata"
+                    playsInline
+                    controls
+                  />
+                  <div className="absolute left-4 top-4 rounded-lg bg-background/95 px-3 py-1 text-xs font-bold text-foreground shadow-sm">
+                    Bài giảng đầy đủ
                   </div>
-                  <div className="mt-2 grid h-7 grid-cols-[1.2fr_0.8fr_1fr] gap-1.5">
-                    <div className="rounded-md bg-primary/30" />
-                    <div className="rounded-md bg-emerald-500/25" />
-                    <div className="rounded-md bg-sky-500/25" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center lg:px-1">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-primary shadow-sm lg:h-12 lg:w-12">
+                  <ArrowRight className="h-5 w-5 rotate-90 lg:rotate-0" />
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-primary/30 bg-card">
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      Highlight
+                    </p>
+                    <h3 className="mt-1 line-clamp-1 text-base font-black text-foreground">
+                      {activeDemo.shortTitle}
+                    </h3>
                   </div>
+                  <span className="shrink-0 text-sm font-bold text-primary">
+                    {activeDemo.shortDuration}
+                  </span>
+                </div>
+                <div className="relative aspect-video bg-muted">
+                  <video
+                    className="h-full w-full object-cover"
+                    src={activeDemo.shortVideo}
+                    poster={activeDemo.shortThumbnail}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    controls
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="p-4 sm:p-5">
-              <div className="divide-y divide-border/70">
-                {workflowSteps.map((step, index) => (
-                  <div key={step.title} className="flex gap-3 py-4">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-foreground">
-                        {step.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Button asChild className="mt-2 w-full rounded-xl font-bold">
-                <Link href={uploadHref}>
-                  Tạo highlight từ video
-                </Link>
+            <div className="mt-4 flex justify-end">
+              <Button asChild className="rounded-xl font-bold">
+                <Link href={newsfeedHref}>Xem trên feed</Link>
               </Button>
             </div>
           </div>
@@ -223,10 +265,10 @@ export default function Home() {
           <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                Được học viên quan tâm
+                Khóa học nổi bật
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-                Khóa học có nhiều lượt học
+                Học sâu hơn sau khi xem highlight.
               </h2>
             </div>
             <Button asChild variant="outline" className="w-fit rounded-xl">
@@ -238,7 +280,7 @@ export default function Home() {
           </div>
 
           {coursesLoading ? (
-            <PageLoader message="Đang tải khóa học được quan tâm..." className="py-12" />
+            <PageLoader message="Đang tải khóa học..." className="py-12" />
           ) : visibleCourses.length > 0 ? (
             <motion.div
               className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
@@ -254,9 +296,9 @@ export default function Home() {
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
               <GraduationCap className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-3 font-semibold">Chưa có khóa học được quan tâm.</p>
+              <p className="mt-3 font-semibold">Chưa có khóa học nổi bật.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Khi có học viên đăng ký, các khóa học phổ biến sẽ xuất hiện ở đây.
+                Khi có dữ liệu học tập, các khóa học phù hợp sẽ xuất hiện ở đây.
               </p>
             </div>
           )}
@@ -270,34 +312,32 @@ export default function Home() {
               Newsfeed học tập
             </p>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              Học nhẹ hơn bằng những đoạn video đáng xem.
+              Video ngắn giúp mở đầu một phiên học nhanh hơn.
             </h2>
             <p className="max-w-xl text-sm leading-7 text-muted-foreground">
-              Newsfeed không thay thế khóa học, nó giúp bạn khám phá nhanh nội
-              dung hay, lưu lại ý tưởng và mở khóa học liên quan khi muốn học sâu.
+              Feed không thay thế khóa học. Nó giúp người học xem nhanh, lưu lại
+              đoạn cần nhớ và quay về bài học đầy đủ khi muốn học sâu.
             </p>
             <Button asChild className="rounded-xl">
-              <Link href="/newsfeed">
-                Mở Newsfeed
+              <Link href={newsfeedHref}>
+                Lướt xem feed
                 <Play className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>
 
           <div className="grid gap-3">
-            {feedHighlights.map((item) => (
+            {feedMoments.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 rounded-xl border border-border/70 bg-background p-4"
+                className="rounded-xl border border-border/70 bg-background p-4 text-sm font-semibold"
               >
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm font-semibold">{item}</span>
+                {item}
               </div>
             ))}
           </div>
         </div>
       </section>
-
     </main>
   );
 }

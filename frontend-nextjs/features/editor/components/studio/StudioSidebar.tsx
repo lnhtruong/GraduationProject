@@ -44,6 +44,7 @@ import {
 } from "@/features/_shared/realtime/media-upload-stream";
 import { videoKeys } from "@/features/video/api/video.hooks";
 import { videoApi } from "@/features/video/api/video.api";
+import { BRAND } from "@/lib/brand";
 import { authStorageHelper } from "@/store/auth";
 import { toast } from "sonner";
 import {
@@ -412,7 +413,7 @@ export function StudioSidebar({
               <div className="mb-3 flex items-center justify-center">
                 <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-lg">
                   <Image
-                    src="/logo.png"
+                    src={BRAND.logo}
                     alt="Logo"
                     width={28}
                     height={28}
@@ -646,7 +647,7 @@ export function StudioSidebar({
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm mascot image..."
+                    placeholder="Tìm ảnh mascot..."
                     className="h-8 border-border bg-background"
                   />
                 </div>
@@ -655,16 +656,16 @@ export function StudioSidebar({
                   <div className="space-y-2 pb-6">
                     {mascotImagesLoading ? (
                       <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Đang tải mascot image...
+                        Đang tải ảnh mascot...
                       </div>
                     ) : filteredMascotImages.length === 0 ? (
                       <div className="rounded-lg border border-border bg-muted/60 px-3 py-4 text-sm text-muted-foreground">
-                        Chưa có mascot image.
+                        Chưa có ảnh mascot cá nhân.
                       </div>
                     ) : (
                       <div className="rounded-xl border border-border bg-background p-2">
                         <div className="mb-2 text-[11px] text-muted-foreground">
-                          {filteredMascotImages.length} mascot image
+                          {filteredMascotImages.length} ảnh mascot cá nhân
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           {filteredMascotImages.map((image) => {
@@ -711,7 +712,7 @@ export function StudioSidebar({
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={image.url}
-                                  alt="Mascot image"
+                                  alt="Ảnh mascot"
                                   className="h-full w-full object-contain p-1"
                                   loading="lazy"
                                 />
@@ -838,7 +839,7 @@ export function StudioSidebar({
                 Đang tải video
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
-                Tệp video của bạn đang được tải lên Cloudinary trực tiếp. Vui lòng chờ cho đến khi hoàn thành.
+                Tệp video của bạn đang được tải trực tiếp lên hệ thống. Vui lòng chờ trong giây lát.
               </DialogDescription>
             </DialogHeader>
 
@@ -846,7 +847,7 @@ export function StudioSidebar({
               <div className="flex flex-col items-center justify-center gap-4 text-center">
                 <Loader2 className="h-10 w-10 text-primary animate-spin" />
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold">Đang tải video lên Cloudinary...</p>
+                  <p className="text-sm font-semibold">Đang tải video lên hệ thống...</p>
                   <p className="text-xs text-muted-foreground">Tiến trình: {uploadProgress}%</p>
                 </div>
                 <div className="w-full max-w-xs bg-muted rounded-full h-2.5 overflow-hidden">

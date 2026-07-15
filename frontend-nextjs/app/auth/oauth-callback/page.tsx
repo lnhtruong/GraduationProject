@@ -3,7 +3,7 @@ import OAuthCallbackPage from "./OAuthCallbackClient";
 
 export const metadata = buildPrivatePageMetadata(
   "Đang đăng nhập",
-  "Hoàn tất đăng nhập OAuth và đồng bộ phiên truy cập LearnHub.",
+  "Hoàn tất đăng nhập OAuth và đồng bộ phiên truy cập StudyLoop.",
 );
 
 export default function Page() {

@@ -194,7 +194,7 @@ export function QuizAIForm({
   videoDurationSeconds,
   videoUrl,
 }: Props) {
-  const [name, setName] = useState(`AI Quiz - ${lessonTitle}`);
+  const [name, setName] = useState(`Quiz từ video - ${lessonTitle}`);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
   const [numQuestions, setNumQuestions] = useState(10);
   const [language, setLanguage] = useState("vi");
@@ -369,7 +369,12 @@ export function QuizAIForm({
   }, [existingQuizzes, videoDurationSeconds]);
 
   useEffect(() => {
-    if (suggestion && !hasManuallyEdited) {
+    if (!suggestion || hasManuallyEdited) return;
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return;
+
       if (suggestion.type === "suggested") {
         setStartTime(formatSeconds(suggestion.startTime));
         setEndTime(formatSeconds(suggestion.endTime));
@@ -385,7 +390,12 @@ export function QuizAIForm({
           setCurrentSeconds(0);
         }
       }
-    }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [suggestion, hasManuallyEdited]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -423,7 +433,7 @@ export function QuizAIForm({
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-800 shadow-sm dark:text-amber-200">
           <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="space-y-1">
-            <p className="font-semibold">Quiz AI chưa sẵn sàng</p>
+            <p className="font-semibold">Chưa thể tạo quiz</p>
             <p className="text-xs leading-relaxed opacity-90">{disabledReason}</p>
           </div>
         </div>
@@ -442,7 +452,7 @@ export function QuizAIForm({
           {/* Name */}
           <div className="grid gap-1.5 sm:col-span-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              Tiêu đề Quiz AI
+              Tiêu đề quiz
             </Label>
             <Input
               value={name}
@@ -604,10 +614,10 @@ export function QuizAIForm({
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-500">
               <Video className="h-4 w-4" />
             </span>
-            Phạm vi Video (Tùy chọn)
+              Phạm vi video
           </h3>
           <p className="text-xs text-muted-foreground leading-normal">
-            Giới hạn khoảng thời gian trong video để AI tập trung sinh câu hỏi. Bỏ trống để phân tích toàn bộ video.
+              Giới hạn khoảng thời gian để tạo câu hỏi. Bỏ trống nếu muốn dùng toàn bộ video.
           </p>
           
           <div className="grid gap-4 sm:grid-cols-2">
@@ -680,7 +690,7 @@ export function QuizAIForm({
               {suggestion.type === "all" && (
                 <div className="font-medium flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 animate-pulse text-amber-500 shrink-0" />
-                  <span>Tự động đề xuất toàn bộ thời lượng video.</span>
+                    <span>Tự động đề xuất toàn bộ thời lượng video.</span>
                 </div>
               )}
               {suggestion.type === "suggested" && (
@@ -688,7 +698,7 @@ export function QuizAIForm({
                   <div className="font-medium flex items-start gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                     <span>
-                      Gợi ý vùng chưa có quiz:{" "}
+                    Gợi ý đoạn chưa có quiz:{" "}
                       <strong className="underline">
                         {formatSeconds(suggestion.startTime)} - {formatSeconds(suggestion.endTime)}
                       </strong>{" "}
@@ -718,7 +728,7 @@ export function QuizAIForm({
                 <div className="font-medium flex items-start gap-1.5">
                   <span className="shrink-0 mt-0.5">⚠️</span>
                   <span>
-                    Video đã được bao phủ bởi các quiz hiện tại. Bạn vẫn có thể sinh thêm bằng cách nhập khoảng thời gian thủ công.
+                  Video đã có quiz ở nhiều đoạn. Bạn vẫn có thể nhập khoảng thời gian thủ công để tạo thêm.
                   </span>
                 </div>
               )}

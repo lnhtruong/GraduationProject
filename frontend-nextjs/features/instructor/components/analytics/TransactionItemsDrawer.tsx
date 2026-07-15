@@ -158,8 +158,8 @@ export function TransactionItemsDrawer({ course, from, to, onClose }: Props) {
             <div>
               {/* Table header */}
               <div className="sticky top-0 grid grid-cols-[1fr_auto_auto] gap-2 border-b border-border/60 bg-muted/40 px-5 py-2">
-                <span className="text-[11px] font-medium text-muted-foreground">Thời gian / Mã GD</span>
-                <span className="text-[11px] font-medium text-muted-foreground">User ID</span>
+                <span className="text-[11px] font-medium text-muted-foreground">Thời gian</span>
+                <span className="text-[11px] font-medium text-muted-foreground">Người mua</span>
                 <span className="text-right text-[11px] font-medium text-muted-foreground">Giá</span>
               </div>
 
@@ -190,14 +190,14 @@ export function TransactionItemsDrawer({ course, from, to, onClose }: Props) {
                         </p>
                       ) : (
                         <p className="mt-0.5 text-[11px] text-muted-foreground/40">
-                          #{item.transactionId}
+                          Đã thanh toán
                         </p>
                       )}
                     </div>
 
-                    {/* Buyer user ID */}
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      #{item.buyerUserId}
+                    {/* Buyer */}
+                    <span className="text-xs text-muted-foreground">
+                      Người mua
                     </span>
 
                     {/* Price */}

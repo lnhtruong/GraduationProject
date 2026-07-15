@@ -118,7 +118,7 @@ export default function SignUpForm() {
           Tạo tài khoản
         </h1>
         <p className="text-sm text-muted-foreground">
-          Tham gia LearnHub để bắt đầu hành trình học tập
+          Tham gia StudyLoop để bắt đầu hành trình học tập
         </p>
       </div>
 
@@ -139,7 +139,7 @@ export default function SignUpForm() {
               <Alert variant="success" className="py-3">
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertDescription className="font-medium">
-                  Tạo tài khoản thành công! Chào mừng bạn đến với LearnHub.
+                  Tạo tài khoản thành công! Chào mừng bạn đến với StudyLoop.
                 </AlertDescription>
               </Alert>
             )}

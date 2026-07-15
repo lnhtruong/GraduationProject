@@ -3,7 +3,7 @@ import SearchCoursesPage from "./SearchCoursesClient";
 
 export const metadata = buildPageMetadata({
   title: "Tìm kiếm khóa học",
-  description: "Tìm kiếm và lọc khóa học theo chủ đề, cấp độ, giá và đánh giá trên LearnHub.",
+  description: "Tìm kiếm và lọc khóa học theo chủ đề, cấp độ, giá và đánh giá trên StudyLoop.",
   path: "/courses/search",
 });
 

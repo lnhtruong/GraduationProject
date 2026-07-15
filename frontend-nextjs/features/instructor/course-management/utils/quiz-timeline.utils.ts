@@ -86,7 +86,7 @@ export function buildQuizTimelineMarkers(
         quizName:
           activityTitleMap.get(quiz.lessonActivityId) ??
           quiz.name ??
-          `Quiz #${quiz.id}`,
+          "Trắc nghiệm chưa đặt tên",
         questionText: question.quesText,
         timestampLabel: formatSecondsToTimestampLabel(seconds),
         timestampSeconds: seconds,

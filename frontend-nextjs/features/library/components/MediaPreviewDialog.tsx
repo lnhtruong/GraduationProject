@@ -8,7 +8,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -36,12 +35,6 @@ export function MediaPreviewDialog({
 	const [speed, setSpeed] = useState("1");
 
 	useEffect(() => {
-		if (!open) {
-			setSpeed("1");
-		}
-	}, [open]);
-
-	useEffect(() => {
 		if (!videoRef.current) return;
 		videoRef.current.playbackRate = Number(speed);
 	}, [speed]);
@@ -50,11 +43,19 @@ export function MediaPreviewDialog({
 
 	const description =
 		preview.kind === "video"
-			? `Loại: ${preview.item.type} · Tốc độ: ${speed}x`
+			? `Tốc độ phát: ${speed}x`
 			: "Xem trước hình ảnh";
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen) {
+					setSpeed("1");
+				}
+				onOpenChange(nextOpen);
+			}}
+		>
 			<DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden p-0">
 				<DialogHeader className="border-b border-border/70 px-5 py-4">
 					<div className="flex flex-wrap items-center justify-between gap-2">
@@ -78,9 +79,7 @@ export function MediaPreviewDialog({
 									</SelectContent>
 								</Select>
 							</div>
-						) : (
-							<Badge variant="secondary">Image Preview</Badge>
-						)}
+						) : null}
 					</div>
 				</DialogHeader>
 

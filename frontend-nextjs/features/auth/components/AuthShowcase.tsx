@@ -7,7 +7,7 @@ import { Brain } from "lucide-react";
 const SLIDES = [
   {
     title: "Học tập tương tác",
-    description: "Đồng hành cùng Mascot AI giải đáp thắc mắc và tương tác trực quan ngay trong bài giảng.",
+    description: "Xem video ngắn, ôn tập nhanh và quay lại bài học gốc khi cần học sâu hơn.",
     renderMockup: () => (
       <div className="w-full rounded-2xl border border-border/80 bg-card/60 p-4 shadow-xl backdrop-blur-md relative overflow-hidden h-72 flex flex-col justify-between">
         {/* Window header */}
@@ -106,7 +106,7 @@ const SLIDES = [
   },
   {
     title: "Trích xuất khoảnh khắc",
-    description: "Phân tích bài giảng và tự động cắt ghép các phân đoạn video ngắn (Highlights) cốt lõi.",
+    description: "Tìm các đoạn đáng xem trong bài giảng dài và biến chúng thành video ngắn dễ chia sẻ.",
     renderMockup: () => (
       <div className="w-full rounded-2xl border border-border/80 bg-card/60 p-4 shadow-xl backdrop-blur-md relative overflow-hidden h-72 flex flex-col justify-between">
         {/* Window header */}

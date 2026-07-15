@@ -62,7 +62,7 @@ export function SearchBar({ placeholder = "Tìm kiếm khóa học...", classNam
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10 w-full pl-4 pr-24 rounded-full border border-primary/30 dark:border-border/80 bg-background dark:bg-card shadow-sm focus-visible:bg-background dark:focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/30 dark:focus-visible:ring-primary/20 focus-visible:border-primary dark:focus-visible:border-primary/80 text-sm outline-none transition-all"
+          className="h-10 w-full pl-4 pr-24 rounded-full border border-border/70 dark:border-border/80 bg-muted/50 dark:bg-card/50 shadow-sm focus-visible:bg-background dark:focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/30 dark:focus-visible:ring-primary/20 focus-visible:border-primary dark:focus-visible:border-primary/80 text-sm outline-none transition-all"
         />
         {query && (
           <Button

@@ -108,7 +108,7 @@ export default function HighlightParamsForm({
             Bạn muốn lấy phần nào trong video?
           </h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Mô tả mục tiêu học để LearnHub ưu tiên đúng đoạn cần giữ.
+            Mô tả mục tiêu học để StudyLoop ưu tiên đúng đoạn cần giữ.
           </p>
         </div>
 
@@ -205,7 +205,7 @@ export default function HighlightParamsForm({
                       setIncludeInput(event.target.value);
                       field.onChange(parsePreferences(event.target.value));
                     }}
-                    placeholder="Ví dụ: ví dụ thực tế, đoạn demo, công thức quan trọng"
+                    placeholder="Ví dụ: ví dụ thực tế, đoạn minh họa, công thức quan trọng"
                     disabled={isSubmitting}
                     className="h-11"
                   />
@@ -269,7 +269,7 @@ export default function HighlightParamsForm({
                   ))}
                 </div>
                 <FormDescription className="mt-auto">
-                  Để trống nếu muốn LearnHub tự chọn tự nhiên.
+                  Để trống nếu muốn StudyLoop tự chọn tự nhiên.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

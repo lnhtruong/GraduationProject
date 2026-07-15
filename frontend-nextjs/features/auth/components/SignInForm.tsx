@@ -9,13 +9,6 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Form,
   FormControl,
   FormField,
@@ -108,7 +101,7 @@ export default function SignInForm() {
           Chào mừng trở lại
         </h1>
         <p className="text-sm text-muted-foreground">
-          Đăng nhập vào tài khoản LearnHub của bạn
+          Đăng nhập vào tài khoản StudyLoop của bạn
         </p>
       </div>
 

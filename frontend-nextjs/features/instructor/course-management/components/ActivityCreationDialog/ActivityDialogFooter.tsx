@@ -54,10 +54,10 @@ export function ActivityDialogFooter({
           className="h-10 w-full gap-1.5 rounded-xl bg-primary font-semibold shadow-md hover:bg-primary/90 sm:w-auto"
         >
           {isQuizAIPending
-            ? "Đang sinh..."
+            ? "Đang tạo..."
             : isQuizAIDisabled
               ? "Video chưa sẵn sàng"
-              : "Sinh quiz AI"}
+              : "Tạo quiz từ video"}
         </Button>
       ) : (
         <Button

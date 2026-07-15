@@ -253,11 +253,11 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
 
   const instructorName = request?.requester
     ? `${request.requester.firstName} ${request.requester.lastName}`.trim()
-    : `Giảng viên #${request?.requestedBy ?? "—"}`;
+    : "Giảng viên";
   const instructorEmail = request?.requester?.email ?? null;
   const reviewerName = request?.reviewer
     ? `${request.reviewer.firstName} ${request.reviewer.lastName}`.trim()
-    : request?.reviewedBy ? `Admin #${request.reviewedBy}` : null;
+    : request?.reviewedBy ? "Quản trị viên" : null;
 
   const handleDecision = async (decision: "approved" | "rejected") => {
     if (!request) return;
@@ -294,7 +294,7 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
                 <SheetHeader className="mb-5 space-y-0 text-left">
                   <div className="flex items-start justify-between gap-3">
                     <SheetTitle className="line-clamp-2 text-base leading-snug">
-                      {request.course?.name ?? `Khoá học #${request.courseId}`}
+                      {request.course?.name ?? "Khóa học liên quan"}
                     </SheetTitle>
                     {statusCfg && (
                       <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusCfg.colorClass}`}>

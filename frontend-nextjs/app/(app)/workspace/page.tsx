@@ -2,7 +2,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Không gian làm việc",
-  "Quản lý nội dung học tập và tài nguyên cá nhân trong LearnHub.",
+  "Quản lý nội dung học tập và tài nguyên cá nhân trong StudyLoop.",
 );
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";

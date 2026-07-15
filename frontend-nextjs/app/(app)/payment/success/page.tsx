@@ -2,7 +2,7 @@ import { buildPrivatePageMetadata } from "@/lib/metadata";
 
 export const metadata = buildPrivatePageMetadata(
   "Thanh toán thành công",
-  "Xác nhận giao dịch khóa học đã được hoàn tất trên LearnHub.",
+  "Xác nhận giao dịch khóa học đã được hoàn tất trên StudyLoop.",
 );
 
 import { Suspense } from "react";

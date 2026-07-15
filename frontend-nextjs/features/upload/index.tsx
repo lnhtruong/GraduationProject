@@ -28,7 +28,7 @@ type SourceMode = "file" | "existing-video";
 const WORKFLOW_STEPS = [
   {
     title: "Chọn nguồn video",
-    description: "Upload file hoặc dùng video đã có trên LearnHub.",
+    description: "Upload file hoặc dùng video đã có trên StudyLoop.",
   },
   {
     title: "Đặt tiêu chí cắt",
@@ -36,11 +36,11 @@ const WORKFLOW_STEPS = [
   },
   {
     title: "Mở Studio",
-    description: "Tinh chỉnh chữ, Mascot và xuất bản.",
+    description: "Tinh chỉnh chữ, lớp hiển thị và xuất bản.",
   },
 ];
 
-function isAllowedLearnHubVideoUrl(value: string) {
+function isAllowedStudyLoopVideoUrl(value: string) {
   try {
     const url = new URL(value);
     const hostname = url.hostname.toLowerCase();
@@ -146,7 +146,7 @@ export default function Upload() {
     startFromExistingVideo,
     ensureProjectForClip,
     cancel,
-  } = useUpload();
+  } = useUpload({ autoCreateProject: false });
 
   const router = useRouter();
   const [sourceMode, setSourceMode] = React.useState<SourceMode>("file");
@@ -201,8 +201,8 @@ export default function Upload() {
       void startUpload(file, params);
     } else {
       const trimmedUrl = existingVideoUrl.trim();
-      if (!isAllowedLearnHubVideoUrl(trimmedUrl)) {
-        toast.error("Vui lòng nhập link video LearnHub hợp lệ.");
+      if (!isAllowedStudyLoopVideoUrl(trimmedUrl)) {
+        toast.error("Vui lòng nhập link video StudyLoop hợp lệ.");
         return;
       }
       void startFromExistingVideo(trimmedUrl, params);
@@ -280,7 +280,7 @@ export default function Upload() {
                   Tạo highlight từ video bài giảng
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                  Tự động trích xuất các đoạn nổi bật từ video bài giảng. Chọn nguồn video và để AI của LearnHub làm phần việc còn lại.
+                  Tự động trích xuất các đoạn nổi bật từ video bài giảng. Chọn nguồn video và để StudyLoop làm phần việc còn lại.
                 </p>
               </div>
             </div>
@@ -290,7 +290,7 @@ export default function Upload() {
             {!isAuthenticated ? (
               <div className="relative min-h-[350px] w-full rounded-2xl">
                 {renderLockOverlay(
-                  "Vui lòng đăng nhập để sử dụng tính năng tải video bài giảng, cắt highlight tự động và chèn Mascot sinh động."
+                  "Vui lòng đăng nhập để tải video bài giảng, cắt highlight tự động và mở Studio chỉnh sửa."
                 )}
               </div>
             ) : (
@@ -335,7 +335,7 @@ export default function Upload() {
                         <Card className="flex min-h-[20rem] flex-col justify-center space-y-5 rounded-2xl border-2 border-dashed border-slate-300 bg-background p-4 shadow-none transition-all duration-200 focus-within:border-primary/60 sm:p-6">
                           <div className="flex items-start gap-3">
                                                         <div>
-                              <h2 className="font-semibold">Nhập link video LearnHub</h2>
+                              <h2 className="font-semibold">Nhập link video StudyLoop</h2>
                               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                                 Dán đường dẫn của video đã có sẵn trên hệ thống để bắt đầu trích xuất highlight.
                               </p>
@@ -344,7 +344,7 @@ export default function Upload() {
 
                           <div className="space-y-2">
                             <Label htmlFor="existing-video-url">
-                              Link video LearnHub
+                              Link video StudyLoop
                             </Label>
                             <Input
                               id="existing-video-url"
@@ -352,12 +352,12 @@ export default function Upload() {
                               onChange={(event) =>
                                 setExistingVideoUrl(event.target.value)
                               }
-                              placeholder="Dán link video đã upload trên LearnHub..."
+                              placeholder="Dán link video đã upload trên StudyLoop..."
                               className="h-11"
                               disabled={!isAuthenticated}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Hệ thống hỗ trợ các liên kết nội bộ hoặc CDN của LearnHub.
+                              Hệ thống hỗ trợ các liên kết nội bộ hoặc CDN của StudyLoop.
                             </p>
                           </div>
 
@@ -365,10 +365,10 @@ export default function Upload() {
                             type="button"
                             onClick={() => {
                               if (
-                                !isAllowedLearnHubVideoUrl(existingVideoUrl.trim())
+                                !isAllowedStudyLoopVideoUrl(existingVideoUrl.trim())
                               ) {
                                 toast.error(
-                                  "Vui lòng nhập link video LearnHub hợp lệ.",
+                                  "Vui lòng nhập link video StudyLoop hợp lệ.",
                                 );
                                 return;
                               }
