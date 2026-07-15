@@ -90,7 +90,7 @@ type HighlightMultiVideoResult = {
 };
 
 export interface ai_model_result {
-    event?: 'stage_update' | 'completed' | 'job_failed'; // Thêm field này
+    event?: 'stage_update' | 'job_progress' | 'completed' | 'job_failed'; // Thêm field này
     job_id?: string;
     jobId?: string;
     user_id?: string | number;
@@ -137,6 +137,8 @@ export interface ai_model_result {
 
     // Dành cho progress / failed
     stage?: string;
+    stage_index?: number;
+    total_stages?: number;
     status?: string;
     error_message?: string;
     errorMessage?: string;
@@ -935,7 +937,10 @@ export class WebhookService {
 
         // 3. Phân luồng xử lý theo EVENT
         // Mặc định là 'completed' nếu Python chưa kịp update code cũ
-        const eventType = payload.event || 'completed';
+        const eventType =
+            payload.event === 'job_progress'
+                ? 'stage_update'
+                : payload.event || 'completed';
 
         switch (eventType) {
             case 'stage_update':
@@ -953,6 +958,8 @@ export class WebhookService {
                         jobId: this.parseJobId(payload),
                         type: typeForSse,
                         stage: payload.stage,
+                        stageIndex: payload.stage_index,
+                        totalStages: payload.total_stages,
                         status: 'processing',
                     },
                 });
@@ -1176,7 +1183,6 @@ export class WebhookService {
 
                 // ---- TYPE = highlight | mascot | long (logic cũ) ------------
                 if (rawType === 'highlight-multi') {
-                    console.log('check 1');
                     return this.handleHighlightMultiCompleted({
                         payload,
                         userId,
@@ -1190,6 +1196,13 @@ export class WebhookService {
                     return { ignored: true, reason: 'missing_url' };
                 }
 
+                const completedVideoType =
+                    type === VideoType.MASCOT || type === VideoType.HIGHLIGHT || type === VideoType.LONG
+                        ? type
+                        : VideoType.HIGHLIGHT;
+                const completedVideoLabel =
+                    completedVideoType === VideoType.MASCOT ? 'mascot' : 'highlight';
+
                 let videoId: number | undefined;
                 if (jobId) {
                     let videoRow = await this.videoModel.findOne({
@@ -1202,12 +1215,12 @@ export class WebhookService {
                         videoRow = await this.videoModel.create({
                             job_id: jobId,
                             user_id: userId,
-                            type: VideoType.HIGHLIGHT,
+                            type: completedVideoType,
                             url,
                             duration: typeof payload.duration === 'number' ? payload.duration : null,
                             name:
                                 payload.source_original_filename ??
-                                `${jobId}_highlight.mp4`,
+                                `${jobId}_${completedVideoLabel}.mp4`,
                             thumbnail,
                             srt_raw_url: payload.srt_url ?? null,
                             upload_context: {
@@ -1220,7 +1233,7 @@ export class WebhookService {
                         const thumbnail = this.buildCloudinaryVideoThumbnailUrl(url);
                         await videoRow.update({
                             user_id: userId,
-                            type: VideoType.HIGHLIGHT,
+                            type: completedVideoType,
                             url,
                             duration:
                                 typeof payload.duration === 'number'
@@ -1244,7 +1257,7 @@ export class WebhookService {
                     eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
                     sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
                     title: 'Video processing completed',
-                    message: 'Your highlight video is ready',
+                    message: `Your ${completedVideoLabel} video is ready`,
                     sourceType: NotificationSourceType.VIDEO,
                     sourceId: videoId,
                     payload: {
