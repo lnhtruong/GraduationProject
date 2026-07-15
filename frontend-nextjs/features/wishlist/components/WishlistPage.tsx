@@ -6,32 +6,18 @@ import { BookOpen, GraduationCap, ShoppingCart, Star, Trash2, Users } from "luci
 import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
+import { AppLoadingState } from "@/features/_shared/components/AppLoadingState";
+import { AppPageHeader } from "@/features/_shared/components/AppPageHeader";
 import { formatPrice, parseHHMMSS, formatDuration } from "@/features/courses/utils";
 import { useAddToCart, useIsInCart } from "@/features/cart/api/cart.hooks";
 import { useWishlistQuery, useToggleWishlistMutation } from "../api/wishlist.hooks";
 import type { WishlistItem } from "../types";
 
 const LIMIT = 20;
-
-// ─── Skeleton card ───────────────────────────────────────────────────────────
-function WishlistCardSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card animate-pulse">
-      <Skeleton className="aspect-video w-full rounded-none" />
-      <div className="flex flex-col gap-2 p-4">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-        <Skeleton className="h-3 w-1/3" />
-        <div className="mt-3 flex gap-2">
-          <Skeleton className="h-8 flex-1 rounded-lg" />
-          <Skeleton className="h-8 w-8 rounded-lg" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Card item ───────────────────────────────────────────────────────────────
 function WishlistItemCard({ item }: { item: WishlistItem }) {
@@ -57,9 +43,9 @@ function WishlistItemCard({ item }: { item: WishlistItem }) {
   const durationSecs = parseHHMMSS(item.duration);
 
   return (
-    <div
-      className={`group flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm
-        transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md
+    <Card
+      className={`group gap-0 overflow-hidden rounded-lg border-border/60 py-0
+        transition-all duration-200 hover:border-primary/40 hover:shadow-md
         ${isRemoving ? "pointer-events-none opacity-50" : ""}`}
     >
       {/* Thumbnail */}
@@ -71,7 +57,7 @@ function WishlistItemCard({ item }: { item: WishlistItem }) {
             fill
             unoptimized
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-primary/10">
@@ -86,7 +72,7 @@ function WishlistItemCard({ item }: { item: WishlistItem }) {
       </Link>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      <CardContent className="flex flex-1 flex-col gap-2 p-4">
         <Link href={`/courses/${item.id}`}>
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug transition-colors hover:text-primary">
             {item.name}
@@ -177,30 +163,24 @@ function WishlistItemCard({ item }: { item: WishlistItem }) {
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 function WishlistEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-muted">
-        <BookOpen className="h-12 w-12 text-muted-foreground/40" />
-      </div>
-      <h2 className="mb-2 text-xl font-bold">Bạn chưa lưu khóa học nào</h2>
-      <p className="mb-8 max-w-sm text-sm text-muted-foreground">
-        Nhấn vào icon tim trên bất kỳ khóa học nào để lưu lại và xem sau.
-      </p>
-      <Button
-        variant="outline"
-        className="border-primary/40 text-primary hover:bg-primary/5"
-        asChild
-      >
-        <Link href="/courses/search">Khám phá khóa học</Link>
-      </Button>
-    </div>
+    <AppEmptyState
+      icon={<BookOpen className="h-8 w-8" />}
+      title="Bạn chưa lưu khóa học nào"
+      description="Nhấn vào biểu tượng tim trên khóa học để lưu lại và quay lại xem sau."
+      action={
+        <Button variant="outline" asChild>
+          <Link href="/courses/search">Khám phá khóa học</Link>
+        </Button>
+      }
+    />
   );
 }
 
@@ -214,37 +194,36 @@ export function WishlistPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Khóa học đã lưu
-          </h1>
-          {!isLoading && total > 0 && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {total} khóa học
-            </p>
-          )}
-        </div>
-      </div>
+    <div className="min-h-screen bg-background">
+      <AppPageHeader
+        eyebrow="Danh sách cá nhân"
+        title="Khóa học đã lưu"
+        description={
+          !isLoading && total > 0
+            ? `${total} khóa học bạn muốn quay lại sau`
+            : "Lưu lại các khóa học yêu thích để so sánh và đăng ký khi sẵn sàng."
+        }
+        icon={<BookOpen className="h-5 w-5" />}
+      />
+
+      <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
 
       {/* Error state */}
       {isError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
-          <p className="text-sm text-destructive">
+        <Alert variant="destructive">
+          <AlertDescription>
             Không thể tải danh sách. Vui lòng thử lại sau.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Loading */}
       {isLoading && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <WishlistCardSkeleton key={i} />
-          ))}
-        </div>
+        <AppLoadingState
+          variant="cards"
+          count={8}
+          message="Đang tải danh sách khóa học đã lưu..."
+        />
       )}
 
       {/* Empty state */}
@@ -285,6 +264,7 @@ export function WishlistPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

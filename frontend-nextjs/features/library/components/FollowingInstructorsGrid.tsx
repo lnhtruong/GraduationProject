@@ -4,7 +4,9 @@ import { useState } from "react";
 import { UserCheck, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
+import { AppLoadingState } from "@/features/_shared/components/AppLoadingState";
 import { useFollowingInstructors, useUnfollowMutation } from "@/features/instructor/follow/follow.hooks";
 import type { FollowingInstructor } from "@/features/instructor/follow/types";
 
@@ -19,7 +21,8 @@ function InstructorCard({ instructor }: { instructor: FollowingInstructor }) {
   const unfollow = useUnfollowMutation(instructor.id);
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-accent">
+    <Card className="rounded-lg border-border/60 py-0 text-center transition-colors hover:border-primary/40 hover:bg-accent">
+      <CardContent className="flex flex-col items-center gap-2 p-4">
       <Avatar className="h-14 w-14 border-2 border-primary/20">
         {instructor.avatarUrl && (
           <AvatarImage src={instructor.avatarUrl} alt={instructor.name} />
@@ -47,7 +50,8 @@ function InstructorCard({ instructor }: { instructor: FollowingInstructor }) {
         <UserCheck className="mr-1.5 h-3.5 w-3.5" />
         {hovered ? "Bỏ theo dõi" : "Đang theo dõi"}
       </Button>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -55,35 +59,27 @@ export function FollowingInstructorsGrid() {
   const { data: instructors, isLoading, error } = useFollowingInstructors();
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card p-4">
-            <Skeleton className="h-14 w-14 rounded-full" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-8 w-24 rounded-md" />
-          </div>
-        ))}
-      </div>
-    );
+    return <AppLoadingState variant="cards" count={8} message="Đang tải giảng viên đang theo dõi..." />;
   }
 
   if (error) {
     return (
-      <p className="py-8 text-center text-sm text-destructive">
-        Không thể tải danh sách. Vui lòng thử lại sau.
-      </p>
+      <AppEmptyState
+        icon={<Users className="h-8 w-8" />}
+        title="Không thể tải danh sách"
+        description="Hiện chưa thể tải danh sách giảng viên đang theo dõi. Vui lòng thử lại sau."
+        tone="destructive"
+      />
     );
   }
 
   if (!instructors || instructors.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
-        <Users className="h-12 w-12 opacity-40" />
-        <p className="text-sm">Bạn chưa theo dõi giảng viên nào.</p>
-        <p className="text-xs opacity-70">Khám phá khoá học và theo dõi giảng viên bạn yêu thích.</p>
-      </div>
+      <AppEmptyState
+        icon={<Users className="h-8 w-8" />}
+        title="Bạn chưa theo dõi giảng viên nào"
+        description="Khám phá khóa học và theo dõi giảng viên bạn yêu thích để xem nhanh tại đây."
+      />
     );
   }
 

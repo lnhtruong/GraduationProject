@@ -1,12 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
 import { Clock3, PlayCircle, Trash2, VideoIcon } from "lucide-react";
 import type { Video } from "@/features/video";
 
@@ -31,14 +26,11 @@ export function VideoGrid({
 
 	if (items.length === 0) {
 		return (
-			<Empty className="min-h-[280px] border border-dashed border-border/70">
-				<EmptyHeader>
-					<EmptyTitle>Chưa có {tabLabel.toLowerCase()}</EmptyTitle>
-					<EmptyDescription>
-						Dữ liệu sẽ hiển thị tại đây khi bạn tạo thêm trong trang editor.
-					</EmptyDescription>
-				</EmptyHeader>
-			</Empty>
+			<AppEmptyState
+				icon={<VideoIcon className="h-8 w-8" />}
+				title={`Chưa có ${tabLabel.toLowerCase()}`}
+				description="Dữ liệu sẽ hiển thị tại đây khi bạn tạo thêm trong trang editor."
+			/>
 		);
 	}
 
@@ -56,7 +48,7 @@ export function VideoGrid({
 							<div className="relative aspect-video overflow-hidden border-b border-border/70 bg-muted">
 								{thumb ? (
 									<div
-										className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.03]"
+										className="h-full w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-[1.02]"
 										style={{ backgroundImage: `url(${thumb})` }}
 									/>
 								) : (
@@ -102,14 +94,14 @@ function VideoGridSkeleton() {
 	return (
 		<div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
 			{Array.from({ length: 10 }).map((_, index) => (
-				<div
+				<Card
 					key={`video-grid-skeleton-${index}`}
-					className="rounded-xl border border-border/70 p-2"
+					className="gap-0 rounded-lg border-border/70 p-2"
 				>
 					<Skeleton className="mb-2 aspect-video w-full rounded-lg" />
 					<Skeleton className="mb-1.5 h-3 w-full" />
 					<Skeleton className="h-3 w-1/2" />
-				</div>
+				</Card>
 			))}
 		</div>
 	);

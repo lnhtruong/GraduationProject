@@ -7,7 +7,10 @@ export const metadata = {
 
 export default function WishlistPageRoute() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute
+      title="Khóa học đã lưu"
+      description="Đăng nhập để xem và quản lý danh sách khóa học bạn đã lưu."
+    >
       <WishlistPage />
     </ProtectedRoute>
   );

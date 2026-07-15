@@ -1,15 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { ShoppingCart } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AppPageHeader } from "@/features/_shared/components/AppPageHeader";
 import { CartItemCard } from "./components/CartItemCard";
 import { CartOrderSummary } from "./components/CartOrderSummary";
 import { CartMobileBottomBar } from "./components/CartMobileBottomBar";
@@ -21,15 +16,17 @@ import type { CartItem } from "./types";
 
 function CartItemSkeleton() {
   return (
-    <div className="flex animate-pulse gap-4 rounded-xl border border-border/60 bg-card p-4">
-      <div className="aspect-video w-[140px] shrink-0 rounded-lg bg-muted" />
+    <Card className="rounded-lg border-border/60 py-0">
+      <CardContent className="flex gap-4 p-4">
+      <Skeleton className="aspect-video w-[140px] shrink-0 rounded-md" />
       <div className="flex-1 space-y-2.5 pt-1">
-        <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-3 w-1/2 rounded bg-muted" />
-        <div className="h-3 w-1/3 rounded bg-muted" />
-        <div className="mt-auto h-5 w-1/4 rounded bg-muted" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-3 w-1/3" />
+        <Skeleton className="mt-auto h-5 w-1/4" />
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -42,7 +39,7 @@ export default function CartPage() {
   const createPayment = useCreatePayment();
 
   const items = cartItems ?? store.items;
-  const inCartItems = items.filter((i) => !i.savedForLater);
+  const inCartItems = items.filter((item) => !item.savedForLater);
 
   const handleRemove = async (courseId: number) => {
     setRemovingIds((prev) => new Set(prev).add(courseId));
@@ -59,25 +56,35 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    const courseIds = inCartItems.map((i) => i.courseId);
+    const courseIds = inCartItems.map((item) => item.courseId);
     if (courseIds.length === 0) return;
     createPayment.mutate(courseIds);
   };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
-        <div className="flex gap-8">
-          <div className="flex-1 space-y-4">
-            <CartItemSkeleton />
-            <CartItemSkeleton />
-          </div>
-          <div className="hidden w-96 shrink-0 lg:block">
-            <div className="animate-pulse rounded-xl border border-border/60 bg-card p-6 space-y-4">
-              <div className="h-4 w-1/2 rounded bg-muted" />
-              <div className="h-3 w-full rounded bg-muted" />
-              <div className="h-3 w-3/4 rounded bg-muted" />
-              <div className="h-12 w-full rounded-lg bg-muted" />
+      <div className="min-h-screen bg-background">
+        <AppPageHeader
+          eyebrow="Thanh toán"
+          title="Giỏ hàng của bạn"
+          description="Đang tải các khóa học trong giỏ"
+          icon={<ShoppingCart className="h-5 w-5" />}
+        />
+        <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
+          <div className="flex gap-8">
+            <div className="flex-1 space-y-4">
+              <CartItemSkeleton />
+              <CartItemSkeleton />
+            </div>
+            <div className="hidden w-96 shrink-0 lg:block">
+              <Card className="rounded-lg border-border/60 py-0">
+                <CardContent className="space-y-4 p-6">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-12 w-full rounded-md" />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -85,55 +92,22 @@ export default function CartPage() {
     );
   }
 
-  if (!isLoading && inCartItems.length === 0) {
+  if (inCartItems.length === 0) {
     return <CartEmptyState />;
   }
 
   return (
     <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <AppPageHeader
+        eyebrow="Thanh toán"
+        title="Giỏ hàng của bạn"
+        description={`${inCartItems.length} khóa học đang chờ thanh toán`}
+        icon={<ShoppingCart className="h-5 w-5" />}
+      />
 
-      {/* ── Hero header ────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b border-border/40 py-10 lg:py-14">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-br from-primary/5 via-background to-background" />
-        <div className="container mx-auto max-w-7xl px-4 lg:px-8">
-          <Breadcrumb className="mb-3">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/">Trang chủ</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Giỏ hàng</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <ShoppingCart className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight lg:text-3xl">
-                Giỏ hàng của bạn
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {inCartItems.length > 0
-                  ? `${inCartItems.length} khoá học đang chờ thanh toán`
-                  : "Chưa có khoá học nào trong giỏ"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="container mx-auto max-w-7xl px-4 lg:px-8 py-8">
-
-        {/* ── Main layout ────────────────────────────────────────── */}
+      <div className="container mx-auto max-w-7xl px-4 py-8 lg:px-8">
         <div className="flex gap-8">
-
-          {/* ── Left: Item list ────────────────────────────────── */}
           <div className="min-w-0 flex-1 space-y-6">
-
-            {/* Mobile: sidebar inline trên mobile */}
             {inCartItems.length > 0 && (
               <div className="lg:hidden">
                 <CartOrderSummary
@@ -144,7 +118,6 @@ export default function CartPage() {
               </div>
             )}
 
-            {/* Cart items */}
             <div className="space-y-4">
               {inCartItems.map((item: CartItem) => (
                 <CartItemCard
@@ -157,7 +130,6 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* ── Right: Sticky sidebar (desktop) ───────────────── */}
           {inCartItems.length > 0 && (
             <div className="hidden w-96 shrink-0 lg:block">
               <div className="sticky top-24">
@@ -172,7 +144,6 @@ export default function CartPage() {
         </div>
       </div>
 
-      {/* ── Mobile fixed bottom bar ────────────────────────────── */}
       <CartMobileBottomBar items={inCartItems} onCheckout={handleCheckout} />
     </div>
   );

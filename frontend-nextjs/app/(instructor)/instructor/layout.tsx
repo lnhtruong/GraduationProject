@@ -7,7 +7,11 @@ export default function InstructorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ProtectedRoute requiredRole={getRoleAccess("instructor")}>
+    <ProtectedRoute
+      requiredRole={getRoleAccess("instructor")}
+      title="Khu vực giảng viên"
+      description="Đăng nhập bằng tài khoản giảng viên để quản lý khóa học và nội dung giảng dạy."
+    >
       <div className="min-h-screen bg-muted/30 bg-[radial-gradient(circle,_hsl(var(--border))_1px,_transparent_1px)] [background-size:24px_24px]">
         <main className="mx-auto max-w-screen-xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {children}

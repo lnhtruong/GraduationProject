@@ -9,7 +9,10 @@ export const metadata = buildPrivatePageMetadata(
 
 export default function Page() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute
+      title="Trình chỉnh sửa video"
+      description="Đăng nhập để mở dự án và chỉnh sửa video của bạn."
+    >
       <Editor />
     </ProtectedRoute>
   );

@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute
+      title="Học tập của tôi"
+      description="Đăng nhập để tiếp tục khóa học và theo dõi tiến độ cá nhân."
+    >
       <MyCoursesPage />
     </ProtectedRoute>
   );

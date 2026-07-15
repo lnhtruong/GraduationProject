@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function LibraryPage() {
 	return (
-		<ProtectedRoute>
+		<ProtectedRoute
+			title="Library của bạn"
+			description="Đăng nhập để xem video, hình ảnh và media cá nhân đã tạo."
+		>
 			<LibraryFeature />
 		</ProtectedRoute>
 	);

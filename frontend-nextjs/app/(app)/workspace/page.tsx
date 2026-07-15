@@ -10,7 +10,10 @@ import Workspace from "@/features/workspace";
 
 export default function WorkspacePage() {
 	return (
-		<ProtectedRoute>
+		<ProtectedRoute
+			title="Workspace của bạn"
+			description="Đăng nhập để quản lý dự án, bản nháp và video đã hoàn thành."
+		>
 			<Workspace />
 		</ProtectedRoute>
 	);

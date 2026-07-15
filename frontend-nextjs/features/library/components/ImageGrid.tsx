@@ -1,12 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
 import { ImageIcon, Trash2 } from "lucide-react";
 import type { Image } from "@/features/image";
 
@@ -24,14 +19,11 @@ export function ImageGrid({ items, isLoading, onPreview, onDelete }: ImageGridPr
 
 	if (items.length === 0) {
 		return (
-			<Empty className="min-h-[280px] border border-dashed border-border/70">
-				<EmptyHeader>
-					<EmptyTitle>Chưa có hình ảnh</EmptyTitle>
-					<EmptyDescription>
-						Dữ liệu sẽ hiển thị tại đây khi bạn tạo thêm trong trang editor.
-					</EmptyDescription>
-				</EmptyHeader>
-			</Empty>
+			<AppEmptyState
+				icon={<ImageIcon className="h-8 w-8" />}
+				title="Chưa có hình ảnh"
+				description="Dữ liệu sẽ hiển thị tại đây khi bạn tạo thêm trong trang editor."
+			/>
 		);
 	}
 
@@ -47,7 +39,7 @@ export function ImageGrid({ items, isLoading, onPreview, onDelete }: ImageGridPr
 						<div className="aspect-square w-full overflow-hidden bg-muted">
 							{item.url ? (
 								<div
-									className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.04]"
+									className="h-full w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-[1.02]"
 									style={{ backgroundImage: `url(${item.thumbnail ?? item.url})` }}
 								/>
 							) : (
