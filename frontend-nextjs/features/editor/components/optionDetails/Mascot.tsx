@@ -41,6 +41,10 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  inferMascotAnimationMode,
+  type MascotAnimationMode,
+} from "@/features/editor/utils/face-detect";
 
 function normalizeAssetUrl(value?: string) {
   if (!value) return "";
@@ -74,36 +78,51 @@ const presetMascots = [
   {
     id: "cat",
     name: "Mèo",
-    thumbnail: "/mascots/cat.jpg",
-    filePath: "/mascots/cat.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/cat_xz5hwn.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/cat_xz5hwn.jpg",
+    fallbackFilePath: "/mascots/cat.jpg",
     animationMode: "animal",
   },
   {
     id: "dog",
     name: "Chó",
-    thumbnail: "/mascots/dog.jpg",
-    filePath: "/mascots/dog.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115814/pngtree-shiba-inu-dog-breed-with-orange-coat-and-face-png-image_17678977_jh1vxk.webp",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115814/pngtree-shiba-inu-dog-breed-with-orange-coat-and-face-png-image_17678977_jh1vxk.webp",
+    fallbackFilePath: "/mascots/dog.jpg",
     animationMode: "animal",
   },
   {
     id: "bear",
     name: "Gấu",
-    thumbnail: "/mascots/bear.jpg",
-    filePath: "/mascots/bear.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/bear_wmrgty.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/bear_wmrgty.jpg",
+    fallbackFilePath: "/mascots/bear.jpg",
     animationMode: "animal",
   },
   {
     id: "rabbit",
     name: "Thỏ",
-    thumbnail: "/mascots/rabbit.jpg",
-    filePath: "/mascots/rabbit.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115839/rabbit_mmfphj.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115839/rabbit_mmfphj.jpg",
+    fallbackFilePath: "/mascots/rabbit.jpg",
     animationMode: "animal",
   },
   {
     id: "person",
     name: "Người",
-    thumbnail: "/mascots/person.jpg",
-    filePath: "/mascots/person.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/person_ay41nt.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/person_ay41nt.jpg",
+    fallbackFilePath: "/mascots/person.jpg",
     animationMode: "human",
   },
 ] as const;
@@ -112,6 +131,34 @@ const backgroundQualityOptions = [
   { value: "fast", label: "Tạo nhanh" },
   { value: "clean", label: "Viền sạch hơn" },
 ] as const;
+
+const animationModeOptions = [
+  { value: "animal", label: "Mascot / cartoon" },
+  { value: "human", label: "Người thật / chân dung" },
+] as const;
+
+function PresetMascotImage({
+  mascot,
+}: {
+  mascot: (typeof presetMascots)[number];
+}) {
+  const [src, setSrc] = useState<string>(mascot.thumbnail);
+
+  return (
+    <Image
+      src={src}
+      alt={mascot.name}
+      fill
+      sizes="(max-width: 768px) 20vw, 80px"
+      className="object-contain p-1"
+      onError={() => {
+        if (src !== mascot.fallbackFilePath) {
+          setSrc(mascot.fallbackFilePath);
+        }
+      }}
+    />
+  );
+}
 
 function withMascotDefaults(value: Partial<MascotOption>): MascotOption {
   return {
@@ -128,7 +175,7 @@ function withMascotDefaults(value: Partial<MascotOption>): MascotOption {
     chromakeyBlend: 0.08,
     alphaContractPx: 1,
     alphaBlurPx: 1,
-    animationMode: "human",
+    animationMode: "animal",
     qualityMode: "ultrafast",
     drivingMultiplier: 1,
     flagStitching: true,
@@ -157,6 +204,7 @@ export default function MascotOptions({
 }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isBackgroundOpen, setIsBackgroundOpen] = useState(false);
+  const [isDetectingMascotMode, setIsDetectingMascotMode] = useState(false);
   const [imageSearch, setImageSearch] = useState("");
   const cloudUploadRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -255,6 +303,7 @@ export default function MascotOptions({
 
   const setPersonalMascot = (image: MascotImage) => {
     onSelectMascotImage?.(image);
+    setIsDetectingMascotMode(true);
     onChange(
       withMascotDefaults({
         ...value,
@@ -263,7 +312,7 @@ export default function MascotOptions({
         imageId: image.image_id,
         presetUrl: image.url,
         presetId: undefined,
-        animationMode: "human",
+        animationMode: "animal",
         position: value.position === "replace" ? "bottom-right" : value.position,
         margin_x: value.margin_x || 40,
         margin_y: value.margin_y || 40,
@@ -271,9 +320,39 @@ export default function MascotOptions({
         previewPlacement: value.previewPlacement,
       }),
     );
+
+    void inferMascotAnimationMode(image.url)
+      .then((animationMode) => {
+        onChange(
+          withMascotDefaults({
+            ...value,
+            type: "custom",
+            customFile: undefined,
+            imageId: image.image_id,
+            presetUrl: image.url,
+            presetId: undefined,
+            animationMode,
+            position:
+              value.position === "replace" ? "bottom-right" : value.position,
+            margin_x: value.margin_x || 40,
+            margin_y: value.margin_y || 40,
+            scale: value.scale || 1,
+            previewPlacement: value.previewPlacement,
+          }),
+        );
+      })
+      .finally(() => setIsDetectingMascotMode(false));
   };
 
   const handleCustomMascotUpload = async (file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+    setIsDetectingMascotMode(true);
+    const detectedModePromise = inferMascotAnimationMode(previewUrl).finally(
+      () => {
+        URL.revokeObjectURL(previewUrl);
+      },
+    );
+
     onChange(
       withMascotDefaults({
         ...value,
@@ -282,13 +361,16 @@ export default function MascotOptions({
         imageId: undefined,
         presetUrl: undefined,
         presetId: undefined,
-        animationMode: "human",
+        animationMode: "animal",
         position: "bottom-right",
       }),
     );
 
     try {
-      const uploaded = await uploadMascotImage({ file });
+      const [uploaded, animationMode] = await Promise.all([
+        uploadMascotImage({ file }),
+        detectedModePromise,
+      ]);
 
       onChange(
         withMascotDefaults({
@@ -298,12 +380,14 @@ export default function MascotOptions({
           imageId: uploaded.imageId,
           presetUrl: uploaded.url,
           presetId: undefined,
-          animationMode: "human",
+          animationMode,
           position: "bottom-right",
         }),
       );
     } catch {
       // Mutation hook already shows an error toast.
+    } finally {
+      setIsDetectingMascotMode(false);
     }
   };
 
@@ -475,12 +559,9 @@ export default function MascotOptions({
                 )}
               >
                 <div className="relative mb-1 aspect-square overflow-hidden rounded-md bg-muted">
-                  <Image
-                    src={mascot.thumbnail}
-                    alt={mascot.name}
-                    fill
-                    sizes="(max-width: 768px) 20vw, 80px"
-                    className="object-contain p-1"
+                  <PresetMascotImage
+                    key={mascot.thumbnail}
+                    mascot={mascot}
                   />
                 </div>
                 <p className="truncate text-center text-[10px] font-medium">
@@ -510,6 +591,15 @@ export default function MascotOptions({
                     {value.type === "preset" ? "(có sẵn)" : "(tự tải lên)"}
                   </span>
                 </p>
+                {value.type === "custom" ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {isDetectingMascotMode
+                      ? "Đang nhận diện khuôn mặt..."
+                      : value.animationMode === "human"
+                        ? "Chế độ: người"
+                        : "Chế độ: mascot"}
+                  </p>
+                ) : null}
               </div>
             </div>
           </section>
@@ -617,6 +707,7 @@ interface MascotRenderDialogProps {
   onCreateVideo?: () => void | Promise<void>;
   canCreateVideo: boolean;
   isCreatingVideo?: boolean;
+  mascotProgress?: string;
 }
 
 export function MascotRenderDialog({
@@ -627,6 +718,7 @@ export function MascotRenderDialog({
   onCreateVideo,
   canCreateVideo,
   isCreatingVideo = false,
+  mascotProgress = "",
 }: MascotRenderDialogProps) {
   const updateMascot = (patch: Partial<MascotOption>) => {
     onChange(withMascotDefaults({ ...value, ...patch }));
@@ -643,7 +735,48 @@ export function MascotRenderDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <section className="hidden">
+            <SelectField
+              label="Kiểu chuyển động"
+              value={value.animationMode ?? "animal"}
+              onChange={(nextValue) =>
+                updateMascot({
+                  animationMode: nextValue as MascotAnimationMode,
+                })
+              }
+              options={animationModeOptions}
+            />
+          </section>
+
           <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm font-semibold">Kiểu chuyển động</Label>
+              <div className="grid h-9 grid-cols-2 rounded-lg border border-border bg-muted/30 p-1">
+                {animationModeOptions.map((option) => {
+                  const selected =
+                    (value.animationMode ?? "animal") === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={cn(
+                        "rounded-md px-3 text-xs font-medium text-muted-foreground transition",
+                        selected &&
+                          "bg-primary text-primary-foreground shadow-sm",
+                      )}
+                      onClick={() =>
+                        updateMascot({
+                          animationMode: option.value as MascotAnimationMode,
+                        })
+                      }
+                    >
+                      {option.value === "animal" ? "Mascot" : "Người"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <Label className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -680,6 +813,20 @@ export function MascotRenderDialog({
               </div>
             ) : null}
           </section>
+
+          {isCreatingVideo ? (
+            <section className="rounded-xl border border-primary/25 bg-primary/10 p-3">
+              <div className="flex items-start gap-3">
+                <Loader className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Đang tạo video</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {mascotProgress || "Đang chờ hệ thống xử lý..."}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
         </div>
 

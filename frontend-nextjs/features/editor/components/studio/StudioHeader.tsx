@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Clapperboard, Loader, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clapperboard, Loader, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -13,9 +13,9 @@ interface StudioHeaderProps {
   onStartEmptyProject: () => void;
   onSaveSession: (name: string) => Promise<void>;
   isCreatingMascotVideo?: boolean;
-  mascotProgress?: string;
   onCreateMascotVideo?: () => void | Promise<void>;
   canCreateMascotVideo?: boolean;
+  isFinalized?: boolean;
 }
 
 export function StudioHeader({
@@ -25,9 +25,9 @@ export function StudioHeader({
   onStartEmptyProject,
   onSaveSession,
   isCreatingMascotVideo = false,
-  mascotProgress = "",
   onCreateMascotVideo,
   canCreateMascotVideo = true,
+  isFinalized = false,
 }: StudioHeaderProps) {
   const [draftName, setDraftName] = useState(activeSessionName);
   const [isNameEditing, setIsNameEditing] = useState(false);
@@ -46,7 +46,7 @@ export function StudioHeader({
   }, [isNameEditing]);
 
   const trimmedDraftName = useMemo(() => draftName.trim(), [draftName]);
-  const canSave = Boolean(activeEditId) && !isLoading && !isSaving;
+  const canSave = Boolean(activeEditId) && !isLoading && !isSaving && !isFinalized;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -119,17 +119,30 @@ export function StudioHeader({
                 aria-label="Tên dự án"
               />
             ) : (
-              <button
-                type="button"
-                className="max-w-[34vw] truncate rounded px-1 text-left text-sm font-semibold tracking-tight transition hover:bg-accent/40 sm:max-w-[70vw] sm:text-lg"
-                onClick={() => {
-                  setDraftName(activeSessionName);
-                  setIsNameEditing(true);
-                }}
-                title="Nhấn để đổi tên dự án"
-              >
-                {activeSessionName}
-              </button>
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  className="max-w-[34vw] truncate rounded px-1 text-left text-sm font-semibold tracking-tight transition hover:bg-accent/40 disabled:hover:bg-transparent sm:max-w-[70vw] sm:text-lg"
+                  disabled={isFinalized}
+                  onClick={() => {
+                    setDraftName(activeSessionName);
+                    setIsNameEditing(true);
+                  }}
+                  title={
+                    isFinalized
+                      ? "Dự án đã hoàn thành"
+                      : "Nhấn để đổi tên dự án"
+                  }
+                >
+                  {activeSessionName}
+                </button>
+                {isFinalized ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-3" />
+                    Đã hoàn thành
+                  </span>
+                ) : null}
+              </div>
             )
           ) : (
             <h2 className="truncate text-sm font-semibold tracking-tight sm:text-lg">
@@ -139,7 +152,7 @@ export function StudioHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {activeEditId ? (
+          {activeEditId && !isFinalized ? (
             <Button
               size="sm"
               variant="outline"
@@ -161,7 +174,7 @@ export function StudioHeader({
             </Button>
           ) : null}
 
-          {activeEditId && onCreateMascotVideo ? (
+          {activeEditId && !isFinalized && onCreateMascotVideo ? (
             <Button
               size="sm"
               disabled={!canCreateMascotVideo || isCreatingMascotVideo || isLoading}
@@ -173,11 +186,7 @@ export function StudioHeader({
               {isCreatingMascotVideo ? (
                 <>
                   <Loader size={16} className="animate-spin" />
-                  <span className="hidden sm:inline">
-                    {mascotProgress
-                      ? `Đang tạo (${mascotProgress})`
-                      : "Đang tạo..."}
-                  </span>
+                  <span className="hidden sm:inline">Đang tạo...</span>
                   <span className="sm:hidden">Đang tạo</span>
                 </>
               ) : (

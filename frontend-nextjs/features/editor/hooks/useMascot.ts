@@ -35,7 +35,7 @@ export function useMascot() {
     bgQualityMode: "fast",
     greenScreenColor: "00FF00",
     qualityMode: "ultrafast",
-    animationMode: "human",
+    animationMode: "animal",
   });
 
   const [isApplyingMascot, setIsApplyingMascot] = useState(false);
@@ -232,5 +232,6 @@ export function useMascot() {
     startMascotJob,
     isApplyingMascot,
     mascotProgress,
+    setMascotProgress,
   };
 }

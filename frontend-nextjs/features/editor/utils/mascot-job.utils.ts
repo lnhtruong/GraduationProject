@@ -27,7 +27,8 @@ export type WaitForMascotJobOptions = {
 };
 
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
-const DEFAULT_POLL_INTERVAL_MS = 8_000;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const DEFAULT_SSE_RECONNECT_MS = 5_000;
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -136,14 +137,20 @@ export function waitForMascotJobCompletion({
     let finished = false;
     let stream: ReturnType<typeof createMediaUploadStream> | null = null;
     let pollTimer: number | null = null;
+    let reconnectTimer: number | null = null;
     let timeoutTimer: number | null = null;
+    let isPolling = false;
+    let sseConnected = false;
+    let sseConnecting = false;
 
     const cleanup = () => {
       stream?.close();
       stream = null;
-      if (pollTimer) window.clearInterval(pollTimer);
+      if (pollTimer) window.clearTimeout(pollTimer);
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
       if (timeoutTimer) window.clearTimeout(timeoutTimer);
       pollTimer = null;
+      reconnectTimer = null;
       timeoutTimer = null;
     };
 
@@ -183,16 +190,53 @@ export function waitForMascotJobCompletion({
     };
 
     const poll = async () => {
+      if (finished || isPolling) return;
+      isPolling = true;
       try {
         const status = await mascotApi.getJobStatus(jobId);
         handlePayload(status);
       } catch {
-        // SSE is still the primary channel; polling failures are retried until timeout.
+        // SSE is the primary channel; status polling is only a disconnected fallback.
+      } finally {
+        isPolling = false;
+        scheduleDisconnectedFallback();
       }
     };
 
-    stream = createMediaUploadStream(
+    const scheduleDisconnectedFallback = () => {
+      if (finished || sseConnected || pollTimer) return;
+      pollTimer = window.setTimeout(() => {
+        pollTimer = null;
+        void poll();
+      }, pollIntervalMs);
+    };
+
+    const clearDisconnectedFallback = () => {
+      if (!pollTimer) return;
+      window.clearTimeout(pollTimer);
+      pollTimer = null;
+    };
+
+    const scheduleSseReconnect = () => {
+      if (finished || sseConnected || sseConnecting || reconnectTimer) return;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        openStream();
+      }, DEFAULT_SSE_RECONNECT_MS);
+    };
+
+    const openStream = () => {
+      if (finished || sseConnected || sseConnecting) return;
+      sseConnecting = true;
+      stream?.close();
+      stream = createMediaUploadStream(
       {
+        onOpen: () => {
+          sseConnected = true;
+          sseConnecting = false;
+          clearDisconnectedFallback();
+        },
+        onEvent: () => {},
         onProgress: (payload) => {
           const normalized = normalizeMascotJobPayload(payload);
           if (!isMascotCompletionForJob(normalized, jobId)) return;
@@ -207,14 +251,18 @@ export function waitForMascotJobCompletion({
           fail(new Error(normalized.errorMessage ?? "Tạo video mascot thất bại."));
         },
         onConnectionError: () => {
-          void poll();
+          sseConnected = false;
+          sseConnecting = false;
+          scheduleSseReconnect();
+          scheduleDisconnectedFallback();
         },
       },
       { userId },
     );
+    };
 
-    void poll();
-    pollTimer = window.setInterval(poll, pollIntervalMs);
+    openStream();
+    scheduleDisconnectedFallback();
     timeoutTimer = window.setTimeout(() => {
       fail(new Error("Tạo video mascot quá lâu. Vui lòng kiểm tra lại trong thư viện."));
     }, timeoutMs);

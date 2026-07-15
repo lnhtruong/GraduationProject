@@ -157,6 +157,7 @@ export function useCoreEditorController({
     startMascotJob,
     isApplyingMascot,
     mascotProgress,
+    setMascotProgress,
     voice,
     setVoice,
     download,
@@ -585,10 +586,6 @@ export function useCoreEditorController({
       );
       if (!jobId) return;
 
-      toast(
-        "Video của bạn đang được tạo. Bạn có thể xem video ở Library của bạn sau.",
-      );
-
       const user = authStorageHelper.getUser() as {
         id?: number;
         user_id?: number;
@@ -609,13 +606,15 @@ export function useCoreEditorController({
         failed: "Thất bại",
       };
 
+      setMascotProgress("Đang chờ hệ thống bắt đầu xử lý...");
+
       const completedMascot = await waitForMascotJobCompletion({
         jobId,
         userId,
         onProgress: (stage) => {
           const friendlyStage =
             stageTranslations[stage.toLowerCase()] ?? stage;
-          toast(`Đang tiến hành: ${friendlyStage}`);
+          setMascotProgress(friendlyStage);
         },
       });
 
@@ -644,6 +643,7 @@ export function useCoreEditorController({
       );
     } finally {
       setIsCreatingMascotVideo(false);
+      setMascotProgress("");
     }
   }, [
     videoSrc,
@@ -652,6 +652,7 @@ export function useCoreEditorController({
     mascot,
     mascotFrameSize,
     startMascotJob,
+    setMascotProgress,
     sourceVideoName,
     onFinalizeMascotProject,
     router,

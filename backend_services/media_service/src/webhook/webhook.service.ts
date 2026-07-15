@@ -1192,6 +1192,10 @@ export class WebhookService {
 
                 let videoId: number | undefined;
                 if (jobId) {
+                    const persistedVideoType =
+                        type === VideoType.MASCOT || type === VideoType.HIGHLIGHT || type === VideoType.LONG
+                            ? type
+                            : VideoType.HIGHLIGHT;
                     let videoRow = await this.videoModel.findOne({
                         where: { job_id: jobId },
                     });
@@ -1202,12 +1206,12 @@ export class WebhookService {
                         videoRow = await this.videoModel.create({
                             job_id: jobId,
                             user_id: userId,
-                            type: VideoType.HIGHLIGHT,
+                            type: persistedVideoType,
                             url,
                             duration: typeof payload.duration === 'number' ? payload.duration : null,
                             name:
                                 payload.source_original_filename ??
-                                `${jobId}_highlight.mp4`,
+                                `${jobId}_${persistedVideoType}.mp4`,
                             thumbnail,
                             srt_raw_url: payload.srt_url ?? null,
                             upload_context: {
@@ -1220,7 +1224,7 @@ export class WebhookService {
                         const thumbnail = this.buildCloudinaryVideoThumbnailUrl(url);
                         await videoRow.update({
                             user_id: userId,
-                            type: VideoType.HIGHLIGHT,
+                            type: persistedVideoType,
                             url,
                             duration:
                                 typeof payload.duration === 'number'

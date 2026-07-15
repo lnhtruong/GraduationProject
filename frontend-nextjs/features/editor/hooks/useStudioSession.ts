@@ -17,7 +17,7 @@ import {
 } from "@/features/project/api/project.hooks";
 import { useImagesByUser } from "@/features/image/api/image.hooks";
 import { imageApi } from "@/features/image/api/image.api";
-import { useVideosByUser } from "@/features/video/api/video.hooks";
+import { useVideoById, useVideosByUser } from "@/features/video/api/video.hooks";
 import type {
   ExternalEditorPanelBindings,
   MascotImage,
@@ -124,16 +124,28 @@ export function useStudioSession() {
   } = useVideosByUser("highlight", true);
   const {
     data: rawMascotVideos = [],
-    isLoading: mascotOutputVideosLoading,
     refetch: refetchMascotVideos,
-  } = useVideosByUser("mascot", true);
+  } = useVideosByUser("mascot", false);
   const { data: rawMascotImages = [], isLoading: mascotImagesLoading } =
     useImagesByUser(true);
   const { data: currentProject } = useProjectById(
     activeEditId ?? 0,
     activeEditId !== null,
   );
-  const { data: projectLayers = [] } = useProjectLayers(activeEditId);
+  const isProjectFinalized = currentProject?.status === "finalized";
+  const { data: projectLayers = [] } = useProjectLayers(
+    activeEditId,
+    !isProjectFinalized,
+  );
+  const currentProjectVideoId = currentProject?.video_id ?? null;
+  const shouldFetchProjectVideoById =
+    currentProjectVideoId !== null &&
+    !highlightVideosLoading &&
+    !rawHighlightVideos.some((video) => video.id === currentProjectVideoId);
+  const {
+    data: projectVideoById,
+    isLoading: projectVideoByIdLoading,
+  } = useVideoById(currentProjectVideoId, shouldFetchProjectVideoById);
   const highlightVideos = useMemo<UserVideo[]>(
     () =>
       rawHighlightVideos.map((video: Video) => ({
@@ -179,25 +191,24 @@ export function useStudioSession() {
     const created = await imageApi.create({ url: absoluteUrl });
     return created.id || undefined;
   };
-  const projectVideos = useMemo(
-    () => [...rawHighlightVideos, ...rawMascotVideos],
-    [rawHighlightVideos, rawMascotVideos],
-  );
   const projectVideo = useMemo(
     () =>
-      projectVideos.find((video) => video.id === currentProject?.video_id) ??
+      rawHighlightVideos.find((video) => video.id === currentProjectVideoId) ??
+      projectVideoById ??
       null,
-    [currentProject?.video_id, projectVideos],
+    [currentProjectVideoId, projectVideoById, rawHighlightVideos],
   );
   const queryVideo = useMemo(
     () =>
       selectedVideoId
-        ? projectVideos.find((video) => video.id === selectedVideoId) ?? null
+        ? rawHighlightVideos.find((video) => video.id === selectedVideoId) ?? null
         : null,
-    [projectVideos, selectedVideoId],
+    [rawHighlightVideos, selectedVideoId],
   );
   const firstOverlayId =
-    projectLayers.length > 0 ? projectLayers[0].mascot_overlay_id : null;
+    !isProjectFinalized && projectLayers.length > 0
+      ? projectLayers[0].mascot_overlay_id
+      : null;
   const { data: overlayDetail } = useLayer(firstOverlayId);
   const activeSessionName = currentProject?.session_name ?? sessionName;
   const activeSourceVideoUrl =
@@ -210,6 +221,8 @@ export function useStudioSession() {
     queryVideo?.name ??
     undefined;
   const existingMascotOverlay = useMemo(() => {
+    if (isProjectFinalized) return null;
+
     const rawOverlay = overlayDetail ?? projectLayers[0] ?? null;
     if (!rawOverlay) return null;
 
@@ -229,7 +242,7 @@ export function useStudioSession() {
         url: matchedImage.url,
       },
     };
-  }, [overlayDetail, projectLayers, mascotImages]);
+  }, [isProjectFinalized, overlayDetail, projectLayers, mascotImages]);
   const existingMascotOverlayId =
     existingMascotOverlay?.mascot_overlay_id ?? null;
 
@@ -333,7 +346,7 @@ export function useStudioSession() {
 
   const isLoading =
     highlightVideosLoading ||
-    mascotOutputVideosLoading ||
+    projectVideoByIdLoading ||
     mascotImagesLoading ||
     isCreating ||
     isUpdating ||
@@ -673,12 +686,14 @@ export function useStudioSession() {
     await updateProject({
       id: activeEditId,
       data: {
-        video_id: resolvedVideoId,
         status: "finalized",
       },
     });
 
-    router.replace("/library", { scroll: false });
+    const params = new URLSearchParams();
+    params.set("type", "mascot");
+    params.set("video_id", String(resolvedVideoId));
+    router.replace(`/library?${params.toString()}`, { scroll: false });
   };
 
   return {
@@ -686,6 +701,7 @@ export function useStudioSession() {
     activeSessionName,
     activeSourceVideoUrl,
     activeSourceVideoName,
+    isProjectFinalized,
     isLoading,
     highlightVideos,
     highlightVideosLoading,
