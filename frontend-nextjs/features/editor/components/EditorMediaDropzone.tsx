@@ -42,6 +42,7 @@ interface EditorMediaDropzoneProps {
   maxSize?: number;
   maxSizeLabel?: string;
   showDragIcon?: boolean;
+  triggerOnly?: boolean;
 }
 
 // ============================================================================
@@ -68,6 +69,7 @@ export default function EditorMediaDropzone({
   maxSize = DEFAULT_MAX_SIZE,
   maxSizeLabel = DEFAULT_MAX_SIZE_LABEL,
   showDragIcon = true,
+  triggerOnly = false,
 }: EditorMediaDropzoneProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -236,6 +238,18 @@ export default function EditorMediaDropzone({
     setFiles(selectedFiles);
     if (selectedFiles.length > 0) {
       const file = selectedFiles[0];
+      if (file.size > maxSize) {
+        onFileReject(file, "size");
+        setFiles([]);
+        return;
+      }
+
+      if (accept === "video/*" && !file.type.startsWith("video/")) {
+        onFileReject(file, "type");
+        setFiles([]);
+        return;
+      }
+
       const uploadKey = `${file.name}:${file.size}:${file.lastModified}`;
 
       // Guard against duplicated callback emissions from the dropzone value pipeline.
@@ -346,6 +360,24 @@ export default function EditorMediaDropzone({
       );
     };
   }, [isUploading]);
+
+  if (triggerOnly) {
+    return (
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(event) => {
+          const selectedFiles = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          if (selectedFiles.length > 0) {
+            void onValueChange(selectedFiles);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <FileUpload

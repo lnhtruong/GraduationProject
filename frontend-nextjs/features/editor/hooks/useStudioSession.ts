@@ -16,14 +16,18 @@ import {
   useUpdateProject,
 } from "@/features/project/api/project.hooks";
 import { useImagesByUser } from "@/features/image/api/image.hooks";
-import { useVideosByUser } from "@/features/video/api/video.hooks";
+import { imageApi } from "@/features/image/api/image.api";
+import { useVideoById, useVideosByUser } from "@/features/video/api/video.hooks";
 import type {
   ExternalEditorPanelBindings,
   MascotImage,
   UserVideo,
 } from "@/features/editor/types";
 import type { Project } from "@/features/project";
-import { normalizeMascotScale } from "@/features/editor/utils/mascotPlacement";
+import {
+  clampPreviewPlacement,
+  normalizeMascotScale,
+} from "@/features/editor/utils/mascotPlacement";
 import { toast } from "sonner";
 import type { Video } from "@/features/video";
 import type { Image } from "@/features/image";
@@ -34,6 +38,28 @@ function getErrorMessage(error: unknown): string {
     error,
     "Không thể tải phiên chỉnh sửa. Vui lòng thử lại.",
   );
+}
+
+function normalizeAssetUrl(value?: string) {
+  if (!value) return "";
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+    const fallbackOrigin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    return new URL(value, siteUrl || fallbackOrigin).toString();
+  } catch {
+    return value;
+  }
+}
+
+function normalizeComparableUrl(value?: string) {
+  if (!value) return "";
+  try {
+    const parsed = new URL(normalizeAssetUrl(value));
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value;
+  }
 }
 
 export function useStudioSession() {
@@ -98,16 +124,28 @@ export function useStudioSession() {
   } = useVideosByUser("highlight", true);
   const {
     data: rawMascotVideos = [],
-    isLoading: mascotOutputVideosLoading,
     refetch: refetchMascotVideos,
-  } = useVideosByUser("mascot", true);
+  } = useVideosByUser("mascot", false);
   const { data: rawMascotImages = [], isLoading: mascotImagesLoading } =
     useImagesByUser(true);
   const { data: currentProject } = useProjectById(
     activeEditId ?? 0,
     activeEditId !== null,
   );
-  const { data: projectLayers = [] } = useProjectLayers(activeEditId);
+  const isProjectFinalized = currentProject?.status === "finalized";
+  const { data: projectLayers = [] } = useProjectLayers(
+    activeEditId,
+    !isProjectFinalized,
+  );
+  const currentProjectVideoId = currentProject?.video_id ?? null;
+  const shouldFetchProjectVideoById =
+    currentProjectVideoId !== null &&
+    !highlightVideosLoading &&
+    !rawHighlightVideos.some((video) => video.id === currentProjectVideoId);
+  const {
+    data: projectVideoById,
+    isLoading: projectVideoByIdLoading,
+  } = useVideoById(currentProjectVideoId, shouldFetchProjectVideoById);
   const highlightVideos = useMemo<UserVideo[]>(
     () =>
       rawHighlightVideos.map((video: Video) => ({
@@ -140,22 +178,51 @@ export function useStudioSession() {
       })),
     [rawMascotImages],
   );
-  const projectVideos = useMemo(
-    () => [...rawHighlightVideos, ...rawMascotVideos],
-    [rawHighlightVideos, rawMascotVideos],
+  const ensureMascotImageId = async (url?: string) => {
+    if (!url) return undefined;
+
+    const absoluteUrl = normalizeAssetUrl(url);
+    const matched = mascotImages.find(
+      (image) =>
+        normalizeComparableUrl(image.url) === normalizeComparableUrl(absoluteUrl),
+    );
+    if (matched?.image_id) return matched.image_id;
+
+    const created = await imageApi.create({ url: absoluteUrl });
+    return created.id || undefined;
+  };
+  const projectVideo = useMemo(
+    () =>
+      rawHighlightVideos.find((video) => video.id === currentProjectVideoId) ??
+      projectVideoById ??
+      null,
+    [currentProjectVideoId, projectVideoById, rawHighlightVideos],
+  );
+  const queryVideo = useMemo(
+    () =>
+      selectedVideoId
+        ? rawHighlightVideos.find((video) => video.id === selectedVideoId) ?? null
+        : null,
+    [rawHighlightVideos, selectedVideoId],
   );
   const firstOverlayId =
-    projectLayers.length > 0 ? projectLayers[0].mascot_overlay_id : null;
+    !isProjectFinalized && projectLayers.length > 0
+      ? projectLayers[0].mascot_overlay_id
+      : null;
   const { data: overlayDetail } = useLayer(firstOverlayId);
   const activeSessionName = currentProject?.session_name ?? sessionName;
   const activeSourceVideoUrl =
-    projectVideos.find((video) => video.id === currentProject?.video_id)?.url ??
+    projectVideo?.url ??
+    queryVideo?.url ??
     querySourceUrl ??
     undefined;
   const activeSourceVideoName =
-    projectVideos.find((video) => video.id === currentProject?.video_id)?.name ??
+    projectVideo?.name ??
+    queryVideo?.name ??
     undefined;
   const existingMascotOverlay = useMemo(() => {
+    if (isProjectFinalized) return null;
+
     const rawOverlay = overlayDetail ?? projectLayers[0] ?? null;
     if (!rawOverlay) return null;
 
@@ -175,7 +242,7 @@ export function useStudioSession() {
         url: matchedImage.url,
       },
     };
-  }, [overlayDetail, projectLayers, mascotImages]);
+  }, [isProjectFinalized, overlayDetail, projectLayers, mascotImages]);
   const existingMascotOverlayId =
     existingMascotOverlay?.mascot_overlay_id ?? null;
 
@@ -279,7 +346,7 @@ export function useStudioSession() {
 
   const isLoading =
     highlightVideosLoading ||
-    mascotOutputVideosLoading ||
+    projectVideoByIdLoading ||
     mascotImagesLoading ||
     isCreating ||
     isUpdating ||
@@ -517,13 +584,30 @@ export function useStudioSession() {
         return;
       }
 
-      const placement = bindings.mascot.previewPlacement;
-      const position_x = placement ? placement.x : bindings.mascot.margin_x;
-      const position_y = placement ? placement.y : bindings.mascot.margin_y;
+      const placement =
+        bindings.mascot.previewPlacement && bindings.mascotFrameSize
+          ? clampPreviewPlacement(
+              bindings.mascot.previewPlacement,
+              bindings.mascotFrameSize,
+              bindings.mascot.scale,
+              bindings.mascot.sourceWidth,
+              bindings.mascot.sourceHeight,
+            )
+          : bindings.mascot.previewPlacement;
+      const position_x = Math.round(
+        placement ? placement.x : bindings.mascot.margin_x,
+      );
+      const position_y = Math.round(
+        placement ? placement.y : bindings.mascot.margin_y,
+      );
+      const imageId =
+        bindings.mascot.imageId ??
+        selectedMascotImageId ??
+        existingMascotOverlay?.image_id ??
+        (await ensureMascotImageId(bindings.mascot.presetUrl));
 
       const payload = {
-        image_id:
-          selectedMascotImageId ?? existingMascotOverlay?.image_id ?? undefined,
+        image_id: imageId,
         position_x,
         position_y,
         scale: normalizeMascotScale(bindings.mascot.scale),
@@ -602,12 +686,14 @@ export function useStudioSession() {
     await updateProject({
       id: activeEditId,
       data: {
-        video_id: resolvedVideoId,
         status: "finalized",
       },
     });
 
-    router.replace("/library", { scroll: false });
+    const params = new URLSearchParams();
+    params.set("type", "mascot");
+    params.set("video_id", String(resolvedVideoId));
+    router.replace(`/library?${params.toString()}`, { scroll: false });
   };
 
   return {
@@ -615,6 +701,7 @@ export function useStudioSession() {
     activeSessionName,
     activeSourceVideoUrl,
     activeSourceVideoName,
+    isProjectFinalized,
     isLoading,
     highlightVideos,
     highlightVideosLoading,

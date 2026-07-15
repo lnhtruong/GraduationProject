@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
@@ -12,56 +13,58 @@ interface CartOrderSummaryProps {
   isCheckingOut?: boolean;
 }
 
-export function CartOrderSummary({ items, onCheckout, isCheckingOut }: CartOrderSummaryProps) {
-  const subtotal = items.reduce((sum, i) => sum + i.price, 0);
+export function CartOrderSummary({
+  items,
+  onCheckout,
+  isCheckingOut,
+}: CartOrderSummaryProps) {
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const itemCount = items.length;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-6 shadow-[0_8px_40px_rgba(0,0,0,0.13)] space-y-4">
-      <h2 className="text-base font-bold">Tóm tắt đơn hàng</h2>
+    <Card className="gap-0 rounded-lg border-border/60 py-0">
+      <CardHeader className="px-6 py-5">
+        <CardTitle className="text-base">Tóm tắt đơn hàng</CardTitle>
+      </CardHeader>
 
-      {/* Price rows */}
-      <div className="space-y-2.5 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">
-            Tổng phụ ({itemCount} khoá học)
-          </span>
-          <span className="font-medium">{formatPrice(subtotal)}</span>
+      <CardContent className="space-y-4 px-6 pb-6">
+        <div className="space-y-2.5 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">
+              Tổng phụ ({itemCount} khóa học)
+            </span>
+            <span className="font-medium">{formatPrice(subtotal)}</span>
+          </div>
         </div>
-      </div>
 
-      <Separator />
+        <Separator />
 
-      {/* Total */}
-      <div className="flex items-center justify-between">
-        <span className="text-base font-bold">Tổng cộng</span>
-        <span className="text-[17px] font-extrabold">{formatPrice(subtotal)}</span>
-      </div>
+        <div className="flex items-center justify-between">
+          <span className="text-base font-bold">Tổng cộng</span>
+          <span className="text-[17px] font-extrabold">
+            {formatPrice(subtotal)}
+          </span>
+        </div>
 
-      {/* CTA */}
-      <Button
-        size="lg"
-        className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/25 hover:bg-accent/90 active:scale-[0.98]"
-        onClick={onCheckout}
-        disabled={itemCount === 0 || isCheckingOut}
-      >
-        {isCheckingOut ? "Đang xử lý..." : `Thanh toán ngay (${itemCount} khoá học)`}
-      </Button>
+        <Button
+          size="lg"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+          onClick={onCheckout}
+          disabled={itemCount === 0 || isCheckingOut}
+        >
+          {isCheckingOut
+            ? "Đang xử lý..."
+            : `Thanh toán ngay (${itemCount} khóa học)`}
+        </Button>
 
-      {/* Tiếp tục mua sắm */}
-      <Button
-        variant="ghost"
-        className="w-full text-sm text-muted-foreground hover:text-foreground"
-        asChild
-      >
-        <Link href="/courses/search">Tiếp tục mua sắm</Link>
-      </Button>
-
-      {/* Trust badge */}
-      {/* <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-        <Lock className="h-3 w-3 shrink-0" />
-        Đảm bảo hoàn tiền trong 30 ngày
-      </p> */}
-    </div>
+        <Button
+          variant="ghost"
+          className="w-full text-sm text-muted-foreground hover:text-foreground"
+          asChild
+        >
+          <Link href="/courses/search">Tiếp tục mua sắm</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

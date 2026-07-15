@@ -482,9 +482,13 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                       onRefreshVideos={async () => {
                         await refetchUserVideos();
                       }}
-                      onVideoSelect={(videoId) =>
-                        field.onChange(videoId)
-                      }
+                      onVideoSelect={(videoId) => {
+                        field.onChange(videoId);
+                        setValue("videoId", videoId, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
                       onDraftVideoChange={handleDraftVideoChange}
                       onPendingCreateQuiz={() => setShowQuizEditorModal(true)}
                       onUploadStateChange={setIsUploadingVideo}
@@ -503,9 +507,13 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                       onRefreshVideos={async () => {
                         await refetchUserVideos();
                       }}
-                      onVideoSelect={(videoId) =>
-                        field.onChange(videoId)
-                      }
+                      onVideoSelect={(videoId) => {
+                        field.onChange(videoId);
+                        setValue("videoId", videoId, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
                       onDraftVideoChange={handleDraftVideoChange}
                       lessonId={lessonId}
                       onOpenCreateQuizModal={() => setShowQuizEditorModal(true)}

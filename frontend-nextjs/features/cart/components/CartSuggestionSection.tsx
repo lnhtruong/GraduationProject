@@ -1,21 +1,23 @@
 "use client";
 
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CourseCard } from "@/features/home/component/CourseCard";
 import { useCartSuggestions } from "../api/cart-suggestion.hooks";
 
 function SuggestionCardSkeleton() {
   return (
-    <div className="animate-pulse overflow-hidden rounded-xl border border-border/60 bg-card">
-      <div className="aspect-video w-full bg-muted" />
-      <div className="space-y-2.5 p-4">
-        <div className="h-4 w-3/4 rounded bg-muted" />
-        <div className="h-3 w-1/2 rounded bg-muted" />
+    <Card className="gap-0 overflow-hidden rounded-lg border-border/60 py-0">
+      <Skeleton className="aspect-video w-full rounded-none" />
+      <CardContent className="space-y-2.5 p-4">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
         <div className="flex items-center justify-between pt-1">
-          <div className="h-3 w-16 rounded bg-muted" />
-          <div className="h-4 w-20 rounded bg-muted" />
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-4 w-20" />
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -40,12 +42,12 @@ export function CartSuggestionSection({
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading
-          ? Array.from({ length: Math.min(limit, 3) }).map((_, i) => (
-              <SuggestionCardSkeleton key={i} />
+          ? Array.from({ length: Math.min(limit, 3) }).map((_, index) => (
+              <SuggestionCardSkeleton key={index} />
             ))
-          : courses!.slice(0, limit).map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
+          : courses
+              ?.slice(0, limit)
+              .map((course) => <CourseCard key={course.id} course={course} />)}
       </div>
     </section>
   );

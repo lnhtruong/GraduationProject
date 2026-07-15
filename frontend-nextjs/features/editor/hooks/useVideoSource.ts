@@ -3,22 +3,53 @@
  * Manages video source URL and original file
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+
+const DEFAULT_VIDEO_SRC = "/videos/Download.mp4";
 
 export function useVideoSource(initialSrc?: string) {
-  const [videoSrc, setVideoSrc] = useState<string>(() => {
-    return initialSrc || "/videos/Download.mp4";
+  const [sourceState, setSourceState] = useState(() => ({
+    src: initialSrc || DEFAULT_VIDEO_SRC,
+    initialSrcKey: initialSrc || null,
+  }));
+  const [fileState, setFileState] = useState<{
+    file: File | null;
+    sourceKey: string | null;
+  }>({
+    file: null,
+    sourceKey: initialSrc || null,
   });
 
-  const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
+  const hasNewInitialSrc =
+    Boolean(initialSrc) && initialSrc !== sourceState.initialSrcKey;
+  const videoSrc = hasNewInitialSrc
+    ? (initialSrc as string)
+    : sourceState.src;
+  const activeSourceKey = hasNewInitialSrc
+    ? (initialSrc as string)
+    : sourceState.initialSrcKey;
+  const originalVideoFile =
+    fileState.sourceKey === activeSourceKey ? fileState.file : null;
 
-  useEffect(() => {
-    // Keep editor source in sync with the provided initial source.
-    if (initialSrc && initialSrc !== videoSrc) {
-      setVideoSrc(initialSrc);
-      setOriginalVideoFile(null);
-    }
-  }, [initialSrc, videoSrc]);
+  const setVideoSrc = useCallback(
+    (src: string) => {
+      setSourceState({
+        src,
+        initialSrcKey: initialSrc || null,
+      });
+    },
+    [initialSrc],
+  );
+
+  const setOriginalVideoFile = useCallback(
+    (file: File | null) => {
+      setFileState({
+        file,
+        sourceKey: activeSourceKey,
+      });
+    },
+    [activeSourceKey],
+  );
 
   // Load original video file when needed (lazy loading)
   const loadVideoFile = async () => {
@@ -28,7 +59,10 @@ export function useVideoSource(initialSrc?: string) {
       const response = await fetch(videoSrc);
       const blob = await response.blob();
       const file = new File([blob], "video.mp4", { type: "video/mp4" });
-      setOriginalVideoFile(file);
+      setFileState({
+        file,
+        sourceKey: activeSourceKey,
+      });
       return file;
     } catch (error) {
       console.error("Failed to load video file:", error);
@@ -40,7 +74,7 @@ export function useVideoSource(initialSrc?: string) {
     videoSrc,
     setVideoSrc,
     originalVideoFile,
-    setOriginalVideoFile, // Expose setter for VideoUploader
+    setOriginalVideoFile,
     loadVideoFile,
   } as const;
 }

@@ -43,6 +43,22 @@ class LessonVideoUploadManager {
 
   private activeInitialVideoUrl: string | null = null;
 
+  private isSseConnected = false;
+
+  private lastSseActivityAt = 0;
+
+  private readonly fallbackPollIntervalMs = 60000;
+
+  notifySSEConnection(connected: boolean) {
+    this.isSseConnected = connected;
+    this.lastSseActivityAt = connected ? Date.now() : 0;
+  }
+
+  notifySSEActivity() {
+    this.isSseConnected = true;
+    this.lastSseActivityAt = Date.now();
+  }
+
   isUploading() {
     return this.upload !== null;
   }
@@ -127,10 +143,10 @@ class LessonVideoUploadManager {
         handlers.onUploadUrl?.(upload.url ?? null);
         handlers.onProcessing?.();
         this.cleanupUploadOnly();
-        this.processingPollTimer = setTimeout(() => {
-          this.processingPollTimer = null;
-          void this.waitUntilReady(handlers);
-        }, 30000);
+        this.scheduleProcessingPoll(
+          handlers,
+          this.isSseConnected ? this.fallbackPollIntervalMs : 0,
+        );
       },
     });
 
@@ -167,9 +183,36 @@ class LessonVideoUploadManager {
     this.activeVideoId = null;
     this.activeBunnyVideoId = null;
     this.activeInitialVideoUrl = null;
+    this.isSseConnected = false;
+    this.lastSseActivityAt = 0;
   }
 
-  private async waitUntilReady(handlers: UploadLifecycleHandlers) {
+  private isSseFresh() {
+    return (
+      this.isSseConnected &&
+      Date.now() - this.lastSseActivityAt < this.fallbackPollIntervalMs
+    );
+  }
+
+  private scheduleProcessingPoll(
+    handlers: UploadLifecycleHandlers,
+    delayMs = this.fallbackPollIntervalMs,
+    startedAt = Date.now(),
+  ) {
+    if (this.processingPollTimer) {
+      clearTimeout(this.processingPollTimer);
+    }
+
+    this.processingPollTimer = setTimeout(() => {
+      this.processingPollTimer = null;
+      void this.waitUntilReady(handlers, startedAt);
+    }, delayMs);
+  }
+
+  private async waitUntilReady(
+    handlers: UploadLifecycleHandlers,
+    startedAt = Date.now(),
+  ) {
     const bunnyVideoId = this.activeBunnyVideoId;
     const videoId = this.activeVideoId;
     const initialVideoUrl = this.activeInitialVideoUrl;
@@ -180,11 +223,19 @@ class LessonVideoUploadManager {
       return;
     }
 
-    const startedAt = Date.now();
     const maxWaitMs = 20 * 60 * 1000;
 
     const poll = async () => {
       try {
+        if (this.isSseFresh()) {
+          this.scheduleProcessingPoll(
+            handlers,
+            this.fallbackPollIntervalMs,
+            startedAt,
+          );
+          return;
+        }
+
         const statusResponse = await videoApi.getBunnyVideoStatus(bunnyVideoId);
         const status =
           typeof statusResponse.status === "number"
@@ -217,9 +268,11 @@ class LessonVideoUploadManager {
           return;
         }
 
-        this.processingPollTimer = setTimeout(() => {
-          void poll();
-        }, 10000);
+        this.scheduleProcessingPoll(
+          handlers,
+          this.fallbackPollIntervalMs,
+          startedAt,
+        );
       } catch (error) {
         handlers.onError?.(
           getUserFacingErrorMessage(

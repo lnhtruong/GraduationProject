@@ -33,6 +33,7 @@ export default function useEditor(initialSrc?: string) {
     startMascotJob,
     isApplyingMascot,
     mascotProgress,
+    setMascotProgress,
   } = useMascot();
 
   // Voice (keeping simple for now)
@@ -100,6 +101,7 @@ export default function useEditor(initialSrc?: string) {
     startMascotJob,
     isApplyingMascot,
     mascotProgress,
+    setMascotProgress,
 
     // Voice
     voice,

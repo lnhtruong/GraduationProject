@@ -165,8 +165,20 @@ export default function CoreEditor({
         </div>
       )}
 
-      <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden px-1.5 py-1.5 sm:gap-3 sm:px-4 sm:py-4 lg:px-6">
-        <div className="grid min-h-0 flex-[1.25] grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
+      <div className="grid min-h-0 w-full flex-1 grid-rows-[minmax(360px,1fr)_minmax(150px,auto)] gap-2 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sm:gap-3 sm:px-4 sm:py-4 lg:grid-rows-[minmax(0,1fr)_220px] lg:overflow-hidden lg:px-6">
+        {!needsVideoSelection && disableUpload ? (
+          <EditorMediaDropzone
+            triggerOnly
+            onMediaSelect={(url, file, videoId) => {
+              setVideoSrc(url);
+              setOriginalVideoFile(file ?? null);
+              void onFirstVideoAdded?.({ file, url, videoId });
+            }}
+            onVideoDrop={onVideoDrop}
+          />
+        ) : null}
+
+        <div className="grid min-h-0 grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
           <DndContext
             sensors={sensors}
             onDragStart={handlePreviewDragStart}
@@ -174,7 +186,7 @@ export default function CoreEditor({
             onDragEnd={handlePreviewDragEnd}
             onDragCancel={handlePreviewDragCancel}
           >
-            <section className="col-span-1 flex min-h-0 flex-col rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:rounded-xl sm:p-4 lg:col-span-12">
+            <section className="col-span-1 flex h-full min-h-0 flex-col rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:rounded-xl sm:p-4 lg:col-span-12">
               {needsVideoSelection && disableUpload ? (
                 <EditorMediaDropzone
                   onMediaSelect={(url, file, videoId) => {
@@ -227,13 +239,13 @@ export default function CoreEditor({
           </DndContext>
         </div>
 
-        <div className="grid min-h-0 flex-[0.75] grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
+        <div className="grid min-h-0 grid-cols-1 gap-2 sm:gap-4 lg:grid-cols-12">
           {!hideLeftToolbar && <div className="col-span-1 hidden lg:block" />}
 
           <div
             className={hideLeftToolbar ? "lg:col-span-12" : "lg:col-span-11"}
           >
-            <section className="h-full min-h-36 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:min-h-48 sm:rounded-xl sm:p-3 lg:h-60">
+            <section className="h-full min-h-36 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-sm sm:min-h-48 sm:rounded-xl sm:p-3 lg:min-h-0">
               <TimelinePanel
                 layers={layers}
                 selectedId={selectedTextId}

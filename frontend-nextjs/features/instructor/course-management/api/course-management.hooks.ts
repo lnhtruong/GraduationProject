@@ -128,7 +128,7 @@ export const {
   useDelete: useDeleteCourseFeed,
 } = courseFeedHooks;
 
-const instructorCourseKeys = createKeyFactory("instructor-course");
+export const instructorCourseKeys = createKeyFactory("instructor-course");
 
 function invalidateCourseCache(
   queryClient: {

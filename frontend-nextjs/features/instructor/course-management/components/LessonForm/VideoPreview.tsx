@@ -56,10 +56,9 @@ export function VideoPreview({
     null,
   );
   const [currentTime, setCurrentTime] = useState(0);
+  const [mediaDuration, setMediaDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredMarkerKey, setHoveredMarkerKey] = useState<string | null>(null);
-
-  const [isActivated, setIsActivated] = useState(false);
 
   const hlsRef = useRef<Hls | null>(null);
   const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
@@ -110,7 +109,7 @@ export function VideoPreview({
 
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || !isActivated) return;
+    if (!videoElement) return;
 
     if (!videoUrl) {
       videoElement.removeAttribute("src");
@@ -118,8 +117,10 @@ export function VideoPreview({
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
-      setQualityLevels([]);
-      setCurrentQualityLevel(-1);
+      queueMicrotask(() => {
+        setQualityLevels([]);
+        setCurrentQualityLevel(-1);
+      });
       return;
     }
 
@@ -177,8 +178,10 @@ export function VideoPreview({
     } else {
       videoElement.src = videoUrl;
       videoElement.play().catch(() => {});
-      setQualityLevels([]);
-      setCurrentQualityLevel(-1);
+      queueMicrotask(() => {
+        setQualityLevels([]);
+        setCurrentQualityLevel(-1);
+      });
     }
 
     return () => {
@@ -187,22 +190,21 @@ export function VideoPreview({
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-  }, [videoUrl, isActivated]);
+  }, [videoUrl]);
 
   const safeDuration = useMemo(() => {
-    const fromVideo = Number(videoRef.current?.duration ?? 0);
-    if (Number.isFinite(fromVideo) && fromVideo > 0) {
-      return fromVideo;
+    if (Number.isFinite(mediaDuration) && mediaDuration > 0) {
+      return mediaDuration;
     }
     return Number.isFinite(videoDurationSeconds) ? videoDurationSeconds : 0;
-  }, [videoDurationSeconds, currentTime]);
+  }, [mediaDuration, videoDurationSeconds]);
 
   const seekTo = (seconds: number) => {
     if (!videoRef.current) {
@@ -347,44 +349,26 @@ export function VideoPreview({
                   Video này đang được mã hóa và tối ưu hóa trên máy chủ. Trình phát và các tính năng thiết lập câu hỏi tương tác (Quiz) sẽ sẵn sàng sau khi quá trình xử lý hoàn tất.
                 </p>
               </div>
-            ) : videoUrl && !isActivated ? (
-              <div
-                onClick={() => setIsActivated(true)}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-black cursor-pointer group rounded-xl overflow-hidden"
-              >
-                {thumbnailUrl ? (
-                  <img
-                    src={thumbnailUrl}
-                    alt="Video Preview"
-                    className="absolute inset-0 h-full w-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-zinc-950/90" />
-                )}
-                
-                {/* Big Glassmorphic Play Button */}
-                <div className="relative z-10 p-4 rounded-full bg-white/15 backdrop-blur-md text-white border border-white/20 shadow-2xl group-hover:scale-110 group-hover:bg-white/25 transition-all duration-200">
-                  <Play className="h-8 w-8 fill-white text-white translate-x-[2px]" />
-                </div>
-                <span className="relative z-10 text-xs font-semibold text-white/90 mt-3 tracking-wide drop-shadow-md group-hover:text-white transition-colors">
-                  Click để tải và xem trước video
-                </span>
-              </div>
             ) : videoUrl ? (
               <video
                 ref={videoRef}
                 className="h-full w-full object-cover cursor-pointer bg-transparent rounded-xl"
                 playsInline
                 preload="metadata"
+                poster={thumbnailUrl ?? undefined}
                 onClick={handleTogglePlayback}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onTimeUpdate={(event) =>
                   setCurrentTime(event.currentTarget.currentTime)
                 }
-                onLoadedMetadata={(event) =>
-                  setCurrentTime(event.currentTarget.currentTime)
-                }
+                onLoadedMetadata={(event) => {
+                  setCurrentTime(event.currentTarget.currentTime);
+                  setMediaDuration(event.currentTarget.duration);
+                }}
+                onDurationChange={(event) => {
+                  setMediaDuration(event.currentTarget.duration);
+                }}
               >
                 Your browser does not support the video tag.
               </video>
@@ -400,7 +384,7 @@ export function VideoPreview({
               </div>
             )}
 
-          {isActivated && videoUrl && safeDuration > 0 ? (
+          {videoUrl && safeDuration > 0 ? (
             <div className="absolute inset-x-2 bottom-2 z-20 rounded-lg border border-white/20 bg-black/60 px-2 py-2 backdrop-blur-sm sm:inset-x-3 sm:bottom-3 sm:px-2.5">
               <div className="flex items-center gap-2">
                 <button

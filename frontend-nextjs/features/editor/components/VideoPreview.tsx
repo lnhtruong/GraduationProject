@@ -450,6 +450,7 @@ export default function VideoPreview({
   onMascotFrameChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastFrameKeyRef = useRef<string>("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [frame, setFrame] = useState<VideoFrameSize | null>(null);
   const [frameOffset, setFrameOffset] = useState({ left: 0, top: 0 });
@@ -467,11 +468,13 @@ export default function VideoPreview({
   });
 
   const hasMascot = Boolean(mascot && mascot.type !== "none");
+  const customMascotFile =
+    mascot?.type === "custom" ? mascot.customFile : undefined;
 
   const customMascotUrl = useMemo(() => {
-    if (!mascot || mascot.type !== "custom" || !mascot.customFile) return null;
-    return URL.createObjectURL(mascot.customFile);
-  }, [mascot]);
+    if (!customMascotFile) return null;
+    return URL.createObjectURL(customMascotFile);
+  }, [customMascotFile]);
 
   useEffect(() => {
     return () => {
@@ -528,30 +531,47 @@ export default function VideoPreview({
       const left = (elementWidth - displayWidth) / 2;
       const top = (elementHeight - displayHeight) / 2;
 
-      setFrame({
+      const nextFrame = {
         width: mediaWidth,
         height: mediaHeight,
         displayWidth,
         displayHeight,
         scaleX: displayWidth / mediaWidth,
         scaleY: displayHeight / mediaHeight,
-      });
+      };
+      const nextFrameKey = [
+        nextFrame.width,
+        nextFrame.height,
+        nextFrame.displayWidth.toFixed(2),
+        nextFrame.displayHeight.toFixed(2),
+        left.toFixed(2),
+        top.toFixed(2),
+      ].join("|");
+
+      if (lastFrameKeyRef.current === nextFrameKey) return;
+
+      lastFrameKeyRef.current = nextFrameKey;
+      setFrame(nextFrame);
       setFrameOffset({ left, top });
-      onMascotFrameChange?.({
-        width: mediaWidth,
-        height: mediaHeight,
-        displayWidth,
-        displayHeight,
-        scaleX: displayWidth / mediaWidth,
-        scaleY: displayHeight / mediaHeight,
-      });
+      onMascotFrameChange?.(nextFrame);
     };
 
     updateFrame();
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateFrame())
+        : null;
+    resizeObserver?.observe(videoEl);
+    if (containerRef.current) {
+      resizeObserver?.observe(containerRef.current);
+    }
+
     videoEl.addEventListener("loadedmetadata", updateFrame);
     window.addEventListener("resize", updateFrame);
 
     return () => {
+      resizeObserver?.disconnect();
       videoEl.removeEventListener("loadedmetadata", updateFrame);
       window.removeEventListener("resize", updateFrame);
     };
@@ -566,7 +586,17 @@ export default function VideoPreview({
 
     const image = new window.Image();
     image.onload = () => {
+      const sourceWidth = image.naturalWidth;
+      const sourceHeight = image.naturalHeight;
       const aspectRatio = image.naturalWidth / image.naturalHeight || 1;
+      const currentAspectRatio = mascot.previewPlacement?.aspectRatio;
+      const hasSameSourceSize =
+        mascot.sourceWidth === sourceWidth && mascot.sourceHeight === sourceHeight;
+      const hasSameAspectRatio =
+        currentAspectRatio && Math.abs(currentAspectRatio - aspectRatio) < 0.001;
+
+      if (hasSameSourceSize && hasSameAspectRatio) return;
+
       const fallbackPlacement = createDefaultPreviewPlacement(
         mascot,
         frame,
@@ -574,8 +604,8 @@ export default function VideoPreview({
       );
       onMascotChange({
         ...mascot,
-        sourceWidth: image.naturalWidth,
-        sourceHeight: image.naturalHeight,
+        sourceWidth,
+        sourceHeight,
         previewPlacement: mascot.previewPlacement
           ? { ...mascot.previewPlacement, aspectRatio }
           : fallbackPlacement,
@@ -617,7 +647,9 @@ export default function VideoPreview({
     );
     if (
       clampedPlacement.x !== placement.x ||
-      clampedPlacement.y !== placement.y
+      clampedPlacement.y !== placement.y ||
+      clampedPlacement.aspectRatio !== placement.aspectRatio ||
+      clampedPlacement.hasPlaced !== placement.hasPlaced
     ) {
       onMascotChange({
         ...mascot,
@@ -718,7 +750,7 @@ export default function VideoPreview({
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto w-full max-w-7xl aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center cursor-pointer"
+      className="relative mx-auto w-full aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center cursor-pointer"
       onClick={() => {
         onTextSelect?.(null);
       }}

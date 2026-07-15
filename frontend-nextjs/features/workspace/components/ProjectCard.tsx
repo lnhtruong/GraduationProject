@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Film, MoreVertical, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, Film, MoreVertical, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { WorkspaceProjectItem } from "../types";
 
 interface ProjectCardProps {
@@ -29,6 +31,7 @@ export function ProjectCard({
   onRename,
 }: ProjectCardProps) {
   const { project, thumbnail } = item;
+  const isFinalized = project.status === "finalized";
   const [isNameEditing, setIsNameEditing] = useState(false);
   const [prevSessionName, setPrevSessionName] = useState(project.session_name);
   const [draftName, setDraftName] = useState(project.session_name);
@@ -69,7 +72,7 @@ export function ProjectCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-border/70 bg-card transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md">
+    <Card className="group relative gap-0 overflow-hidden rounded-lg border-border/70 py-0 transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md">
       <button
         type="button"
         onClick={() => {
@@ -79,6 +82,15 @@ export function ProjectCard({
         className="flex w-full flex-col text-left"
       >
         <div className="relative aspect-[4/3] overflow-hidden border-b border-border/70">
+          {isFinalized ? (
+            <Badge
+              variant="outline"
+              className="absolute left-2 top-2 z-10 border-emerald-500/30 bg-background/90 text-[11px] text-emerald-600 shadow-sm dark:text-emerald-400"
+            >
+              <CheckCircle2 className="size-3" />
+              Đã hoàn thành
+            </Badge>
+          ) : null}
           {thumbnail ? (
             <div
               className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.02]"
@@ -123,9 +135,16 @@ export function ProjectCard({
               aria-label="Đổi tên dự án"
             />
           ) : (
-            <p className="truncate text-[11px] font-semibold" title={project.session_name}>
-              {displayName}
-            </p>
+            <div className="space-y-0.5">
+              <p className="truncate text-[11px] font-semibold" title={project.session_name}>
+                {displayName}
+              </p>
+              {isFinalized ? (
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Chỉ xem trạng thái
+                </p>
+              ) : null}
+            </div>
           )}
         </div>
       </button>
@@ -139,7 +158,7 @@ export function ProjectCard({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              disabled={isRenaming}
+              disabled={isRenaming || isFinalized}
               onSelect={(event) => {
                 event.preventDefault();
                 setDraftName(project.session_name);
@@ -148,7 +167,7 @@ export function ProjectCard({
             >
               Rename
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+            <DropdownMenuItem disabled onSelect={(event) => event.preventDefault()}>
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
@@ -170,7 +189,7 @@ export function ProjectCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </Card>
   );
 }
 

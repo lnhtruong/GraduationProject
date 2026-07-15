@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
 	AlertDialog,
@@ -13,6 +13,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Film, ImageIcon, Users, VideoIcon } from "lucide-react";
 import { FollowingInstructorsGrid } from "./components/FollowingInstructorsGrid";
@@ -31,10 +32,15 @@ import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export default function LibraryFeature() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const library = useLibrary();
-	const [activeTab, setActiveTab] = useState<LibraryTabValue>("video");
+	const targetVideoId = Number(searchParams.get("video_id") ?? searchParams.get("videoId"));
+	const targetType = searchParams.get("type");
+	const [manualActiveTab, setManualActiveTab] =
+		useState<LibraryTabValue | null>(null);
 	const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
 	const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+	const [dismissedTargetVideoId, setDismissedTargetVideoId] = useState<number | null>(null);
 
 	const tabStats = useMemo(
 		() => ({
@@ -44,6 +50,47 @@ export default function LibraryFeature() {
 		}),
 		[library.highlightVideos.length, library.images.length, library.mascotVideos.length],
 	);
+
+	const queryPreviewItem = useMemo<PreviewItem | null>(() => {
+		if (!Number.isFinite(targetVideoId) || targetVideoId <= 0) return null;
+		if (dismissedTargetVideoId === targetVideoId) return null;
+
+		const mascotVideo = library.mascotVideos.find((item) => item.id === targetVideoId);
+		if (mascotVideo) {
+			return {
+				kind: "video",
+				item: mascotVideo,
+				label: getVideoLibraryLabel(mascotVideo),
+			};
+		}
+
+		const highlightVideo = library.highlightVideos.find((item) => item.id === targetVideoId);
+		if (highlightVideo) {
+			return {
+				kind: "video",
+				item: highlightVideo,
+				label: getVideoLibraryLabel(highlightVideo),
+			};
+		}
+
+		return null;
+	}, [
+		dismissedTargetVideoId,
+		library.highlightVideos,
+		library.mascotVideos,
+		targetVideoId,
+	]);
+	const effectivePreviewItem = previewItem ?? queryPreviewItem;
+	const activeTab: LibraryTabValue =
+		manualActiveTab ??
+		(targetType === "mascot"
+			? "mascot"
+			: targetType === "video" || targetType === "highlight"
+				? "video"
+				: queryPreviewItem?.kind === "video" &&
+						queryPreviewItem.item.type === "mascot"
+					? "mascot"
+					: "video");
 
 	const handleDelete = async () => {
 		if (!deleteDialog) return;
@@ -69,23 +116,23 @@ export default function LibraryFeature() {
 	};
 
 	return (
-		<div className="bg-background">
-			<section className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-6xl flex-col gap-3 px-4 py-4">
-				<LibraryHeader
-					totalCount={tabStats.video + tabStats.mascot + tabStats.image}
-					onRefresh={() => {
-						void library.refetchAll();
-					}}
-					onOpenEditor={() => {
-						router.push("/editor");
-					}}
-				/>
+		<div className="min-h-screen bg-background">
+			<LibraryHeader
+				totalCount={tabStats.video + tabStats.mascot + tabStats.image}
+				onRefresh={() => {
+					void library.refetchAll();
+				}}
+				onOpenEditor={() => {
+					router.push("/editor");
+				}}
+			/>
 
-				<div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card p-3 shadow-sm">
+			<section className="mx-auto flex h-[calc(100vh-11rem)] min-h-[520px] w-full max-w-7xl flex-col gap-3 px-4 py-4 lg:px-8">
+				<Card className="min-h-0 flex-1 overflow-hidden rounded-lg border-border/70 p-3 shadow-sm">
 					<Tabs
 						value={activeTab}
 						onValueChange={(value) => {
-							setActiveTab(value as LibraryTabValue);
+							setManualActiveTab(value as LibraryTabValue);
 						}}
 						className="h-full"
 					>
@@ -168,7 +215,7 @@ export default function LibraryFeature() {
 							<FollowingInstructorsGrid />
 						</TabsContent>
 					</Tabs>
-				</div>
+				</Card>
 
 				{library.error ? (
 					<p className="text-sm text-destructive">{toErrorMessage(library.error)}</p>
@@ -176,13 +223,17 @@ export default function LibraryFeature() {
 			</section>
 
 			<MediaPreviewDialog
-				open={!!previewItem}
+				open={!!effectivePreviewItem}
 				onOpenChange={(open) => {
 					if (!open) {
-						setPreviewItem(null);
+						if (previewItem) {
+							setPreviewItem(null);
+						} else if (Number.isFinite(targetVideoId) && targetVideoId > 0) {
+							setDismissedTargetVideoId(targetVideoId);
+						}
 					}
 				}}
-				preview={previewItem}
+				preview={effectivePreviewItem}
 			/>
 
 			<AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>

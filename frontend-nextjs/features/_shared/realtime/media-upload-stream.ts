@@ -380,6 +380,10 @@ export function createMediaUploadStream(
           }
         }
       }
+
+      if (!controller.signal.aborted) {
+        handlers.onConnectionError?.(new Error("SSE connection closed"));
+      }
     } catch (err) {
       if (controller.signal.aborted) return;
       handlers.onConnectionError?.(

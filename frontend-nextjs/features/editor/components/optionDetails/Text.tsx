@@ -1,18 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { TextOption } from "@/features/editor/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -24,15 +17,6 @@ interface Props {
   onRemove?: () => void;
 }
 
-const fontFamilies = [
-  { id: "Inter", name: "Inter" },
-  { id: "Arial", name: "Arial" },
-  { id: "Georgia", name: "Georgia" },
-  { id: "Verdana", name: "Verdana" },
-  { id: "Times New Roman", name: "Times New Roman" },
-  { id: "Courier New", name: "Courier New" },
-];
-
 const presetColors = [
   { name: "Trắng", value: "#FFFFFF" },
   { name: "Đen", value: "#000000" },
@@ -43,12 +27,6 @@ const presetColors = [
   { name: "Tím", value: "#A855F7" },
   { name: "Vàng", value: "#FACC15" },
 ];
-
-const alignmentOptions = [
-  { value: "left", label: "Trái", icon: AlignLeft },
-  { value: "center", label: "Giữa", icon: AlignCenter },
-  { value: "right", label: "Phải", icon: AlignRight },
-] as const;
 
 export default function TextOptions({
   value,
@@ -64,8 +42,8 @@ export default function TextOptions({
   };
 
   return (
-    <div className="min-w-0 space-y-4 overflow-x-hidden">
-      <section className="min-w-0 space-y-2">
+    <div className="min-w-0 space-y-3 overflow-x-hidden">
+      <section className="min-w-0 space-y-2 rounded-xl border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="text-content" className="text-sm font-semibold">
             Nội dung
@@ -82,229 +60,116 @@ export default function TextOptions({
           rows={3}
           className="min-h-24 resize-none rounded-xl text-base sm:text-sm"
         />
+
+        {(onAdd || onRemove) && (
+          <div
+            className={cn(
+              "grid min-w-0 gap-2 pt-1",
+              onAdd && onRemove ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1",
+            )}
+          >
+            {onAdd ? (
+              <Button
+                onClick={onAdd}
+                disabled={!canAddText}
+                className="h-10 gap-2"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                Thêm chữ
+              </Button>
+            ) : null}
+            {onRemove ? (
+              <Button
+                onClick={onRemove}
+                variant="outline"
+                className="h-10 gap-2"
+                size="sm"
+              >
+                <Trash2 className="h-4 w-4" />
+                Xóa chữ
+              </Button>
+            ) : null}
+          </div>
+        )}
       </section>
 
-      {(onAdd || onRemove) && (
-        <div className={cn("grid min-w-0 gap-2", onAdd && onRemove ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
-          {onAdd ? (
-            <Button
-              onClick={onAdd}
-              disabled={!canAddText}
-              className="h-11 gap-2"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              Thêm chữ
-            </Button>
-          ) : null}
-          {onRemove ? (
-            <Button
-              onClick={onRemove}
-              variant="destructive"
-              className="h-11 gap-2"
-              size="sm"
-            >
-              <Trash2 className="h-4 w-4" />
-              Xóa
-            </Button>
-          ) : null}
-        </div>
-      )}
-
-      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
-        <Label className="text-sm font-semibold">Kiểu chữ</Label>
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+      <section className="min-w-0 space-y-4 rounded-xl border border-border bg-background p-3">
+        <Label className="text-sm font-semibold">Hiển thị</Label>
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[1fr_5rem]">
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Cỡ chữ</Label>
-            <div className="flex min-w-0 gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => update({ fontSize: Math.max(12, value.fontSize - 2) })}
-                className="h-10 w-10"
-                title="Giảm cỡ chữ"
-                aria-label="Giảm cỡ chữ"
-              >
-                -
-              </Button>
-              <Input
-                type="number"
-                value={value.fontSize}
-                onChange={(event) =>
-                  update({
-                    fontSize: Math.min(
-                      96,
-                      Math.max(12, Number(event.target.value)),
-                    ),
-                  })
-                }
-                min={12}
-                max={96}
-                step={2}
-                className="h-10 min-w-0 text-center font-mono"
-                title="Nhập cỡ chữ"
-                aria-label="Cỡ chữ"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => update({ fontSize: Math.min(96, value.fontSize + 2) })}
-                className="h-10 w-10"
-                title="Tăng cỡ chữ"
-                aria-label="Tăng cỡ chữ"
-              >
-                +
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="font-family" className="text-xs text-muted-foreground">
-              Phông chữ
-            </Label>
-            <Select
-              value={value.fontFamily}
-              onValueChange={(fontFamily) => update({ fontFamily })}
-            >
-              <SelectTrigger id="font-family" className="h-10 rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {fontFamilies.map((font) => (
-                  <SelectItem key={font.id} value={font.id}>
-                    <span style={{ fontFamily: font.id }}>{font.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Định dạng</Label>
-            <div className="grid grid-cols-3 gap-1">
-              <Button
-                variant={value.fontWeight === "bold" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  update({
-                    fontWeight:
-                      value.fontWeight === "bold" ? "normal" : "bold",
-                  })
-                }
-                className="h-10 font-bold"
-                title="Chữ in đậm"
-                aria-label="Chữ in đậm"
-              >
-                B
-              </Button>
-              <Button
-                variant={value.fontStyle === "italic" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  update({
-                    fontStyle:
-                      value.fontStyle === "italic" ? "normal" : "italic",
-                  })
-                }
-                className="h-10 italic"
-                title="Chữ in nghiêng"
-                aria-label="Chữ in nghiêng"
-              >
-                I
-              </Button>
-              <Button
-                variant={
-                  value.textDecoration === "underline" ? "default" : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  update({
-                    textDecoration:
-                      value.textDecoration === "underline"
-                        ? "none"
-                        : "underline",
-                  })
-                }
-                className="h-10 underline"
-                title="Chữ gạch chân"
-                aria-label="Chữ gạch chân"
-              >
-                U
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Căn chữ</Label>
-            <div className="grid grid-cols-3 gap-1">
-              {alignmentOptions.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <Button
-                    key={option.value}
-                    variant={
-                      value.textAlign === option.value ? "default" : "outline"
-                    }
-                    size="icon"
-                    onClick={() => update({ textAlign: option.value })}
-                    className="h-10 w-full"
-                    title={option.label}
-                    aria-label={option.label}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
-        <Label className="text-sm font-semibold">Màu chữ</Label>
-        <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:grid-cols-8">
-          {presetColors.map((color) => (
-            <button
-              key={color.value}
-              type="button"
-              onClick={() => update({ color: color.value })}
-              className={cn(
-                "h-8 rounded-full border-2 transition",
-                value.color === color.value
-                  ? "border-primary ring-2 ring-primary/25"
-                  : "border-border hover:border-primary/50",
-              )}
-              style={{ backgroundColor: color.value }}
-              title={color.name}
-              aria-label={`Chọn màu ${color.name}`}
+            <Slider
+              value={[value.fontSize]}
+              onValueChange={([fontSize]) => update({ fontSize })}
+              min={8}
+              max={96}
+              step={1}
             />
-          ))}
+          </div>
+          <Input
+            type="number"
+            value={value.fontSize}
+            onChange={(event) =>
+              update({
+                fontSize: Math.min(96, Math.max(8, Number(event.target.value))),
+              })
+            }
+            min={8}
+            max={96}
+            step={1}
+            className="h-10 min-w-0 rounded-xl text-center font-mono"
+            aria-label="Cỡ chữ"
+          />
         </div>
-        <div className="flex min-w-0 gap-2">
-          <Input
-            type="color"
-            value={customColor}
-            onChange={(event) => {
-              setCustomColor(event.target.value);
-              update({ color: event.target.value });
-            }}
-            className="h-10 w-14 cursor-pointer rounded-xl p-1"
-            aria-label="Chọn màu chữ"
-          />
-          <Input
-            type="text"
-            value={value.color}
-            onChange={(event) => update({ color: event.target.value })}
-            placeholder="#FFFFFF"
-            className="h-10 min-w-0 flex-1 rounded-xl font-mono text-sm"
-            aria-label="Mã màu chữ"
-          />
+
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Màu chữ</Label>
+          <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:grid-cols-8">
+            {presetColors.map((color) => (
+              <button
+                key={color.value}
+                type="button"
+                onClick={() => {
+                  setCustomColor(color.value);
+                  update({ color: color.value });
+                }}
+                className={cn(
+                  "h-8 rounded-full border-2 transition",
+                  value.color === color.value
+                    ? "border-primary ring-2 ring-primary/25"
+                    : "border-border hover:border-primary/50",
+                )}
+                style={{ backgroundColor: color.value }}
+                title={color.name}
+                aria-label={`Chọn màu ${color.name}`}
+              />
+            ))}
+          </div>
+          <div className="flex min-w-0 gap-2">
+            <Input
+              type="color"
+              value={customColor}
+              onChange={(event) => {
+                setCustomColor(event.target.value);
+                update({ color: event.target.value });
+              }}
+              className="h-10 w-14 cursor-pointer rounded-xl p-1"
+              aria-label="Chọn màu chữ"
+            />
+            <Input
+              type="text"
+              value={value.color}
+              onChange={(event) => update({ color: event.target.value })}
+              placeholder="#FFFFFF"
+              className="h-10 min-w-0 flex-1 rounded-xl font-mono text-sm"
+              aria-label="Mã màu chữ"
+            />
+          </div>
         </div>
       </section>
 
-      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background p-3">
         <Label className="text-sm font-semibold">Vị trí</Label>
         <PositionSlider
           label="Ngang"
@@ -318,8 +183,8 @@ export default function TextOptions({
         />
       </section>
 
-      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background/70 p-3">
-        <Label className="text-sm font-semibold">Thời lượng</Label>
+      <section className="min-w-0 space-y-3 rounded-xl border border-border bg-background p-3">
+        <Label className="text-sm font-semibold">Thời gian</Label>
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <TimeInput
             label="Bắt đầu"
@@ -327,10 +192,10 @@ export default function TextOptions({
             onChange={(startTime) => update({ startTime })}
           />
           <TimeInput
-            label="Hiển thị"
+            label="Thời lượng"
             value={value.duration ?? 0}
             onChange={(duration) => update({ duration })}
-            placeholder="0 = toàn bộ"
+            placeholder="0 = hết video"
           />
         </div>
       </section>

@@ -1,10 +1,12 @@
+"use client";
+
 import type { EffectOption } from "@/features/editor/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 
 interface Props {
   value: EffectOption;
@@ -15,75 +17,49 @@ const presetFilters: Array<{
   id: EffectOption["filter"];
   name: string;
   description: string;
-  previewClass: string;
-  values: {
-    brightness: number;
-    contrast: number;
-    saturation: number;
-    hue: number;
-  };
+  swatchClass: string;
+  values: Pick<EffectOption, "brightness" | "contrast" | "saturation">;
 }> = [
   {
     id: "none",
     name: "Gốc",
-    description: "Giữ màu tự nhiên",
-    previewClass: "from-slate-200 via-orange-100 to-blue-200",
-    values: { brightness: 100, contrast: 100, saturation: 100, hue: 0 },
+    description: "Tự nhiên",
+    swatchClass: "from-zinc-200 via-orange-100 to-sky-200",
+    values: { brightness: 100, contrast: 100, saturation: 100 },
   },
   {
     id: "vintage",
-    name: "Vintage",
-    description: "Mềm và ấm",
-    previewClass: "from-amber-300 via-stone-200 to-orange-200",
-    values: { brightness: 110, contrast: 90, saturation: 120, hue: 0 },
+    name: "Mềm",
+    description: "Sáng nhẹ",
+    swatchClass: "from-amber-200 via-stone-100 to-orange-200",
+    values: { brightness: 110, contrast: 90, saturation: 115 },
   },
   {
     id: "cinematic",
     name: "Điện ảnh",
-    description: "Tương phản sâu",
-    previewClass: "from-zinc-900 via-slate-600 to-amber-300",
-    values: { brightness: 90, contrast: 120, saturation: 85, hue: 0 },
+    description: "Sâu màu",
+    swatchClass: "from-zinc-900 via-slate-600 to-amber-300",
+    values: { brightness: 90, contrast: 120, saturation: 85 },
   },
   {
     id: "vivid",
     name: "Rực rỡ",
-    description: "Màu nổi bật",
-    previewClass: "from-emerald-400 via-sky-400 to-fuchsia-400",
-    values: { brightness: 105, contrast: 110, saturation: 140, hue: 0 },
+    description: "Nổi màu",
+    swatchClass: "from-emerald-400 via-sky-400 to-fuchsia-400",
+    values: { brightness: 105, contrast: 110, saturation: 140 },
   },
   {
     id: "grayscale",
     name: "Đen trắng",
     description: "Tối giản",
-    previewClass: "from-zinc-900 via-zinc-500 to-zinc-100",
-    values: { brightness: 100, contrast: 110, saturation: 0, hue: 0 },
-  },
-  {
-    id: "sepia",
-    name: "Nâu cổ",
-    description: "Tông ấm cổ điển",
-    previewClass: "from-yellow-900 via-amber-500 to-stone-200",
-    values: { brightness: 110, contrast: 90, saturation: 50, hue: 20 },
-  },
-  {
-    id: "warm",
-    name: "Ấm áp",
-    description: "Da sáng hơn",
-    previewClass: "from-orange-500 via-amber-200 to-rose-200",
-    values: { brightness: 105, contrast: 105, saturation: 120, hue: 15 },
-  },
-  {
-    id: "cool",
-    name: "Lạnh",
-    description: "Sạch và hiện đại",
-    previewClass: "from-cyan-300 via-blue-500 to-indigo-900",
-    values: { brightness: 95, contrast: 110, saturation: 110, hue: 200 },
+    swatchClass: "from-zinc-900 via-zinc-500 to-zinc-100",
+    values: { brightness: 100, contrast: 110, saturation: 0 },
   },
 ];
 
 export default function EffectOptions({ value, onChange }: Props) {
   const applyFilter = (filter: (typeof presetFilters)[number]) => {
-    onChange({ ...filter.values, filter: filter.id });
+    onChange({ ...value, ...filter.values, hue: 0, filter: filter.id });
   };
 
   const resetToDefault = () => {
@@ -97,62 +73,77 @@ export default function EffectOptions({ value, onChange }: Props) {
   };
 
   return (
-    <div className="min-w-0 space-y-4 overflow-x-hidden">
-      <section className="min-w-0 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <Label className="text-sm font-semibold">Màu video</Label>
+    <div className="min-w-0 space-y-3 overflow-x-hidden">
+      <section className="min-w-0 rounded-xl border border-border bg-background p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <Label className="text-sm font-semibold">Bộ màu</Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Chọn nhanh hoặc tinh chỉnh thủ công.
+              Chọn nhanh sắc độ cho video.
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={resetToDefault}>
-            Đặt lại
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0 rounded-xl"
+            onClick={resetToDefault}
+            title="Đặt lại"
+            aria-label="Đặt lại hiệu ứng"
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-          {presetFilters.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => applyFilter(filter)}
-              className={cn(
-                "relative min-w-0 rounded-xl border border-border bg-background p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
-                value.filter === filter.id &&
-                  "border-primary bg-primary/10 ring-2 ring-primary/20",
-              )}
-            >
-              <div
+        <div className="grid min-w-0 grid-cols-1 gap-2">
+          {presetFilters.map((filter) => {
+            const selected = value.filter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => applyFilter(filter)}
                 className={cn(
-                  "relative mb-2 h-12 rounded-lg bg-gradient-to-br",
-                  filter.previewClass,
+                  "flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
+                  selected && "border-primary bg-primary/10 ring-2 ring-primary/15",
                 )}
               >
-                {value.filter === filter.id && (
-                  <div className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm animate-in zoom-in duration-200">
-                    <Check className="h-3 w-3" />
-                  </div>
-                )}
-              </div>
-              <div className="truncate text-sm font-semibold">{filter.name}</div>
-              <div className="line-clamp-2 text-xs text-muted-foreground">
-                {filter.description}
-              </div>
-            </button>
-          ))}
+                <span
+                  className={cn(
+                    "h-10 w-16 shrink-0 rounded-lg bg-gradient-to-br",
+                    filter.swatchClass,
+                  )}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">
+                    {filter.name}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {filter.description}
+                  </span>
+                </span>
+                {selected ? (
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <section className="min-w-0 space-y-4 rounded-xl border border-border bg-background/70 p-3">
-        <Label className="text-sm font-semibold">Tinh chỉnh</Label>
+      <section className="min-w-0 space-y-4 rounded-xl border border-border bg-background p-3">
+        <Label className="text-sm font-semibold">Thông số</Label>
         <EffectSlider
           label="Độ sáng"
           value={value.brightness}
           suffix="%"
           min={0}
           max={200}
-          onChange={(brightness) => onChange({ ...value, brightness })}
+          onChange={(brightness) =>
+            onChange({ ...value, brightness, hue: 0 })
+          }
         />
         <EffectSlider
           label="Tương phản"
@@ -160,23 +151,17 @@ export default function EffectOptions({ value, onChange }: Props) {
           suffix="%"
           min={0}
           max={200}
-          onChange={(contrast) => onChange({ ...value, contrast })}
+          onChange={(contrast) => onChange({ ...value, contrast, hue: 0 })}
         />
         <EffectSlider
-          label="Độ bão hòa"
+          label="Bão hòa"
           value={value.saturation}
           suffix="%"
           min={0}
           max={200}
-          onChange={(saturation) => onChange({ ...value, saturation })}
-        />
-        <EffectSlider
-          label="Sắc độ"
-          value={value.hue}
-          suffix="°"
-          min={0}
-          max={360}
-          onChange={(hue) => onChange({ ...value, hue })}
+          onChange={(saturation) =>
+            onChange({ ...value, saturation, hue: 0 })
+          }
         />
       </section>
     </div>
@@ -200,8 +185,10 @@ function EffectSlider({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-xs font-medium text-muted-foreground">
+          {label}
+        </Label>
         <Badge variant="secondary" className="font-mono text-xs">
           {value}
           {suffix}

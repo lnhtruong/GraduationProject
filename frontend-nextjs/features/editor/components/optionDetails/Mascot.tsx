@@ -2,27 +2,33 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
+  Eraser,
   ImagePlus,
-  Maximize2,
-  Move,
-  Settings2,
-  Sparkles,
-  Upload,
   Loader,
+  Search,
+  Upload,
 } from "lucide-react";
 import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
-import type { MascotOption } from "@/features/editor/types";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { imageApi } from "@/features/image/api/image.api";
+import type { MascotImage, MascotOption } from "@/features/editor/types";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -33,7 +39,24 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  inferMascotAnimationMode,
+  type MascotAnimationMode,
+} from "@/features/editor/utils/face-detect";
+
+function normalizeAssetUrl(value?: string) {
+  if (!value) return "";
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+    const fallbackOrigin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    return new URL(value, siteUrl || fallbackOrigin).toString();
+  } catch {
+    return value;
+  }
+}
 
 interface Props {
   value: MascotOption;
@@ -45,53 +68,97 @@ interface Props {
   hasVideo?: boolean;
   mascotProgress?: string;
   onMascotImageIdChange?: (imageId: number | null) => void;
+  mascotImages?: MascotImage[];
+  mascotImagesLoading?: boolean;
+  selectedMascotImageId?: number | null;
+  onSelectMascotImage?: (image: { image_id?: number; url: string }) => void;
 }
 
 const presetMascots = [
   {
     id: "cat",
     name: "Mèo",
-    thumbnail: "/mascots/cat.jpg",
-    filePath: "/mascots/cat.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/cat_xz5hwn.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/cat_xz5hwn.jpg",
+    fallbackFilePath: "/mascots/cat.jpg",
+    animationMode: "animal",
   },
   {
     id: "dog",
     name: "Chó",
-    thumbnail: "/mascots/dog.jpg",
-    filePath: "/mascots/dog.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115814/pngtree-shiba-inu-dog-breed-with-orange-coat-and-face-png-image_17678977_jh1vxk.webp",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115814/pngtree-shiba-inu-dog-breed-with-orange-coat-and-face-png-image_17678977_jh1vxk.webp",
+    fallbackFilePath: "/mascots/dog.jpg",
+    animationMode: "animal",
   },
   {
     id: "bear",
     name: "Gấu",
-    thumbnail: "/mascots/bear.jpg",
-    filePath: "/mascots/bear.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/bear_wmrgty.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/bear_wmrgty.jpg",
+    fallbackFilePath: "/mascots/bear.jpg",
+    animationMode: "animal",
   },
   {
     id: "rabbit",
     name: "Thỏ",
-    thumbnail: "/mascots/rabbit.jpg",
-    filePath: "/mascots/rabbit.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115839/rabbit_mmfphj.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115839/rabbit_mmfphj.jpg",
+    fallbackFilePath: "/mascots/rabbit.jpg",
+    animationMode: "animal",
   },
   {
     id: "person",
     name: "Người",
-    thumbnail: "/mascots/person.jpg",
-    filePath: "/mascots/person.jpg",
+    thumbnail:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/person_ay41nt.jpg",
+    filePath:
+      "https://res.cloudinary.com/dbwqzrbur/image/upload/v1784115838/person_ay41nt.jpg",
+    fallbackFilePath: "/mascots/person.jpg",
+    animationMode: "human",
   },
-];
-
-const renderQualityOptions = [
-  { value: "ultrafast", label: "Rất nhanh" },
-  { value: "fast", label: "Nhanh" },
-  { value: "balanced", label: "Cân bằng" },
-  { value: "quality", label: "Chất lượng cao" },
 ] as const;
 
 const backgroundQualityOptions = [
-  { value: "fast", label: "Nhanh" },
-  { value: "balanced", label: "Cân bằng" },
-  { value: "quality", label: "Sắc nét" },
+  { value: "fast", label: "Tạo nhanh" },
+  { value: "clean", label: "Viền sạch hơn" },
 ] as const;
+
+const animationModeOptions = [
+  { value: "animal", label: "Mascot / cartoon" },
+  { value: "human", label: "Người thật / chân dung" },
+] as const;
+
+function PresetMascotImage({
+  mascot,
+}: {
+  mascot: (typeof presetMascots)[number];
+}) {
+  const [src, setSrc] = useState<string>(mascot.thumbnail);
+
+  return (
+    <Image
+      src={src}
+      alt={mascot.name}
+      fill
+      sizes="(max-width: 768px) 20vw, 80px"
+      className="object-contain p-1"
+      onError={() => {
+        if (src !== mascot.fallbackFilePath) {
+          setSrc(mascot.fallbackFilePath);
+        }
+      }}
+    />
+  );
+}
 
 function withMascotDefaults(value: Partial<MascotOption>): MascotOption {
   return {
@@ -108,7 +175,7 @@ function withMascotDefaults(value: Partial<MascotOption>): MascotOption {
     chromakeyBlend: 0.08,
     alphaContractPx: 1,
     alphaBlurPx: 1,
-    animationMode: "human",
+    animationMode: "animal",
     qualityMode: "ultrafast",
     drivingMultiplier: 1,
     flagStitching: true,
@@ -126,17 +193,21 @@ function withMascotDefaults(value: Partial<MascotOption>): MascotOption {
 export default function MascotOptions({
   value,
   onChange,
-  onCreateVideo,
   isApplying,
-  isCreatingVideo,
   hasVideo = false,
   mascotProgress,
   onMascotImageIdChange,
+  mascotImages = [],
+  mascotImagesLoading = false,
+  selectedMascotImageId,
+  onSelectMascotImage,
 }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isBackgroundOpen, setIsBackgroundOpen] = useState(false);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isDetectingMascotMode, setIsDetectingMascotMode] = useState(false);
+  const [imageSearch, setImageSearch] = useState("");
   const cloudUploadRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   const { mutateAsync: uploadMascotImage, isPending: isUploadingMascot } =
     useUploadMascotImage(
       (progress: number) => setUploadProgress(progress),
@@ -152,21 +223,16 @@ export default function MascotOptions({
         ? "Mascot của bạn"
         : undefined;
 
-  const hasSelectedMascot =
-    value.type !== "none" && Boolean(value.presetUrl || value.customFile);
-  const hasValidScale = value.scale >= 0.1 && value.scale <= 2;
-  const canCreateVideo =
-    hasSelectedMascot &&
-    hasVideo &&
-    hasValidScale &&
-    !isApplying &&
-    !isUploadingMascot &&
-    !isCreatingVideo &&
-    typeof onCreateVideo === "function";
-
   const updateMascot = (patch: Partial<MascotOption>) => {
     onChange(withMascotDefaults({ ...value, ...patch }));
   };
+
+  const filteredMascotImages = mascotImages.filter((image) => {
+    const keyword = imageSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    const fileName = image.url?.split("/").pop()?.split("?")[0] || "";
+    return fileName.toLowerCase().includes(keyword);
+  });
 
   const handleSetNoMascot = () => {
     onMascotImageIdChange?.(null);
@@ -183,15 +249,41 @@ export default function MascotOptions({
     );
   };
 
+  const ensurePresetMascotImageId = async (url: string) => {
+    const absoluteUrl = normalizeAssetUrl(url);
+    const normalizeComparableUrl = (value?: string) => {
+      if (!value) return "";
+      try {
+        const parsed = new URL(value, window.location.origin);
+        return `${parsed.origin}${parsed.pathname}`;
+      } catch {
+        return value;
+      }
+    };
+
+    const existing = await imageApi.getAllByUser();
+    const matched = existing.find(
+      (image) =>
+        normalizeComparableUrl(image.url) === normalizeComparableUrl(absoluteUrl),
+    );
+    if (matched?.id) return matched.id;
+
+    const created = await imageApi.create({ url: absoluteUrl });
+    void queryClient.invalidateQueries({ queryKey: ["image"] });
+    return created.id;
+  };
+
   const setPresetMascot = (mascot: (typeof presetMascots)[number]) => {
     onMascotImageIdChange?.(null);
+    const presetUrl = normalizeAssetUrl(mascot.filePath);
     onChange(
       withMascotDefaults({
         type: "preset",
         presetId: mascot.id,
-        presetUrl: mascot.filePath,
+        presetUrl,
         imageId: undefined,
         customFile: undefined,
+        animationMode: mascot.animationMode,
         position: "bottom-right",
         margin_x: 40,
         margin_y: 40,
@@ -199,9 +291,68 @@ export default function MascotOptions({
         previewPlacement: undefined,
       }),
     );
+
+    void ensurePresetMascotImageId(mascot.filePath)
+      .then((imageId) => {
+        onMascotImageIdChange?.(imageId);
+      })
+      .catch((error) => {
+        console.error("[MascotOptions] Failed to persist preset mascot:", error);
+      });
+  };
+
+  const setPersonalMascot = (image: MascotImage) => {
+    onSelectMascotImage?.(image);
+    setIsDetectingMascotMode(true);
+    onChange(
+      withMascotDefaults({
+        ...value,
+        type: "custom",
+        customFile: undefined,
+        imageId: image.image_id,
+        presetUrl: image.url,
+        presetId: undefined,
+        animationMode: "animal",
+        position: value.position === "replace" ? "bottom-right" : value.position,
+        margin_x: value.margin_x || 40,
+        margin_y: value.margin_y || 40,
+        scale: value.scale || 1,
+        previewPlacement: value.previewPlacement,
+      }),
+    );
+
+    void inferMascotAnimationMode(image.url)
+      .then((animationMode) => {
+        onChange(
+          withMascotDefaults({
+            ...value,
+            type: "custom",
+            customFile: undefined,
+            imageId: image.image_id,
+            presetUrl: image.url,
+            presetId: undefined,
+            animationMode,
+            position:
+              value.position === "replace" ? "bottom-right" : value.position,
+            margin_x: value.margin_x || 40,
+            margin_y: value.margin_y || 40,
+            scale: value.scale || 1,
+            previewPlacement: value.previewPlacement,
+          }),
+        );
+      })
+      .finally(() => setIsDetectingMascotMode(false));
   };
 
   const handleCustomMascotUpload = async (file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+    setIsDetectingMascotMode(true);
+    const detectedModePromise = inferMascotAnimationMode(previewUrl).finally(
+      () => {
+        URL.revokeObjectURL(previewUrl);
+      },
+    );
+
     onChange(
       withMascotDefaults({
         ...value,
@@ -210,12 +361,16 @@ export default function MascotOptions({
         imageId: undefined,
         presetUrl: undefined,
         presetId: undefined,
+        animationMode: "animal",
         position: "bottom-right",
       }),
     );
 
     try {
-      const uploaded = await uploadMascotImage({ file });
+      const [uploaded, animationMode] = await Promise.all([
+        uploadMascotImage({ file }),
+        detectedModePromise,
+      ]);
 
       onChange(
         withMascotDefaults({
@@ -225,29 +380,25 @@ export default function MascotOptions({
           imageId: uploaded.imageId,
           presetUrl: uploaded.url,
           presetId: undefined,
+          animationMode,
           position: "bottom-right",
         }),
       );
     } catch {
       // Mutation hook already shows an error toast.
+    } finally {
+      setIsDetectingMascotMode(false);
     }
   };
 
   return (
-    <div className="min-w-0 space-y-4 overflow-x-hidden">
-      <section className="space-y-3">
-        <div>
-          <Label className="text-sm font-semibold">Mascot</Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Chọn ảnh, đặt lên video rồi tạo bản hoàn chỉnh.
-          </p>
-        </div>
-
+    <div className="min-w-0 space-y-3 overflow-x-hidden">
+      <section className="space-y-2.5">
         <button
           type="button"
           onClick={handleSetNoMascot}
           className={cn(
-            "w-full rounded-xl border p-3 text-left transition hover:border-primary/60",
+            "w-full rounded-xl border p-2.5 text-left transition hover:border-primary/60",
             value.type === "none"
               ? "border-primary bg-primary/10"
               : "border-border bg-background",
@@ -264,79 +415,31 @@ export default function MascotOptions({
           </div>
         </button>
 
-        <div className="grid grid-cols-3 gap-2">
-          {presetMascots.map((mascot) => {
-            const selected =
-              value.type === "preset" && value.presetId === mascot.id;
-            return (
-              <button
-                key={mascot.id}
-                type="button"
-                onClick={() => setPresetMascot(mascot)}
-                className={cn(
-                  "min-w-0 rounded-xl border bg-background p-1.5 transition hover:border-primary/60",
-                  selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
-                )}
-              >
-                <div className="relative mb-1 aspect-square overflow-hidden rounded-lg bg-muted">
-                  <Image
-                    src={mascot.thumbnail}
-                    alt={mascot.name}
-                    fill
-                    sizes="(max-width: 768px) 20vw, 80px"
-                    className="object-contain p-1"
-                  />
-                </div>
-                <p className="truncate text-center text-[10px] font-medium">
-                  {mascot.name}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
         <div
           className={cn(
-            "rounded-xl border border-dashed bg-background p-3 transition",
+            "rounded-xl border bg-background p-2.5 transition",
             value.type === "custom"
-              ? "border-primary bg-primary/10"
-              : "border-border hover:border-primary/60",
+              ? "border-primary/60 bg-primary/[0.04]"
+              : "border-border",
           )}
         >
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-              <ImagePlus className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Tải mascot của bạn</p>
-              <p className="truncate text-xs text-muted-foreground">
-                PNG/JPG, ưu tiên ảnh nền trong suốt.
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Mascot của bạn</p>
+              <p className="text-xs text-muted-foreground">
+                Chọn ảnh đã lưu hoặc thêm ảnh từ máy.
               </p>
             </div>
-          </div>
-
-          <div className="mt-3 rounded-lg border border-border bg-muted/35 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <Label className="text-sm font-medium">Xóa nền ảnh mascot</Label>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Bật nếu ảnh có nền xanh, nền trắng hoặc cần tách nền trước khi ghép.
-                </p>
-              </div>
-              <Switch
-                checked={Boolean(value.removeBackground)}
-                onCheckedChange={(checked) =>
-                  updateMascot({
-                    removeBackground: checked,
-                    bgMode: checked ? (value.bgMode ?? "green_screen") : value.bgMode,
-                    bgQualityMode: checked
-                      ? (value.bgQualityMode ?? "fast")
-                      : value.bgQualityMode,
-                  })
-                }
-                aria-label="Xóa nền ảnh mascot"
-              />
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 shrink-0 gap-2"
+              disabled={isUploadingMascot}
+              onClick={() => cloudUploadRef.current?.click()}
+            >
+              <Upload className="h-4 w-4" />
+              {isUploadingMascot ? "Đang tải" : "Từ máy"}
+            </Button>
           </div>
 
           <input
@@ -348,32 +451,132 @@ export default function MascotOptions({
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void handleCustomMascotUpload(file);
+              event.currentTarget.value = "";
             }}
           />
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="mt-3 h-10 w-full gap-2"
-            disabled={isUploadingMascot}
-            onClick={() => cloudUploadRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" />
-            {isUploadingMascot ? "Đang tải ảnh..." : "Chọn ảnh"}
-          </Button>
-
           {isUploadingMascot ? (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Đang tải ảnh: {uploadProgress}%
-            </p>
+            <div className="mt-3 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-1.5 rounded-full bg-primary transition-all"
+                style={{ width: `${Math.max(0, Math.min(uploadProgress, 100))}%` }}
+              />
+            </div>
           ) : null}
+
+          <div className="relative mt-3">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={imageSearch}
+              onChange={(event) => setImageSearch(event.target.value)}
+              placeholder="Tìm ảnh mascot..."
+              className="h-9 rounded-xl pl-9"
+            />
+          </div>
+
+          <div className="mt-3">
+            {mascotImagesLoading ? (
+              <div className="rounded-xl border border-border bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
+                Đang tải ảnh mascot...
+              </div>
+            ) : filteredMascotImages.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2">
+                {filteredMascotImages.map((image) => {
+                  const selected =
+                    value.type === "custom" &&
+                    ((typeof image.image_id === "number" &&
+                      image.image_id === selectedMascotImageId) ||
+                      image.url === value.presetUrl);
+
+                  return (
+                    <button
+                      key={image.image_id ?? image.url}
+                      type="button"
+                      onClick={() => setPersonalMascot(image)}
+                      className={cn(
+                        "relative aspect-square min-w-0 overflow-hidden rounded-lg border bg-muted/40 transition hover:border-primary/60",
+                        selected &&
+                          "border-primary bg-primary/10 ring-2 ring-primary/20",
+                      )}
+                      title="Chọn mascot"
+                    >
+                      <span className="absolute inset-0 grid place-items-center text-muted-foreground">
+                        <ImagePlus className="h-5 w-5" />
+                      </span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.url}
+                        alt="Ảnh mascot"
+                        className="relative h-full w-full object-contain p-1"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.opacity = "0";
+                        }}
+                      />
+                      {selected ? (
+                        <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-3 py-5 text-center">
+                <div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+                  <ImagePlus className="h-5 w-5" />
+                </div>
+                <p className="mt-3 text-sm font-medium">
+                  {imageSearch.trim()
+                    ? "Không tìm thấy ảnh phù hợp"
+                    : "Chưa có mascot cá nhân"}
+                </p>
+                <p className="mx-auto mt-1 max-w-[14rem] text-xs leading-5 text-muted-foreground">
+                  {imageSearch.trim()
+                    ? "Thử từ khóa khác hoặc thêm ảnh mới từ máy."
+                    : "Thêm ảnh riêng để dùng lại trong các project sau."}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Mascot mẫu</Label>
+        <div className="grid grid-cols-5 gap-1.5">
+          {presetMascots.map((mascot) => {
+            const selected =
+              value.type === "preset" && value.presetId === mascot.id;
+            return (
+              <button
+                key={mascot.id}
+                type="button"
+                onClick={() => setPresetMascot(mascot)}
+                className={cn(
+                  "min-w-0 rounded-lg border bg-background p-1 transition hover:border-primary/60",
+                  selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
+                )}
+              >
+                <div className="relative mb-1 aspect-square overflow-hidden rounded-md bg-muted">
+                  <PresetMascotImage
+                    key={mascot.thumbnail}
+                    mascot={mascot}
+                  />
+                </div>
+                <p className="truncate text-center text-[10px] font-medium">
+                  {mascot.name}
+                </p>
+              </button>
+            );
+          })}
+        </div>
         </div>
       </section>
 
       {value.type !== "none" ? (
         <>
-          <section className="rounded-xl border border-primary/40 bg-primary/10 p-3">
+          <section className="rounded-xl border border-primary/40 bg-primary/10 p-2.5">
             <div className="flex items-center gap-2">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
                 <Check className="h-4 w-4" />
@@ -388,20 +591,20 @@ export default function MascotOptions({
                     {value.type === "preset" ? "(có sẵn)" : "(tự tải lên)"}
                   </span>
                 </p>
+                {value.type === "custom" ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {isDetectingMascotMode
+                      ? "Đang nhận diện khuôn mặt..."
+                      : value.animationMode === "human"
+                        ? "Chế độ: người"
+                        : "Chế độ: mascot"}
+                  </p>
+                ) : null}
               </div>
             </div>
           </section>
 
-          <Alert className="rounded-xl">
-            <Move className="h-4 w-4" />
-            <AlertDescription className="text-xs leading-relaxed">
-              {hasVideo
-                ? "Kéo mascot trực tiếp trên video để đặt vị trí. Kéo nút ở góc mascot để đổi kích thước."
-                : "Chọn video trước, sau đó đặt mascot lên khung preview."}
-            </AlertDescription>
-          </Alert>
-
-          <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+          <section className="space-y-3 rounded-xl border border-border bg-background/70 p-2.5">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Kích thước</Label>
               <span className="font-mono text-xs text-muted-foreground">
@@ -420,7 +623,7 @@ export default function MascotOptions({
               aria-label="Kích thước Mascot"
             />
             <p className="text-xs text-muted-foreground">
-              Có thể chỉnh nhanh bằng thanh này hoặc kéo trực tiếp trên preview.
+              Kéo mascot trên video hoặc dùng thanh trượt này.
             </p>
           </section>
 
@@ -432,10 +635,10 @@ export default function MascotOptions({
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full justify-between rounded-xl"
+                className="hidden"
               >
                 <span className="inline-flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
+                  <Eraser className="h-4 w-4" />
                   Tách nền
                 </span>
                 <ChevronDown
@@ -446,181 +649,212 @@ export default function MascotOptions({
                 />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 space-y-4 rounded-xl border border-border bg-background/70 p-3">
+            <CollapsibleContent className="mt-2 space-y-3 rounded-xl border border-border bg-background/70 p-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <Label className="text-sm font-medium">Xóa nền mascot</Label>
                   <p className="text-xs text-muted-foreground">
-                    Bật khi ảnh mascot có nền xanh hoặc nền cần tách.
+                    Bật nếu ảnh mascot chưa có nền trong suốt.
                   </p>
                 </div>
                 <Switch
                   checked={Boolean(value.removeBackground)}
                   onCheckedChange={(checked) =>
-                    updateMascot({ removeBackground: checked })
+                    updateMascot({
+                      removeBackground: checked,
+                      bgMode: "green_screen",
+                    })
                   }
                 />
               </div>
-
               {value.removeBackground ? (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <SelectField
-                      label="Kiểu xử lý"
-                      value={value.bgMode ?? "green_screen"}
-                      onChange={(nextValue) =>
-                        updateMascot({
-                          bgMode: nextValue as MascotOption["bgMode"],
-                        })
-                      }
-                      options={[
-                        { value: "green_screen", label: "Green screen" },
-                        { value: "transparent", label: "Nền trong suốt" },
-                      ]}
-                    />
-                    <SelectField
-                      label="Chất lượng tách nền"
-                      value={value.bgQualityMode ?? "fast"}
-                      onChange={(nextValue) =>
-                        updateMascot({
-                          bgQualityMode:
-                            nextValue as MascotOption["bgQualityMode"],
-                        })
-                      }
-                      options={backgroundQualityOptions}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="green-screen-color" className="text-xs">
-                      Màu nền cần tách
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="color"
-                        value={`#${value.greenScreenColor ?? "00FF00"}`}
-                        onChange={(event) =>
-                          updateMascot({
-                            greenScreenColor: event.target.value.replace(
-                              "#",
-                              "",
-                            ),
-                          })
-                        }
-                        className="h-10 w-14 rounded-xl p-1"
-                      />
-                      <Input
-                        id="green-screen-color"
-                        value={value.greenScreenColor ?? "00FF00"}
-                        onChange={(event) =>
-                          updateMascot({
-                            greenScreenColor: event.target.value.replace(
-                              "#",
-                              "",
-                            ),
-                          })
-                        }
-                        placeholder="00FF00"
-                        className="h-10 rounded-xl font-mono"
-                      />
-                    </div>
-                  </div>
-                </>
+                <div className="grid gap-3">
+                  <SelectField
+                    label="Ưu tiên tách nền"
+                    value={value.bgQualityMode ?? "fast"}
+                    onChange={(nextValue) =>
+                      updateMascot({
+                        bgQualityMode:
+                          nextValue as MascotOption["bgQualityMode"],
+                      })
+                    }
+                    options={backgroundQualityOptions}
+                  />
+                </div>
               ) : null}
+
             </CollapsibleContent>
           </Collapsible>
 
-          <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 w-full justify-between rounded-xl"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" />
-                  Render nâng cao
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 transition",
-                    isAdvancedOpen && "rotate-180",
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 space-y-4 rounded-xl border border-border bg-background/70 p-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SelectField
-                  label="Chất lượng render"
-                  value={value.qualityMode ?? "ultrafast"}
-                  onChange={(nextValue) =>
-                    updateMascot({
-                      qualityMode: nextValue as MascotOption["qualityMode"],
-                    })
-                  }
-                  options={renderQualityOptions}
-                />
-                <SelectField
-                  label="Chuyển động"
-                  value={value.animationMode ?? "human"}
-                  onChange={(nextValue) =>
-                    updateMascot({
-                      animationMode:
-                        nextValue as MascotOption["animationMode"],
-                    })
-                  }
-                  options={[
-                    { value: "human", label: "Tự nhiên" },
-                    { value: "default", label: "Mặc định" },
-                  ]}
-                />
-              </div>
 
-              <RangeSetting
-                label="Biên độ chuyển động"
-                value={value.drivingMultiplier ?? 1}
-                min={0.5}
-                max={2}
-                step={0.1}
-                suffix="x"
-                onChange={(drivingMultiplier) =>
-                  updateMascot({ drivingMultiplier })
-                }
-              />
-            </CollapsibleContent>
-          </Collapsible>
+          {mascotProgress ? (
+            <section className="rounded-xl border bg-muted/50 p-2.5 text-xs leading-relaxed text-muted-foreground">
+              {mascotProgress}
+            </section>
+          ) : null}
 
-          <section className="rounded-xl border bg-muted/50 p-3">
-            <div className="flex items-start gap-2">
-              <Maximize2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div className="text-xs leading-relaxed text-muted-foreground">
-                <p>
-                  Kích thước hiện tại:{" "}
-                  <span className="font-semibold">{value.scale.toFixed(2)}x</span>
-                </p>
-                {mascotProgress ? <p>Tiến trình: {mascotProgress}</p> : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="sticky bottom-0 z-10 border-t bg-card/95 pt-3 backdrop-blur">
-            <Button
-              onClick={onCreateVideo}
-              disabled={!canCreateVideo || isCreatingVideo}
-              className="h-12 w-full rounded-xl font-semibold gap-2"
-              size="lg"
-              variant="secondary"
-            >
-              {isCreatingVideo && <Loader size={16} className="animate-spin" />}
-              {isCreatingVideo
-                ? "Đang tạo video với mascot..."
-                : "Tạo video với mascot"}
-            </Button>
-          </section>
         </>
       ) : null}
     </div>
+  );
+}
+
+interface MascotRenderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  value: MascotOption;
+  onChange: (value: MascotOption) => void;
+  onCreateVideo?: () => void | Promise<void>;
+  canCreateVideo: boolean;
+  isCreatingVideo?: boolean;
+  mascotProgress?: string;
+}
+
+export function MascotRenderDialog({
+  open,
+  onOpenChange,
+  value,
+  onChange,
+  onCreateVideo,
+  canCreateVideo,
+  isCreatingVideo = false,
+  mascotProgress = "",
+}: MascotRenderDialogProps) {
+  const updateMascot = (patch: Partial<MascotOption>) => {
+    onChange(withMascotDefaults({ ...value, ...patch }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Tùy chỉnh mascot</DialogTitle>
+          <DialogDescription>
+            Chọn cách xử lý nền trước khi tạo video hoàn chỉnh.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <section className="hidden">
+            <SelectField
+              label="Kiểu chuyển động"
+              value={value.animationMode ?? "animal"}
+              onChange={(nextValue) =>
+                updateMascot({
+                  animationMode: nextValue as MascotAnimationMode,
+                })
+              }
+              options={animationModeOptions}
+            />
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-border bg-background/70 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm font-semibold">Kiểu chuyển động</Label>
+              <div className="grid h-9 grid-cols-2 rounded-lg border border-border bg-muted/30 p-1">
+                {animationModeOptions.map((option) => {
+                  const selected =
+                    (value.animationMode ?? "animal") === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={cn(
+                        "rounded-md px-3 text-xs font-medium text-muted-foreground transition",
+                        selected &&
+                          "bg-primary text-primary-foreground shadow-sm",
+                      )}
+                      onClick={() =>
+                        updateMascot({
+                          animationMode: option.value as MascotAnimationMode,
+                        })
+                      }
+                    >
+                      {option.value === "animal" ? "Mascot" : "Người"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Label className="inline-flex items-center gap-2 text-sm font-semibold">
+                  <Eraser className="h-4 w-4" />
+                  Xóa nền mascot
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Bật nếu ảnh mascot chưa có nền trong suốt.
+                </p>
+              </div>
+              <Switch
+                checked={Boolean(value.removeBackground)}
+                onCheckedChange={(checked) =>
+                  updateMascot({
+                    removeBackground: checked,
+                    bgMode: "green_screen",
+                  })
+                }
+              />
+            </div>
+            {value.removeBackground ? (
+              <div className="grid gap-3">
+                <SelectField
+                  label="Ưu tiên tách nền"
+                  value={value.bgQualityMode ?? "fast"}
+                  onChange={(nextValue) =>
+                    updateMascot({
+                      bgQualityMode:
+                        nextValue as MascotOption["bgQualityMode"],
+                    })
+                  }
+                  options={backgroundQualityOptions}
+                />
+              </div>
+            ) : null}
+          </section>
+
+          {isCreatingVideo ? (
+            <section className="rounded-xl border border-primary/25 bg-primary/10 p-3">
+              <div className="flex items-start gap-3">
+                <Loader className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Đang tạo video</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {mascotProgress || "Đang chờ hệ thống xử lý..."}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isCreatingVideo}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              void onCreateVideo?.();
+            }}
+            disabled={!canCreateVideo || isCreatingVideo}
+            className="gap-2"
+          >
+            {isCreatingVideo ? (
+              <Loader size={16} className="animate-spin" />
+            ) : null}
+            {isCreatingVideo ? "Đang tạo..." : "Tạo video"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -654,40 +888,4 @@ function SelectField({
   );
 }
 
-function RangeSetting({
-  label,
-  value,
-  min,
-  max,
-  step,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs text-muted-foreground">{label}</Label>
-        <span className="font-mono text-xs text-muted-foreground">
-          {value.toFixed(1)}
-          {suffix}
-        </span>
-      </div>
-      <Slider
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        onValueChange={([next]) => onChange(next)}
-        aria-label={label}
-      />
-    </div>
-  );
-}
+

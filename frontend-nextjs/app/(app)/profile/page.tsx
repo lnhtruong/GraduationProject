@@ -9,7 +9,10 @@ export const metadata = buildPrivatePageMetadata(
 
 export default function ProfilePage() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute
+      title="Hồ sơ cá nhân"
+      description="Đăng nhập để xem và cập nhật thông tin tài khoản."
+    >
       <ProfileContent />
     </ProtectedRoute>
   );

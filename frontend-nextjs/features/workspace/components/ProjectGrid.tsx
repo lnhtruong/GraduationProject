@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
 import { FolderKanban, RefreshCcw } from "lucide-react";
 import { ProjectCard } from "./ProjectCard";
 import type { WorkspaceProjectItem } from "../types";
@@ -36,26 +38,28 @@ export function ProjectGrid({
 
   if (error) {
     return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/5 px-4 text-center">
-        <p className="text-sm font-medium text-destructive">Không thể tải danh sách dự án</p>
-        <p className="mt-2 text-sm text-muted-foreground">{toErrorMessage(error)}</p>
-        <Button variant="outline" className="mt-4" onClick={onRetry}>
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Thử lại
-        </Button>
-      </div>
+      <AppEmptyState
+        icon={<RefreshCcw className="h-8 w-8" />}
+        title="Không thể tải danh sách dự án"
+        description={toErrorMessage(error)}
+        tone="destructive"
+        action={
+          <Button variant="outline" onClick={onRetry}>
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Thử lại
+          </Button>
+        }
+      />
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 text-center">
-        <FolderKanban className="h-10 w-10 text-muted-foreground" />
-        <p className="mt-4 text-lg font-semibold">Không có dự án phù hợp</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Hãy tạo dự án mới hoặc điều chỉnh bộ lọc để xem kết quả.
-        </p>
-      </div>
+      <AppEmptyState
+        icon={<FolderKanban className="h-8 w-8" />}
+        title="Không có dự án phù hợp"
+        description="Hãy tạo dự án mới hoặc điều chỉnh bộ lọc để xem kết quả."
+      />
     );
   }
 
@@ -85,14 +89,14 @@ function ProjectGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {Array.from({ length: 16 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-lg border border-border/70">
+        <Card key={index} className="gap-0 overflow-hidden rounded-lg border-border/70 py-0">
           <Skeleton className="aspect-video rounded-none" />
-          <div className="space-y-1.5 p-2.5">
+          <CardContent className="space-y-1.5 p-2.5">
             <Skeleton className="h-3 w-1/2" />
             <Skeleton className="h-4 w-4/5" />
             <Skeleton className="h-3 w-3/5" />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

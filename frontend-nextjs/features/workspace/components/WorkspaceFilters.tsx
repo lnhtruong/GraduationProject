@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,7 +28,7 @@ export function WorkspaceFilters({
   onSortChange,
 }: WorkspaceFiltersProps) {
   return (
-    <div className="grid gap-2.5 rounded-xl border border-border/80 bg-muted/30 p-3 shadow-sm md:grid-cols-12">
+    <Card className="grid gap-2.5 rounded-lg border-border/80 bg-muted/30 p-3 shadow-sm md:grid-cols-12">
       <div className="relative md:col-span-6">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -71,6 +72,6 @@ export function WorkspaceFilters({
           </SelectContent>
         </Select>
       </div>
-    </div>
+    </Card>
   );
 }

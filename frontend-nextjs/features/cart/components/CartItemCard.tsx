@@ -14,6 +14,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
 
@@ -59,9 +62,9 @@ export function CartItemCard({
   };
 
   return (
-    <div
-      className={`flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm
-        transition-all duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+    <Card
+      className={`flex flex-col gap-4 rounded-lg border-border/60 p-4
+        transition-all duration-200 hover:border-primary/30 hover:shadow-md
         sm:flex-row
         ${isRemoving ? "pointer-events-none opacity-40" : ""}`}
     >
@@ -82,7 +85,7 @@ export function CartItemCard({
               ${item.highlightVideoUrl && videoReady ? "opacity-0" : "opacity-100"}`}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50" />
+          <div className="flex h-full w-full items-center justify-center bg-muted" />
         )}
 
         {/* Highlight video — [MOCK] highlightVideoUrl = undefined → không render
@@ -114,9 +117,9 @@ export function CartItemCard({
 
         {/* "Xem thử" badge khi video đang play */}
         {item.highlightVideoUrl && videoReady && (
-          <span className="absolute left-2 top-2 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-white">
+          <Badge className="absolute left-2 top-2 text-[11px]">
             Xem thử
-          </span>
+          </Badge>
         )}
       </Link>
 
@@ -168,7 +171,7 @@ export function CartItemCard({
           <RemoveButton courseId={item.courseId} onRemove={onRemove} />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -183,10 +186,15 @@ function RemoveButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <button className="flex items-center gap-1 text-destructive transition-colors hover:text-destructive/80">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
           <Trash2 className="h-3.5 w-3.5" />
           Xoá
-        </button>
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

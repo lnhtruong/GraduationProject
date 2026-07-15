@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { NotebookText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ManagementPageShell } from "./components/ManagementPageShell";
@@ -9,11 +10,13 @@ import { LessonForm } from "./components/LessonForm";
 import { ActivityCreationDialog } from "./components/ActivityCreationDialog";
 import {
   useCreateLesson,
+  instructorCourseKeys,
   useInstructorCourseById,
   useLessonById,
   useUpdateLesson,
 } from "./api/course-management.hooks";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import type { InstructorCourse } from "./types";
 import type { LessonFormVideoContext } from "./utils/draft-video.utils";
 
 interface Props {
@@ -23,6 +26,7 @@ interface Props {
 
 export default function LessonFormPage({ courseId, lessonId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isEdit = lessonId !== undefined;
   const { user } = useAuth();
 
@@ -162,9 +166,24 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         }}
         onSave={async (payload) => {
           if (isEdit && lesson) {
-            await updateLessonMutation.mutateAsync({
+            const updated = await updateLessonMutation.mutateAsync({
               id: lesson.id,
               data: payload,
+            });
+            queryClient.setQueryData<InstructorCourse>(
+              instructorCourseKeys.detail(course.id),
+              (previous) =>
+                previous
+                  ? {
+                      ...previous,
+                      lessons: (previous.lessons ?? []).map((item) =>
+                        item.id === updated.id ? updated : item,
+                      ),
+                    }
+                  : previous,
+            );
+            await queryClient.invalidateQueries({
+              queryKey: instructorCourseKeys.detail(course.id),
             });
             return lesson.id;
           }
@@ -172,6 +191,24 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           const created = await createLessonMutation.mutateAsync({
             ...payload,
             courseId,
+          });
+          queryClient.setQueryData<InstructorCourse>(
+            instructorCourseKeys.detail(course.id),
+            (previous) =>
+              previous
+                ? {
+                    ...previous,
+                    lessons: [
+                      ...(previous.lessons ?? []).filter(
+                        (item) => item.id !== created.id,
+                      ),
+                      created,
+                    ],
+                  }
+                : previous,
+          );
+          await queryClient.invalidateQueries({
+            queryKey: instructorCourseKeys.detail(course.id),
           });
           return created.id;
         }}

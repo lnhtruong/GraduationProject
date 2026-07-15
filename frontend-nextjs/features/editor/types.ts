@@ -31,13 +31,13 @@ export interface MascotOption {
   previewPlacement?: MascotPreviewPlacement;
   removeBackground?: boolean;
   bgMode?: "green_screen" | "transparent";
-  bgQualityMode?: "fast" | "balanced" | "quality";
+  bgQualityMode?: "fast" | "clean";
   greenScreenColor?: string;
   chromakeySimilarity?: number;
   chromakeyBlend?: number;
   alphaContractPx?: number;
   alphaBlurPx?: number;
-  animationMode?: "human" | "default";
+  animationMode?: "human" | "animal";
   qualityMode?: "ultrafast" | "fast" | "balanced" | "quality";
   drivingMultiplier?: number;
   flagStitching?: boolean;
@@ -94,6 +94,16 @@ export interface TextOption {
   duration?: number; // ms, default 0 (whole video)
   width?: number; // px or %, default auto
   height?: number; // px or %, default auto
+}
+
+export interface MascotRenderTextOverlay {
+  text: string;
+  x: string | number;
+  y: string | number;
+  fontsize: number;
+  fontcolor: string;
+  start?: number;
+  end?: number;
 }
 
 export interface EffectOption {
@@ -275,7 +285,7 @@ export interface MascotParams {
   margin_y?: number;
   scale?: number;
   audio?: File;
-  textOverlays?: TextOption[];
+  textOverlays?: MascotRenderTextOverlay[];
   brightness?: number;
   contrast?: number;
   saturation?: number;
