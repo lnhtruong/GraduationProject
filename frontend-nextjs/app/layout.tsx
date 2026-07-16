@@ -9,7 +9,7 @@ import { BRAND } from "@/lib/brand";
 import { SITE_URL } from "@/lib/env";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  ...(SITE_URL ? { metadataBase: new URL(SITE_URL) } : {}),
   applicationName: BRAND.name,
   title: {
     template: `%s | ${BRAND.name}`,
