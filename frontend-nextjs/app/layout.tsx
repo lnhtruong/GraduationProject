@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   authors: [{ name: BRAND.name }],
   creator: BRAND.name,
   publisher: BRAND.name,
+  verification: {
+    google: "LhTBEkvNYx4eg_CTnTQzU_OT2H-cbt1dT-lJAWfhCtk",
+  },
   robots: {
     index: true,
     follow: true,
