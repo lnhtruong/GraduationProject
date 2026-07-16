@@ -6,9 +6,10 @@ import { AuthProvider } from "../components/providers/AuthProvider";
 import { Toaster } from "../components/ui/sonner";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { BRAND } from "@/lib/brand";
+import { SITE_URL } from "@/lib/env";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   applicationName: BRAND.name,
   title: {
     template: `%s | ${BRAND.name}`,
