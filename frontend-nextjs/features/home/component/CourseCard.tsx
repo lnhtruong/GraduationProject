@@ -2,7 +2,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { GraduationCap, Star, Users } from "lucide-react";
+import { BookOpen, GraduationCap, Star, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CourseCardData } from "@/features/_shared/course-card.types";
@@ -38,11 +38,11 @@ export function CourseCard({ course }: CourseCardProps) {
       {/* WishlistButton nằm ngoài Link để tránh nested interactive elements */}
       <WishlistButton
         courseId={course.id}
-        className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+        className="absolute right-2.5 top-2.5 z-10 opacity-100 shadow-lg transition-all duration-200 md:opacity-0 md:group-hover:opacity-100"
       />
 
       <Link href={`/courses/${course.id}`} className="block sm:h-full">
-      <Card className="p-0 gap-0 sm:h-full cursor-pointer overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
+      <Card className="gap-0 overflow-hidden border-border/70 bg-card/95 p-0 shadow-sm transition-all duration-300 sm:h-full group-hover:-translate-y-1 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10">
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-muted">
           {course.thumbnailUrl && !imageError ? (
@@ -51,24 +51,29 @@ export function CourseCard({ course }: CourseCardProps) {
               alt={course.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/10 to-accent/5">
+            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/12 via-background to-accent/8">
               <GraduationCap className="h-10 w-10 text-primary/45" />
             </div>
           )}
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/55 to-transparent opacity-80" />
           {course.category && (
-            <Badge className="absolute left-2 top-2 bg-primary text-primary-foreground text-xs font-semibold">
+            <Badge className="absolute left-2.5 top-2.5 border border-white/25 bg-black/55 text-xs font-bold text-white backdrop-blur">
               {course.category}
             </Badge>
           )}
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-white/92 px-2.5 py-1 text-[11px] font-black text-slate-950 shadow-sm">
+            <BookOpen className="h-3.5 w-3.5" />
+            Khóa học
+          </div>
         </div>
 
-        <CardContent className="flex flex-col gap-2 p-3.5 pt-2.5">
+        <CardContent className="flex flex-col gap-2.5 p-4">
           {/* Title */}
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground/90 transition-colors group-hover:text-primary">
+          <h3 className="line-clamp-2 min-h-10 text-sm font-black leading-snug text-foreground transition-colors group-hover:text-primary">
             {course.title}
           </h3>
 
@@ -88,14 +93,14 @@ export function CourseCard({ course }: CourseCardProps) {
                 <GraduationCap className="h-3 w-3 text-muted-foreground" />
               </div>
             )}
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-xs font-semibold text-muted-foreground">
               {course.instructorName ?? "Giảng viên"}
             </span>
           </div>
 
           {/* Stats + Price */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-3">
+          <div className="mt-auto flex items-center justify-between border-t border-border/70 pt-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Rating — chỉ hiện khi có data thật */}
               {Number.isFinite(avgRating) && avgRating > 0 && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -120,11 +125,11 @@ export function CourseCard({ course }: CourseCardProps) {
 
             {/* Price */}
             {course.price !== null ? (
-              <span className="text-base font-extrabold text-foreground">
+              <span className="shrink-0 text-base font-black text-foreground">
                 {course.price.toLocaleString()}đ
               </span>
             ) : (
-              <span className="text-base font-extrabold text-primary">Miễn phí</span>
+              <span className="shrink-0 text-base font-black text-primary">Miễn phí</span>
             )}
           </div>
         </CardContent>

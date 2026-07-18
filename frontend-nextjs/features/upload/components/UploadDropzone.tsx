@@ -7,7 +7,8 @@ import {
   FileUploadDropzone,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { BookOpenCheck, FileVideo, HelpCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface UploadDropzoneProps {
@@ -27,6 +28,12 @@ const DEFAULT_ACCEPT = "video/*";
 const DEFAULT_MAX_SIZE = 2 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_SIZE_LABEL = "2GB";
 const SUPPORTED_FORMATS = ["MP4", "MOV", "AVI", "WEBM", "MKV"];
+
+const OUTPUT_PREVIEW = [
+  { label: "Ý chính", icon: BookOpenCheck },
+  { label: "Ví dụ", icon: FileVideo },
+  { label: "Quiz", icon: HelpCircle },
+];
 
 export default function UploadDropzone({
   onFileSelect,
@@ -49,7 +56,8 @@ export default function UploadDropzone({
       if (message.includes("size")) {
         errorMessage = `File quá lớn. Kích thước tối đa: ${maxSizeLabel}`;
       } else if (message.includes("type")) {
-        errorMessage = "Định dạng file chưa được hỗ trợ. Vui lòng chọn một file video.";
+        errorMessage =
+          "Định dạng file chưa được hỗ trợ. Vui lòng chọn một file video.";
       }
 
       toast.error(errorMessage, {
@@ -75,12 +83,12 @@ export default function UploadDropzone({
     variant === "compact"
       ? "rounded-xl border-border/70 bg-background/70 p-4"
       : variant === "hero"
-        ? "rounded-2xl border-primary/30 bg-primary/3 p-0 data-[dragging]:border-primary data-[dragging]:bg-primary/10"
+        ? "rounded-2xl border border-dashed border-primary/35 bg-primary/[0.03] p-0 transition data-[dragging]:border-primary data-[dragging]:bg-primary/10"
         : "rounded-2xl border-2 border-dashed border-slate-300 bg-background p-4 shadow-none transition-all duration-200 hover:border-primary/50 data-[dragging]:border-primary data-[dragging]:bg-primary/5 sm:p-6";
 
   const contentClassName =
     variant === "hero"
-      ? "flex min-h-40 flex-col items-center justify-center gap-3 px-4 py-6 text-center"
+      ? "flex min-h-[18rem] flex-col items-center justify-center gap-4 px-4 py-7 text-center sm:min-h-[20rem]"
       : variant === "compact"
         ? "flex flex-col items-center gap-3 text-center"
         : "flex min-h-[20rem] flex-col items-center justify-center gap-4 text-center";
@@ -88,12 +96,16 @@ export default function UploadDropzone({
   const iconClassName =
     variant === "compact"
       ? "grid size-10 place-items-center"
-      : "grid size-12 place-items-center sm:size-14";
+      : variant === "hero"
+        ? "grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm"
+        : "grid size-12 place-items-center sm:size-14";
 
   const iconSizeClassName =
     variant === "compact"
       ? "size-6 text-primary"
-      : "size-8 text-primary sm:size-9";
+      : variant === "hero"
+        ? "size-7"
+        : "size-8 text-primary sm:size-9";
 
   return (
     <FileUpload
@@ -127,21 +139,42 @@ export default function UploadDropzone({
             </div>
 
             <div>
-              <h3 className="mb-1 text-lg font-medium">{title}</h3>
+              <h3 className="mb-1 text-lg font-semibold">{title}</h3>
               <p className="text-sm text-muted-foreground">
                 {subtitle}{" "}
                 <FileUploadTrigger asChild>
                   <Button
-                    variant="link"
+                    variant={variant === "hero" ? "outline" : "link"}
                     size="sm"
-                    className="h-auto p-0"
+                    className={cn(
+                      variant === "hero"
+                        ? "ml-1 h-8 rounded-full px-3 font-semibold"
+                        : "h-auto p-0",
+                    )}
                     disabled={disabled}
                   >
-                    chọn file từ máy
+                    chọn video bài giảng
                   </Button>
                 </FileUploadTrigger>
               </p>
             </div>
+
+            {variant === "hero" && (
+              <div className="flex flex-wrap justify-center gap-2">
+                {OUTPUT_PREVIEW.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <span
+                      key={item.label}
+                      className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm"
+                    >
+                      <Icon className="size-3.5 text-primary" />
+                      {item.label}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>

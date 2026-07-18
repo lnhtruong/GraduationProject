@@ -403,13 +403,14 @@ export function useNewsfeedInteractMutation() {
 export function useNewsfeedRecordViewMutation() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationKey: newsfeedKeys.custom("record-view"),
-    mutationFn: newsfeedApi.recordView,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: newsfeedKeys.custom("viewed") });
-    },
-  });
+	return useMutation({
+		mutationKey: newsfeedKeys.custom("record-view"),
+		mutationFn: newsfeedApi.recordView,
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+			void queryClient.invalidateQueries({ queryKey: newsfeedKeys.custom("viewed") });
+		},
+	});
 }
 
 export function useNewsfeedAddToFeedMutation() {
