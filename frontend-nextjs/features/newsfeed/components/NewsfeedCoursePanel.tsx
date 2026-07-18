@@ -67,6 +67,10 @@ function getRoadmapList(data: unknown): Roadmap[] {
 	return [];
 }
 
+function normalizeCourseId(courseId: number | null | undefined) {
+	return typeof courseId === "number" && Number.isInteger(courseId) && courseId > 0 ? courseId : null;
+}
+
 
 function RoadmapLaneItem({
 	course,
@@ -140,7 +144,8 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	const router = useRouter();
 	const { user } = useAuthStore();
 	const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
-	const courseId = video.course.id;
+	const courseId = normalizeCourseId(video.course.id);
+	const courseDetailHref = courseId ? `/courses/${courseId}` : null;
 
 	const addToCart = useAddToCart();
 	const buyNow = useBuyNow(courseId);
@@ -160,18 +165,18 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	);
 
 	const activeRoadmap = useMemo(() => {
-		if (!roadmaps.length) {
+		if (!roadmaps.length || !courseId) {
 			return null;
 		}
 
 		const matchedRoadmap = roadmaps.find((roadmap) =>
 			(roadmap.roadmapCourses ?? []).some(
-				(course) => course.courseId === video.course.id,
+				(course) => course.courseId === courseId,
 			),
 		);
 
 		return matchedRoadmap ?? roadmaps[0] ?? null;
-	}, [roadmaps, video.course.id]);
+	}, [courseId, roadmaps]);
 
 	const roadmapCourses = useMemo(() => {
 		if (!activeRoadmap?.roadmapCourses?.length) {
@@ -182,8 +187,8 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	}, [activeRoadmap]);
 
 	const activeCourseIndex = useMemo(
-		() => roadmapCourses.findIndex((course) => course.courseId === video.course.id),
-		[roadmapCourses, video.course.id],
+		() => courseId ? roadmapCourses.findIndex((course) => course.courseId === courseId) : -1,
+		[courseId, roadmapCourses],
 	);
 
 	const currentStepLabel =
@@ -199,6 +204,11 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	};
 
 	const handleAddToCart = () => {
+		if (!courseId) {
+			toast.error("Không xác định được khóa học cho video này.");
+			return;
+		}
+
 		if (!isAuthenticated) {
 			router.push(`/signin?returnUrl=/courses/${courseId}`);
 			return;
@@ -210,6 +220,11 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	};
 
 	const handleBuyNow = () => {
+		if (!courseId) {
+			toast.error("Không xác định được khóa học cho video này.");
+			return;
+		}
+
 		if (!isAuthenticated) {
 			router.push(`/signin?returnUrl=/courses/${courseId}`);
 			return;
@@ -285,7 +300,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 								className="h-10 w-full rounded-none border border-green-500/40 bg-green-500/10 px-5 text-green-600 hover:bg-green-500/20 dark:text-green-400"
 								asChild
 							>
-								<Link href={`/courses/${courseId}/learn`}>
+								<Link href={`/courses/${courseId ?? 0}/learn`}>
 									<CheckCircle className="mr-2 h-4 w-4" />
 									Vào học ngay
 								</Link>
@@ -296,7 +311,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 								type="button"
 								className="h-10 w-full rounded-none px-5"
 								onClick={handleBuyNow}
-								disabled={buyNow.isPending}
+								disabled={!courseId || buyNow.isPending}
 							>
 								{buyNow.isPending ? "Đang đăng ký..." : "Đăng ký miễn phí"}
 							</Button>
@@ -320,7 +335,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 										type="button"
 										variant="outline"
 										onClick={handleAddToCart}
-										disabled={addToCart.isPending}
+										disabled={!courseId || addToCart.isPending}
 										className="h-10 rounded-none border-border bg-background px-5 text-foreground hover:bg-accent hover:text-accent-foreground"
 									>
 										<ShoppingCart className="mr-2 h-4 w-4" />
@@ -330,7 +345,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 								<Button
 									type="button"
 									onClick={handleBuyNow}
-									disabled={buyNow.isPending}
+									disabled={!courseId || buyNow.isPending}
 									className="h-10 rounded-none px-5"
 								>
 									{buyNow.isPending ? "Đang xử lý..." : "Mua ngay"}
@@ -340,7 +355,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 					</div>
 					<div className="flex justify-end pt-1">
 						<Link
-							href={`/courses/${video.course.id}`}
+							href={courseDetailHref ?? `/newsfeed?videoId=${video.feedId}`}
 							className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 transition-colors hover:underline hover:text-primary/80"
 						>
 							Xem chi tiết khóa học

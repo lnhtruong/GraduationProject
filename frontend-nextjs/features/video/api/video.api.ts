@@ -4,7 +4,9 @@
  */
 
 import { createResourceApi } from "@/features/_shared/crud-factories";
+import type { PaginatedResponse } from "@/features/_shared/crud-factories";
 import { apiHttpClient as apiClient } from "@/features/_shared/api-factories";
+import { normalizePaginatedResponse, withQueryPath } from "@/features/_shared/crud-factories";
 import type {
   CreateVideoRequest,
   DeleteVideoResponse,
@@ -86,6 +88,12 @@ type VideoApiResponse = {
   updated_at?: string;
 };
 
+export type VideoLibraryPageParams = {
+  type: VideoListType;
+  page: number;
+  limit: number;
+};
+
 function mapVideo(raw: VideoApiResponse): Video {
   return {
     id: raw.id ?? 0,
@@ -126,6 +134,36 @@ export const videoApi = {
   findById: videoCrudApi.getOne,
   getAllByUser: (type?: VideoListType | null) =>
     videoCrudApi.list?.(type) ?? Promise.resolve([]),
+  getAllByUserPaginated: async ({
+    type,
+    page,
+    limit,
+  }: VideoLibraryPageParams): Promise<PaginatedResponse<Video>> => {
+    const { data } = await apiClient.get<
+      | {
+          data?: VideoApiResponse[];
+          pagination?: {
+            page?: number;
+            limit?: number;
+            totalItems?: number;
+            totalPages?: number;
+          };
+        }
+      | VideoApiResponse[]
+    >(withQueryPath(`${VIDEO_ENDPOINT}/user/${type}`, { page, limit }));
+
+    if (Array.isArray(data)) {
+      return normalizePaginatedResponse(data.map(mapVideo), { page, limit });
+    }
+
+    return normalizePaginatedResponse(
+      {
+        data: (data.data ?? []).map(mapVideo),
+        pagination: data.pagination,
+      },
+      { page, limit },
+    );
+  },
   updateById: videoCrudApi.update,
   deleteById: videoCrudApi.delete,
   initBunnyUpload: async (payload: BunnyInitUploadRequest) => {

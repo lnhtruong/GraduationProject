@@ -335,7 +335,7 @@ export default function TimelinePanel({
             max={MAX_PX_PER_SEC}
             value={pxPerSec}
             onChange={(event) => setPxPerSec(Number(event.target.value))}
-            className="h-5 w-28 accent-primary sm:h-1 sm:w-20"
+            className="h-5 w-28 cursor-pointer accent-primary sm:h-1 sm:w-20"
           />
         </div>
       </div>
@@ -365,7 +365,7 @@ export default function TimelinePanel({
                   onRemoveMascot?.();
                   if (selectedId === "mascot") onSelect(null);
                 }}
-                className="rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
+                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
               >
                 <Trash2 size={10} />
               </button>
@@ -393,7 +393,7 @@ export default function TimelinePanel({
                   onRemoveVoice?.();
                   if (selectedId === "voice") onSelect(null);
                 }}
-                className="rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
+                className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500"
               >
                 <Trash2 size={10} />
               </button>
@@ -425,7 +425,7 @@ export default function TimelinePanel({
                   event.stopPropagation();
                   moveLayer(layer.id, -1);
                 }}
-                className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:p-0.5"
+                className="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:p-0.5"
               >
                 <ChevronUp size={10} />
               </button>
@@ -436,7 +436,7 @@ export default function TimelinePanel({
                   event.stopPropagation();
                   moveLayer(layer.id, 1);
                 }}
-                className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:p-0.5"
+                className="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:p-0.5"
               >
                 <ChevronDown size={10} />
               </button>
@@ -447,7 +447,7 @@ export default function TimelinePanel({
                   event.stopPropagation();
                   onRemove(layer.id);
                 }}
-                className="rounded p-1.5 text-muted-foreground hover:bg-red-500/20 hover:text-red-500 sm:p-0.5"
+                className="cursor-pointer rounded p-1.5 text-muted-foreground hover:bg-red-500/20 hover:text-red-500 sm:p-0.5"
               >
                 <Trash2 size={10} />
               </button>

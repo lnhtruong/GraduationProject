@@ -22,20 +22,16 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  FaBookOpen,
   FaGraduationCap,
   FaPlayCircle,
 } from "react-icons/fa";
 
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { CourseCard } from "@/features/home/component/CourseCard";
-import type { ContinueWatchingLesson } from "@/features/courses/learn/types";
 import type { NewsfeedItem } from "@/features/newsfeed/types";
 import {
-  useHomeContinueWatching,
   useHomePopularCourses,
   useHomeTrendingFeed,
   useHomeTrendingHashtags,
@@ -772,13 +768,6 @@ function HeroMotionScene({
   return <CalmHeroPreview items={items} />;
 }
 
-function formatPosition(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
 function lecturerName(item: NewsfeedItem) {
   const fullName = [item.lecturer?.firstName, item.lecturer?.lastName]
     .filter(Boolean)
@@ -827,7 +816,7 @@ function SectionHeader({
   );
 }
 
-function ContinueWatchingCard({ item }: { item: ContinueWatchingLesson }) {
+/* function ContinueWatchingCard({ item }: { item: ContinueWatchingLesson }) {
   return (
     <Link
       href={`/courses/${item.courseId}/learn?lessonId=${item.lessonId}`}
@@ -863,7 +852,7 @@ function ContinueWatchingCard({ item }: { item: ContinueWatchingLesson }) {
       </div>
     </Link>
   );
-}
+} */
 
 function TrendingFeedCard({
   item,
@@ -955,7 +944,7 @@ function HighlightShowcase({
   return (
     <section className="border-b border-border/70 bg-gradient-to-b from-muted/25 to-background py-10 md:py-12 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center xl:min-h-[calc(100svh-4rem)]">
       <div className="mx-auto w-full max-w-[96rem] px-4 sm:px-6 lg:px-8">
-        <div className="mb-5 grid gap-3 md:mb-6 md:grid-cols-[0.95fr_1.05fr] md:items-end">
+        <div className="mb-5 md:mb-6">
           <div>
             <div className="mb-2 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -965,14 +954,10 @@ function HighlightShowcase({
                 Luồng highlight
               </p>
             </div>
-            <h2 className="max-w-2xl text-2xl font-black tracking-tight sm:text-4xl">
+            <h2 className="max-w-5xl text-2xl font-black tracking-tight sm:text-4xl">
               Từ clip gốc sang highlight học nhanh.
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-6 text-muted-foreground md:justify-self-end">
-            Một video dài vẫn là nguồn học sâu. Highlight chỉ là bản rút gọn để người học
-            xem nhanh, lưu lại và quay về bài gốc khi cần.
-          </p>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-xl shadow-primary/10 md:p-4">
@@ -1092,14 +1077,12 @@ export default function Home() {
   const popularCoursesQuery = useHomePopularCourses();
   const trendingFeedQuery = useHomeTrendingFeed();
   const trendingHashtagsQuery = useHomeTrendingHashtags();
-  const continueWatchingQuery = useHomeContinueWatching(isAuthenticated);
 
   const newsfeedHref = `/newsfeed?videoId=${demoCases[0].videoId}`;
 
   const popularCourses = popularCoursesQuery.data ?? [];
   const trendingFeed = trendingFeedQuery.data?.items ?? [];
   const trendingHashtags = trendingHashtagsQuery.data?.items ?? [];
-  const continueWatching = continueWatchingQuery.data ?? [];
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1139,13 +1122,14 @@ export default function Home() {
                 aria-label="Tìm khóa học"
                 className="min-w-0 flex-1 bg-transparent py-2 text-sm font-semibold outline-none placeholder:text-muted-foreground sm:text-base"
               />
-              <button
+              <Button
                 type="submit"
+                size="icon"
                 aria-label="Tìm khóa học"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 sm:h-12 sm:w-12 sm:rounded-[0.95rem]"
+                className="h-10 w-10 shrink-0 rounded-xl shadow-md shadow-primary/20 sm:h-12 sm:w-12 sm:rounded-[0.95rem]"
               >
                 <Search className="h-5 w-5" />
-              </button>
+              </Button>
             </form>
 
             <div className="mt-6 flex flex-wrap gap-2.5 sm:mt-7 sm:gap-3">
@@ -1190,7 +1174,7 @@ export default function Home() {
         </div>
       </section>
 
-      {isAuthenticated && (continueWatchingQuery.isLoading || continueWatching.length > 0) ? (
+      {/*
         <section className="border-b border-border/70 py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeader
@@ -1221,7 +1205,7 @@ export default function Home() {
             )}
           </div>
         </section>
-      ) : null}
+      */}
 
       <HighlightShowcase
         uploadHref={uploadHref}

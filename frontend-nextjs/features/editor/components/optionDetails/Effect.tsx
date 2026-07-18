@@ -104,7 +104,7 @@ export default function EffectOptions({ value, onChange }: Props) {
                 type="button"
                 onClick={() => applyFilter(filter)}
                 className={cn(
-                  "flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
+                  "flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-2 text-left transition hover:border-primary/60 hover:bg-accent/30",
                   selected && "border-primary bg-primary/10 ring-2 ring-primary/15",
                 )}
               >

@@ -8,3 +8,13 @@ export interface FollowingInstructor {
   name: string;
   avatarUrl?: string;
 }
+
+export interface FollowingInstructorsPage {
+  data: FollowingInstructor[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}

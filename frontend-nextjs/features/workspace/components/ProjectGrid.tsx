@@ -65,10 +65,10 @@ export function ProjectGrid({
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[11px] text-muted-foreground">
-        {isLoadingThumbnails ? "Đang tải thumbnail..." : `Hiển thị ${items.length} dự án`}
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {isLoadingThumbnails ? (
+        <div className="text-[11px] text-muted-foreground">Đang tải thumbnail...</div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => (
           <ProjectCard
             key={item.project.edit_id}
@@ -87,7 +87,7 @@ export function ProjectGrid({
 
 function ProjectGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 16 }).map((_, index) => (
         <Card key={index} className="gap-0 overflow-hidden rounded-lg border-border/70 py-0">
           <Skeleton className="aspect-video rounded-none" />

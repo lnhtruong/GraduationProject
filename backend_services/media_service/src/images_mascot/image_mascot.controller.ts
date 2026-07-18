@@ -6,7 +6,8 @@ import {
     Delete,
     Body,
     Param,
-    Headers
+    Headers,
+    Query
 } from '@nestjs/common';
 import { CreateMascotImageDto } from 'src/dto/create-mascot-image.dto';
 import { UpdateMascotImageDto } from 'src/dto/update-mascot-image.dto';
@@ -26,12 +27,19 @@ export class MascotImageController {
     }
 
     @Get('user')
-    findAll(@Headers('x-user-id') userIdHeader?: string) {
+    findAll(
+        @Headers('x-user-id') userIdHeader?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+    ) {
         const userId =
             typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
                 ? Number(userIdHeader)
                 : undefined;
-        return this.mascotImageService.findAll(userId);
+        return this.mascotImageService.findAll(userId, {
+            page: page !== undefined ? Number(page) : undefined,
+            limit: limit !== undefined ? Number(limit) : undefined,
+        });
     }
 
     @Get(':id')

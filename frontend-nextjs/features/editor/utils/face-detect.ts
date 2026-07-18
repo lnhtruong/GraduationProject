@@ -7,21 +7,49 @@ export type MascotAnimationMode = "human" | "animal";
 
 let faceDetectorInstance: MediaPipeFaceDetector | null = null;
 
+const TENSORFLOW_LITE_INFO_MESSAGE =
+  "Created TensorFlow Lite XNNPACK delegate for CPU";
+
+function isTensorFlowLiteInfoLog(args: unknown[]) {
+  return args.some((arg) => String(arg).includes(TENSORFLOW_LITE_INFO_MESSAGE));
+}
+
+async function suppressTensorFlowLiteInfo<T>(
+  callback: () => T | Promise<T>,
+): Promise<T> {
+  const originalError = console.error;
+
+  console.error = (...args: Parameters<typeof console.error>) => {
+    if (isTensorFlowLiteInfoLog(args)) return;
+    originalError(...args);
+  };
+
+  try {
+    return await callback();
+  } finally {
+    console.error = originalError;
+  }
+}
+
 async function getFaceDetector() {
   if (faceDetectorInstance) return faceDetectorInstance;
 
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm",
+  const vision = await suppressTensorFlowLiteInfo(() =>
+    FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm",
+    ),
   );
 
-  faceDetectorInstance = await MediaPipeFaceDetector.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
-      delegate: "CPU",
-    },
-    runningMode: "IMAGE",
-  });
+  faceDetectorInstance = await suppressTensorFlowLiteInfo(() =>
+    MediaPipeFaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+        delegate: "CPU",
+      },
+      runningMode: "IMAGE",
+    }),
+  );
 
   return faceDetectorInstance;
 }
@@ -63,7 +91,9 @@ export async function inferMascotAnimationMode(
   try {
     const detector = await getFaceDetector();
     const image = await loadImage(imageUrl);
-    const result = detector.detect(drawImageToCanvas(image));
+    const result = await suppressTensorFlowLiteInfo(() =>
+      detector.detect(drawImageToCanvas(image)),
+    );
 
     return result.detections.length > 0 ? "human" : "animal";
   } catch (error) {

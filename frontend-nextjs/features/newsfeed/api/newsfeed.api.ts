@@ -84,7 +84,23 @@ function readCount(...values: Array<unknown>) {
   return 0;
 }
 
+function readPositiveNumber(...values: Array<unknown>) {
+  for (const value of values) {
+    const numberValue = Number(value);
+    if (Number.isInteger(numberValue) && numberValue > 0) {
+      return numberValue;
+    }
+  }
+
+  return null;
+}
+
 function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
+  const courseId = readPositiveNumber(
+    raw.course?.id,
+    raw.course?.course_id,
+    raw.course?.courseId,
+  );
   const courseName = raw.course?.name?.trim() || "Khóa học";
   const title = raw.title?.trim() || courseName || "Video";
   const caption = raw.caption?.trim() || null;
@@ -122,7 +138,7 @@ function mapFeedItem(raw: NewsfeedRawItem): NewsfeedItem {
     isSaved: Boolean(raw.is_saved),
     video,
     course: {
-      id: raw.course?.id ?? raw.feed_id,
+      id: courseId ?? 0,
       name: courseName,
       level: raw.course?.level?.trim() || "Không rõ",
       duration: raw.course?.duration?.trim() || "--",

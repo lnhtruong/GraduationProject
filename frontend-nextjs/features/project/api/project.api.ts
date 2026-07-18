@@ -3,7 +3,13 @@
  * CRUD endpoints for editing sessions/projects
  */
 
-import { createResourceApi } from "@/features/_shared/crud-factories";
+import {
+  createResourceApi,
+  normalizePaginatedResponse,
+  withQueryPath,
+} from "@/features/_shared/crud-factories";
+import type { PaginatedResponse } from "@/features/_shared/crud-factories";
+import { apiHttpClient as apiClient } from "@/features/_shared/api-factories";
 import type { Video } from "@/features/video";
 import type {
   CreateProjectRequest,
@@ -23,6 +29,14 @@ type ProjectApiResponse = {
   created_at?: string;
   updated_at?: string;
   video?: VideoApiResponse | null;
+};
+
+export type ProjectListParams = {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  sort?: string;
 };
 
 type VideoApiResponse = {
@@ -84,6 +98,46 @@ export const projectApi = {
   ...projectCrudApi,
   findById: projectCrudApi.getOne,
   getAllByUser: () => projectCrudApi.list?.() ?? Promise.resolve([]),
+  getAllByUserPaginated: async ({
+    page,
+    limit,
+    search,
+    status,
+    sort,
+  }: ProjectListParams): Promise<PaginatedResponse<Project>> => {
+    const { data } = await apiClient.get<
+      | {
+          data?: ProjectApiResponse[];
+          pagination?: {
+            page?: number;
+            limit?: number;
+            totalItems?: number;
+            totalPages?: number;
+          };
+        }
+      | ProjectApiResponse[]
+    >(
+      withQueryPath(`${PROJECT_ENDPOINT}/user`, {
+        page,
+        limit,
+        search,
+        status: status === "all" ? undefined : status,
+        sort,
+      }),
+    );
+
+    if (Array.isArray(data)) {
+      return normalizePaginatedResponse(data.map(mapProject), { page, limit });
+    }
+
+    return normalizePaginatedResponse(
+      {
+        data: (data.data ?? []).map(mapProject),
+        pagination: data.pagination,
+      },
+      { page, limit },
+    );
+  },
   updateById: projectCrudApi.update,
   deleteById: projectCrudApi.delete,
 };

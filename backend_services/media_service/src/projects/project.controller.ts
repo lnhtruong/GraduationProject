@@ -6,7 +6,8 @@ import {
     Delete,
     Body,
     Param,
-    Headers
+    Headers,
+    Query
 } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from 'src/dto/create-project.dto';
@@ -26,12 +27,25 @@ export class ProjectController {
     }
 
     @Get('user')
-    findAllByUser(@Headers('x-user-id') userIdHeader?: string) {
+    findAllByUser(
+        @Headers('x-user-id') userIdHeader?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('status') status?: string,
+        @Query('sort') sort?: string,
+    ) {
         const user_id =
             typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
                 ? Number(userIdHeader)
                 : undefined;
-        return this.projectService.findAllByUser(user_id);
+        return this.projectService.findAllByUser(user_id, {
+            page: page !== undefined ? Number(page) : undefined,
+            limit: limit !== undefined ? Number(limit) : undefined,
+            search,
+            status,
+            sort,
+        });
     }
 
     @Get(':id')

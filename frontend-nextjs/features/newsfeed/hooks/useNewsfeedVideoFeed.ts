@@ -14,6 +14,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm, undefined, isAuthenticated);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeFeedId, setActiveFeedId] = useState<number | null>(null);
   const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
   const appliedInitialVideoIdRef = useRef<number | null>(null);
   // Throttle điều hướng: chặn thao tác kế tiếp cho tới khi hết cooldown.
@@ -68,6 +69,7 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setActiveIndex(0);
+      setActiveFeedId(null);
       setScrollToIndex(null);
       appliedInitialVideoIdRef.current = null;
     }, 0);
@@ -94,18 +96,61 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
 
     const timer = window.setTimeout(() => {
       setActiveIndex(targetIndex);
+      setActiveFeedId(videos[targetIndex]?.feedId ?? null);
       setScrollToIndex(targetIndex);
       appliedInitialVideoIdRef.current = initialVideoId;
     }, 0);
     return () => window.clearTimeout(timer);
   }, [initialVideoId, videos]);
 
-  const safeIndex = useMemo(() => {
+  const clampedIndex = useMemo(() => {
     if (!totalVideos) {
       return 0;
     }
     return Math.max(0, Math.min(activeIndex, totalVideos - 1));
   }, [activeIndex, totalVideos]);
+
+  const safeIndex = useMemo(() => {
+    if (!totalVideos) {
+      return 0;
+    }
+
+    if (activeFeedId != null) {
+      const preservedIndex = videos.findIndex((item) => item.feedId === activeFeedId);
+      if (preservedIndex >= 0) {
+        return preservedIndex;
+      }
+    }
+
+    return clampedIndex;
+  }, [activeFeedId, clampedIndex, totalVideos, videos]);
+
+  useEffect(() => {
+    if (!totalVideos) {
+      if (activeFeedId !== null) {
+        const timer = window.setTimeout(() => setActiveFeedId(null), 0);
+        return () => window.clearTimeout(timer);
+      }
+      return;
+    }
+
+    const nextFeedId = videos[safeIndex]?.feedId ?? null;
+    if (activeFeedId !== nextFeedId) {
+      const timer = window.setTimeout(() => setActiveFeedId(nextFeedId), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeFeedId, safeIndex, totalVideos, videos]);
+
+  useEffect(() => {
+    if (activeIndex === safeIndex) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setActiveIndex(safeIndex);
+      setScrollToIndex(safeIndex);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, safeIndex]);
 
   useEffect(() => {
     if (!enabled || totalVideos <= 0) {
@@ -126,12 +171,12 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   }, [enabled, fetchNextPage, hasMore, isFetchingNextPage, safeIndex, totalVideos]);
 
   useEffect(() => {
-    if (activeIndex <= safeIndex) {
+    if (activeIndex <= clampedIndex) {
       return;
     }
-    const timer = window.setTimeout(() => setActiveIndex(safeIndex), 0);
+    const timer = window.setTimeout(() => setActiveIndex(clampedIndex), 0);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, safeIndex]);
+  }, [activeIndex, clampedIndex]);
 
   const activeVideo = useMemo(() => {
     if (!totalVideos) {
@@ -167,23 +212,21 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
     if (!totalVideos) {
       return;
     }
-    setActiveIndex((current) => {
-      const nextIndex = Math.min(current + 1, totalVideos - 1);
-      setScrollToIndex(nextIndex);
-      return nextIndex;
-    });
-  }, [totalVideos]);
+    const nextIndex = Math.min(safeIndex + 1, totalVideos - 1);
+    setActiveFeedId(videos[nextIndex]?.feedId ?? null);
+    setScrollToIndex(nextIndex);
+    setActiveIndex(nextIndex);
+  }, [safeIndex, totalVideos, videos]);
 
   const goPrevImmediate = useCallback(() => {
     if (!totalVideos) {
       return;
     }
-    setActiveIndex((current) => {
-      const nextIndex = Math.max(current - 1, 0);
-      setScrollToIndex(nextIndex);
-      return nextIndex;
-    });
-  }, [totalVideos]);
+    const nextIndex = Math.max(safeIndex - 1, 0);
+    setActiveFeedId(videos[nextIndex]?.feedId ?? null);
+    setScrollToIndex(nextIndex);
+    setActiveIndex(nextIndex);
+  }, [safeIndex, totalVideos, videos]);
 
   // Bản có throttle (cooldown) dành cho 2 nút mũi tên và phím: chống bấm dồn.
   const goNext = useCallback(() => {
@@ -206,10 +249,11 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
         return;
       }
       const nextIndex = Math.max(0, Math.min(index, totalVideos - 1));
+      setActiveFeedId(videos[nextIndex]?.feedId ?? null);
       setScrollToIndex(nextIndex);
       setActiveIndex(nextIndex);
     },
-    [totalVideos],
+    [totalVideos, videos],
   );
 
   return {

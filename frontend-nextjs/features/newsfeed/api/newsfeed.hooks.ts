@@ -296,6 +296,20 @@ function setFeedCommentCount(
   };
 }
 
+function incrementFeedViewCount(item: NewsfeedItem, feedId: number): NewsfeedItem {
+  if (item.feedId !== feedId) {
+    return item;
+  }
+
+  return {
+    ...item,
+    stats: {
+      ...item.stats,
+      views: item.stats.views + 1,
+    },
+  };
+}
+
 function updateFeedItemInQueries(
   queryClient: QueryClient,
   feedId: number,
@@ -406,8 +420,10 @@ export function useNewsfeedRecordViewMutation() {
 	return useMutation({
 		mutationKey: newsfeedKeys.custom("record-view"),
 		mutationFn: newsfeedApi.recordView,
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: newsfeedKeys.root });
+		onSuccess: (_data, variables) => {
+			updateFeedItemInQueries(queryClient, variables.feedId, (item) =>
+				incrementFeedViewCount(item, variables.feedId),
+			);
 			void queryClient.invalidateQueries({ queryKey: newsfeedKeys.custom("viewed") });
 		},
 	});

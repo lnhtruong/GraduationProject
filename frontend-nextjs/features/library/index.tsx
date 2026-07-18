@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
 	AlertDialog,
@@ -14,6 +14,14 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card } from "@/components/ui/card";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Film, ImageIcon, Users, VideoIcon } from "lucide-react";
 import { FollowingInstructorsGrid } from "./components/FollowingInstructorsGrid";
@@ -30,25 +38,36 @@ import {
 } from "./types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
+const LIBRARY_PAGE_SIZE = 12;
+
 export default function LibraryFeature() {
+	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const library = useLibrary();
 	const targetVideoId = Number(searchParams.get("video_id") ?? searchParams.get("videoId"));
 	const targetType = searchParams.get("type");
-	const [manualActiveTab, setManualActiveTab] =
-		useState<LibraryTabValue | null>(null);
+	const targetTab = toLibraryTabValue(searchParams.get("tab"));
+	const page = parsePositiveInteger(searchParams.get("page"), 1);
+	const activeTab: LibraryTabValue =
+		targetTab ??
+		(targetType === "mascot"
+			? "mascot"
+			: targetType === "image"
+				? "image"
+				: "video");
+	const library = useLibrary({ activeTab, page, limit: LIBRARY_PAGE_SIZE });
 	const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
 	const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 	const [dismissedTargetVideoId, setDismissedTargetVideoId] = useState<number | null>(null);
 
 	const tabStats = useMemo(
 		() => ({
-			video: library.highlightVideos.length,
-			mascot: library.mascotVideos.length,
-			image: library.images.length,
+			video: library.paginationByTab.video.totalItems,
+			mascot: library.paginationByTab.mascot.totalItems,
+			image: library.paginationByTab.image.totalItems,
+			following: library.paginationByTab.following.totalItems,
 		}),
-		[library.highlightVideos.length, library.images.length, library.mascotVideos.length],
+		[library.paginationByTab],
 	);
 
 	const queryPreviewItem = useMemo<PreviewItem | null>(() => {
@@ -81,16 +100,18 @@ export default function LibraryFeature() {
 		targetVideoId,
 	]);
 	const effectivePreviewItem = previewItem ?? queryPreviewItem;
-	const activeTab: LibraryTabValue =
-		manualActiveTab ??
-		(targetType === "mascot"
-			? "mascot"
-			: targetType === "video" || targetType === "highlight"
-				? "video"
-				: queryPreviewItem?.kind === "video" &&
-						queryPreviewItem.item.type === "mascot"
-					? "mascot"
-					: "video");
+	const activePagination = library.paginationByTab[activeTab];
+
+	useEffect(() => {
+		if (activePagination.totalPages <= 0 || page <= activePagination.totalPages) return;
+		replaceLibraryParams({
+			pathname,
+			router,
+			searchParams,
+			tab: activeTab,
+			page: activePagination.totalPages,
+		});
+	}, [activePagination.totalPages, activeTab, page, pathname, router, searchParams]);
 
 	const handleDelete = async () => {
 		if (!deleteDialog) return;
@@ -118,7 +139,6 @@ export default function LibraryFeature() {
 	return (
 		<div className="min-h-screen bg-background">
 			<LibraryHeader
-				totalCount={tabStats.video + tabStats.mascot + tabStats.image}
 				onRefresh={() => {
 					void library.refetchAll();
 				}}
@@ -127,14 +147,22 @@ export default function LibraryFeature() {
 				}}
 			/>
 
-			<section className="mx-auto flex h-[calc(100vh-11rem)] min-h-[520px] w-full max-w-7xl flex-col gap-3 px-4 py-4 lg:px-8">
-				<Card className="min-h-0 flex-1 overflow-hidden rounded-lg border-border/70 p-3 shadow-sm">
+			<section className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 lg:px-8">
+				<Card className="rounded-lg border-border/70 p-3 shadow-sm">
 					<Tabs
 						value={activeTab}
 						onValueChange={(value) => {
-							setManualActiveTab(value as LibraryTabValue);
+							const nextTab = value as LibraryTabValue;
+							replaceLibraryParams({
+								pathname,
+								router,
+								searchParams,
+								tab: nextTab,
+								page: 1,
+								clearPreviewParams: true,
+							});
 						}}
-						className="h-full"
+						className="space-y-3"
 					>
 						<TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
 							<TabsTrigger value="video" className="min-w-0 gap-1.5 px-2">
@@ -155,10 +183,11 @@ export default function LibraryFeature() {
 							<TabsTrigger value="following" className="min-w-0 gap-1.5 px-2">
 								<Users className="h-4 w-4" />
 								<span className="truncate">{TAB_LABEL.following}</span>
+								<span className="text-xs text-muted-foreground tabular-nums">{tabStats.following}</span>
 							</TabsTrigger>
 						</TabsList>
 
-						<TabsContent value="video" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
+						<TabsContent value="video" className="mt-0">
 							<VideoGrid
 								items={library.highlightVideos}
 								tabLabel="Video"
@@ -176,7 +205,7 @@ export default function LibraryFeature() {
 							/>
 						</TabsContent>
 
-						<TabsContent value="mascot" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
+						<TabsContent value="mascot" className="mt-0">
 							<VideoGrid
 								items={library.mascotVideos}
 								tabLabel="Mascot"
@@ -194,7 +223,7 @@ export default function LibraryFeature() {
 							/>
 						</TabsContent>
 
-						<TabsContent value="image" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
+						<TabsContent value="image" className="mt-0">
 							<ImageGrid
 								items={library.images}
 								isLoading={library.isLoading}
@@ -211,9 +240,32 @@ export default function LibraryFeature() {
 							/>
 						</TabsContent>
 
-						<TabsContent value="following" className="mt-3 h-[calc(100%-3rem)] overflow-auto pr-1">
-							<FollowingInstructorsGrid />
+						<TabsContent value="following" className="mt-0">
+							<FollowingInstructorsGrid
+								instructors={library.followingInstructors}
+								isLoading={library.isLoading}
+								error={activeTab === "following" ? library.error : null}
+							/>
 						</TabsContent>
+
+						<LibraryPagination
+							page={activePagination.page}
+							totalPages={activePagination.totalPages}
+							totalItems={activePagination.totalItems}
+							limit={activePagination.limit}
+							hrefForPage={(nextPage) =>
+								getLibraryPageHref(pathname, searchParams, activeTab, nextPage)
+							}
+							onPageChange={(nextPage) => {
+								replaceLibraryParams({
+									pathname,
+									router,
+									searchParams,
+									tab: activeTab,
+									page: nextPage,
+								});
+							}}
+						/>
 					</Tabs>
 				</Card>
 
@@ -266,6 +318,148 @@ function getVideoLibraryLabel(item: { name?: string | null; type?: string }): st
 	if (cleaned) return cleaned;
 	return item.type === "mascot" ? "Video mascot" : "Video highlight";
 }
+
+function toLibraryTabValue(value: string | null): LibraryTabValue | null {
+	if (value === "video" || value === "mascot" || value === "image" || value === "following") {
+		return value;
+	}
+	return null;
+}
+
+function parsePositiveInteger(value: string | null, fallback: number): number {
+	const parsed = Number(value);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getLibraryPageHref(
+	pathname: string,
+	searchParams: URLSearchParams | ReadonlyURLSearchParamsLike,
+	tab: LibraryTabValue,
+	page: number,
+) {
+	const nextParams = new URLSearchParams(searchParams.toString());
+	nextParams.set("tab", tab);
+	if (page > 1) {
+		nextParams.set("page", String(page));
+	} else {
+		nextParams.delete("page");
+	}
+	const query = nextParams.toString();
+	return query ? `${pathname}?${query}` : pathname;
+}
+
+function replaceLibraryParams({
+	pathname,
+	router,
+	searchParams,
+	tab,
+	page,
+	clearPreviewParams = false,
+}: {
+	pathname: string;
+	router: { replace: (href: string, options?: { scroll?: boolean }) => void };
+	searchParams: URLSearchParams | ReadonlyURLSearchParamsLike;
+	tab: LibraryTabValue;
+	page: number;
+	clearPreviewParams?: boolean;
+}) {
+	const nextParams = new URLSearchParams(searchParams.toString());
+	nextParams.set("tab", tab);
+	if (page > 1) {
+		nextParams.set("page", String(page));
+	} else {
+		nextParams.delete("page");
+	}
+	if (clearPreviewParams) {
+		nextParams.delete("type");
+		nextParams.delete("video_id");
+		nextParams.delete("videoId");
+	}
+	const query = nextParams.toString();
+	router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+}
+
+function LibraryPagination({
+	page,
+	totalPages,
+	totalItems,
+	limit,
+	hrefForPage,
+	onPageChange,
+}: {
+	page: number;
+	totalPages: number;
+	totalItems: number;
+	limit: number;
+	hrefForPage: (page: number) => string;
+	onPageChange: (page: number) => void;
+}) {
+	if (totalPages <= 1) return null;
+
+	const pageNumbers = getVisiblePages(page, totalPages);
+	const pageStart = totalItems === 0 ? 0 : (page - 1) * limit + 1;
+	const pageEnd = Math.min(totalItems, page * limit);
+	const prevPage = Math.max(1, page - 1);
+	const nextPage = Math.min(totalPages, page + 1);
+
+	return (
+		<div className="flex flex-col items-center gap-2 border-t border-border/70 pt-3 sm:flex-row sm:justify-between">
+			<p className="text-xs text-muted-foreground">
+				Hiển thị {pageStart}-{pageEnd} / {totalItems}
+			</p>
+			<Pagination className="mx-0 w-auto">
+				<PaginationContent>
+					<PaginationItem>
+						<PaginationPrevious
+							href={hrefForPage(prevPage)}
+							aria-disabled={page <= 1}
+							className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+							onClick={(event) => {
+								event.preventDefault();
+								if (page > 1) onPageChange(prevPage);
+							}}
+						/>
+					</PaginationItem>
+					{pageNumbers.map((pageNumber) => (
+						<PaginationItem key={pageNumber}>
+							<PaginationLink
+								href={hrefForPage(pageNumber)}
+								isActive={pageNumber === page}
+								onClick={(event) => {
+									event.preventDefault();
+									onPageChange(pageNumber);
+								}}
+							>
+								{pageNumber}
+							</PaginationLink>
+						</PaginationItem>
+					))}
+					<PaginationItem>
+						<PaginationNext
+							href={hrefForPage(nextPage)}
+							aria-disabled={page >= totalPages}
+							className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
+							onClick={(event) => {
+								event.preventDefault();
+								if (page < totalPages) onPageChange(nextPage);
+							}}
+						/>
+					</PaginationItem>
+				</PaginationContent>
+			</Pagination>
+		</div>
+	);
+}
+
+function getVisiblePages(page: number, totalPages: number): number[] {
+	const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+	const end = Math.min(totalPages, start + 4);
+	return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+type ReadonlyURLSearchParamsLike = {
+	toString: () => string;
+};
 
 function getImageLibraryLabel(item: { created_at?: string }): string {
 	const formattedDate = item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "";

@@ -3,13 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Library } from "lucide-react";
 
 interface LibraryHeaderProps {
-  totalCount: number;
   onOpenEditor: () => void;
   onRefresh: () => void;
 }
 
 export function LibraryHeader({
-  totalCount,
   onOpenEditor,
   onRefresh,
 }: LibraryHeaderProps) {
@@ -17,7 +15,6 @@ export function LibraryHeader({
     <AppPageHeader
       eyebrow="Kho media cá nhân"
       title="Library của bạn"
-      description={`Tổng cộng ${totalCount} tệp. Xem lại video highlight, video mascot và hình ảnh đã tạo.`}
       icon={<Library className="h-5 w-5" />}
       actions={
         <>

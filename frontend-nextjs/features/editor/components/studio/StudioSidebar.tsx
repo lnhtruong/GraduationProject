@@ -77,6 +77,7 @@ export function StudioSidebar({
   const [search, setSearch] = useState("");
   const [visibleVideoCount, setVisibleVideoCount] =
     useState(VIDEO_PAGE_SIZE);
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const loadMoreVideosRef = useRef<HTMLDivElement | null>(null);
   const [draftText, setDraftText] = useState<TextOption>(() => ({
     id: crypto.randomUUID(),
@@ -145,6 +146,21 @@ export function StudioSidebar({
     hasMoreHighlightVideos,
     highlightVideosLoading,
   ]);
+
+  useEffect(() => {
+    if (collapsed) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (sidebarRef.current?.contains(target)) return;
+
+      onToggleCollapsed();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [collapsed, onToggleCollapsed]);
 
   const handleOpenVideoUpload = () => {
     if (!collapsed) {
@@ -241,6 +257,7 @@ export function StudioSidebar({
 
   return (
     <aside
+      ref={sidebarRef}
       className={`fixed z-50 bg-muted/55 text-foreground shadow-2xl motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] lg:left-0 lg:top-0 lg:h-screen lg:shadow-sm ${
         collapsed
           ? "inset-x-0 bottom-0 h-16 w-full lg:inset-auto lg:w-[4.5rem]"
@@ -311,7 +328,7 @@ export function StudioSidebar({
               >
                 <TabsTrigger
                   value="files"
-                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
+                  className="mx-auto flex h-12 w-full flex-none cursor-pointer flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <FolderOpen size={16} className="lg:mb-1" />
                   <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
@@ -320,7 +337,7 @@ export function StudioSidebar({
                 </TabsTrigger>
                 <TabsTrigger
                   value="effect"
-                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
+                  className="mx-auto flex h-12 w-full flex-none cursor-pointer flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <SlidersHorizontal size={16} className="lg:mb-1" />
                   <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
@@ -329,7 +346,7 @@ export function StudioSidebar({
                 </TabsTrigger>
                 <TabsTrigger
                   value="mascot"
-                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
+                  className="mx-auto flex h-12 w-full flex-none cursor-pointer flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mb-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Sticker size={16} className="lg:mb-1" />
                   <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
@@ -338,7 +355,7 @@ export function StudioSidebar({
                 </TabsTrigger>
                 <TabsTrigger
                   value="text"
-                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:h-auto lg:rounded-lg lg:py-2"
+                  className="mx-auto flex h-12 w-full flex-none cursor-pointer flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Type size={16} className="lg:mb-1" />
                   <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
@@ -347,7 +364,7 @@ export function StudioSidebar({
                 </TabsTrigger>
                 <TabsTrigger
                   value="voice"
-                  className="mx-auto flex h-12 w-full flex-none flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mt-2 lg:h-auto lg:rounded-lg lg:py-2"
+                  className="mx-auto flex h-12 w-full flex-none cursor-pointer flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[11px] whitespace-nowrap transition data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground border-0 lg:mt-2 lg:h-auto lg:rounded-lg lg:py-2"
                 >
                   <Mic size={16} className="lg:mb-1" />
                   <span className="mt-0.5 block text-[10px] leading-none lg:text-[11px]">
@@ -465,7 +482,7 @@ export function StudioSidebar({
                               );
                               e.dataTransfer.effectAllowed = "copy";
                             }}
-                            className={`w-full rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                            className={`w-full cursor-pointer rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
                               isCurrentVideo
                                 ? "border-primary bg-primary/[0.02] shadow-xs ring-1 ring-primary/20"
                                 : "border-border bg-background hover:border-primary/70 hover:bg-accent/25"
@@ -667,7 +684,7 @@ export function StudioSidebar({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="absolute -right-3 top-1/2 hidden h-14 w-3 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-border bg-background/95 text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground lg:flex"
+            className="absolute -right-3 top-1/2 hidden h-14 w-3 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-md border border-l-0 border-border bg-background/95 text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground lg:flex"
             title={collapsed ? "Mở rộng bảng công cụ" : "Thu gọn bảng công cụ"}
           >
             {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}

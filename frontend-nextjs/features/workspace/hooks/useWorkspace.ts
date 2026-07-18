@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useProject } from "@/features/project";
+import {
+  useDeleteProject,
+  useProjectsByUserPaginated,
+  useUpdateProject,
+} from "@/features/project/api/project.hooks";
 import { toast } from "sonner";
 import type { Project } from "@/features/project";
 import type {
@@ -10,25 +14,36 @@ import type {
   WorkspaceStatusFilter,
 } from "../types";
 
-export function useWorkspace() {
-  const {
-    projects,
-    isLoading: isProjectLoading,
-    error,
-    refetchProjects,
-    updateProject,
-    deleteProject,
-  } = useProject();
+interface UseWorkspaceParams {
+  page: number;
+  limit: number;
+  searchValue: string;
+  statusFilter: WorkspaceStatusFilter;
+  sortBy: WorkspaceSortBy;
+}
 
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<WorkspaceStatusFilter>("all");
-  const [sortBy, setSortBy] = useState<WorkspaceSortBy>("updated_desc");
+export function useWorkspace({
+  page,
+  limit,
+  searchValue,
+  statusFilter,
+  sortBy,
+}: UseWorkspaceParams) {
+  const projectsQuery = useProjectsByUserPaginated({
+    page,
+    limit,
+    search: searchValue.trim() || undefined,
+    status: statusFilter,
+    sort: sortBy,
+  });
+  const updateProjectMutation = useUpdateProject();
+  const deleteProjectMutation = useDeleteProject();
+
   const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null);
 
   const rawItems = useMemo<WorkspaceProjectItem[]>(() => {
-    return projects.map((project) => {
+    return (projectsQuery.data?.data ?? []).map((project) => {
       const videoData = project.video ?? null;
       return {
         project,
@@ -36,50 +51,15 @@ export function useWorkspace() {
         thumbnail: videoData?.thumbnail ?? null,
       };
     });
-  }, [projects]);
-
-  const filteredItems = useMemo(() => {
-    const keyword = searchValue.trim().toLowerCase();
-
-    const byFilter = rawItems.filter(({ project }) => {
-      const matchStatus =
-        statusFilter === "all" || project.status === statusFilter;
-
-      if (!matchStatus) {
-        return false;
-      }
-
-      if (!keyword) {
-        return true;
-      }
-
-      return (
-        project.session_name.toLowerCase().includes(keyword) ||
-        String(project.edit_id).includes(keyword)
-      );
-    });
-
-    const sorted = [...byFilter].sort((a, b) => {
-      const aTime = toTime(a.project.updated_at ?? a.project.created_at);
-      const bTime = toTime(b.project.updated_at ?? b.project.created_at);
-
-      if (sortBy === "updated_desc") return bTime - aTime;
-      if (sortBy === "updated_asc") return aTime - bTime;
-      if (sortBy === "name_asc") {
-        return a.project.session_name.localeCompare(b.project.session_name, "vi");
-      }
-      return b.project.session_name.localeCompare(a.project.session_name, "vi");
-    });
-
-    return sorted;
-  }, [rawItems, searchValue, sortBy, statusFilter]);
+  }, [projectsQuery.data]);
 
   const isLoadingThumbnails = false;
 
   const removeProject = async (project: Project) => {
     try {
       setDeletingProjectId(project.edit_id);
-      await deleteProject(project.edit_id);
+      await deleteProjectMutation.mutateAsync(project.edit_id);
+      await projectsQuery.refetch();
     } finally {
       setDeletingProjectId(null);
     }
@@ -99,7 +79,11 @@ export function useWorkspace() {
 
     try {
       setRenamingProjectId(project.edit_id);
-      await updateProject(project.edit_id, { session_name: trimmedName });
+      await updateProjectMutation.mutateAsync({
+        id: project.edit_id,
+        data: { session_name: trimmedName },
+      });
+      await projectsQuery.refetch();
       toast.success("Đã cập nhật tên dự án");
       return true;
     } catch (renameError) {
@@ -116,27 +100,24 @@ export function useWorkspace() {
   };
 
   return {
-    projects: filteredItems,
-    projectCount: projects.length,
-    isProjectLoading,
+    projects: rawItems,
+    pagination: projectsQuery.data?.pagination ?? {
+      page,
+      limit,
+      totalItems: 0,
+      totalPages: 0,
+    },
+    projectCount: projectsQuery.data?.pagination.totalItems ?? 0,
+    isProjectLoading:
+      projectsQuery.isLoading ||
+      updateProjectMutation.isPending ||
+      deleteProjectMutation.isPending,
     isLoadingThumbnails,
     deletingProjectId,
     renamingProjectId,
-    error,
-    searchValue,
-    statusFilter,
-    sortBy,
-    setSearchValue,
-    setStatusFilter,
-    setSortBy,
-    refetchProjects,
+    error: projectsQuery.error || updateProjectMutation.error || deleteProjectMutation.error,
+    refetchProjects: projectsQuery.refetch,
     removeProject,
     renameProject,
   } as const;
-}
-
-function toTime(value?: string) {
-  if (!value) return 0;
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
 }

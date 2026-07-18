@@ -27,7 +27,7 @@ export default function VoiceOptions({ value, onChange }: Props) {
           type="button"
           onClick={selectNone}
           className={cn(
-            "w-full min-w-0 rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
+            "w-full min-w-0 cursor-pointer rounded-xl border bg-background p-3 text-left transition hover:border-primary/60",
             value.type === "none" && "border-primary bg-primary/10",
           )}
         >

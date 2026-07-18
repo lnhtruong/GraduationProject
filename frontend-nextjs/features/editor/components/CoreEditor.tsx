@@ -165,7 +165,7 @@ export default function CoreEditor({
         </div>
       )}
 
-      <div className="grid min-h-0 w-full flex-1 grid-rows-[minmax(360px,1fr)_minmax(150px,auto)] gap-2 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sm:gap-3 sm:px-4 sm:py-4 lg:grid-rows-[minmax(0,1fr)_220px] lg:overflow-hidden lg:px-6">
+      <div className="grid min-h-0 w-full flex-1 grid-rows-[auto_minmax(150px,auto)] gap-2 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sm:grid-rows-[minmax(320px,auto)_minmax(150px,auto)] sm:gap-3 sm:px-4 sm:py-4 lg:grid-rows-[minmax(0,1fr)_220px] lg:overflow-hidden lg:px-6">
         {!needsVideoSelection && disableUpload ? (
           <EditorMediaDropzone
             triggerOnly
