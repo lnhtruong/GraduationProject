@@ -262,7 +262,7 @@ export function useStudioSession() {
     });
 
   useEffect(() => {
-    if (!selectedVideoId || activeEditId || !user?.id) {
+    if (!selectedVideoId || activeEditId || !user?.id || isBootstrappingProject) {
       return;
     }
 
@@ -327,6 +327,7 @@ export function useStudioSession() {
     router,
     searchParams,
     selectedVideoId,
+    isBootstrappingProject,
     user?.id,
   ]);
 
@@ -352,7 +353,8 @@ export function useStudioSession() {
     isUpdating ||
     isCreatingLayer ||
     isUpdatingLayer ||
-    isDeletingLayer;
+    isDeletingLayer ||
+    isBootstrappingProject;
 
   useEffect(() => {
     const params = new URLSearchParams(currentQuery);
@@ -420,7 +422,7 @@ export function useStudioSession() {
     url?: string;
     videoId?: number;
   }) => {
-    if (!user?.id || isCreating || isUpdating) return;
+    if (!user?.id || isCreating || isUpdating || isBootstrappingProject) return;
 
     const findVideoIdByUrl = (url: string) => {
       const matched = highlightVideos.find((video) => video.url === url);
@@ -470,13 +472,30 @@ export function useStudioSession() {
 
     setIsBootstrappingProject(true);
     try {
+      bootstrappedSourceRef.current = resolvedVideoId ?? null;
       const now = new Date();
       const name = `Dự án ${now.toLocaleDateString("vi-VN")}`;
       const createdProject = await createProject({
         session_name: name,
         video_id: resolvedVideoId,
       });
-      if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
+      if (createdProject.edit_id > 0) {
+        setEditId(createdProject.edit_id);
+        setSessionName(name);
+        const params = new URLSearchParams(currentQuery);
+        params.delete("src");
+        params.set("edit_id", String(createdProject.edit_id));
+        if (resolvedVideoId) {
+          params.set("video_id", String(resolvedVideoId));
+        }
+        params.delete("videoId");
+        params.delete("editId");
+        params.delete("editid");
+
+        const nextQuery = params.toString();
+        const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+        router.replace(nextUrl, { scroll: false });
+      }
     } finally {
       setIsBootstrappingProject(false);
     }
@@ -496,14 +515,19 @@ export function useStudioSession() {
       return;
     }
 
-    const params = new URLSearchParams(currentQuery);
-    params.delete("src");
-    params.set("video_id", String(videoId));
-    params.delete("videoId");
+    const syncSelectedVideoToUrl = (projectId: number) => {
+      const params = new URLSearchParams(currentQuery);
+      params.delete("src");
+      params.set("edit_id", String(projectId));
+      params.set("video_id", String(videoId));
+      params.delete("videoId");
+      params.delete("editId");
+      params.delete("editid");
 
-    const nextQuery = params.toString();
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    router.replace(nextUrl, { scroll: false });
+      const nextQuery = params.toString();
+      const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+      router.replace(nextUrl, { scroll: false });
+    };
 
     if (activeEditId) {
       setIsBootstrappingProject(true);
@@ -515,6 +539,7 @@ export function useStudioSession() {
             status: "draft",
           },
         });
+        syncSelectedVideoToUrl(activeEditId);
       } catch (error) {
         console.error("Update project video failed:", error);
         toast.error("Cập nhật video cho dự án thất bại");
@@ -527,6 +552,7 @@ export function useStudioSession() {
 
     setIsBootstrappingProject(true);
     try {
+      bootstrappedSourceRef.current = videoId;
       const now = new Date();
       const name = `Dự án ${now.toLocaleDateString("vi-VN")}`;
       const createdProject = await createProject({
@@ -534,7 +560,11 @@ export function useStudioSession() {
         video_id: videoId,
       });
 
-      if (createdProject.edit_id > 0) setEditId(createdProject.edit_id);
+      if (createdProject.edit_id > 0) {
+        setEditId(createdProject.edit_id);
+        setSessionName(name);
+        syncSelectedVideoToUrl(createdProject.edit_id);
+      }
     } catch (error) {
       console.error("Create project from highlight failed:", error);
       toast.error("Tạo dự án thất bại");

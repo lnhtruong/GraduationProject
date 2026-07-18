@@ -4,6 +4,7 @@
  */
 
 import { createCrudHooks } from "@/features/_shared/crud-factories";
+import { useQuery } from "@tanstack/react-query";
 import { imageApi } from "./image.api";
 import type { CreateImageRequest, Image, UpdateImageRequest } from "../types";
 
@@ -23,3 +24,16 @@ export const {
   useUpdate: useUpdateImage,
   useDelete: useDeleteImage,
 } = imageHooks;
+
+export function useImagesByUserPaginated(
+  page: number,
+  limit: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: imageKeys.custom("library-page", { page, limit }),
+    queryFn: () => imageApi.getAllByUserPaginated({ page, limit }),
+    enabled,
+    staleTime: 2 * 60_000,
+  });
+}

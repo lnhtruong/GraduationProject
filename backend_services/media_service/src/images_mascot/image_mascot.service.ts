@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import type { FindOptions } from 'sequelize';
 // import { MascotImage } from './mascot-image.model';
 import { CreateMascotImageDto } from 'src/dto/create-mascot-image.dto';
 import { UpdateMascotImageDto } from 'src/dto/update-mascot-image.dto';
@@ -33,15 +34,47 @@ export class MascotImageService {
         return this.mascotImageModel.create(payload as any);
     }
 
-    async findAll(user_id: number | undefined) {
+    async findAll(
+        user_id: number | undefined,
+        pagination: { page?: number; limit?: number } = {},
+    ) {
         if (user_id === undefined) {
             throw new BadRequestException('Missing user_id');
         }
 
-        return this.mascotImageModel.findAll({
+        const baseQuery: FindOptions = {
             where: { user_id },
             order: [['createdAt', 'DESC']],
+        };
+
+        const shouldPaginate = pagination.page !== undefined || pagination.limit !== undefined;
+        if (!shouldPaginate) {
+            return this.mascotImageModel.findAll(baseQuery);
+        }
+
+        const page = Number.isInteger(pagination.page) && (pagination.page as number) > 0
+            ? pagination.page as number
+            : 1;
+        const limit = Number.isInteger(pagination.limit) && (pagination.limit as number) > 0
+            ? Math.min(pagination.limit as number, 100)
+            : 20;
+        const offset = (page - 1) * limit;
+
+        const { rows, count } = await this.mascotImageModel.findAndCountAll({
+            ...baseQuery,
+            limit,
+            offset,
         });
+
+        return {
+            data: rows,
+            pagination: {
+                page,
+                limit,
+                totalItems: count,
+                totalPages: count > 0 ? Math.ceil(count / limit) : 0,
+            },
+        };
     }
 
     async findOne(id: number) {

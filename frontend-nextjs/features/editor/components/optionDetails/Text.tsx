@@ -135,7 +135,7 @@ export default function TextOptions({
                   update({ color: color.value });
                 }}
                 className={cn(
-                  "h-8 rounded-full border-2 transition",
+                  "h-8 cursor-pointer rounded-full border-2 transition",
                   value.color === color.value
                     ? "border-primary ring-2 ring-primary/25"
                     : "border-border hover:border-primary/50",

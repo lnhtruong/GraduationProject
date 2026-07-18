@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
 import { AppLoadingState } from "@/features/_shared/components/AppLoadingState";
-import { useFollowingInstructors, useUnfollowMutation } from "@/features/instructor/follow/follow.hooks";
+import { useUnfollowMutation } from "@/features/instructor/follow/follow.hooks";
 import type { FollowingInstructor } from "@/features/instructor/follow/types";
 
 function getInitials(name: string): string {
@@ -21,43 +21,51 @@ function InstructorCard({ instructor }: { instructor: FollowingInstructor }) {
   const unfollow = useUnfollowMutation(instructor.id);
 
   return (
-    <Card className="rounded-lg border-border/60 py-0 text-center transition-colors hover:border-primary/40 hover:bg-accent">
-      <CardContent className="flex flex-col items-center gap-2 p-4">
-      <Avatar className="h-14 w-14 border-2 border-primary/20">
-        {instructor.avatarUrl && (
-          <AvatarImage src={instructor.avatarUrl} alt={instructor.name} />
-        )}
-        <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
-          {getInitials(instructor.name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 w-full">
-        <p className="truncate text-sm font-semibold">{instructor.name}</p>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={unfollow.isPending}
-        onClick={() => unfollow.mutate()}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={
-          hovered
-            ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            : "border-border bg-muted text-muted-foreground"
-        }
-      >
-        <UserCheck className="mr-1.5 h-3.5 w-3.5" />
-        {hovered ? "Bỏ theo dõi" : "Đang theo dõi"}
-      </Button>
+    <Card className="rounded-lg border-border/70 py-0 text-center shadow-xs transition-[border-color,box-shadow] hover:border-primary/35 hover:shadow-sm">
+      <CardContent className="flex flex-col items-center gap-3 p-4">
+        <Avatar className="h-14 w-14 border-2 border-primary/15">
+          {instructor.avatarUrl && (
+            <AvatarImage src={instructor.avatarUrl} alt={instructor.name} />
+          )}
+          <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+            {getInitials(instructor.name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 w-full">
+          <p className="truncate text-sm font-semibold">{instructor.name}</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={unfollow.isPending}
+          onClick={() => unfollow.mutate()}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className={
+            hovered
+              ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+          }
+        >
+          <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+          {hovered ? "Bỏ theo dõi" : "Đang theo dõi"}
+        </Button>
       </CardContent>
     </Card>
   );
 }
 
-export function FollowingInstructorsGrid() {
-  const { data: instructors, isLoading, error } = useFollowingInstructors();
+interface FollowingInstructorsGridProps {
+  instructors: FollowingInstructor[];
+  isLoading: boolean;
+  error?: unknown;
+}
 
+export function FollowingInstructorsGrid({
+  instructors,
+  isLoading,
+  error,
+}: FollowingInstructorsGridProps) {
   if (isLoading) {
     return <AppLoadingState variant="cards" count={8} message="Đang tải giảng viên đang theo dõi..." />;
   }
@@ -73,7 +81,7 @@ export function FollowingInstructorsGrid() {
     );
   }
 
-  if (!instructors || instructors.length === 0) {
+  if (instructors.length === 0) {
     return (
       <AppEmptyState
         icon={<Users className="h-8 w-8" />}

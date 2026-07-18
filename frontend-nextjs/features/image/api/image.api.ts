@@ -3,7 +3,13 @@
  * CRUD endpoints for user mascot images
  */
 
-import { createResourceApi } from "@/features/_shared/crud-factories";
+import {
+  createResourceApi,
+  normalizePaginatedResponse,
+  withQueryPath,
+} from "@/features/_shared/crud-factories";
+import type { PaginatedResponse } from "@/features/_shared/crud-factories";
+import { apiHttpClient as apiClient } from "@/features/_shared/api-factories";
 import type {
   CreateImageRequest,
   DeleteImageResponse,
@@ -23,6 +29,11 @@ type ImageApiResponse = {
   updated_at?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type ImageLibraryPageParams = {
+  page: number;
+  limit: number;
 };
 
 function mapImage(raw: ImageApiResponse): Image {
@@ -54,6 +65,35 @@ export const imageApi = {
   ...imageCrudApi,
   findById: imageCrudApi.getOne,
   getAllByUser: () => imageCrudApi.list?.() ?? Promise.resolve([]),
+  getAllByUserPaginated: async ({
+    page,
+    limit,
+  }: ImageLibraryPageParams): Promise<PaginatedResponse<Image>> => {
+    const { data } = await apiClient.get<
+      | {
+          data?: ImageApiResponse[];
+          pagination?: {
+            page?: number;
+            limit?: number;
+            totalItems?: number;
+            totalPages?: number;
+          };
+        }
+      | ImageApiResponse[]
+    >(withQueryPath(`${IMAGE_ENDPOINT}/user`, { page, limit }));
+
+    if (Array.isArray(data)) {
+      return normalizePaginatedResponse(data.map(mapImage), { page, limit });
+    }
+
+    return normalizePaginatedResponse(
+      {
+        data: (data.data ?? []).map(mapImage),
+        pagination: data.pagination,
+      },
+      { page, limit },
+    );
+  },
   updateById: imageCrudApi.update,
   deleteById: imageCrudApi.delete,
 };

@@ -84,3 +84,16 @@ export function useFollowingInstructors() {
     staleTime: 2 * 60_000,
   });
 }
+
+export function useFollowingInstructorsPaginated(
+  page: number,
+  limit: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [...FOLLOWING_KEY, { page, limit }],
+    queryFn: () => followApi.getFollowingInstructorsPaginated(page, limit),
+    enabled,
+    staleTime: 2 * 60_000,
+  });
+}

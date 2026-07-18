@@ -398,7 +398,7 @@ export default function MascotOptions({
           type="button"
           onClick={handleSetNoMascot}
           className={cn(
-            "w-full rounded-xl border p-2.5 text-left transition hover:border-primary/60",
+            "w-full cursor-pointer rounded-xl border p-2.5 text-left transition hover:border-primary/60",
             value.type === "none"
               ? "border-primary bg-primary/10"
               : "border-border bg-background",
@@ -494,7 +494,7 @@ export default function MascotOptions({
                       type="button"
                       onClick={() => setPersonalMascot(image)}
                       className={cn(
-                        "relative aspect-square min-w-0 overflow-hidden rounded-lg border bg-muted/40 transition hover:border-primary/60",
+                        "relative aspect-square min-w-0 cursor-pointer overflow-hidden rounded-lg border bg-muted/40 transition hover:border-primary/60",
                         selected &&
                           "border-primary bg-primary/10 ring-2 ring-primary/20",
                       )}
@@ -554,7 +554,7 @@ export default function MascotOptions({
                 type="button"
                 onClick={() => setPresetMascot(mascot)}
                 className={cn(
-                  "min-w-0 rounded-lg border bg-background p-1 transition hover:border-primary/60",
+                   "min-w-0 cursor-pointer rounded-lg border bg-background p-1 transition hover:border-primary/60",
                   selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
                 )}
               >
@@ -760,7 +760,7 @@ export function MascotRenderDialog({
                       key={option.value}
                       type="button"
                       className={cn(
-                        "rounded-md px-3 text-xs font-medium text-muted-foreground transition",
+                        "cursor-pointer rounded-md px-3 text-xs font-medium text-muted-foreground transition",
                         selected &&
                           "bg-primary text-primary-foreground shadow-sm",
                       )}
@@ -873,7 +873,7 @@ function SelectField({
     <div className="space-y-2">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-10 rounded-xl">
+        <SelectTrigger className="h-10 cursor-pointer rounded-xl">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

@@ -4,6 +4,7 @@
  */
 
 import { createCrudHooks } from "@/features/_shared/crud-factories";
+import { useQuery } from "@tanstack/react-query";
 import { videoApi } from "./video.api";
 import type {
   CreateVideoRequest,
@@ -30,3 +31,17 @@ export const {
   useUpdate: useUpdateVideo,
   useDelete: useDeleteVideo,
 } = videoHooks;
+
+export function useVideosByUserPaginated(
+  type: VideoListType,
+  page: number,
+  limit: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: videoKeys.custom("library-page", type, { page, limit }),
+    queryFn: () => videoApi.getAllByUserPaginated({ type, page, limit }),
+    enabled,
+    staleTime: 2 * 60_000,
+  });
+}

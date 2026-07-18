@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import type { FindOptions } from 'sequelize';
 import { Video, VideoType } from './video.model';
 import { CreateVideoDto } from 'src/dto/create-video.dto';
 import { UpdateVideoDto } from 'src/dto/update-video.dto';
@@ -34,7 +35,11 @@ export class VideoService {
         });
     }
 
-    async findAll(user_id: number | undefined, type: string) {
+    async findAll(
+        user_id: number | undefined,
+        type: string,
+        pagination: { page?: number; limit?: number } = {},
+    ) {
 
         if (!user_id) {
             throw new BadRequestException('userId does not exist');
@@ -52,11 +57,41 @@ export class VideoService {
             );
         }
 
-        return this.videoModel.findAll({
+        const baseQuery: FindOptions = {
             where: { user_id, type: normalizedType as VideoType },
             include: [MascotImage],
             order: [['created_at', 'DESC']],
+        };
+
+        const shouldPaginate = pagination.page !== undefined || pagination.limit !== undefined;
+        if (!shouldPaginate) {
+            return this.videoModel.findAll(baseQuery);
+        }
+
+        const page = Number.isInteger(pagination.page) && (pagination.page as number) > 0
+            ? pagination.page as number
+            : 1;
+        const limit = Number.isInteger(pagination.limit) && (pagination.limit as number) > 0
+            ? Math.min(pagination.limit as number, 100)
+            : 20;
+        const offset = (page - 1) * limit;
+
+        const { rows, count } = await this.videoModel.findAndCountAll({
+            ...baseQuery,
+            limit,
+            offset,
+            distinct: true,
         });
+
+        return {
+            data: rows,
+            pagination: {
+                page,
+                limit,
+                totalItems: count,
+                totalPages: count > 0 ? Math.ceil(count / limit) : 0,
+            },
+        };
     }
 
     async findOne(id: number) {
