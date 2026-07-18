@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,8 +38,6 @@ interface Props {
 }
 
 export function VideoPreview({
-  courseId,
-  lessonId,
   videoUrl,
   videoDurationSeconds,
   videoLoading,
@@ -61,6 +57,12 @@ export function VideoPreview({
   const [hoveredMarkerKey, setHoveredMarkerKey] = useState<string | null>(null);
 
   const hlsRef = useRef<Hls | null>(null);
+  const previousVideoUrlRef = useRef<string | null>(null);
+  const currentTimeRef = useRef(0);
+  const sourceSwitchResumeRef = useRef({
+    time: 0,
+    wasPlaying: false,
+  });
   const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
   const [currentQualityLevel, setCurrentQualityLevel] = useState<number>(-1);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
@@ -108,6 +110,10 @@ export function VideoPreview({
   }, [currentQualityLevel]);
 
   useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
@@ -125,6 +131,36 @@ export function VideoPreview({
     }
 
     const isHls = videoUrl.includes(".m3u8");
+    const previousVideoUrl = previousVideoUrlRef.current;
+    const isSourceSwitch = Boolean(previousVideoUrl && previousVideoUrl !== videoUrl);
+    const resumeTime = isSourceSwitch
+      ? Math.max(
+          0,
+          sourceSwitchResumeRef.current.time ||
+            videoElement.currentTime ||
+            currentTimeRef.current ||
+            0,
+        )
+      : 0;
+    const shouldResumePlayback = isSourceSwitch
+      ? sourceSwitchResumeRef.current.wasPlaying
+      : true;
+
+    let didRestorePlayback = false;
+    const restorePlayback = () => {
+      if (didRestorePlayback) return;
+      if (resumeTime > 0 && !Number.isFinite(videoElement.duration)) return;
+      didRestorePlayback = true;
+
+      if (resumeTime > 0 && Number.isFinite(videoElement.duration)) {
+        videoElement.currentTime = Math.min(resumeTime, videoElement.duration);
+        setCurrentTime(videoElement.currentTime);
+      }
+
+      if (shouldResumePlayback) {
+        videoElement.play().catch(() => {});
+      }
+    };
 
     if (hlsRef.current) {
       hlsRef.current.destroy();
@@ -133,6 +169,10 @@ export function VideoPreview({
 
     if (isHls) {
       if (Hls.isSupported()) {
+        videoElement.addEventListener("loadedmetadata", restorePlayback, {
+          once: true,
+        });
+
         const hls = new Hls({
           maxMaxBufferLength: 15,
           enableWorker: true,
@@ -152,7 +192,9 @@ export function VideoPreview({
             ...[...levels].reverse()
           ];
           setQualityLevels(sortedLevels);
-          videoElement.play().catch(() => {});
+          if (videoElement.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            restorePlayback();
+          }
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
@@ -173,24 +215,30 @@ export function VideoPreview({
         });
       } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
         videoElement.src = videoUrl;
-        videoElement.play().catch(() => {});
+        videoElement.addEventListener("loadedmetadata", restorePlayback, {
+          once: true,
+        });
       }
     } else {
       videoElement.src = videoUrl;
-      videoElement.play().catch(() => {});
+      videoElement.addEventListener("loadedmetadata", restorePlayback, {
+        once: true,
+      });
       queueMicrotask(() => {
         setQualityLevels([]);
         setCurrentQualityLevel(-1);
       });
     }
 
+    previousVideoUrlRef.current = videoUrl;
+
     return () => {
       if (videoElement) {
-        videoElement.pause();
-        videoElement.removeAttribute("src");
-        try {
-          videoElement.load();
-        } catch {}
+        sourceSwitchResumeRef.current = {
+          time: Math.max(0, videoElement.currentTime || currentTimeRef.current || 0),
+          wasPlaying: !videoElement.paused && !videoElement.ended,
+        };
+        videoElement.removeEventListener("loadedmetadata", restorePlayback);
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();

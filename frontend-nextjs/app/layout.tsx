@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "../components/providers/ThemeProvider";
 import { QueryProvider } from "../components/providers/QueryProvider";
 import { AuthProvider } from "../components/providers/AuthProvider";
+import { ToastRouteDismiss } from "../components/providers/ToastRouteDismiss";
 import { Toaster } from "../components/ui/sonner";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { BRAND } from "@/lib/brand";
@@ -75,6 +76,7 @@ export default function RootLayout({
             <AuthProvider>
               {children}
               <ScrollToTopButton />
+              <ToastRouteDismiss />
               <Toaster richColors closeButton position="top-right" />
             </AuthProvider>
           </ThemeProvider>

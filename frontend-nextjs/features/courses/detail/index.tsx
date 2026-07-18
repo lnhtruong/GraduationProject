@@ -9,7 +9,6 @@ import { CourseContentAccordion } from "./components/CourseContentAccordion";
 import { InstructorSection } from "./components/InstructorSection";
 import { ReviewsSection } from "./components/ReviewsSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { useAuthStore } from "@/store/auth";
 import { useEnrollmentCheck } from "../api/enrollment.api";
@@ -238,37 +237,6 @@ export default function CourseDetail({ courseId }: Props) {
         </div>
       </div>
 
-      {/* ── Mobile bottom CTA bar ───────────────────────── */}
-      {!isAdmin ? (
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border/60 bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
-        {enrollment ? (
-          <>
-            <span className="text-sm font-medium text-primary">{enrollment.progress ?? 0}% hoàn thành</span>
-            <Button size="lg" variant="outline" className="flex-1 border-primary/40 text-primary" asChild>
-              <a href={`/courses/${course.id}/learn`}>Tiếp tục học</a>
-            </Button>
-          </>
-        ) : (
-          <>
-            {course.price > 0 && (
-              <span className="text-base font-bold text-foreground">
-                {course.price.toLocaleString("vi-VN")}đ
-              </span>
-            )}
-            <Button
-              size="lg"
-              className="flex-1 shadow-md shadow-primary/20"
-              onClick={handleEnroll}
-              disabled={buyNow.isPending}
-            >
-              {buyNow.isPending
-                ? "Đang xử lý..."
-                : course.price === 0 ? "Đăng ký miễn phí" : "Mua ngay"}
-            </Button>
-          </>
-        )}
-      </div>
-      ) : null}
     </div>
   );
 }

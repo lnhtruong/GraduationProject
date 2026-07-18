@@ -85,6 +85,39 @@ function VideoThumbnail({
   );
 }
 
+function VideoHeaderThumbnail({
+  thumbnail,
+  title,
+}: {
+  thumbnail?: string | null;
+  title: string;
+}) {
+  const [error, setError] = useState(false);
+  const thumbnailSrc =
+    typeof thumbnail === "string" &&
+    thumbnail !== "processing" &&
+    !/placehold\.co\/320x180\/png\?text=thumbnail/i.test(thumbnail)
+      ? thumbnail
+      : null;
+
+  if (!thumbnailSrc || error) {
+    return (
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-inner">
+        <Clapperboard className="h-5 w-5" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={thumbnailSrc}
+      alt={title}
+      onError={() => setError(true)}
+      className="h-10 w-10 shrink-0 rounded-lg border border-border/70 object-cover shadow-inner"
+    />
+  );
+}
+
 export function VideoSelectionSection({
   videosLoading,
   userVideos,
@@ -460,9 +493,10 @@ export function VideoSelectionSection({
           <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm transition hover:shadow-md">
             {/* Header info */}
             <div className="flex items-center gap-3 border-b border-border/60 bg-muted/40 px-4 py-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-inner">
-                <Clapperboard className="h-5 w-5" />
-              </div>
+              <VideoHeaderThumbnail
+                thumbnail={selectedVideo?.thumbnail}
+                title={videoName}
+              />
               <div className="min-w-0 flex-1">
                 <h4 className="line-clamp-2 text-sm font-semibold text-foreground leading-snug break-words">
                   {videoName}
