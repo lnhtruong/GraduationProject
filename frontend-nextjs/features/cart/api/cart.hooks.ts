@@ -62,7 +62,10 @@ export const useSaveForLater = createMutationHooks<
   },
 );
 
-export function useIsInCart(courseId: number): boolean {
+export function useIsInCart(courseId: number | null | undefined): boolean {
   const { data: items } = useCartQuery();
+  if (!Number.isInteger(courseId) || (courseId ?? 0) <= 0) {
+    return false;
+  }
   return (items ?? []).some((item) => item.courseId === courseId);
 }

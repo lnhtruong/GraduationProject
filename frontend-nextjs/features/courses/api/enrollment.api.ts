@@ -7,7 +7,7 @@ interface CheckEnrollResponse {
   data: (Enrollment & { courseId: number }) | null;
 }
 
-export function useEnrollmentCheck(courseId: number, userId?: number) {
+export function useEnrollmentCheck(courseId: number | null | undefined, userId?: number) {
   return useQuery({
     queryKey: ["enrollment", "check", courseId, userId],
     queryFn: async () => {

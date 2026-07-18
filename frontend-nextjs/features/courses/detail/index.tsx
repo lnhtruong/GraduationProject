@@ -112,6 +112,11 @@ export default function CourseDetail({ courseId }: Props) {
   const isEnrolled = enrollment !== null && enrollment !== undefined;
 
   const handleEnroll = () => {
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      toast.error("Không xác định được khóa học.");
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push(`/signin?returnUrl=/courses/${courseId}`);
       return;
@@ -122,6 +127,11 @@ export default function CourseDetail({ courseId }: Props) {
   };
 
   const handleAddToCart = () => {
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      toast.error("Không xác định được khóa học.");
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push(`/signin?returnUrl=/courses/${courseId}`);
       return;

@@ -11,21 +11,47 @@ function redirectToPayOS(checkoutUrl: string) {
   window.location.href = checkoutUrl;
 }
 
-export function useBuyNow(courseId: number) {
+function normalizeCourseId(courseId: number | null | undefined) {
+  return typeof courseId === "number" && Number.isInteger(courseId) && courseId > 0 ? courseId : null;
+}
+
+export function useBuyNow(courseId: number | null | undefined) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation<BuyNowResponse, Error>({
-    mutationFn: () => paymentApi.buyNow(courseId),
+    mutationFn: async () => {
+      const resolvedCourseId = normalizeCourseId(courseId);
+      if (!resolvedCourseId) {
+        throw new Error("Mã khóa học không hợp lệ");
+      }
+
+      const data = await paymentApi.buyNow(resolvedCourseId);
+      if (!data.enrolled && !data.checkoutUrl) {
+        throw new Error("Không nhận được link thanh toán");
+      }
+
+      return data;
+    },
     onSuccess: (data) => {
-      if (data.enrolled) {
-        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", courseId] });
-        queryClient.invalidateQueries({ queryKey: ["enrollment"] });
-        queryClient.invalidateQueries({ queryKey: ["cart"] });
-        router.push(`/payment/success?free=1&courseId=${courseId}`);
+      const resolvedCourseId = normalizeCourseId(courseId);
+      if (!resolvedCourseId) {
+        toast.error("Không xác định được khóa học.");
         return;
       }
-      sessionStorage.setItem(`payment_course_${data.orderCode}`, String(courseId));
+
+      if (data.enrolled) {
+        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", resolvedCourseId] });
+        queryClient.invalidateQueries({ queryKey: ["enrollment"] });
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+        router.push(`/payment/success?free=1&courseId=${resolvedCourseId}`);
+        return;
+      }
+      if (!data.checkoutUrl) {
+        toast.error("Không nhận được link thanh toán.");
+        return;
+      }
+      sessionStorage.setItem(`payment_course_${data.orderCode}`, String(resolvedCourseId));
       redirectToPayOS(data.checkoutUrl);
     },
   });
@@ -33,8 +59,18 @@ export function useBuyNow(courseId: number) {
 
 export function useCreatePayment() {
   return useMutation<PaymentLinkResponse, Error, number[]>({
-    mutationFn: (courseIds) => paymentApi.createPayment(courseIds),
+    mutationFn: async (courseIds) => {
+      const data = await paymentApi.createPayment(courseIds);
+      if (!data.checkoutUrl) {
+        throw new Error("Không nhận được link thanh toán");
+      }
+      return data;
+    },
     onSuccess: (data) => {
+      if (!data.checkoutUrl) {
+        toast.error("Không nhận được link thanh toán.");
+        return;
+      }
       redirectToPayOS(data.checkoutUrl);
     },
     onError: () => {

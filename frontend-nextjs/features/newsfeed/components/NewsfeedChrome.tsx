@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { NewsfeedHeader } from "./NewsfeedHeader";
@@ -13,43 +13,9 @@ interface NewsfeedChromeProps {
 }
 
 export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
-	const pathname = usePathname();
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const { user, isAuthenticated, logout } = useAuth();
 	const { isMenuOpen, closeMenu, toggleMenu, closeOptionBox } = useNewsfeedUiStore();
-	const initialSearchValue = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
-	const searchStateKey = `${pathname}:${initialSearchValue}`;
-	const [searchState, setSearchState] = useState({
-		key: searchStateKey,
-		value: initialSearchValue,
-	});
-
-	if (searchState.key !== searchStateKey) {
-		setSearchState({
-			key: searchStateKey,
-			value: initialSearchValue,
-		});
-	}
-
-	const searchValue = searchState.key === searchStateKey ? searchState.value : initialSearchValue;
-	const setSearchValue = useCallback((value: string) => {
-		setSearchState(() => ({
-			key: searchStateKey,
-			value,
-		}));
-	}, [searchStateKey]);
-
-	const handleSearchSubmit = useCallback(
-		(value: string) => {
-			const nextValue = value.trim();
-			const href = nextValue
-				? `/newsfeed/search?q=${encodeURIComponent(nextValue)}`
-				: "/newsfeed/search";
-			router.push(href);
-		},
-		[router],
-	);
 
 	const handleToggleMenu = useCallback(() => {
 		closeOptionBox();
@@ -71,9 +37,6 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 					void logout();
 					router.push("/signin");
 				}}
-				searchValue={searchValue}
-				onSearchValueChange={setSearchValue}
-				onSearchSubmit={handleSearchSubmit}
 			/>
 
 			<div
@@ -88,7 +51,10 @@ export function NewsfeedChrome({ children }: NewsfeedChromeProps) {
 				}}
 			/>
 
-			<NewsfeedSidebar isExpanded={isMenuOpen} onNavigate={handleSidebarNavigate} />
+			<NewsfeedSidebar
+				isExpanded={isMenuOpen}
+				onNavigate={handleSidebarNavigate}
+			/>
 
 			<div className="relative pt-16">{children}</div>
 		</div>

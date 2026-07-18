@@ -4,7 +4,7 @@ export type OrderStatus = "PAID" | "PENDING" | "FAILED" | "CANCELLED";
 
 export interface PaymentLinkResponse {
   orderCode: number;
-  checkoutUrl: string;
+  checkoutUrl: string | null;
   qrCode?: string;
   transaction_id: number;
 }

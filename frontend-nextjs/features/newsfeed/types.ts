@@ -82,7 +82,10 @@ export interface NewsfeedRawItem {
 	hashtags?: string[] | null;
 	video_type?: string;
 	video: NewsfeedVideoData;
-	course: NewsfeedCourseInfo;
+	course?: (Partial<NewsfeedCourseInfo> & {
+		course_id?: number | string | null;
+		courseId?: number | string | null;
+	}) | null;
 	lecturer?: NewsfeedLecturer;
 	stats?: {
 		views?: number;
