@@ -9,6 +9,8 @@ export interface NotificationPayload {
   lessonId?: number;
   lesson_id?: number;
   url?: string;
+  thumbnail?: string;
+  thumbnailUrl?: string;
   actor?: {
     id: number;
     name: string;

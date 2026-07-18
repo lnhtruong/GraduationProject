@@ -293,6 +293,7 @@ export class WebhookService {
                 lessonId: lessonId ?? null,
                 redirectUrl,
                 url,
+                thumbnailUrl: row.thumbnail ?? thumb ?? undefined,
                 type: VideoType.LONG,
                 duration: duration ?? undefined,
                 name: row.name ?? undefined,
@@ -511,6 +512,7 @@ export class WebhookService {
             payload: {
                 videoId: row.id,
                 url: row.url ?? '',
+                thumbnailUrl: row.thumbnail,
                 type: row.type,
                 duration: duration ?? undefined,
                 name: resolvedName ?? undefined,
@@ -778,6 +780,7 @@ export class WebhookService {
             topicId?: number;
             title?: string;
             url: string;
+            thumbnailUrl?: string;
             srtUrl?: string;
             duration?: number;
         }> = [];
@@ -869,6 +872,7 @@ export class WebhookService {
                 topicId,
                 title,
                 url,
+                thumbnailUrl: row.thumbnail,
                 srtUrl: srtUrl ?? undefined,
                 duration: duration ?? undefined,
             });
@@ -893,6 +897,7 @@ export class WebhookService {
                 videos,
                 createdVideos,
                 videoIds: createdVideos.map((video) => video.videoId),
+                thumbnailUrl: createdVideos[0]?.thumbnailUrl,
                 srtUrl: payload.srt_url,
                 sourceOriginalFilename: payload.source_original_filename,
                 redirectUrl: '/library',
@@ -1055,6 +1060,7 @@ export class WebhookService {
                             videoId: completedVideoId,
                             jobId,
                             srtUrl,
+                            thumbnailUrl: row?.thumbnail,
                             type: 'subtitle',
                             sourceOriginalFilename: payload.source_original_filename,
                             status: 'completed',
@@ -1204,6 +1210,7 @@ export class WebhookService {
                     completedVideoType === VideoType.MASCOT ? 'mascot' : 'highlight';
 
                 let videoId: number | undefined;
+                let thumbnailUrl: string | undefined;
                 if (jobId) {
                     let videoRow = await this.videoModel.findOne({
                         where: { job_id: jobId },
@@ -1247,6 +1254,7 @@ export class WebhookService {
                         });
                     }
                     videoId = videoRow.id;
+                    thumbnailUrl = videoRow.thumbnail;
                     completedVideoId = videoRow.id;
                 } else {
                     this.logger.warn('AI model webhook completed event missing job_id');
@@ -1264,6 +1272,7 @@ export class WebhookService {
                         videoId,
                         jobId,
                         url,
+                        thumbnailUrl,
                         srtUrl: payload.srt_url,
                         type: typeForSse,
                         duration: payload.duration ?? undefined,

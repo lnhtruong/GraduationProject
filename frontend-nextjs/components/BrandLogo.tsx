@@ -18,6 +18,9 @@ export function BrandLogo({
   compact = false,
   className,
 }: BrandLogoProps) {
+  const logoHeight = compact ? 32 : 40;
+  const logoWidth = Math.round((logoHeight * 227) / 240);
+
   return (
     <Link
       href={href}
@@ -29,10 +32,11 @@ export function BrandLogo({
       <Image
         src={BRAND.logo}
         alt={BRAND.name}
-        width={42}
-        height={42}
+        width={227}
+        height={240}
         priority
-        className={cn("rounded-xl", compact ? "h-8 w-8" : "h-10 w-10")}
+        className="rounded-xl object-contain"
+        style={{ width: logoWidth, height: logoHeight }}
       />
       <div className={cn("leading-tight", compact ? "hidden sm:block" : "hidden sm:block")}>
         <div className="flex items-center gap-2">

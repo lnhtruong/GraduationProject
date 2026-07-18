@@ -73,9 +73,10 @@ export default function Footer() {
               <Image
                 src={BRAND.logo}
                 alt={BRAND.name}
-                width={44}
-                height={44}
-                className="rounded-xl"
+                width={227}
+                height={240}
+                className="rounded-xl object-contain"
+                style={{ width: 42, height: 44 }}
               />
               <div>
                 <p className="text-lg font-black tracking-tight text-foreground">

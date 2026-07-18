@@ -452,6 +452,12 @@ export function NotificationBell({ className }: { className?: string }) {
                                   typeof payload?.url === "string"
                                     ? payload.url
                                     : null;
+                                const thumbnailUrl =
+                                  typeof payload?.thumbnailUrl === "string"
+                                    ? payload.thumbnailUrl
+                                    : typeof payload?.thumbnail === "string"
+                                      ? payload.thumbnail
+                                      : null;
                                 const isComment = String(
                                   notification.event_type ?? "",
                                 )
@@ -482,10 +488,10 @@ export function NotificationBell({ className }: { className?: string }) {
                                     onClick={() => handleItemClick(notification)}
                                   >
                                     <div className="relative mt-0.5 shrink-0">
-                                      {payloadUrl ? (
+                                      {thumbnailUrl || (payloadUrl && String(notification.event_type).toLowerCase().includes("image")) ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                          src={String(payloadUrl)}
+                                          src={String(thumbnailUrl ?? payloadUrl)}
                                           alt="thumb"
                                           className={cn(
                                             "h-10 w-10 rounded-full border object-cover",
