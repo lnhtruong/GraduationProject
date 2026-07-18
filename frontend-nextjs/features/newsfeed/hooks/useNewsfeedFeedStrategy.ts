@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { useNewsfeedRecordViewMutation } from "../api/newsfeed.hooks";
 
 import {
-  NEWSFEED_INITIAL_PAGE_LIMIT,
   NEWSFEED_PREFETCH_REMAINING_THRESHOLD,
   NEWSFEED_MIN_VIEW_SECONDS,
   NEWSFEED_COMPLETION_RATIO,
@@ -32,6 +31,7 @@ export function useNewsfeedViewTracker(params: {
 }) {
 	const recordViewMutation = useNewsfeedRecordViewMutation();
 	const didRecordRef = useRef(false);
+	const videoElement = params.videoRef.current;
 
 	useEffect(() => {
 		didRecordRef.current = false;
@@ -44,7 +44,7 @@ export function useNewsfeedViewTracker(params: {
 	}, [params.isActive]);
 
 	const flushView = useCallback(async () => {
-		const video = params.videoRef.current;
+		const video = videoElement;
 		if (!video || !params.feedId || didRecordRef.current) {
 			return;
 		}
@@ -63,7 +63,7 @@ export function useNewsfeedViewTracker(params: {
 			watchDuration,
 			completed,
 		});
-	}, [params.feedId, params.videoRef, recordViewMutation]);
+	}, [params.feedId, recordViewMutation, videoElement]);
 
 	useEffect(() => {
 		if (params.isActive) {
@@ -72,6 +72,27 @@ export function useNewsfeedViewTracker(params: {
 
 		void flushView();
 	}, [flushView, params.isActive]);
+
+	useEffect(() => {
+		const video = videoElement;
+		if (!params.isActive || !video) {
+			return;
+		}
+
+		const flushWhenViewable = () => {
+			if ((video.currentTime || 0) >= NEWSFEED_MIN_VIEW_SECONDS) {
+				void flushView();
+			}
+		};
+
+		video.addEventListener("playing", flushWhenViewable);
+		video.addEventListener("timeupdate", flushWhenViewable);
+
+		return () => {
+			video.removeEventListener("playing", flushWhenViewable);
+			video.removeEventListener("timeupdate", flushWhenViewable);
+		};
+	}, [flushView, params.isActive, videoElement]);
 
 	useEffect(() => {
 		const onVisibilityChange = () => {

@@ -66,7 +66,7 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-border/70 bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[96rem] px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.25fr_2fr]">
           <div className="max-w-sm">
             <Link href="/" className="flex w-fit items-center gap-3">

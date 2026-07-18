@@ -18,8 +18,11 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import type { HighlightParams } from "@/features/upload/types";
 import {
+  Check,
+  FileVideo,
   Link2,
   Loader2,
+  Target,
   UploadCloud,
 } from "lucide-react";
 
@@ -38,6 +41,13 @@ const WORKFLOW_STEPS = [
     title: "Mở Studio",
     description: "Tinh chỉnh chữ, lớp hiển thị và xuất bản.",
   },
+];
+
+const AI_FINDINGS = [
+  "Khái niệm trọng tâm",
+  "Ví dụ minh họa",
+  "Đoạn dễ ôn lại",
+  "Câu hỏi kiểm tra",
 ];
 
 function isAllowedStudyLoopVideoUrl(value: string) {
@@ -63,33 +73,58 @@ function WorkflowRail({
 }) {
   return (
     <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
-      <Card className="min-w-0 p-4 sm:p-5">
-        <div className="text-sm font-semibold">
-          Luồng tạo highlight
+      <Card className="min-w-0 overflow-hidden rounded-2xl border-border/80 p-4 shadow-sm sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Lộ trình highlight</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Bước hiện tại được cập nhật theo tiến trình xử lý.
+            </p>
+          </div>
+          <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+            <Target className="size-5" />
+          </div>
         </div>
 
-        <div className="mt-2.5 space-y-3">
+        <div className="mt-5">
           {WORKFLOW_STEPS.map((step, index) => {
             const stepNumber = index + 1;
             const isActive = stepNumber === currentStep;
             const isDone = stepNumber < currentStep;
 
             return (
-              <div key={step.title} className="flex gap-3">
-                <div
-                  className={[
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                    isDone
-                      ? "border-primary text-primary"
-                      : isActive
-                        ? "border-primary text-primary"
-                        : "border-border text-muted-foreground",
-                  ].join(" ")}
-                >
-                  {stepNumber}
+              <div key={step.title} className="grid grid-cols-[2rem_1fr] gap-3">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition",
+                      isDone
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : isActive
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background text-muted-foreground",
+                    )}
+                  >
+                    {isDone ? <Check className="size-4" /> : stepNumber}
+                  </div>
+                  {index < WORKFLOW_STEPS.length - 1 && (
+                    <div
+                      className={cn(
+                        "my-2 h-10 w-px rounded-full",
+                        isDone ? "bg-primary/50" : "bg-border",
+                      )}
+                    />
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{step.title}</p>
+                <div className={index < WORKFLOW_STEPS.length - 1 ? "pb-4" : ""}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{step.title}</p>
+                    {isActive && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        Đang thực hiện
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs leading-5 text-muted-foreground">
                     {step.description}
                   </p>
@@ -100,27 +135,22 @@ function WorkflowRail({
         </div>
       </Card>
 
-      <Card className="min-w-0 p-4 sm:p-5">
-        <div className="text-sm font-semibold">
-          Trước khi bắt đầu
-        </div>
+      <Card className="min-w-0 rounded-2xl border-border/80 p-4 shadow-sm sm:p-5">
+        <div className="text-sm font-semibold">StudyLoop sẽ tìm gì?</div>
 
         <div className="mt-2.5 grid gap-3 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            <span>File video tối đa 2GB, ưu tiên MP4 hoặc WEBM.</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            <span>Nội dung càng rõ chủ đề thì highlight càng dễ đúng ý.</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            <span>
-              {isAuthenticated
-                ? "Kết quả được lưu để bạn mở lại trong Studio."
-                : "Bạn cần đăng nhập để lưu video và mở Studio."}
-            </span>
+          {AI_FINDINGS.map((item) => (
+            <div key={item} className="flex items-start gap-2">
+              <span className="mt-1.5 grid size-4 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                <Check className="size-3" />
+              </span>
+              <span>{item}</span>
+            </div>
+          ))}
+          <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs leading-5">
+            {isAuthenticated
+              ? "Kết quả được lưu để bạn mở lại trong Studio."
+              : "Bạn cần đăng nhập để lưu video và mở Studio."}
           </div>
         </div>
       </Card>
@@ -169,7 +199,7 @@ export default function Upload() {
 
   const renderLockOverlay = (description: string) => (
     <div className="absolute inset-0 z-10 flex min-w-0 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-background/95 p-4 text-center backdrop-blur-[2px] transition-all duration-300 sm:p-6">
-            <h3 className="text-base font-semibold text-foreground mb-1">
+      <h3 className="mb-1 text-base font-semibold text-foreground">
         Yêu cầu đăng nhập
       </h3>
       <p className="mx-auto mb-4 max-w-sm break-words px-1 text-sm leading-normal text-muted-foreground sm:px-4">
@@ -178,7 +208,7 @@ export default function Upload() {
       <Button
         type="button"
         size="sm"
-        className="font-medium px-6"
+        className="px-6 font-medium"
         onClick={handleLogin}
       >
         Đăng nhập ngay
@@ -271,16 +301,19 @@ export default function Upload() {
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-x-clip px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="min-w-0 space-y-5">
           {!isCompleted && (
-            <div className="space-y-3">
-              <div className="max-w-2xl">
+            <div className="max-w-2xl space-y-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Tạo vòng học mới · Bước {currentStep}/3
+              </div>
+              <div>
                 <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
                   Tạo highlight từ video bài giảng
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                  Tự động trích xuất các đoạn nổi bật từ video bài giảng. Chọn nguồn video và để StudyLoop làm phần việc còn lại.
+                  Đưa bài giảng vào StudyLoop, chọn mục tiêu học, rồi để AI tìm các đoạn giúp người học hiểu nhanh và ôn lại.
                 </p>
               </div>
             </div>
@@ -288,56 +321,72 @@ export default function Upload() {
 
           <div className="space-y-5">
             {!isAuthenticated ? (
-              <div className="relative min-h-[350px] w-full rounded-2xl">
+              <div className="relative min-h-[320px] w-full rounded-2xl">
                 {renderLockOverlay(
-                  "Vui lòng đăng nhập để tải video bài giảng, cắt highlight tự động và mở Studio chỉnh sửa."
+                  "Vui lòng đăng nhập để tải video bài giảng, cắt highlight tự động và mở Studio chỉnh sửa.",
                 )}
               </div>
             ) : (
               <>
                 {showSourceSwitcher && (
-                  <Tabs
-                    value={sourceMode}
-                    onValueChange={(value) => {
-                      const nextMode = value as SourceMode;
-                      setSourceMode(nextMode);
-                      setShowForm(false);
-                      setIsOpeningStudio(false);
-                    }}
-                  >
-                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg p-1 sm:w-[520px]">
-                      <TabsTrigger value="file" className="gap-2 py-2.5">
-                        <UploadCloud className="h-4 w-4" />
-                        Tải từ máy
-                      </TabsTrigger>
-                      <TabsTrigger value="existing-video" className="gap-2 py-2.5">
-                        <Link2 className="h-4 w-4" />
-                        Video đã có
-                      </TabsTrigger>
-                    </TabsList>
+                  <Card className="overflow-hidden rounded-2xl border-border/80 p-4 shadow-sm sm:p-5">
+                    <Tabs
+                      value={sourceMode}
+                      onValueChange={(value) => {
+                        const nextMode = value as SourceMode;
+                        setSourceMode(nextMode);
+                        setShowForm(false);
+                        setIsOpeningStudio(false);
+                      }}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h2 className="text-base font-semibold">
+                            Chọn nguồn bài giảng
+                          </h2>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            MP4, MOV, AVI, WEBM hoặc MKV · tối đa 2GB
+                          </p>
+                        </div>
+                        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl p-1 sm:w-[360px]">
+                          <TabsTrigger value="file" className="gap-2 py-2.5">
+                            <UploadCloud className="h-4 w-4" />
+                            Tải từ máy
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="existing-video"
+                            className="gap-2 py-2.5"
+                          >
+                            <Link2 className="h-4 w-4" />
+                            Thư viện
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
 
-                    <TabsContent value="file" className="mt-4 space-y-4">
-                      <div className="relative">
+                      <TabsContent value="file" className="mt-5">
                         {!file && (
                           <UploadDropzone
                             onFileSelect={handleFileSelect}
-                            title="Kéo video bài giảng vào đây"
+                            title="Thả bài giảng vào để bắt đầu vòng học mới"
                             subtitle="hoặc"
                             disabled={!isAuthenticated}
+                            variant="hero"
                           />
                         )}
+                      </TabsContent>
 
-                      </div>
-                    </TabsContent>
-
-                  <TabsContent value="existing-video" className="mt-4">
-                      <div className="relative">
-                        <Card className="flex min-h-[20rem] flex-col justify-center space-y-5 rounded-2xl border-2 border-dashed border-slate-300 bg-background p-4 shadow-none transition-all duration-200 focus-within:border-primary/60 sm:p-6">
+                      <TabsContent value="existing-video" className="mt-5">
+                        <div className="flex min-h-[18rem] flex-col justify-center space-y-5 rounded-2xl border border-dashed border-border bg-muted/20 p-4 transition-all duration-200 focus-within:border-primary/60 sm:p-6">
                           <div className="flex items-start gap-3">
-                                                        <div>
-                              <h2 className="font-semibold">Nhập link video StudyLoop</h2>
+                            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                              <FileVideo className="size-5" />
+                            </div>
+                            <div>
+                              <h2 className="font-semibold">
+                                Chọn video trên StudyLoop
+                              </h2>
                               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                                Dán đường dẫn của video đã có sẵn trên hệ thống để bắt đầu trích xuất highlight.
+                                Dán đường dẫn video đã có sẵn trên hệ thống để bắt đầu trích xuất highlight.
                               </p>
                             </div>
                           </div>
@@ -357,7 +406,7 @@ export default function Upload() {
                               disabled={!isAuthenticated}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Hệ thống hỗ trợ các liên kết nội bộ hoặc CDN của StudyLoop.
+                              Hỗ trợ liên kết nội bộ hoặc CDN của StudyLoop.
                             </p>
                           </div>
 
@@ -378,16 +427,16 @@ export default function Upload() {
                             className={cn(
                               "h-11 w-full font-medium transition-all duration-200",
                               !existingVideoUrl.trim()
-                                ? "bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-100 cursor-not-allowed pointer-events-none opacity-100"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90",
                             )}
                           >
                             Chọn cách cắt highlight
                           </Button>
-                        </Card>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </Card>
                 )}
 
                 {showFilePreview && (
@@ -422,7 +471,6 @@ export default function Upload() {
                     onStartNew={handleStartNew}
                   />
                 )}
-
               </>
             )}
 
@@ -442,5 +490,3 @@ export default function Upload() {
     </main>
   );
 }
-
-
