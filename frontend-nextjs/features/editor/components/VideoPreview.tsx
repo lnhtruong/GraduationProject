@@ -750,7 +750,7 @@ export default function VideoPreview({
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto w-full aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center cursor-pointer"
+      className="relative mx-auto w-full aspect-video max-h-[62vh] bg-black rounded-md overflow-hidden flex items-center justify-center"
       onClick={() => {
         onTextSelect?.(null);
       }}
@@ -761,8 +761,6 @@ export default function VideoPreview({
         controls
         className="h-full w-full object-contain"
         style={{ filter }}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
         onClick={(e) => {
           e.stopPropagation();
           onTextSelect?.(null);
@@ -784,7 +782,7 @@ export default function VideoPreview({
           event.preventDefault();
           event.stopPropagation();
         }}
-        className="pointer-events-auto absolute left-1/2 top-1/2 z-20 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg backdrop-blur transition hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-white/80"
+        className="hidden pointer-events-auto absolute left-1/2 top-1/2 z-20 h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg backdrop-blur transition hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-white/80"
       >
         {isPlaying ? (
           <span className="flex items-center gap-1">

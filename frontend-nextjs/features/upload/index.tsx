@@ -183,6 +183,7 @@ export default function Upload() {
   const [showForm, setShowForm] = React.useState(false);
   const [existingVideoUrl, setExistingVideoUrl] = React.useState("");
   const [isOpeningStudio, setIsOpeningStudio] = React.useState(false);
+  const [hasSubmittedHighlight, setHasSubmittedHighlight] = React.useState(false);
 
   if (authLoading) {
     return (
@@ -220,6 +221,7 @@ export default function Upload() {
     setFile(selectedFile);
     setShowForm(false);
     setIsOpeningStudio(false);
+    setHasSubmittedHighlight(false);
   };
 
   const handleConfirmFile = () => setShowForm(true);
@@ -228,6 +230,7 @@ export default function Upload() {
   const handleFormSubmit = (params: HighlightParams) => {
     if (sourceMode === "file") {
       if (!file) return;
+      setHasSubmittedHighlight(true);
       void startUpload(file, params);
     } else {
       const trimmedUrl = existingVideoUrl.trim();
@@ -235,6 +238,7 @@ export default function Upload() {
         toast.error("Vui lòng nhập link video StudyLoop hợp lệ.");
         return;
       }
+      setHasSubmittedHighlight(true);
       void startFromExistingVideo(trimmedUrl, params);
     }
 
@@ -245,6 +249,7 @@ export default function Upload() {
     cancel();
     setShowForm(false);
     setIsOpeningStudio(false);
+    setHasSubmittedHighlight(false);
   };
 
   const handleStartNew = () => {
@@ -252,6 +257,7 @@ export default function Upload() {
     setShowForm(false);
     setExistingVideoUrl("");
     setIsOpeningStudio(false);
+    setHasSubmittedHighlight(false);
   };
 
   const handleEditClip = async (clip: (typeof clips)[number]) => {
@@ -297,7 +303,12 @@ export default function Upload() {
     !isCompleted;
   const showResults = isCompleted;
   const showSourceSwitcher = !file && !showForm && !isProcessing && !isCompleted;
-  const currentStep = isCompleted || isOpeningStudio ? 3 : showForm ? 2 : 1;
+  const currentStep =
+    isCompleted || isOpeningStudio
+      ? 3
+      : showForm || hasSubmittedHighlight || isProcessing
+        ? 2
+        : 1;
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-x-clip px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
