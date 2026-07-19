@@ -11,8 +11,8 @@ import { ROLES, type RoleValue } from "./roles";
  * Extend this object when adding new protected areas
  */
 export const ROUTE_ACCESS = {
-  // Instructor/Teacher Mode - chỉ Lecturer + Admin
-  instructor: [ROLES.LECTURER, ROLES.ADMIN] as const,
+  // Instructor/Teacher Mode - lecturers only. Admins use /admin.
+  instructor: [ROLES.LECTURER] as const,
 
   // Student learning area - chỉ Student + những học viên được cấp access
   student: [ROLES.STUDENT] as const,

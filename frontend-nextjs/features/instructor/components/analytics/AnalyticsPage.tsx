@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Users,
@@ -12,6 +13,7 @@ import {
   CheckCircle2,
   DollarSign,
   BarChart3,
+  CalendarDays,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -27,6 +29,12 @@ import { TrendingFeedSection } from "./TrendingFeedSection";
 import { RevenueTab } from "./RevenueTab";
 import type { StatPeriod } from "../../analytics/types";
 
+type AnalyticsTab = "courses" | "feed" | "trending" | "revenue";
+
+const TAB_VALUES: AnalyticsTab[] = ["courses", "feed", "trending", "revenue"];
+const DEFAULT_TAB: AnalyticsTab = "courses";
+const DEFAULT_PERIOD: StatPeriod = "all";
+
 // ── Period selector ───────────────────────────────────────────────────────────
 
 const PERIOD_OPTIONS: { label: string; value: StatPeriod }[] = [
@@ -34,6 +42,14 @@ const PERIOD_OPTIONS: { label: string; value: StatPeriod }[] = [
   { label: "30 ngày", value: "30d" },
   { label: "Tất cả", value: "all" },
 ];
+
+function getValidTab(value: string | null): AnalyticsTab {
+  return TAB_VALUES.includes(value as AnalyticsTab) ? (value as AnalyticsTab) : DEFAULT_TAB;
+}
+
+function getValidPeriod(value: string | null): StatPeriod {
+  return PERIOD_OPTIONS.some((opt) => opt.value === value) ? (value as StatPeriod) : DEFAULT_PERIOD;
+}
 
 function PeriodSelector({
   value,
@@ -48,10 +64,10 @@ function PeriodSelector({
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
             value === opt.value
               ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
           {opt.label}
@@ -138,8 +154,62 @@ function TabSummaryRow({ items, isLoading, cols = 4 }: TabSummaryRowProps) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const [period, setPeriod] = useState<StatPeriod>("all");
-  const [activeTab, setActiveTab] = useState("courses");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [period, setPeriodState] = useState<StatPeriod>(() =>
+    getValidPeriod(searchParams.get("period")),
+  );
+  const [activeTab, setActiveTabState] = useState<AnalyticsTab>(() =>
+    getValidTab(searchParams.get("tab")),
+  );
+
+  const updateUrlState = useCallback(
+    (next: { tab?: AnalyticsTab; period?: StatPeriod }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const nextTab = next.tab ?? activeTab;
+      const nextPeriod = next.period ?? period;
+
+      if (nextTab === DEFAULT_TAB) {
+        params.delete("tab");
+      } else {
+        params.set("tab", nextTab);
+      }
+
+      if (nextTab === "revenue" || nextPeriod === DEFAULT_PERIOD) {
+        params.delete("period");
+      } else {
+        params.set("period", nextPeriod);
+      }
+
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [activeTab, pathname, period, router, searchParams],
+  );
+
+  const setActiveTab = useCallback(
+    (value: string) => {
+      const nextTab = getValidTab(value);
+      setActiveTabState(nextTab);
+      updateUrlState({ tab: nextTab });
+    },
+    [updateUrlState],
+  );
+
+  const setPeriod = useCallback(
+    (value: StatPeriod) => {
+      setPeriodState(value);
+      updateUrlState({ period: value });
+    },
+    [updateUrlState],
+  );
+
+  useEffect(() => {
+    setActiveTabState(getValidTab(searchParams.get("tab")));
+    setPeriodState(getValidPeriod(searchParams.get("period")));
+  }, [searchParams]);
 
   const { data: courseStats, isLoading: courseLoading } = useCourseStatsOverview();
   const { data: feedStats, isLoading: feedLoading } = useFeedCreatorStats(period);
@@ -214,10 +284,6 @@ export default function AnalyticsPage() {
     <div className="space-y-5">
       {/* ── Hero banner ── */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-        {/* Decorative blur blobs */}
-        <div className="pointer-events-none absolute -right-10 -top-10 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-6 right-1/3 h-36 w-36 rounded-full bg-blue-500/6 blur-2xl" />
-
         <div className="relative px-6 py-6">
           {/* Title row */}
           <div className="mb-5 flex items-center gap-3">
@@ -252,44 +318,61 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {activeTab === "revenue" ? (
+        <div id="analytics-revenue-toolbar-slot" />
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-background p-3 shadow-xs">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 gap-2">
+              <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">Khoảng thời gian</p>
+                <p className="text-xs text-muted-foreground">
+                  Áp dụng cho dữ liệu Feed và xu hướng
+                </p>
+              </div>
+            </div>
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </div>
+        </div>
+      )}
+
       {/* ── Tabs ── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        {/* Tab bar + period selector */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1 sm:inline-flex sm:w-auto">
-            <TabsTrigger
-              value="courses"
-              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              <span className="truncate">Khóa học</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="feed"
-              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span className="truncate">Feed</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="trending"
-              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
-            >
-              <Flame className="h-3.5 w-3.5" />
-              <span className="truncate">Trending</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="revenue"
-              className="h-8 min-w-0 gap-1.5 rounded-lg px-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:px-3"
-            >
-              <DollarSign className="h-3.5 w-3.5" />
-              <span className="truncate">Thu nhập</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {activeTab !== "revenue" && (
-            <PeriodSelector value={period} onChange={setPeriod} />
-          )}
+        {/* Tab bar */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="w-full lg:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-background p-1 shadow-xs lg:inline-flex lg:w-auto lg:items-center">
+              <TabsTrigger
+                value="courses"
+                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span className="whitespace-nowrap">Khóa học</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="feed"
+                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span className="whitespace-nowrap">Feed</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="trending"
+                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+              >
+                <Flame className="h-3.5 w-3.5" />
+                <span className="whitespace-nowrap">Trending</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="revenue"
+                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                <span className="whitespace-nowrap">Thu nhập</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         {/* ── Tab: Khóa học ── */}

@@ -27,6 +27,32 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
+function StatPill({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "blue" | "green" | "amber";
+}) {
+  const toneClass = {
+    default: "bg-muted/60 text-foreground",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300",
+  }[tone];
+
+  return (
+    <div className={`rounded-lg px-3 py-2 ${toneClass}`}>
+      <p className="text-[10px] font-medium uppercase text-current/70">
+        {label}
+      </p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
 interface Props {
   courses: CourseStatItem[];
   isLoading: boolean;
@@ -54,7 +80,55 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
   }
 
   return (
-    <Table className="min-w-[56rem]">
+    <>
+      <div className="divide-y divide-border/50 lg:hidden">
+        {courses.map((course) => (
+          <button
+            key={course.courseId}
+            type="button"
+            className="block w-full px-4 py-4 text-left transition-colors hover:bg-primary/[0.03]"
+            onClick={() => router.push(`/instructor/courses/${course.courseId}`)}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="line-clamp-2 text-sm font-semibold">
+                  {course.courseName}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {course.enrollment.total.toLocaleString("vi-VN")} học viên
+                </p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-600 dark:bg-amber-950/30 dark:text-amber-300">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                {course.ratings.averageRating.toFixed(1)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <StatPill
+                label="Đang học"
+                value={course.enrollment.active.toLocaleString("vi-VN")}
+                tone="blue"
+              />
+              <StatPill
+                label="Hoàn thành"
+                value={course.enrollment.completed.toLocaleString("vi-VN")}
+                tone="green"
+              />
+              <StatPill
+                label="Tỉ lệ HT"
+                value={`${course.enrollment.completionRate}%`}
+              />
+              <StatPill
+                label="Tiến độ TB"
+                value={`${course.enrollment.averageProgress}%`}
+              />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <Table className="hidden min-w-[56rem] lg:table">
       <TableHeader>
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableHead className="pl-5 font-medium text-muted-foreground">Khóa học</TableHead>
@@ -104,6 +178,7 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
           </TableRow>
         ))}
       </TableBody>
-    </Table>
+      </Table>
+    </>
   );
 }

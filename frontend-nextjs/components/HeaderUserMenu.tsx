@@ -177,7 +177,8 @@ export function HeaderUserMenu({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => void onLogout()}
-              className="text-destructive focus:text-destructive"
+              variant="destructive"
+              className="focus:bg-destructive/10 data-[highlighted]:bg-destructive/10 dark:focus:bg-destructive/20 dark:data-[highlighted]:bg-destructive/20"
             >
               <LogOut className="mr-2 h-4 w-4" />
               Đăng xuất

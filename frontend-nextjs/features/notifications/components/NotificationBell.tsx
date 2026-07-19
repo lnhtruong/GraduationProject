@@ -25,6 +25,7 @@ import {
 } from "../api/notification.hooks";
 import { subscribeToUserNotifications } from "../lib/notification-stream";
 import { useAuthStore } from "@/store/auth";
+import { ROLES } from "@/lib/roles";
 import type { NotificationItem, NotificationPayload } from "../types";
 import { LECTURER_REQUEST_KEYS } from "@/features/lecturer-requests/api/lecturer-requests.hooks";
 
@@ -51,14 +52,22 @@ function readNumber(value: unknown): number | null {
 function getRouteForNotification(
   eventType: string,
   payload: NotificationPayload | null,
-  isLecturer = false,
+  userRole?: number,
 ): string {
   const type = String(eventType || "").toLowerCase();
   const data = payload || {};
+  const isAdmin = userRole === ROLES.ADMIN;
+  const isLecturer = userRole === ROLES.LECTURER;
+
+  const routeForRole = (instructorRoute: string, adminRoute = "/admin/dashboard") =>
+    isAdmin ? adminRoute : instructorRoute;
 
   // 1. Prioritize explicit redirect URL from backend
   const redirectUrl = data.redirectUrl;
   if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
+    if (isAdmin && redirectUrl.startsWith("/instructor")) {
+      return "/admin/dashboard";
+    }
     if (redirectUrl === "/newsfeed") {
       const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
       if (feedId) {
@@ -70,7 +79,7 @@ function getRouteForNotification(
 
   // 2. Specific event types mapping
   if (type === "quiz.generated") {
-    return "/instructor/courses";
+    return routeForRole("/instructor/courses", "/admin/courses");
   }
 
   if (
@@ -83,7 +92,7 @@ function getRouteForNotification(
   }
 
   if (type === "lecturer_request.approved") {
-    return "/instructor/dashboard";
+    return routeForRole("/instructor/dashboard");
   }
 
   if (type === "lecturer_request.rejected") {
@@ -94,11 +103,11 @@ function getRouteForNotification(
     type === "course.change_request.approved" ||
     type === "course.change_request.rejected"
   ) {
-    return "/instructor/courses";
+    return routeForRole("/instructor/courses", "/admin/courses");
   }
 
   if (type === "instructor.follow.new" || type.includes("follow")) {
-    return "/instructor/analytics";
+    return routeForRole("/instructor/analytics", "/admin/dashboard");
   }
 
   if (type === "feed.comment.created" || type === "feed.comment.reply") {
@@ -320,8 +329,11 @@ export function NotificationBell({ className }: { className?: string }) {
       await handleMarkAsRead(notification.id);
     }
     setOpen(false);
-    const isLecturer = user?.role === 3;
-    const route = getRouteForNotification(notification.event_type, notification.payload, isLecturer);
+    const route = getRouteForNotification(
+      notification.event_type,
+      notification.payload,
+      user?.role,
+    );
     router.push(route);
   };
 
