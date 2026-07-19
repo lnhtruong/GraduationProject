@@ -21,6 +21,23 @@ function StatCell({ value }: { value: number }) {
   );
 }
 
+function FeedMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg bg-muted/60 px-3 py-2">
+      <p className="text-[10px] font-medium uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
 interface Props {
   feeds: FeedStatItem[];
   isLoading: boolean;
@@ -48,7 +65,51 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
   }
 
   return (
-    <Table className="min-w-[58rem]">
+    <>
+      <div className="divide-y divide-border/50 lg:hidden">
+        {feeds.map((item) => (
+          <button
+            key={item.feedId}
+            type="button"
+            className="block w-full px-4 py-4 text-left transition-colors hover:bg-primary/[0.03]"
+            onClick={() =>
+              router.push(`/instructor/courses/${item.course.id}/feed/${item.feedId}/edit`)
+            }
+          >
+            <div className="mb-3">
+              <p className="line-clamp-2 text-sm font-semibold">{item.title}</p>
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                {item.course.name}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <FeedMetric label="Lượt xem" value={item.stats.views.toLocaleString("vi-VN")} />
+              <FeedMetric label="Likes" value={item.stats.likes.toLocaleString("vi-VN")} />
+              <FeedMetric label="Comments" value={item.stats.comments.toLocaleString("vi-VN")} />
+              <FeedMetric
+                label="Engagement"
+                value={`${item.stats.engagementRate.toFixed(1)}%`}
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">Hoàn thành</span>
+              <span
+                className={`font-semibold tabular-nums ${
+                  item.stats.completionRate >= 50
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {item.stats.completionRate.toFixed(1)}%
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <Table className="hidden min-w-[58rem] lg:table">
       <TableHeader>
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableHead className="pl-5 font-medium text-muted-foreground">Tên feed</TableHead>
@@ -97,6 +158,7 @@ export function FeedStatsSection({ feeds, isLoading }: Props) {
           </TableRow>
         ))}
       </TableBody>
-    </Table>
+      </Table>
+    </>
   );
 }

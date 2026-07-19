@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CalendarDays, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRevenueSummary, useRevenueTimeseries } from "../../revenue/hooks";
 import { useCourseStatsOverview } from "../../analytics/hooks";
-import type { RevenueGranularity, RevenueTimeseriesParams } from "../../revenue/types";
+import type { RevenueTimeseriesParams } from "../../revenue/types";
 import { RevenueSummaryCards } from "./RevenueSummaryCards";
 import { RevenueChart } from "./RevenueChart";
 import { CourseRevenueTable } from "./CourseRevenueTable";
@@ -18,7 +19,7 @@ type PresetKey = "7d" | "30d" | "thisMonth" | "3m" | "1y" | "all" | "custom";
 interface Preset {
   key: PresetKey;
   label: string;
-  defaultGranularity: RevenueGranularity;
+  defaultGranularity: RevenueTimeseriesParams["granularity"];
 }
 
 const PRESETS: Preset[] = [
@@ -28,12 +29,6 @@ const PRESETS: Preset[] = [
   { key: "3m",        label: "3 tháng",   defaultGranularity: "weekly"  },
   { key: "1y",        label: "Năm nay",   defaultGranularity: "monthly" },
   { key: "all",       label: "Tất cả",    defaultGranularity: "monthly" },
-];
-
-const GRANULARITY_OPTIONS: { label: string; value: RevenueGranularity }[] = [
-  { label: "Ngày", value: "daily" },
-  { label: "Tuần", value: "weekly" },
-  { label: "Tháng", value: "monthly" },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -85,35 +80,6 @@ function getPresetLabel(preset: PresetKey, from?: string, to?: string): string {
   return "Tùy chỉnh";
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function GranularitySelector({
-  value,
-  onChange,
-}: {
-  value: RevenueGranularity;
-  onChange: (v: RevenueGranularity) => void;
-}) {
-  return (
-    <div className="flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5">
-      {GRANULARITY_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-            value === opt.value
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function PeriodBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
@@ -127,7 +93,8 @@ function PeriodBadge({ label }: { label: string }) {
 
 export function RevenueTab() {
   const [activePreset, setActivePreset] = useState<PresetKey>("all");
-  const [granularity, setGranularity] = useState<RevenueGranularity>("monthly");
+  const [granularity, setGranularity] =
+    useState<RevenueTimeseriesParams["granularity"]>("monthly");
   const [showCustom, setShowCustom] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -205,10 +172,130 @@ export function RevenueTab() {
     setAppliedTo(range.to);
   }
 
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setToolbarSlot(document.getElementById("analytics-revenue-toolbar-slot"));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const revenueToolbar = (
+    <div className="rounded-xl border border-border/60 bg-background p-3 shadow-xs">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 gap-2">
+          <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Khoảng thời gian</p>
+            <p className="text-xs text-muted-foreground">
+              Áp dụng cho biểu đồ và doanh thu theo khoá
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => handlePresetClick(preset)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                activePreset === preset.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setShowCustom((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              activePreset === "custom"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <CalendarDays className="h-3 w-3" />
+            Tùy chỉnh
+          </button>
+
+          {activePreset === "custom" && (
+            <button
+              type="button"
+              onClick={handleResetAll}
+              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+              Xoá lọc
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showCustom && (
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-3 py-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-medium text-muted-foreground">Từ ngày</span>
+            <Input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="h-8 w-36 border-border/60 bg-background px-2 text-xs"
+            />
+          </div>
+          <span className="mb-1.5 text-muted-foreground">→</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-medium text-muted-foreground">Đến ngày</span>
+            <Input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="h-8 w-36 border-border/60 bg-background px-2 text-xs"
+            />
+          </div>
+          {customDateInvalid && (
+            <p className="w-full text-[11px] text-destructive">
+              Ngày bắt đầu phải trước ngày kết thúc
+            </p>
+          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="default"
+              className="h-8 px-3 text-xs"
+              disabled={(!customFrom && !customTo) || customDateInvalid}
+              onClick={handleApplyCustom}
+            >
+              Áp dụng
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              onClick={handleCancelCustom}
+            >
+              Hủy
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <>
+      {toolbarSlot ? createPortal(revenueToolbar, toolbarSlot) : null}
+      <div className="space-y-4">
       <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
@@ -222,115 +309,6 @@ export function RevenueTab() {
       {/* ── KPI summary ── */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
         <RevenueSummaryCards data={summary} isLoading={summaryLoading} />
-      </div>
-
-      {/* ── Filter (áp dụng cho cả biểu đồ lẫn bảng khoá học) ── */}
-      <div className="rounded-xl border border-border/60 bg-background shadow-sm">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Khoảng thời gian</span>
-            <span className="hidden text-[11px] text-muted-foreground/50 sm:inline">
-              — áp dụng cho biểu đồ và doanh thu theo khoá
-            </span>
-          </div>
-          <GranularitySelector value={granularity} onChange={setGranularity} />
-        </div>
-
-        {/* Preset chips + custom panel */}
-        <div className="space-y-3 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => handlePresetClick(preset)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  activePreset === preset.key
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setShowCustom((v) => !v)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                activePreset === "custom"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <CalendarDays className="h-3 w-3" />
-              Tùy chỉnh
-            </button>
-
-            {/* Reset khi đang dùng custom */}
-            {activePreset === "custom" && (
-              <button
-                type="button"
-                onClick={handleResetAll}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-                Xoá lọc
-              </button>
-            )}
-          </div>
-
-          {/* Custom date picker */}
-          {showCustom && (
-            <div className="flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-3 py-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-medium text-muted-foreground">Từ ngày</span>
-                <Input
-                  type="date"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="h-8 w-36 border-border/60 bg-background px-2 text-xs"
-                />
-              </div>
-              <span className="mb-1.5 text-muted-foreground">→</span>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-medium text-muted-foreground">Đến ngày</span>
-                <Input
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="h-8 w-36 border-border/60 bg-background px-2 text-xs"
-                />
-              </div>
-              {customDateInvalid && (
-                <p className="w-full text-[11px] text-destructive">
-                  Ngày bắt đầu phải trước ngày kết thúc
-                </p>
-              )}
-              <div className="ml-auto flex items-center gap-1.5">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="h-8 px-3 text-xs"
-                  disabled={(!customFrom && !customTo) || customDateInvalid}
-                  onClick={handleApplyCustom}
-                >
-                  Áp dụng
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2 text-xs text-muted-foreground"
-                  onClick={handleCancelCustom}
-                >
-                  Hủy
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ── Biểu đồ doanh thu ── */}
@@ -367,6 +345,7 @@ export function RevenueTab() {
           allCourses={enrichedCourses}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }

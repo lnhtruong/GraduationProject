@@ -13,10 +13,10 @@ export type RoleValue = (typeof ROLES)[keyof typeof ROLES];
 
 /**
  * Check if user role can access the instructor (Teacher Mode) dashboard.
- * LECTURER = giảng viên, ADMIN = có thể quản lý toàn bộ.
+ * LECTURER = giảng viên. ADMIN uses the admin workspace instead.
  */
 export function canAccessInstructor(role?: number): boolean {
-  return role === ROLES.LECTURER || role === ROLES.ADMIN;
+  return role === ROLES.LECTURER;
 }
 
 export function getRoleName(role: number): string {
