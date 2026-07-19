@@ -30,14 +30,11 @@ export const useCartStore = create<CartState>()(
 
       clearCart: () => set({ items: [] }),
 
-      getInCartItems: () => get().items.filter((i) => !i.savedForLater),
+      getInCartItems: () => get().items,
 
-      getItemCount: () => get().items.filter((i) => !i.savedForLater).length,
+      getItemCount: () => get().items.length,
 
-      getSubtotal: () =>
-        get()
-          .items.filter((i) => !i.savedForLater)
-          .reduce((sum, i) => sum + i.price, 0),
+      getSubtotal: () => get().items.reduce((sum, i) => sum + i.price, 0),
     }),
     {
       name: "cart-storage",
