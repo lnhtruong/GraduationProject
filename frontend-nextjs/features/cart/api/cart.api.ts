@@ -5,7 +5,6 @@ import type { CartItem } from "../types";
 type CartItemRaw = {
   id: number;
   courseId: number;
-  savedForLater: boolean;
   created_at: string;
   course?: {
     id: number;
@@ -66,7 +65,6 @@ function buildCartItems(raw: CartItemRaw[]): CartItem[] {
       price: c?.price ?? 0,
       avgRating: undefined,
       reviewCount: undefined,
-      savedForLater: item.savedForLater ?? false,
     };
   });
 }
@@ -88,9 +86,5 @@ export const cartApi = createApi({
 
   clearCart: async (): Promise<void> => {
     await apiHttpClient.delete("/course/carts");
-  },
-
-  saveForLater: async (courseId: number, saved: boolean): Promise<void> => {
-    await apiHttpClient.patch(`/course/carts/items/${courseId}/save`, { saved });
   },
 });

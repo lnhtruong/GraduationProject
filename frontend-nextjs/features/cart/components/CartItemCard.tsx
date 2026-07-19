@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatPrice } from "@/features/courses/utils";
 import type { CartItem } from "../types";
 
@@ -38,13 +39,17 @@ const LEVEL_LABELS: Record<CartItem["level"], string> = {
 interface CartItemCardProps {
   item: CartItem;
   onRemove: (courseId: number) => void;
+  onToggleSelected?: (courseId: number, selected: boolean) => void;
   isRemoving?: boolean;
+  isSelected?: boolean;
 }
 
 export function CartItemCard({
   item,
   onRemove,
+  onToggleSelected,
   isRemoving = false,
+  isSelected = false,
 }: CartItemCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
@@ -66,8 +71,19 @@ export function CartItemCard({
       className={`flex flex-col gap-4 rounded-lg border-border/60 p-4
         transition-all duration-200 hover:border-primary/30 hover:shadow-md
         sm:flex-row
+        ${isSelected ? "border-primary/50 bg-primary/5" : ""}
         ${isRemoving ? "pointer-events-none opacity-40" : ""}`}
     >
+      <div className="flex items-center sm:items-start sm:pt-1">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) =>
+            onToggleSelected?.(item.courseId, checked === true)
+          }
+          aria-label={`Chon ${item.title}`}
+        />
+      </div>
+
       {/* ── Thumbnail ─────────────────────────────────────────────── */}
       <Link
         href={`/courses/${item.courseId}`}
@@ -165,9 +181,8 @@ export function CartItemCard({
             {formatPrice(item.price)}
           </span>
         </div>
-
         {/* Actions */}
-        <div className="mt-2 flex items-center gap-3 border-t border-border/40 pt-3 text-xs">
+        <div className="mt-2 flex justify-end border-t border-border/40 pt-3 text-xs">
           <RemoveButton courseId={item.courseId} onRemove={onRemove} />
         </div>
       </div>

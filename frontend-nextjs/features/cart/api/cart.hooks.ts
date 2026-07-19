@@ -48,20 +48,6 @@ export const useRemoveFromCart = createMutationHooks<void, number>(
   },
 );
 
-export const useSaveForLater = createMutationHooks<
-  void,
-  { courseId: number; saved: boolean }
->(
-  "cart",
-  "saveForLater",
-  ({ courseId, saved }) => cartApi.saveForLater(courseId, saved),
-  {
-    onSuccess: (_data, _vars, queryClient) => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.root });
-    },
-  },
-);
-
 export function useIsInCart(courseId: number | null | undefined): boolean {
   const { data: items } = useCartQuery();
   if (!Number.isInteger(courseId) || (courseId ?? 0) <= 0) {

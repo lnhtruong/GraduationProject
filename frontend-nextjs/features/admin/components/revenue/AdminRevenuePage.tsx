@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  AlertTriangle,
   Wallet,
   TrendingUp,
   TrendingDown,
@@ -101,6 +102,16 @@ export default function AdminRevenuePage() {
           Một số dữ liệu không thể tải. Vui lòng thử lại sau.
         </div>
       )}
+
+      <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Khu vực doanh thu chỉ dành cho admin. Các số liệu hiện là doanh thu
+          toàn nền tảng từ giao dịch thành công; nếu hệ thống áp dụng phí nền
+          tảng N%, admin cần theo dõi phần phí nền tảng và phần đối soát trả cho
+          giảng viên.
+        </p>
+      </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

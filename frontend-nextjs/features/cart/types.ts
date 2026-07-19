@@ -9,7 +9,6 @@ export interface CartItem {
   price: number;
   avgRating?: number;
   reviewCount?: number;
-  savedForLater: boolean;
   highlightVideoUrl?: string;
 }
 

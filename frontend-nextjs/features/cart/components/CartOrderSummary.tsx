@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -22,9 +22,12 @@ export function CartOrderSummary({
   const itemCount = items.length;
 
   return (
-    <Card className="gap-0 rounded-lg border-border/60 py-0">
-      <CardHeader className="px-6 py-5">
-        <CardTitle className="text-base">Tóm tắt đơn hàng</CardTitle>
+    <Card className="gap-0 overflow-hidden rounded-lg border-border/60 py-0 shadow-sm">
+      <CardHeader className="border-b border-border/50 bg-muted/20 px-6 py-5">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CreditCard className="h-4 w-4 text-primary" />
+          Tóm tắt đơn hàng
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-4 px-6 pb-6">
@@ -35,35 +38,44 @@ export function CartOrderSummary({
             </span>
             <span className="font-medium">{formatPrice(subtotal)}</span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Phí thanh toán</span>
+            <span className="font-medium text-emerald-600">0 đ</span>
+          </div>
         </div>
 
         <Separator />
 
         <div className="flex items-center justify-between">
-          <span className="text-base font-bold">Tổng cộng</span>
-          <span className="text-[17px] font-extrabold">
+          <span className="text-base font-bold">Cần thanh toán</span>
+          <span className="text-xl font-extrabold tabular-nums">
             {formatPrice(subtotal)}
           </span>
         </div>
 
         <Button
           size="lg"
-          className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+          className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/20 hover:bg-accent/90"
           onClick={onCheckout}
           disabled={itemCount === 0 || isCheckingOut}
         >
-          {isCheckingOut
-            ? "Đang xử lý..."
-            : `Thanh toán ngay (${itemCount} khóa học)`}
+          {isCheckingOut ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Đang tạo đơn...
+            </>
+          ) : (
+            `Thanh toán ngay (${itemCount} khóa học)`
+          )}
         </Button>
 
-        <Button
-          variant="ghost"
-          className="w-full text-sm text-muted-foreground hover:text-foreground"
-          asChild
-        >
-          <Link href="/courses/search">Tiếp tục mua sắm</Link>
-        </Button>
+        <div className="flex gap-2 rounded-md border border-border/60 bg-muted/25 p-3 text-xs text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <p>
+            Thanh toán qua cổng bảo mật. Sau khi giao dịch thành công, khóa học
+            sẽ tự động xuất hiện trong mục học tập của bạn.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

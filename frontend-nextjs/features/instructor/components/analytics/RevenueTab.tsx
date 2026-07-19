@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CalendarDays, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRevenueSummary, useRevenueTimeseries } from "../../revenue/hooks";
@@ -209,6 +209,16 @@ export function RevenueTab() {
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Thông tin doanh thu chỉ dành cho giảng viên sở hữu khóa học. Các số
+          liệu hiện là doanh thu ghi nhận từ giao dịch thành công; khi hệ thống
+          áp dụng phí nền tảng N%, cần trừ phần phí này trước khi đối soát cho
+          giảng viên.
+        </p>
+      </div>
+
       {/* ── KPI summary ── */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
         <RevenueSummaryCards data={summary} isLoading={summaryLoading} />
