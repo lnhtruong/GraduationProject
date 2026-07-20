@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   HttpException,
   NotFoundException,
@@ -14,6 +15,10 @@ import type { Readable } from 'stream';
 
 import { ColabPoolService } from './colab/colab-pool.service';
 import { JobRegistryService } from './colab/job-registry.service';
+import {
+  HIGHLIGHT_COLAB_POOL,
+  MASCOT_COLAB_POOL,
+} from './colab/colab.module';
 import { ColabConfig } from './config/colab.config';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -74,7 +79,8 @@ export class AppService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly pool: ColabPoolService,
+    @Inject(HIGHLIGHT_COLAB_POOL) private readonly highlightPool: ColabPoolService,
+    @Inject(MASCOT_COLAB_POOL) private readonly mascotPool: ColabPoolService,
     private readonly jobs: JobRegistryService,
   ) {
     this.requestTimeoutMs =
@@ -125,9 +131,10 @@ export class AppService {
   }
 
   private async pickAndPersist(
+    pool: ColabPoolService,
     callable: (colabUrl: string) => Promise<unknown>,
   ): Promise<unknown> {
-    const colabUrl = await this.pool.pickHealthy();
+    const colabUrl = await pool.pickHealthy();
     try {
       const data = await callable(colabUrl);
       const jobId = extractJobId(data);
@@ -153,7 +160,7 @@ export class AppService {
     body: unknown,
     userIdFromHeader?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(async (colabUrl) => {
+    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
       const formData = new FormData();
       formData.append('video', video.buffer, {
         filename: video.originalname,
@@ -182,7 +189,7 @@ export class AppService {
     body: unknown,
     userIdFromHeader?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(async (colabUrl) => {
+    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
       const payload: Record<string, unknown> = {
         user_id: userIdFromHeader ?? null,
       };
@@ -213,7 +220,7 @@ export class AppService {
     body: unknown,
     userIdFromHeader?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(async (colabUrl) => {
+    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
       const formData = new FormData();
       formData.append('user_id', String(userIdFromHeader ?? ''));
 
@@ -240,7 +247,7 @@ export class AppService {
     body: unknown,
     userIdFromHeader?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(async (colabUrl) => {
+    return this.pickAndPersist(this.mascotPool, async (colabUrl) => {
       const formData = new FormData();
 
       appendMascotField(formData, body, 'video_url');
@@ -298,7 +305,7 @@ export class AppService {
   // 4. Generate Quiz
   // -----------------------------------------------------------------
   async generateQuiz(body: unknown): Promise<unknown> {
-    return this.pickAndPersist(async (colabUrl) => {
+    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
       const formData = new FormData();
       if (isRecord(body)) {
         for (const key of Object.keys(body)) {
@@ -366,7 +373,11 @@ export class AppService {
   // 7. Ops: trạng thái pool (cho /pool/status)
   // -----------------------------------------------------------------
   async getPoolStatus(force = false) {
-    return this.pool.getStatus(force);
+    const [highlight, mascot] = await Promise.all([
+      this.highlightPool.getStatus(force),
+      this.mascotPool.getStatus(force),
+    ]);
+    return { highlight, mascot };
   }
 
   // -----------------------------------------------------------------
