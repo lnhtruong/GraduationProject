@@ -1,15 +1,14 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { CirclePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import type { QuizEditorState } from "../types";
+import type { QuizEditorOption, QuizEditorState } from "../types";
 import { useQuizEditor } from "../hooks/useQuizEditor";
 
 interface Props {
@@ -40,8 +39,6 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
       updatePassingScore,
     } = useQuizEditor(null);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
     useEffect(() => {
       setState((prev) => ({
         ...prev,
@@ -58,7 +55,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
     const updateOption = (
       questionId: number,
       optionId: string,
-      updater: (option: any) => any,
+      updater: (option: QuizEditorOption) => QuizEditorOption,
     ) => {
       updateQuestion(questionId, (question) => ({
         ...question,
@@ -99,13 +96,8 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
         return false;
       }
 
-      setIsSubmitting(true);
-      try {
-        await onSubmit(state);
-        return true;
-      } finally {
-        setIsSubmitting(false);
-      }
+      await onSubmit(state);
+      return true;
     };
 
     useImperativeHandle(ref, () => ({
@@ -268,8 +260,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                             updateQuestion(question.id, (current) => ({
                               ...current,
                               options: current.options.map((item) => ({
-                                ...item,
-                                ...item,
+                              ...item,
                                 isCorrect: item.id === option.id,
                               })),
                             }))

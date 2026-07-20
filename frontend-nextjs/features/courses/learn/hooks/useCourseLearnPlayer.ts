@@ -18,6 +18,25 @@ import {
 } from "../utils";
 import type { SubmitQuizPayload } from "../types";
 
+type OrientationWithLock = ScreenOrientation & {
+  lock?: (
+    orientation:
+      | "any"
+      | "natural"
+      | "landscape"
+      | "portrait"
+      | "portrait-primary"
+      | "portrait-secondary"
+      | "landscape-primary"
+      | "landscape-secondary",
+  ) => Promise<void>;
+  unlock?: () => void;
+};
+
+type WebKitFullscreenVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+};
+
 interface Props {
   selectedLesson?: InstructorLesson;
   selectedLessonDuration: number;
@@ -198,7 +217,8 @@ export function useCourseLearnPlayer({
       return null;
     }
 
-    return effectiveInVideoCorrectness[activeQuizPoint.id] === true;
+    const correctness = effectiveInVideoCorrectness[activeQuizPoint.id];
+    return correctness === undefined ? null : correctness === true;
   }, [activeQuizPoint, effectiveInVideoSubmitted, effectiveInVideoCorrectness, loadingQuizSubmissions]);
 
   const handleSelectLesson = useCallback(
@@ -294,8 +314,8 @@ export function useCourseLearnPlayer({
 
   const handleToggleFullscreen = useCallback(async () => {
     const videoContainer = videoRef.current?.parentElement;
-    const video = videoRef.current;
-    const orientation = window.screen?.orientation as any;
+    const video = videoRef.current as WebKitFullscreenVideo | null;
+    const orientation = window.screen?.orientation as OrientationWithLock | undefined;
 
     if (!document.fullscreenElement) {
       try {
@@ -304,14 +324,14 @@ export function useCourseLearnPlayer({
           if (orientation?.lock) {
             await orientation.lock("landscape").catch(() => {});
           }
-        } else if (video && typeof (video as any).webkitEnterFullscreen === "function") {
-          (video as any).webkitEnterFullscreen();
+        } else if (video && typeof video.webkitEnterFullscreen === "function") {
+          video.webkitEnterFullscreen();
         }
       } catch (err) {
         console.warn("Standard fullscreen failed, trying webkitEnterFullscreen:", err);
-        if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+        if (video && typeof video.webkitEnterFullscreen === "function") {
           try {
-            (video as any).webkitEnterFullscreen();
+            video.webkitEnterFullscreen();
           } catch (e) {
             console.error("webkitEnterFullscreen failed too:", e);
           }
@@ -577,6 +597,12 @@ export function useCourseLearnPlayer({
     });
 
     setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: true }));
+    if (activeQuizPoint.answerIndex !== null) {
+      setInVideoCorrectness((prev) => ({
+        ...prev,
+        [activeQuizPoint.id]: selectedAnswerIndex === activeQuizPoint.answerIndex,
+      }));
+    }
 
     if (inVideoQuizResolveTimeoutRef.current !== null) {
       window.clearTimeout(inVideoQuizResolveTimeoutRef.current);
@@ -745,10 +771,11 @@ export function useCourseLearnPlayer({
       return;
     }
     if (persistedInVideoSubmitted[activeQuizPoint.id]) {
-      setActiveQuizPointId(null);
-      window.requestAnimationFrame(() => {
+      const frame = window.requestAnimationFrame(() => {
+        setActiveQuizPointId(null);
         void videoRef.current?.play().catch(() => {});
       });
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [activeQuizPointId, activeQuizPoint, persistedInVideoSubmitted, inVideoSubmitted]);
 

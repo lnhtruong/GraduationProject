@@ -39,14 +39,25 @@ inferenceClient.defaults.withCredentials = false;
 attachAuthHeaderInterceptor(apiClient);
 attachAuthHeaderInterceptor(inferenceClient);
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
 
-const subscribeTokenRefresh = (cb: (token: string) => void) => {
-  refreshSubscribers.push(cb);
+const subscribeTokenRefresh = (
+  resolve: (token: string) => void,
+  reject: (error: unknown) => void,
+) => {
+  refreshSubscribers.push({ resolve, reject });
 };
 
 const onTokenRefreshed = (token: string) => {
-  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers.forEach((subscriber) => subscriber.resolve(token));
+  refreshSubscribers = [];
+};
+
+const onTokenRefreshFailed = (error: unknown) => {
+  refreshSubscribers.forEach((subscriber) => subscriber.reject(error));
   refreshSubscribers = [];
 };
 
@@ -103,7 +114,7 @@ function attachRefreshInterceptor(client: AxiosInstance) {
                 originalRequest.headers.Authorization = `Bearer ${token}`;
               }
               client(originalRequest).then(resolve).catch(reject);
-            });
+            }, reject);
           });
         }
 
@@ -118,6 +129,7 @@ function attachRefreshInterceptor(client: AxiosInstance) {
           return client(originalRequest);
         } catch (refreshError) {
           authStorageHelper.clearAll();
+          onTokenRefreshFailed(refreshError);
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;

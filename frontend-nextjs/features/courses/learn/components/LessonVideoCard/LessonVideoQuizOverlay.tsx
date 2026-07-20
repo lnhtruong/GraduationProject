@@ -79,8 +79,10 @@ export function LessonVideoQuizOverlay({
                 {activeQuizPoint.options.map((option, optionIndex) => {
                   const isSelected = inVideoAnswers[activeQuizPoint.id] === optionIndex;
                   const submitted = Boolean(inVideoSubmitted[activeQuizPoint.id]);
-                  const isCorrectAnswer = submitted && activeQuizPoint.answerIndex === optionIndex;
-                  const isWrongSelection = submitted && isSelected && activeQuizPoint.answerIndex !== optionIndex;
+                  const hasCorrectAnswer = activeQuizPoint.answerIndex !== null;
+                  const isCorrectAnswer = submitted && hasCorrectAnswer && activeQuizPoint.answerIndex === optionIndex;
+                  const isWrongSelection =
+                    submitted && isSelected && hasCorrectAnswer && activeQuizPoint.answerIndex !== optionIndex;
 
                   let cardClasses =
                     "border-white/15 bg-white/5 text-white hover:border-white/35 hover:bg-white/10";
@@ -126,12 +128,16 @@ export function LessonVideoQuizOverlay({
               {inVideoSubmitted[activeQuizPoint.id] ? (
                 <div
                   className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-                    inVideoScore
+                    inVideoScore === null
+                      ? "border-white/20 bg-white/8 text-white/80"
+                      : inVideoScore
                       ? "border-success/40 bg-success/12 text-success"
                       : "border-destructive/40 bg-destructive/12 text-destructive"
                   }`}
                 >
-                  {inVideoScore ? (
+                  {inVideoScore === null ? (
+                    <p className="font-medium">Đang ghi nhận câu trả lời...</p>
+                  ) : inVideoScore ? (
                     <p className="font-medium">Bạn làm đúng.</p>
                   ) : (
                     <p className="font-medium">

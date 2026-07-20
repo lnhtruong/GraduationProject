@@ -52,6 +52,12 @@ export function useBuyNow(courseId: number | null | undefined) {
         return;
       }
       sessionStorage.setItem(`payment_course_${data.orderCode}`, String(resolvedCourseId));
+      if (data.orderCode) {
+        sessionStorage.setItem(
+          `payment_courses_${data.orderCode}`,
+          JSON.stringify([resolvedCourseId]),
+        );
+      }
       redirectToPayOS(data.checkoutUrl);
     },
   });
@@ -66,10 +72,16 @@ export function useCreatePayment() {
       }
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, courseIds) => {
       if (!data.checkoutUrl) {
         toast.error("Không nhận được link thanh toán.");
         return;
+      }
+      if (data.orderCode) {
+        sessionStorage.setItem(
+          `payment_courses_${data.orderCode}`,
+          JSON.stringify(courseIds),
+        );
       }
       redirectToPayOS(data.checkoutUrl);
     },

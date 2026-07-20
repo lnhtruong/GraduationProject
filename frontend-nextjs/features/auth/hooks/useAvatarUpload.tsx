@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { authStorageHelper } from "@/store/auth";
+import { authStorageHelper, type User } from "@/store/auth";
 import { cloudinaryApi } from "@/features/cloudinary/api/cloudinary.api";
 import { apiHttpClient } from "@/features/_shared/api-factories";
 
@@ -14,9 +14,9 @@ import { apiHttpClient } from "@/features/_shared/api-factories";
  */
 export function useAvatarUpload() {
   const upload = useCallback(async (file: File) => {
-    const user = authStorageHelper.getUser() as any;
-    const userId = user?.id;
-    if (!userId) throw new Error("Not authenticated");
+    const user = authStorageHelper.getUser();
+    if (!user?.id) throw new Error("Not authenticated");
+    const userId = user.id;
 
     // Get signature for avatar folder
     const signature = await cloudinaryApi.getSignature(`avatars/${userId}`);
@@ -32,8 +32,8 @@ export function useAvatarUpload() {
     });
 
     // Update local store user object
-    const updated = { ...user, avatarUrl: secureUrl };
-    authStorageHelper.setUser(updated as any);
+    const updated: User = { ...user, avatarUrl: secureUrl };
+    authStorageHelper.setUser(updated);
 
     return { secureUrl, data };
   }, []);

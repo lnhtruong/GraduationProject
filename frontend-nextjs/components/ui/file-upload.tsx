@@ -277,6 +277,7 @@ interface FileUploadContextValue {
   disabled: boolean;
   dir: Direction;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  onFilesChange: (files: File[]) => void;
 }
 
 const FileUploadContext = React.createContext<FileUploadContextValue | null>(
@@ -365,19 +366,6 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
     const store = React.useMemo(
       () => createStore(listeners, files, onValueChange, invalid),
       [listeners, files, onValueChange, invalid],
-    );
-
-    const contextValue = React.useMemo<FileUploadContextValue>(
-      () => ({
-        dropzoneId,
-        inputId,
-        listId,
-        labelId,
-        dir,
-        disabled,
-        inputRef,
-      }),
-      [dropzoneId, inputId, listId, labelId, dir, disabled],
     );
 
     React.useEffect(() => {
@@ -583,6 +571,28 @@ const FileUploadRoot = React.forwardRef<HTMLDivElement, FileUploadRootProps>(
       [onFilesChange],
     );
 
+    const contextValue = React.useMemo<FileUploadContextValue>(
+      () => ({
+        dropzoneId,
+        inputId,
+        listId,
+        labelId,
+        dir,
+        disabled,
+        inputRef,
+        onFilesChange,
+      }),
+      [
+        dropzoneId,
+        inputId,
+        listId,
+        labelId,
+        dir,
+        disabled,
+        onFilesChange,
+      ],
+    );
+
     const RootPrimitive = asChild ? Slot : "div";
 
     return (
@@ -669,7 +679,7 @@ const FileUploadDropzone = React.forwardRef<
       event.preventDefault();
       store.dispatch({ variant: "SET_DRAG_OVER", dragOver: true });
     },
-    [store, propsRef.current.onDragOver],
+    [store, propsRef],
   );
 
   const onDragEnter = React.useCallback(
@@ -681,7 +691,7 @@ const FileUploadDropzone = React.forwardRef<
       event.preventDefault();
       store.dispatch({ variant: "SET_DRAG_OVER", dragOver: true });
     },
-    [store, propsRef.current.onDragEnter],
+    [store, propsRef],
   );
 
   const onDragLeave = React.useCallback(
@@ -693,7 +703,7 @@ const FileUploadDropzone = React.forwardRef<
       event.preventDefault();
       store.dispatch({ variant: "SET_DRAG_OVER", dragOver: false });
     },
-    [store, propsRef.current.onDragLeave],
+    [store, propsRef],
   );
 
   const onDrop = React.useCallback(
@@ -706,18 +716,9 @@ const FileUploadDropzone = React.forwardRef<
       store.dispatch({ variant: "SET_DRAG_OVER", dragOver: false });
 
       const files = Array.from(event.dataTransfer.files);
-      const inputElement = context.inputRef.current;
-      if (!inputElement) return;
-
-      const dataTransfer = new DataTransfer();
-      for (const file of files) {
-        dataTransfer.items.add(file);
-      }
-
-      inputElement.files = dataTransfer.files;
-      inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+      context.onFilesChange(files);
     },
-    [store, context.inputRef, propsRef.current.onDrop],
+    [store, context, propsRef],
   );
 
   const onKeyDown = React.useCallback(
@@ -732,7 +733,7 @@ const FileUploadDropzone = React.forwardRef<
         context.inputRef.current?.click();
       }
     },
-    [context.inputRef, propsRef.current.onKeyDown],
+    [context.inputRef, propsRef],
   );
 
   const DropzonePrimitive = asChild ? Slot : "div";
@@ -787,7 +788,7 @@ const FileUploadTrigger = React.forwardRef<
 
       context.inputRef.current?.click();
     },
-    [context.inputRef, propsRef.current],
+    [context.inputRef, propsRef],
   );
 
   const TriggerPrimitive = asChild ? Slot : "button";
@@ -1216,7 +1217,7 @@ const FileUploadItemDelete = React.forwardRef<
         });
       }
     },
-    [store, itemContext.fileState, propsRef.current?.onClick],
+    [store, itemContext.fileState, propsRef],
   );
 
   if (!itemContext.fileState) return null;

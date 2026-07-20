@@ -142,6 +142,7 @@ export function NewsfeedVideoCard({
   useNewsfeedViewTracker({
     feedId: video.feedId,
     isActive,
+    enabled: isAuthenticated,
     videoRef,
   });
 

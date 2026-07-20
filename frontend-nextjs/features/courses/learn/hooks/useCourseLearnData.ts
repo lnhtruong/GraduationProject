@@ -37,7 +37,8 @@ export function useCourseLearnData(courseId: number) {
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    setHydrated(true);
+    const timer = window.setTimeout(() => setHydrated(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const user = useAuthStore((s) => s.user);
@@ -237,7 +238,7 @@ export function useCourseLearnData(courseId: number) {
     selectedLesson,
     selectedLessonProgress?.id,
     selectedLessonProgress?.progress,
-    upsertLessonProgress,
+    upsertLessonProgressAsync,
   ]);
 
   const selectedLessonIndex = useMemo(

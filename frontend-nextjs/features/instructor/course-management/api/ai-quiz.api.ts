@@ -56,8 +56,8 @@ export const aiQuizApi = {
     return data;
   },
 
-  filterQuestions: async (quizId: number, keepQuestionIds: number[]): Promise<any> => {
-    const { data } = await apiHttpClient.patch<any>(`/course/quizzes/${quizId}/filter-questions`, {
+  filterQuestions: async (quizId: number, keepQuestionIds: number[]): Promise<unknown> => {
+    const { data } = await apiHttpClient.patch<unknown>(`/course/quizzes/${quizId}/filter-questions`, {
       keepQuestionIds,
     });
     return data;
@@ -67,8 +67,8 @@ export const aiQuizApi = {
     await apiHttpClient.delete(`/course/quizzes/${quizId}/questions/${questionId}`);
   },
 
-  restoreQuestions: async (quizId: number, restoreQuestionIds: number[]): Promise<any> => {
-    const { data } = await apiHttpClient.post<any>(`/course/quizzes/${quizId}/restore-questions`, {
+  restoreQuestions: async (quizId: number, restoreQuestionIds: number[]): Promise<unknown> => {
+    const { data } = await apiHttpClient.post<unknown>(`/course/quizzes/${quizId}/restore-questions`, {
       restoreQuestionIds,
     });
     return data;

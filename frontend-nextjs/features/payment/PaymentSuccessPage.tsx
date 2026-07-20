@@ -9,6 +9,35 @@ import { Separator } from "@/components/ui/separator";
 import { useOrderStatus } from "./api/payment.hooks";
 import { useQueryClient } from "@tanstack/react-query";
 
+function readStoredCourseIds(orderCode: string | null, courseIdFromUrl: string | null) {
+  if (courseIdFromUrl) {
+    const parsed = Number(courseIdFromUrl);
+    return Number.isInteger(parsed) && parsed > 0 ? [parsed] : [];
+  }
+
+  if (!orderCode || typeof window === "undefined") {
+    return [];
+  }
+
+  const multiRaw = sessionStorage.getItem(`payment_courses_${orderCode}`);
+  if (multiRaw) {
+    try {
+      const parsed = JSON.parse(multiRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0);
+      }
+    } catch {
+      // Fall back to the legacy single-course key below.
+    }
+  }
+
+  const singleRaw = sessionStorage.getItem(`payment_course_${orderCode}`);
+  const single = Number(singleRaw);
+  return Number.isInteger(single) && single > 0 ? [single] : [];
+}
+
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -17,15 +46,11 @@ export default function PaymentSuccessPage() {
   const isFree = searchParams.get("free") === "1";
   const courseIdFromUrl = searchParams.get("courseId");
 
-  const [courseId, setCourseId] = useState<string | null>(courseIdFromUrl);
+  const [courseIds] = useState<number[]>(() =>
+    readStoredCourseIds(orderCode, courseIdFromUrl),
+  );
   const [showTimeout, setShowTimeout] = useState(false);
-
-  useEffect(() => {
-    if (!courseIdFromUrl && orderCode) {
-      const stored = sessionStorage.getItem(`payment_course_${orderCode}`);
-      if (stored) setCourseId(stored);
-    }
-  }, [orderCode, courseIdFromUrl]);
+  const courseId = courseIds.length === 1 ? String(courseIds[0]) : null;
 
   const { data: orderStatus, isLoading } = useOrderStatus(isFree ? null : orderCode);
   const status = isFree ? "PAID" : orderStatus?.status;
@@ -39,14 +64,17 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     if (status === "PAID") {
-      if (courseId) {
-        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", Number(courseId)] });
+      for (const id of courseIds) {
+        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", id] });
       }
       queryClient.invalidateQueries({ queryKey: ["enrollment"] });
       queryClient.invalidateQueries({ queryKey: ["cart"] });
-      if (orderCode) sessionStorage.removeItem(`payment_course_${orderCode}`);
+      if (orderCode) {
+        sessionStorage.removeItem(`payment_course_${orderCode}`);
+        sessionStorage.removeItem(`payment_courses_${orderCode}`);
+      }
     }
-  }, [status, courseId, orderCode, queryClient]);
+  }, [status, courseIds, orderCode, queryClient]);
 
   // ── Loading / Pending ────────────────────────────────────────────────────
   if (!isFree && (isLoading || status === "PENDING")) {
@@ -198,9 +226,9 @@ export default function PaymentSuccessPage() {
           </Button>
         ) : (
           <Button asChild>
-            <Link href="/library">
+            <Link href="/my-courses">
               <BookOpen className="mr-2 h-4 w-4" />
-              Vào thư viện
+              Khóa học của tôi
             </Link>
           </Button>
         )}
