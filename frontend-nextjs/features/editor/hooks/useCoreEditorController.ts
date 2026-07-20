@@ -29,7 +29,83 @@ import {
   getMascotDisplaySize,
 } from "@/features/editor/utils/mascotPlacement";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
-import { waitForMascotJobCompletion } from "@/features/editor/utils/mascot-job.utils";
+import {
+  type MascotJobCompletion,
+  waitForMascotJobCompletion,
+} from "@/features/editor/utils/mascot-job.utils";
+
+const ACTIVE_MASCOT_RENDER_JOB_KEY = "studyloop:active-mascot-render-job";
+
+type ActiveMascotRenderJob = {
+  jobId: string;
+  userId: number;
+  editId: number | null;
+  sourceVideoName?: string;
+  stage?: string;
+  startedAt: number;
+};
+
+const MASCOT_STAGE_TRANSLATIONS: Record<string, string> = {
+  transcribing: "Đang phân tích âm thanh...",
+  generating_mascot: "Đang tạo cử động mascot...",
+  processing: "Đang xử lý video...",
+  merging: "Đang ghép video và mascot...",
+  completed: "Hoàn tất!",
+  failed: "Thất bại",
+};
+
+function getMascotStageLabel(stage: string) {
+  return MASCOT_STAGE_TRANSLATIONS[stage.toLowerCase()] ?? stage;
+}
+
+function readActiveMascotRenderJob(): ActiveMascotRenderJob | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<ActiveMascotRenderJob>;
+    if (!parsed.jobId || !parsed.userId) {
+      window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
+      return null;
+    }
+
+    return {
+      jobId: parsed.jobId,
+      userId: parsed.userId,
+      editId:
+        typeof parsed.editId === "number" && Number.isFinite(parsed.editId)
+          ? parsed.editId
+          : null,
+      sourceVideoName: parsed.sourceVideoName,
+      stage: parsed.stage,
+      startedAt:
+        typeof parsed.startedAt === "number" && Number.isFinite(parsed.startedAt)
+          ? parsed.startedAt
+          : Date.now(),
+    };
+  } catch {
+    window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
+    return null;
+  }
+}
+
+function saveActiveMascotRenderJob(job: ActiveMascotRenderJob) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ACTIVE_MASCOT_RENDER_JOB_KEY, JSON.stringify(job));
+}
+
+function clearActiveMascotRenderJob(jobId?: string) {
+  if (typeof window === "undefined") return;
+
+  if (jobId) {
+    const current = readActiveMascotRenderJob();
+    if (current?.jobId && current.jobId !== jobId) return;
+  }
+
+  window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
+}
 
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value));
@@ -176,6 +252,7 @@ export function useCoreEditorController({
     placement: NonNullable<typeof mascot.previewPlacement>;
     scale: number;
   } | null>(null);
+  const resumedMascotJobRef = useRef<string | null>(null);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [videoDurationMs, setVideoDurationMs] = useState(30_000);
 
@@ -536,6 +613,98 @@ export function useCoreEditorController({
     setVideoSrc,
   ]);
 
+  const completeMascotRenderJob = useCallback(
+    async (
+      job: Pick<ActiveMascotRenderJob, "jobId" | "userId">,
+    ): Promise<MascotJobCompletion> => {
+      setIsCreatingMascotVideo(true);
+      setMascotProgress("Đang chờ hệ thống bắt đầu xử lý...");
+
+      const completedMascot = await waitForMascotJobCompletion({
+        jobId: job.jobId,
+        userId: job.userId,
+        onProgress: (stage) => {
+          const friendlyStage = getMascotStageLabel(stage);
+          setMascotProgress(friendlyStage);
+
+          const current = readActiveMascotRenderJob();
+          if (current?.jobId === job.jobId) {
+            saveActiveMascotRenderJob({
+              ...current,
+              stage: friendlyStage,
+            });
+          }
+        },
+      });
+
+      await onFinalizeMascotProject?.({
+        videoId: completedMascot.videoId,
+        videoUrl: completedMascot.url,
+      });
+
+      clearActiveMascotRenderJob(job.jobId);
+
+      toast.success("Video đã được tạo hoàn chỉnh!", {
+        duration: 10000,
+        action: {
+          label: "Xem trong thư viện",
+          onClick: () => router.push("/library"),
+        },
+        cancel: {
+          label: "Tiếp tục chỉnh sửa",
+          onClick: () => {},
+        },
+      });
+
+      return completedMascot;
+    },
+    [onFinalizeMascotProject, router, setMascotProgress],
+  );
+
+  useEffect(() => {
+    const activeJob = readActiveMascotRenderJob();
+    if (!activeJob || resumedMascotJobRef.current === activeJob.jobId) return;
+
+    const currentUser = authStorageHelper.getUser() as {
+      id?: number;
+      user_id?: number;
+    } | null;
+    const currentUserId = currentUser?.id ?? currentUser?.user_id ?? null;
+    if (currentUserId && activeJob.userId !== currentUserId) {
+      clearActiveMascotRenderJob(activeJob.jobId);
+      return;
+    }
+
+    if (activeJob.editId && editId !== activeJob.editId) return;
+    if (!activeJob.editId && editId) return;
+
+    resumedMascotJobRef.current = activeJob.jobId;
+
+    const timer = window.setTimeout(() => {
+      setIsCreatingMascotVideo(true);
+      setMascotProgress(
+        activeJob.stage || "Đang khôi phục tiến trình tạo video mascot...",
+      );
+
+      void completeMascotRenderJob(activeJob)
+        .catch((error) => {
+          clearActiveMascotRenderJob(activeJob.jobId);
+          toast.error(
+            getUserFacingErrorMessage(
+              error,
+              "Không thể khôi phục tiến trình tạo video mascot. Vui lòng kiểm tra lại trong thư viện.",
+            ),
+          );
+        })
+        .finally(() => {
+          setIsCreatingMascotVideo(false);
+          setMascotProgress("");
+        });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [completeMascotRenderJob, editId, setMascotProgress]);
+
   const handleCreateMascotVideo = useCallback(async () => {
     const hasSelectedVideo =
       Boolean(videoSrc) && videoSrc !== "/videos/Download.mp4";
@@ -597,44 +766,18 @@ export function useCoreEditorController({
         );
       }
 
-      const stageTranslations: Record<string, string> = {
-        transcribing: "Đang phân tích âm thanh...",
-        generating_mascot: "Đang tạo cử động mascot...",
-        processing: "Đang xử lý video...",
-        merging: "Đang ghép video và mascot...",
-        completed: "Hoàn tất!",
-        failed: "Thất bại",
-      };
-
-      setMascotProgress("Đang chờ hệ thống bắt đầu xử lý...");
-
-      const completedMascot = await waitForMascotJobCompletion({
+      saveActiveMascotRenderJob({
         jobId,
         userId,
-        onProgress: (stage) => {
-          const friendlyStage =
-            stageTranslations[stage.toLowerCase()] ?? stage;
-          setMascotProgress(friendlyStage);
-        },
+        editId: editId ?? null,
+        sourceVideoName,
+        stage: "Đang chờ hệ thống bắt đầu xử lý...",
+        startedAt: Date.now(),
       });
 
-      await onFinalizeMascotProject?.({
-        videoId: completedMascot.videoId,
-        videoUrl: completedMascot.url,
-      });
-
-      toast.success("Video đã được tạo hoàn chỉnh!", {
-        duration: 10000,
-        action: {
-          label: "Xem trong thư viện",
-          onClick: () => router.push("/library"),
-        },
-        cancel: {
-          label: "Tiếp tục chỉnh sửa",
-          onClick: () => {},
-        },
-      });
+      await completeMascotRenderJob({ jobId, userId });
     } catch (error) {
+      clearActiveMascotRenderJob();
       toast.error(
         getUserFacingErrorMessage(
           error,
@@ -654,8 +797,8 @@ export function useCoreEditorController({
     startMascotJob,
     setMascotProgress,
     sourceVideoName,
-    onFinalizeMascotProject,
-    router,
+    editId,
+    completeMascotRenderJob,
     effect,
     layers,
     voice,

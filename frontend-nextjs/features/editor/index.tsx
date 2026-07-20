@@ -127,6 +127,21 @@ export default function Editor() {
 
   const effectivePanelBindings = isProjectFinalized ? null : panelBindings;
 
+  useEffect(() => {
+    if (!effectivePanelBindings?.isCreatingMascotVideo || isMascotRenderDialogOpen) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsMascotRenderDialogOpen(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    effectivePanelBindings?.isCreatingMascotVideo,
+    isMascotRenderDialogOpen,
+  ]);
+
   const canCreateMascotVideo = Boolean(
     !isProjectFinalized &&
       effectivePanelBindings &&

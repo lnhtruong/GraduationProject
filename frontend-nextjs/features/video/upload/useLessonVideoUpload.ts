@@ -59,9 +59,59 @@ const INITIAL_SESSION: LessonVideoUploadSession = {
   updatedAt: null,
 };
 
+function readPendingLessonUploadSession(): LessonVideoUploadSession {
+  if (typeof window === "undefined") return INITIAL_SESSION;
+
+  try {
+    const raw = window.localStorage.getItem("lessonUploadSession");
+    if (!raw) return INITIAL_SESSION;
+
+    const pending = JSON.parse(raw) as {
+      videoId?: number;
+      bunnyVideoId?: string | null;
+      initialVideoUrl?: string | null;
+      fileName?: string | null;
+      fileSize?: number | null;
+      startedAt?: number | null;
+    };
+
+    if (!pending.videoId) {
+      window.localStorage.removeItem("lessonUploadSession");
+      return INITIAL_SESSION;
+    }
+
+    return {
+      ...INITIAL_SESSION,
+      status: "processing",
+      fileName: pending.fileName ?? "Video đang xử lý",
+      fileSize: pending.fileSize ?? null,
+      progressPercent: 100,
+      bytesUploaded: pending.fileSize ?? 0,
+      bytesTotal: pending.fileSize ?? 0,
+      videoId: pending.videoId,
+      bunnyVideoId: pending.bunnyVideoId ?? null,
+      initialVideoUrl: pending.initialVideoUrl ?? null,
+      startedAt: pending.startedAt ?? Date.now(),
+      updatedAt: Date.now(),
+    };
+  } catch {
+    window.localStorage.removeItem("lessonUploadSession");
+    return INITIAL_SESSION;
+  }
+}
+
+function isReadyPlaybackUrl(
+  readyVideoUrl: string | null,
+  initialVideoUrl: string | null,
+) {
+  if (!readyVideoUrl) return false;
+  const isOriginalUrl = /\/original(?:[?#].*)?$/i.test(readyVideoUrl);
+  return readyVideoUrl !== initialVideoUrl && !isOriginalUrl;
+}
+
 export function useLessonVideoUpload() {
   const [session, setSession] =
-    useState<LessonVideoUploadSession>(INITIAL_SESSION);
+    useState<LessonVideoUploadSession>(readPendingLessonUploadSession);
   const lastUploadArgsRef = useRef<LastUploadArgs>(null);
   const { user } = useAuth();
 
@@ -268,6 +318,49 @@ export function useLessonVideoUpload() {
       window.removeEventListener("keydown", keyDown);
     };
   }, [session.status]);
+
+  useEffect(() => {
+    if (session.status !== "processing" || !session.videoId) return;
+
+    let canceled = false;
+
+    const checkVideoReadiness = async () => {
+      try {
+        const video = await videoApi.findById(Number(session.videoId));
+        if (canceled) return;
+
+        const readyVideoUrl = video?.url?.trim() || null;
+        if (!isReadyPlaybackUrl(readyVideoUrl, session.initialVideoUrl)) {
+          return;
+        }
+
+        patchSession({
+          status: "completed",
+          progressPercent: 100,
+          readyVideoUrl,
+          error: null,
+        });
+        try {
+          localStorage.removeItem("lessonUploadSession");
+        } catch {}
+      } catch {
+        // Keep the restored processing session alive; SSE may still complete it.
+      }
+    };
+
+    void checkVideoReadiness();
+    const timer = window.setInterval(checkVideoReadiness, 15000);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    patchSession,
+    session.initialVideoUrl,
+    session.status,
+    session.videoId,
+  ]);
 
   // Real-time SSE for media events (upload/video completed, progress, error)
   useEffect(() => {

@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   CheckCircle2,
+  Edit3,
   Loader2,
-  Sparkles,
   Search,
+  Send,
   Tag,
   Video,
   X,
@@ -29,6 +31,7 @@ import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
+import { useUpload } from "@/features/upload/hooks/useUpload";
 import {
   courseFeedKeys,
   useCourseFeeds,
@@ -37,6 +40,7 @@ import {
   useInstructorCourseById,
 } from "./api/course-management.hooks";
 import type { CourseFeedCandidateVideo } from "./types";
+import type { Clip } from "@/features/upload/types";
 
 interface Props {
   courseId: number;
@@ -91,6 +95,10 @@ function getVideoThumbnail(video: CourseFeedCandidateVideo): string | null {
   return video.thumbnail ?? null;
 }
 
+function normalizeVideoUrl(value?: string | null): string {
+  return (value ?? "").trim().replace(/[?#].*$/, "");
+}
+
 function formatDuration(duration: number | null | undefined): string {
   if (
     duration === null ||
@@ -121,6 +129,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   const { data: candidateVideos, isLoading: candidateLoading } =
     useCourseFeedCandidateVideos(courseId);
   const createFeedMutation = useCreateCourseFeed();
+  const highlightUpload = useUpload({ autoCreateProject: false });
 
   const [hashtagDraft, setHashtagDraft] = useState("");
   const [videoQuery, setVideoQuery] = useState("");
@@ -129,6 +138,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   >("all");
   const [visibleCount, setVisibleCount] = useState(12);
   const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
+  const [pendingHighlightClip, setPendingHighlightClip] = useState<Clip | null>(null);
+  const autoOpenedHighlightJobRef = useRef<string | null>(null);
+  const handledHighlightJobRef = useRef<string | null>(null);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<FeedFormValues>({
     resolver: zodResolver(feedFormSchema),
@@ -168,6 +180,155 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       (video) => String(video.id) === formVideoId,
     ) ?? null;
 
+  const selectVideoForFeed = useCallback(
+    (video: Pick<CourseFeedCandidateVideo, "id" | "name">) => {
+      setValue("videoId", String(video.id), {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+      if (!formTitle.trim()) {
+        setValue("title", video.name, {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: true,
+        });
+      }
+      setVideoQuery("");
+      setVideoTypeFilter("all");
+      setVisibleCount(12);
+    },
+    [formTitle, setValue],
+  );
+
+  const handleEditFeedVideo = useCallback(
+    async (video: CourseFeedCandidateVideo) => {
+      const ensured = await highlightUpload.ensureProjectForClip({
+        name: video.name,
+        url: video.url,
+        videoId: video.id,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+      });
+      const params = new URLSearchParams({
+        src: video.url,
+        from: "highlight",
+      });
+
+      if (ensured?.projectId) {
+        params.set("edit_id", String(ensured.projectId));
+      }
+      if (ensured?.videoId) {
+        params.set("video_id", String(ensured.videoId));
+      } else {
+        params.set("video_id", String(video.id));
+      }
+
+      router.push(`/editor?${params.toString()}`);
+    },
+    [highlightUpload, router],
+  );
+
+  const handleHighlightUploadSuccess = useCallback(
+    async (clips: Clip[]) => {
+      const clip = clips.find((item) => item.videoId) ?? clips[0];
+      if (!clip) return;
+
+      setPendingHighlightClip(clip);
+
+      await queryClient.invalidateQueries({
+        queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: courseFeedKeys.root,
+      });
+      await queryClient.refetchQueries({
+        queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+        type: "active",
+      });
+
+      if (clip.videoId) {
+        selectVideoForFeed({
+          id: clip.videoId,
+          name: clip.name?.trim() || "Highlight mới",
+        });
+        setPendingHighlightClip(null);
+        toast.success("Đã chọn highlight mới cho feed", {
+          id: "feed-highlight-selected",
+        });
+      }
+
+      router.refresh();
+    },
+    [courseId, queryClient, router, selectVideoForFeed],
+  );
+
+  useEffect(() => {
+    const isRunning =
+      highlightUpload.status === "uploading" ||
+      highlightUpload.status === "pending" ||
+      highlightUpload.status === "processing";
+    const restoreKey = highlightUpload.jobId ?? (isRunning ? "uploading" : null);
+
+    if (!restoreKey || autoOpenedHighlightJobRef.current === restoreKey) return;
+
+    autoOpenedHighlightJobRef.current = restoreKey;
+    const timer = window.setTimeout(() => {
+      setIsHighlightUploadOpen(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightUpload.jobId, highlightUpload.status]);
+
+  useEffect(() => {
+    if (highlightUpload.status !== "completed" || highlightUpload.clips.length === 0) {
+      return;
+    }
+
+    const clipKey = highlightUpload.clips
+      .map((clip) => `${clip.videoId ?? ""}:${clip.url}`)
+      .join("|");
+    const completedKey = `${highlightUpload.jobId ?? "completed"}:${clipKey}`;
+    if (handledHighlightJobRef.current === completedKey) return;
+
+    handledHighlightJobRef.current = completedKey;
+    const timer = window.setTimeout(() => {
+      void handleHighlightUploadSuccess(highlightUpload.clips);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    handleHighlightUploadSuccess,
+    highlightUpload.clips,
+    highlightUpload.jobId,
+    highlightUpload.status,
+  ]);
+
+  useEffect(() => {
+    if (!pendingHighlightClip) return;
+
+    const pendingUrl = normalizeVideoUrl(pendingHighlightClip.url);
+    const matchedVideo = availableVideosForCreate.find((video) => {
+      if (pendingHighlightClip.videoId && video.id === pendingHighlightClip.videoId) {
+        return true;
+      }
+
+      return pendingUrl.length > 0 && normalizeVideoUrl(video.url) === pendingUrl;
+    });
+
+    if (!matchedVideo) return;
+
+    const timer = window.setTimeout(() => {
+      selectVideoForFeed(matchedVideo);
+      setPendingHighlightClip(null);
+      toast.success("Đã chọn highlight mới cho feed", {
+        id: "feed-highlight-selected",
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [availableVideosForCreate, pendingHighlightClip, selectVideoForFeed]);
+
   const filteredVideos = useMemo(() => {
     const query = videoQuery.trim().toLowerCase();
 
@@ -193,6 +354,10 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   );
 
   const hasMoreVideos = visibleCount < filteredVideos.length;
+  const isHighlightUploadActive =
+    highlightUpload.status === "uploading" ||
+    highlightUpload.status === "pending" ||
+    highlightUpload.status === "processing";
 
   const addHashtags = (rawValue: string) => {
     const nextItems = parseHashtagTokens(rawValue);
@@ -305,8 +470,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       ]}
       action={
         <div className="flex items-center gap-3">
-          <Button asChild variant="outline" className="h-10 text-xs font-semibold px-4">
+          <Button asChild variant="outline" className="h-10 gap-2 px-4 text-xs font-semibold">
             <Link href={`/instructor/courses/${course.id}/feed`}>
+              <ArrowLeft className="h-4 w-4" />
               Quay lại
             </Link>
           </Button>
@@ -314,7 +480,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
             type="submit"
             form="create-feed-form"
             disabled={createFeedMutation.isPending}
-            className="h-10 text-xs font-semibold px-4"
+            className="h-10 gap-2 px-4 text-xs font-semibold"
           >
             {createFeedMutation.isPending ? (
               <span className="inline-flex items-center gap-2">
@@ -322,20 +488,23 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                 Đang tạo...
               </span>
             ) : (
-              "Tạo feed"
+              <>
+                <Send className="h-4 w-4" />
+                Tạo feed
+              </>
             )}
           </Button>
         </div>
       }
     >
-      <div className="p-3 sm:p-4 lg:p-5">
+      <div>
         <form
           id="create-feed-form"
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
         >
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             {/* Cột trái: Thông tin bài viết & Thư viện video */}
-            <div className="space-y-6 lg:col-span-8">
+            <div className="space-y-5">
               {/* Card 1: Thông tin feed */}
               <Card className="border-border/60 shadow-sm">
                 <CardContent className="space-y-5 p-6">
@@ -379,7 +548,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                             {hashtag}
                             <button
                               type="button"
-                              className="rounded-full p-0.5 transition hover:bg-muted"
+                              className="cursor-pointer rounded-full p-0.5 transition hover:bg-muted"
                               onClick={() => {
                                 const next = formHashtags.filter((_, i) => i !== index);
                                 setValue("hashtags", next);
@@ -460,9 +629,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            Hiển thị {visibleVideos.length}/{filteredVideos.length}
-                          </span>
                           <Button
                             type="button"
                             variant="outline"
@@ -471,7 +637,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                             title="Tạo highlight"
                             onClick={() => setIsHighlightUploadOpen(true)}
                           >
-                            <Sparkles className="h-4 w-4" />
+                            <Video className="h-4 w-4" />
                             <span>Tạo video highlight</span>
                           </Button>
                         </div>
@@ -482,6 +648,31 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           Đã ẩn {hiddenUsedVideoCount} video vì các video này đã có trên feed. Một video chỉ được đăng feed một lần để tránh trùng nội dung.
                         </div>
                       ) : null}
+
+                      {(isHighlightUploadActive || pendingHighlightClip) && (
+                        <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm text-primary sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold">
+                              {isHighlightUploadActive
+                                ? "Highlight đang được tạo"
+                                : "Đang cập nhật highlight mới"}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {highlightUpload.stage ||
+                                "StudyLoop sẽ tự chọn video mới khi xử lý hoàn tất."}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 shrink-0 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => setIsHighlightUploadOpen(true)}
+                          >
+                            Xem tiến trình
+                          </Button>
+                        </div>
+                      )}
 
                       {errors.videoId && (
                         <p className="text-sm font-medium text-destructive">{errors.videoId.message}</p>
@@ -547,7 +738,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                     field.onChange(String(video.id))
                                   }
                                   className={cn(
-                                    "group relative overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                                    "group relative cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
                                     isSelected
                                       ? "border-primary ring-2 ring-primary/20"
                                       : "border-border/60 hover:border-primary/40",
@@ -571,6 +762,27 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </div>
                                     )}
 
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label={`Mở Studio chỉnh sửa ${video.name}`}
+                                      className="absolute left-2 top-2 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-white/70 bg-black/65 text-white opacity-0 shadow-sm transition hover:bg-primary group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleEditFeedVideo(video);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key !== "Enter" && event.key !== " ") {
+                                          return;
+                                        }
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        void handleEditFeedVideo(video);
+                                      }}
+                                    >
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                    </span>
+
                                     <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium text-white tracking-wide leading-none shadow-sm">
                                       {formatDuration(video.duration)}
                                     </span>
@@ -586,35 +798,35 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                             })}
                           </div>
 
-                          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                            <span className="text-xs text-muted-foreground">
-                              {hasMoreVideos
-                                ? `Đang xem ${visibleVideos.length} trong ${filteredVideos.length} video`
-                                : `Đã hiển thị toàn bộ ${filteredVideos.length} video`}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {visibleCount > 12 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setVisibleCount(12)}
-                                >
-                                  Thu gọn
-                                </Button>
-                              )}
-                              {hasMoreVideos && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setVisibleCount((prev) => prev + 12)}
-                                >
-                                  Xem thêm 12
-                                </Button>
-                              )}
+                          {(hasMoreVideos || visibleCount > 12) && (
+                            <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                              <span className="text-xs text-muted-foreground">
+                                Đang xem {visibleVideos.length} trong {filteredVideos.length} video
+                              </span>
+                              <div className="flex items-center gap-2">
+                                {visibleCount > 12 && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setVisibleCount(12)}
+                                  >
+                                    Thu gọn
+                                  </Button>
+                                )}
+                                {hasMoreVideos && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setVisibleCount((prev) => prev + 12)}
+                                  >
+                                    Xem thêm 12
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-8 text-center">
@@ -624,9 +836,9 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               <p className="text-xs text-muted-foreground/70">Hãy tạo video mascot trong Studio để đưa lên feed.</p>
                               <Link
                                 href="/studio"
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                               >
-                                <Sparkles className="h-3.5 w-3.5" />
+                                <Clapperboard className="h-3.5 w-3.5" />
                                 Mở Studio tạo Mascot
                               </Link>
                             </>
@@ -652,12 +864,12 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
             </div>
 
             {/* Cột phải: Live Preview */}
-            <div className="space-y-6 lg:col-span-4 lg:sticky lg:top-24 lg:h-fit">
+            <div className="space-y-5 xl:sticky xl:top-24 xl:h-fit">
               <Card className="border-border/60 shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                   <div className="flex items-center gap-2 border-b border-border/60 px-5 py-4 bg-muted/20">
                     <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                      <Sparkles className="h-4 w-4" />
+                      <Video className="h-4 w-4" />
                     </div>
                     <div>
                       <p className="text-base font-semibold">Xem trước trên Web</p>
@@ -719,15 +931,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       <HighlightUploadDialog
         open={isHighlightUploadOpen}
         onOpenChange={setIsHighlightUploadOpen}
-        onUploadSuccess={() => {
-          void queryClient.invalidateQueries({
-            queryKey: courseFeedKeys.custom("candidate-videos", courseId),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: courseFeedKeys.root,
-          });
-          router.refresh();
-        }}
+        upload={highlightUpload}
       />
     </ManagementPageShell>
   );
