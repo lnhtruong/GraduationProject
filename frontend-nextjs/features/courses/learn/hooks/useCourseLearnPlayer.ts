@@ -18,6 +18,25 @@ import {
 } from "../utils";
 import type { SubmitQuizPayload } from "../types";
 
+type OrientationWithLock = ScreenOrientation & {
+  lock?: (
+    orientation:
+      | "any"
+      | "natural"
+      | "landscape"
+      | "portrait"
+      | "portrait-primary"
+      | "portrait-secondary"
+      | "landscape-primary"
+      | "landscape-secondary",
+  ) => Promise<void>;
+  unlock?: () => void;
+};
+
+type WebKitFullscreenVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+};
+
 interface Props {
   selectedLesson?: InstructorLesson;
   selectedLessonDuration: number;
@@ -295,8 +314,8 @@ export function useCourseLearnPlayer({
 
   const handleToggleFullscreen = useCallback(async () => {
     const videoContainer = videoRef.current?.parentElement;
-    const video = videoRef.current;
-    const orientation = window.screen?.orientation as any;
+    const video = videoRef.current as WebKitFullscreenVideo | null;
+    const orientation = window.screen?.orientation as OrientationWithLock | undefined;
 
     if (!document.fullscreenElement) {
       try {
@@ -305,14 +324,14 @@ export function useCourseLearnPlayer({
           if (orientation?.lock) {
             await orientation.lock("landscape").catch(() => {});
           }
-        } else if (video && typeof (video as any).webkitEnterFullscreen === "function") {
-          (video as any).webkitEnterFullscreen();
+        } else if (video && typeof video.webkitEnterFullscreen === "function") {
+          video.webkitEnterFullscreen();
         }
       } catch (err) {
         console.warn("Standard fullscreen failed, trying webkitEnterFullscreen:", err);
-        if (video && typeof (video as any).webkitEnterFullscreen === "function") {
+        if (video && typeof video.webkitEnterFullscreen === "function") {
           try {
-            (video as any).webkitEnterFullscreen();
+            video.webkitEnterFullscreen();
           } catch (e) {
             console.error("webkitEnterFullscreen failed too:", e);
           }
@@ -752,10 +771,11 @@ export function useCourseLearnPlayer({
       return;
     }
     if (persistedInVideoSubmitted[activeQuizPoint.id]) {
-      setActiveQuizPointId(null);
-      window.requestAnimationFrame(() => {
+      const frame = window.requestAnimationFrame(() => {
+        setActiveQuizPointId(null);
         void videoRef.current?.play().catch(() => {});
       });
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [activeQuizPointId, activeQuizPoint, persistedInVideoSubmitted, inVideoSubmitted]);
 

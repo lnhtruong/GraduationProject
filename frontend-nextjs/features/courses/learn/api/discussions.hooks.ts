@@ -41,7 +41,7 @@ export function useCreateDiscussionMutation(lessonId: number) {
       const previousData = queryClient.getQueryData<InfiniteData<DiscussionListResponse>>(queryKey);
 
       // Construct the optimistic post
-      const userSnapshot = (authStorageHelper as any).getUserSnapshot?.() ?? null;
+      const userSnapshot = authStorageHelper.getUser();
       const author = userSnapshot
          ? {
              id: userSnapshot.id,

@@ -37,8 +37,9 @@ export function CourseQAWorkspace({ courseId }: Props) {
   useEffect(() => {
     const prev = prevFiltersRef.current;
     if (prev.lessonId !== lessonId || prev.status !== status || prev.sort !== sort) {
-      setPage(1);
       prevFiltersRef.current = { lessonId, status, sort };
+      const timer = window.setTimeout(() => setPage(1), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [lessonId, status, sort]);
 

@@ -40,10 +40,11 @@ export default function InstructorQAWorkspace() {
       prevCourseIdRef.current !== courseId ||
       prevSortRef.current !== sort
     ) {
-      setPage(1);
       prevStatusRef.current = status;
       prevCourseIdRef.current = courseId;
       prevSortRef.current = sort;
+      const timer = window.setTimeout(() => setPage(1), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [status, courseId, sort]);
 

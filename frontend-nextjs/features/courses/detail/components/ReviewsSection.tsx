@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getInitials } from "../../utils";
-import { WriteReviewForm, type ReviewSubmitPayload } from "./WriteReviewForm";
+import { WriteReviewForm } from "./WriteReviewForm";
 import {
   useFeedbackList,
   useCheckUserReview,
@@ -45,10 +45,13 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
     const others = ownReview
       ? incoming.filter((i) => i.id !== ownReview.id)
       : incoming;
-    setAllItems((prev) => (page === 1 ? others : [...prev, ...others]));
+    const timer = window.setTimeout(() => {
+      setAllItems((prev) => (page === 1 ? others : [...prev, ...others]));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [data, page, ownReview]);
 
-  const handleReviewSuccess = (_payload: ReviewSubmitPayload) => {
+  const handleReviewSuccess = () => {
     // Real data arrives via query invalidation triggered by useCreateFeedback
     setAllItems((prev) => prev.filter((i) => i.userId !== currentUserId));
   };

@@ -14,6 +14,8 @@ export interface ParsedQueryParams {
   page: number;
 }
 
+type QueryParamValue = string | number | number[] | null | undefined;
+
 export function useQueryParams() {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,7 +60,7 @@ export function useQueryParams() {
   }, [searchParams]);
 
   const setQueryParams = useCallback(
-    (newParams: Partial<Record<keyof ParsedQueryParams | "categoryId", any>>) => {
+    (newParams: Partial<Record<keyof ParsedQueryParams | "categoryId", QueryParamValue>>) => {
       const nextParams = new URLSearchParams(searchParams.toString());
 
       Object.entries(newParams).forEach(([key, value]) => {
@@ -70,7 +72,7 @@ export function useQueryParams() {
         } else if (Array.isArray(value)) {
           nextParams.delete(urlKey);
           value.forEach((val) => {
-            if (val !== null && val !== undefined && val !== "") {
+            if (val !== null && val !== undefined) {
               nextParams.append(urlKey, String(val));
             }
           });

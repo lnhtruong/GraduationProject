@@ -552,8 +552,8 @@ export default function AdminCoursesPage() {
             </DialogTitle>
             <DialogDescription className="text-sm">
               {confirmCourseAction?.type === "approve"
-                ? <>Bạn có chắc muốn <strong>duyệt</strong> khóa học <strong>"{confirmCourseAction.course.name}"</strong>?</>
-                : <>Bạn có chắc muốn <strong>từ chối</strong> khóa học <strong>"{confirmCourseAction?.course.name}"</strong>? Giảng viên sẽ cần chỉnh sửa và gửi lại.</>}
+                ? <>Bạn có chắc muốn <strong>duyệt</strong> khóa học <strong>&quot;{confirmCourseAction.course.name}&quot;</strong>?</>
+                : <>Bạn có chắc muốn <strong>từ chối</strong> khóa học <strong>&quot;{confirmCourseAction?.course.name}&quot;</strong>? Giảng viên sẽ cần chỉnh sửa và gửi lại.</>}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-3 sm:gap-3">
@@ -579,7 +579,7 @@ export default function AdminCoursesPage() {
             </DialogTitle>
             <DialogDescription className="text-sm">
               {confirmCRAction?.type === "approve"
-                ? <>Xác nhận <strong>duyệt</strong> yêu cầu thay đổi trên khoá học <strong>"{confirmCRAction.request.course?.name}"</strong>? Thay đổi sẽ được áp dụng ngay.</>
+                ? <>Xác nhận <strong>duyệt</strong> yêu cầu thay đổi trên khoá học <strong>&quot;{confirmCRAction.request.course?.name}&quot;</strong>? Thay đổi sẽ được áp dụng ngay.</>
                 : <>Xác nhận <strong>từ chối</strong> yêu cầu này? Giảng viên sẽ được thông báo.</>}
             </DialogDescription>
           </DialogHeader>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	useCreateImage,
 	useDeleteImage,
@@ -25,25 +25,25 @@ export function useImage(initialImageId?: number | null) {
 	const updateImageMutation = useUpdateImage();
 	const deleteImageMutation = useDeleteImage();
 
-	const createImage = async (payload: CreateImageRequest) => {
+	const createImage = useCallback(async (payload: CreateImageRequest) => {
 		const created = await createImageMutation.mutateAsync(payload);
 		setSelectedImageId(created.id);
 		return created;
-	};
+	}, [createImageMutation]);
 
-	const updateImage = async (id: number, payload: UpdateImageRequest) => {
+	const updateImage = useCallback(async (id: number, payload: UpdateImageRequest) => {
 		const updated = await updateImageMutation.mutateAsync({ id, data: payload });
 		setSelectedImageId(updated.id);
 		return updated;
-	};
+	}, [updateImageMutation]);
 
-	const deleteImage = async (id: number) => {
+	const deleteImage = useCallback(async (id: number) => {
 		const result = await deleteImageMutation.mutateAsync(id);
 		if (selectedImageId === id) {
 			setSelectedImageId(null);
 		}
 		return result;
-	};
+	}, [deleteImageMutation, selectedImageId]);
 
 	const isLoading =
 		imagesQuery.isLoading ||
@@ -84,6 +84,9 @@ export function useImage(initialImageId?: number | null) {
 			error,
 			imagesQuery.refetch,
 			selectedImageQuery.refetch,
+			createImage,
+			updateImage,
+			deleteImage,
 			createImageMutation,
 			updateImageMutation,
 			deleteImageMutation,
