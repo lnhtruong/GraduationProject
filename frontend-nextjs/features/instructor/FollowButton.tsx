@@ -72,8 +72,8 @@ export function FollowButton({ instructorId }: Props) {
           onMouseLeave={() => setHovered(false)}
           className={
             hovered
-              ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              : "border-border bg-muted text-muted-foreground"
+              ? "border-destructive/40 bg-destructive/10 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
+              : "border-border bg-muted text-muted-foreground hover:!bg-muted hover:!text-foreground"
           }
         >
           <UserCheck className="mr-1.5 h-4 w-4" />
