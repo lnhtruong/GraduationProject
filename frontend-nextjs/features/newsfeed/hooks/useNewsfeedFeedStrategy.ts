@@ -27,11 +27,12 @@ function buildViewPayload(currentTime: number, duration: number) {
 export function useNewsfeedViewTracker(params: {
 	feedId: number | null;
 	isActive: boolean;
+	enabled: boolean;
 	videoRef: React.RefObject<HTMLVideoElement | null>;
 }) {
 	const recordViewMutation = useNewsfeedRecordViewMutation();
 	const didRecordRef = useRef(false);
-	const videoElement = params.videoRef.current;
+	const isRecordingRef = useRef(false);
 
 	useEffect(() => {
 		didRecordRef.current = false;
@@ -44,8 +45,8 @@ export function useNewsfeedViewTracker(params: {
 	}, [params.isActive]);
 
 	const flushView = useCallback(async () => {
-		const video = videoElement;
-		if (!video || !params.feedId || didRecordRef.current) {
+		const video = params.videoRef.current;
+		if (!params.enabled || !video || !params.feedId || didRecordRef.current || isRecordingRef.current) {
 			return;
 		}
 
@@ -57,13 +58,20 @@ export function useNewsfeedViewTracker(params: {
 			return;
 		}
 
-		didRecordRef.current = true;
-		await recordViewMutation.mutateAsync({
-			feedId: params.feedId,
-			watchDuration,
-			completed,
-		});
-	}, [params.feedId, recordViewMutation, videoElement]);
+		isRecordingRef.current = true;
+		try {
+			await recordViewMutation.mutateAsync({
+				feedId: params.feedId,
+				watchDuration,
+				completed,
+			});
+			didRecordRef.current = true;
+		} catch (error) {
+			console.error("Record newsfeed view failed:", error);
+		} finally {
+			isRecordingRef.current = false;
+		}
+	}, [params.enabled, params.feedId, params.videoRef, recordViewMutation]);
 
 	useEffect(() => {
 		if (params.isActive) {
@@ -74,25 +82,26 @@ export function useNewsfeedViewTracker(params: {
 	}, [flushView, params.isActive]);
 
 	useEffect(() => {
-		const video = videoElement;
+		const video = params.videoRef.current;
 		if (!params.isActive || !video) {
 			return;
 		}
 
-		const flushWhenViewable = () => {
-			if ((video.currentTime || 0) >= NEWSFEED_MIN_VIEW_SECONDS) {
+		const flushWhenCompleted = () => {
+			const { completed } = buildViewPayload(video.currentTime || 0, video.duration || 0);
+			if (completed || video.ended) {
 				void flushView();
 			}
 		};
 
-		video.addEventListener("playing", flushWhenViewable);
-		video.addEventListener("timeupdate", flushWhenViewable);
+		video.addEventListener("ended", flushWhenCompleted);
+		video.addEventListener("timeupdate", flushWhenCompleted);
 
 		return () => {
-			video.removeEventListener("playing", flushWhenViewable);
-			video.removeEventListener("timeupdate", flushWhenViewable);
+			video.removeEventListener("ended", flushWhenCompleted);
+			video.removeEventListener("timeupdate", flushWhenCompleted);
 		};
-	}, [flushView, params.isActive, videoElement]);
+	}, [flushView, params.isActive, params.videoRef]);
 
 	useEffect(() => {
 		const onVisibilityChange = () => {

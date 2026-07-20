@@ -76,6 +76,7 @@ export function useStudioSession() {
     number | null
   >(null);
   const bootstrappedSourceRef = useRef<number | null>(null);
+  const bootstrappingProjectRef = useRef(false);
 
   const rawEditId =
     searchParams.get("edit_id") ??
@@ -262,7 +263,7 @@ export function useStudioSession() {
     });
 
   useEffect(() => {
-    if (!selectedVideoId || activeEditId || !user?.id || isBootstrappingProject) {
+    if (!selectedVideoId || activeEditId || !user?.id || bootstrappingProjectRef.current) {
       return;
     }
 
@@ -273,6 +274,7 @@ export function useStudioSession() {
     let cancelled = false;
 
     const bootstrapProjectFromSource = async () => {
+      bootstrappingProjectRef.current = true;
       setIsBootstrappingProject(true);
       try {
         const resolvedVideoId = selectedVideoId;
@@ -309,6 +311,7 @@ export function useStudioSession() {
           router.replace(nextUrl, { scroll: false });
         }
       } finally {
+        bootstrappingProjectRef.current = false;
         if (!cancelled) {
           setIsBootstrappingProject(false);
         }
@@ -327,7 +330,6 @@ export function useStudioSession() {
     router,
     searchParams,
     selectedVideoId,
-    isBootstrappingProject,
     user?.id,
   ]);
 

@@ -1102,7 +1102,7 @@ export default function Home() {
             <span className="inline-flex rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
               StudyLoop
             </span>
-            <h1 className="mt-5 max-w-[46rem] text-balance text-[clamp(2.75rem,4.7vw,4.55rem)] font-black leading-[0.98] tracking-tight text-foreground">
+            <h1 className="mt-5 max-w-[46rem] text-balance text-[clamp(2.65rem,4.55vw,4.35rem)] font-black leading-[1.06] tracking-tight text-foreground">
               Học bằng khóa học sâu, ôn bằng video ngắn.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
@@ -1136,7 +1136,7 @@ export default function Home() {
               <Button
                 asChild
                 size="lg"
-                className="h-10 rounded-xl px-4 text-sm font-black shadow-lg shadow-primary/20 sm:h-12 sm:px-5 sm:text-base"
+                className="h-10 rounded-xl px-4 text-sm font-black leading-none shadow-lg shadow-primary/20 sm:h-12 sm:px-5 sm:text-base"
               >
                 <Link href="/courses/search">
                   Khám phá
@@ -1147,7 +1147,7 @@ export default function Home() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-10 rounded-xl border-border/70 bg-background px-4 text-sm font-black text-foreground shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-foreground dark:bg-card dark:hover:bg-primary/15 sm:h-12 sm:px-5 sm:text-base"
+                className="h-10 rounded-xl border-border/70 bg-background px-4 text-sm font-black leading-none text-foreground shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-foreground dark:bg-card dark:hover:bg-primary/15 sm:h-12 sm:px-5 sm:text-base"
               >
                 <Link href="/newsfeed">
                   Feed
@@ -1158,7 +1158,7 @@ export default function Home() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-10 rounded-xl border-border/70 bg-background px-4 text-sm font-black text-foreground shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-foreground dark:bg-card dark:hover:bg-primary/15 sm:h-12 sm:px-5 sm:text-base"
+                className="h-10 rounded-xl border-border/70 bg-background px-4 text-sm font-black leading-none text-foreground shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-foreground dark:bg-card dark:hover:bg-primary/15 sm:h-12 sm:px-5 sm:text-base"
               >
                 <Link href={uploadHref}>
                   Tạo highlight

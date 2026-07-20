@@ -198,7 +198,8 @@ export function useCourseLearnPlayer({
       return null;
     }
 
-    return effectiveInVideoCorrectness[activeQuizPoint.id] === true;
+    const correctness = effectiveInVideoCorrectness[activeQuizPoint.id];
+    return correctness === undefined ? null : correctness === true;
   }, [activeQuizPoint, effectiveInVideoSubmitted, effectiveInVideoCorrectness, loadingQuizSubmissions]);
 
   const handleSelectLesson = useCallback(
@@ -577,6 +578,12 @@ export function useCourseLearnPlayer({
     });
 
     setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: true }));
+    if (activeQuizPoint.answerIndex !== null) {
+      setInVideoCorrectness((prev) => ({
+        ...prev,
+        [activeQuizPoint.id]: selectedAnswerIndex === activeQuizPoint.answerIndex,
+      }));
+    }
 
     if (inVideoQuizResolveTimeoutRef.current !== null) {
       window.clearTimeout(inVideoQuizResolveTimeoutRef.current);
