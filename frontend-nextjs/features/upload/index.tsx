@@ -16,6 +16,7 @@ import UploadProgress from "@/features/upload/components/UploadProgress";
 import { useUpload } from "@/features/upload/hooks/useUpload";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
 import type { HighlightParams } from "@/features/upload/types";
 import {
   Check,
@@ -356,7 +357,7 @@ export default function Upload() {
                             Chọn nguồn bài giảng
                           </h2>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            MP4, MOV, AVI, WEBM hoặc MKV · tối đa 2GB
+                            MP4, MOV, AVI, WEBM hoặc MKV · tối đa {BUNNY_MAX_UPLOAD_LABEL}
                           </p>
                         </div>
                         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl p-1 sm:w-[360px]">

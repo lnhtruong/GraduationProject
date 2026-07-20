@@ -1,5 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  CLOUDINARY_MAX_UPLOAD_BYTES,
+  CLOUDINARY_MAX_UPLOAD_LABEL,
+} from "@/lib/env";
 import { cloudinaryApi } from "./cloudinary.api";
 
 type CloudinaryUploadVariables = {
@@ -21,6 +25,12 @@ export function useCloudinaryDirectUpload(
   return useMutation({
     mutationKey: ["cloudinary", "upload"],
     mutationFn: async (payload: CloudinaryUploadVariables) => {
+      if (payload.file.size > CLOUDINARY_MAX_UPLOAD_BYTES) {
+        throw new Error(
+          `File quá lớn. Kích thước tối đa: ${CLOUDINARY_MAX_UPLOAD_LABEL}`,
+        );
+      }
+
       const signature = await cloudinaryApi.getSignature({
         folderName: payload.folderName,
         jobId: payload.jobId,
@@ -40,7 +50,7 @@ export function useCloudinaryDirectUpload(
     },
     onError: (error: Error) => {
       console.error("[useCloudinaryDirectUpload] Error:", error);
-      toast.error("Tải lên thất bại. Vui lòng thử lại.");
+      toast.error(error.message || "Tải lên thất bại. Vui lòng thử lại.");
     },
   });
 }

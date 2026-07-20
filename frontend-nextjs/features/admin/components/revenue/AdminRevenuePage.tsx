@@ -21,6 +21,7 @@ import type {
   TransactionStatus,
 } from "../../revenue/types";
 import { RevenueTrendChart } from "./RevenueTrendChart";
+import { PLATFORM_FEE_PERCENT_LABEL } from "@/lib/env";
 
 function formatVND(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
@@ -108,7 +109,7 @@ export default function AdminRevenuePage() {
         <p>
           Khu vực doanh thu chỉ dành cho admin. Các số liệu hiện là doanh thu
           toàn nền tảng từ giao dịch thành công; nếu hệ thống áp dụng phí nền
-          tảng N%, admin cần theo dõi phần phí nền tảng và phần đối soát trả cho
+          tảng {PLATFORM_FEE_PERCENT_LABEL}, admin cần theo dõi phần phí nền tảng và phần đối soát trả cho
           giảng viên.
         </p>
       </div>

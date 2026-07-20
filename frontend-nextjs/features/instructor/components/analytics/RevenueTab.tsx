@@ -11,6 +11,7 @@ import type { RevenueTimeseriesParams } from "../../revenue/types";
 import { RevenueSummaryCards } from "./RevenueSummaryCards";
 import { RevenueChart } from "./RevenueChart";
 import { CourseRevenueTable } from "./CourseRevenueTable";
+import { PLATFORM_FEE_PERCENT_LABEL } from "@/lib/env";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -301,7 +302,7 @@ export function RevenueTab() {
         <p>
           Thông tin doanh thu chỉ dành cho giảng viên sở hữu khóa học. Các số
           liệu hiện là doanh thu ghi nhận từ giao dịch thành công; khi hệ thống
-          áp dụng phí nền tảng N%, cần trừ phần phí này trước khi đối soát cho
+          áp dụng phí nền tảng {PLATFORM_FEE_PERCENT_LABEL}, cần trừ phần phí này trước khi đối soát cho
           giảng viên.
         </p>
       </div>

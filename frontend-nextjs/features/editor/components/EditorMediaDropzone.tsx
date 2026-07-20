@@ -17,6 +17,10 @@ import { videoApi } from "@/features/video/api/video.api";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authStorageHelper } from "@/store/auth";
+import {
+  CLOUDINARY_MAX_UPLOAD_BYTES,
+  CLOUDINARY_MAX_UPLOAD_LABEL,
+} from "@/lib/env";
 
 // ============================================================================
 // TYPES
@@ -50,8 +54,6 @@ interface EditorMediaDropzoneProps {
 // ============================================================================
 
 const DEFAULT_ACCEPT = "video/*";
-const DEFAULT_MAX_SIZE = 100 * 1024 * 1024; // 100MB
-const DEFAULT_MAX_SIZE_LABEL = "100MB";
 
 // ============================================================================
 // COMPONENT
@@ -66,8 +68,8 @@ export default function EditorMediaDropzone({
   title = "Tải lên video của bạn",
   subtitle = "Kéo video vào đây hoặc chọn từ máy tính",
   accept = DEFAULT_ACCEPT,
-  maxSize = DEFAULT_MAX_SIZE,
-  maxSizeLabel = DEFAULT_MAX_SIZE_LABEL,
+  maxSize = CLOUDINARY_MAX_UPLOAD_BYTES,
+  maxSizeLabel = CLOUDINARY_MAX_UPLOAD_LABEL,
   showDragIcon = true,
   triggerOnly = false,
 }: EditorMediaDropzoneProps) {

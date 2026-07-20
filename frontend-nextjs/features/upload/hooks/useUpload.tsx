@@ -26,6 +26,10 @@ import type {
   UploadStatus,
 } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import {
+  BUNNY_MAX_UPLOAD_BYTES,
+  BUNNY_MAX_UPLOAD_LABEL,
+} from "@/lib/env";
 import { videoApi } from "@/features/video/api/video.api";
 
 const INITIAL_STATE: UploadState = {
@@ -927,6 +931,13 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   };
 
   const startUpload = async (fileToUpload: File, params: HighlightParams) => {
+    if (fileToUpload.size > BUNNY_MAX_UPLOAD_BYTES) {
+      toast.error(
+        `File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`,
+      );
+      return;
+    }
+
     updateState({
       file: fileToUpload,
       source: "file",

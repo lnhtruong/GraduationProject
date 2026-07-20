@@ -8,6 +8,7 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 import { cn } from "@/lib/utils";
+import { BUNNY_MAX_UPLOAD_BYTES, BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
 import { BookOpenCheck, FileVideo, HelpCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,8 +26,6 @@ interface UploadDropzoneProps {
 }
 
 const DEFAULT_ACCEPT = "video/*";
-const DEFAULT_MAX_SIZE = 2 * 1024 * 1024 * 1024;
-const DEFAULT_MAX_SIZE_LABEL = "2GB";
 const SUPPORTED_FORMATS = ["MP4", "MOV", "AVI", "WEBM", "MKV"];
 
 const OUTPUT_PREVIEW = [
@@ -38,8 +37,8 @@ const OUTPUT_PREVIEW = [
 export default function UploadDropzone({
   onFileSelect,
   accept = DEFAULT_ACCEPT,
-  maxSize = DEFAULT_MAX_SIZE,
-  maxSizeLabel = DEFAULT_MAX_SIZE_LABEL,
+  maxSize = BUNNY_MAX_UPLOAD_BYTES,
+  maxSizeLabel = BUNNY_MAX_UPLOAD_LABEL,
   title = "Kéo video bài giảng vào đây",
   subtitle = "hoặc",
   disabled = false,

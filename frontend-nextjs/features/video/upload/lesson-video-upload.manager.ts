@@ -1,6 +1,10 @@
 import * as tus from "tus-js-client";
 import { videoApi } from "../api/video.api";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import {
+  BUNNY_MAX_UPLOAD_BYTES,
+  BUNNY_MAX_UPLOAD_LABEL,
+} from "@/lib/env";
 
 type StartUploadPayload = {
   file: File;
@@ -77,6 +81,11 @@ class LessonVideoUploadManager {
   ): Promise<void> {
     if (this.upload) {
       throw new Error("Đang có một video khác được upload.");
+    }
+    if (payload.file.size > BUNNY_MAX_UPLOAD_BYTES) {
+      throw new Error(
+        `File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`,
+      );
     }
 
     const initResponse = await videoApi.initBunnyUpload({
