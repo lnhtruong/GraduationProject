@@ -546,9 +546,11 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           >
                             <Tag className="h-3 w-3 text-muted-foreground" />
                             {hashtag}
-                            <button
+                            <Button
                               type="button"
-                              className="cursor-pointer rounded-full p-0.5 transition hover:bg-muted"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-5 w-5 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                               onClick={() => {
                                 const next = formHashtags.filter((_, i) => i !== index);
                                 setValue("hashtags", next);
@@ -556,7 +558,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               aria-label={`Xóa hashtag ${hashtag}`}
                             >
                               <X className="h-3 w-3" />
-                            </button>
+                            </Button>
                           </span>
                         ))}
                       </div>
@@ -731,69 +733,61 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               const thumbnail = getVideoThumbnail(video);
 
                               return (
-                                <button
-                                  key={video.id}
-                                  type="button"
-                                  onClick={() =>
-                                    field.onChange(String(video.id))
-                                  }
-                                  className={cn(
-                                    "group relative cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
-                                    isSelected
-                                      ? "border-primary ring-2 ring-primary/20"
-                                      : "border-border/60 hover:border-primary/40",
-                                  )}
-                                >
-                                  <div className="relative aspect-video bg-muted overflow-hidden shrink-0">
-                                    {thumbnail ? (
-                                      <div
-                                        className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                                        style={{ backgroundImage: `url(${thumbnail})` }}
-                                      />
-                                    ) : (
-                                      <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-muted">
-                                        <Video className="h-5 w-5" />
-                                      </div>
+                                <div key={video.id} className="group/card relative">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      field.onChange(String(video.id))
+                                    }
+                                    className={cn(
+                                      "group relative w-full cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                                      isSelected
+                                        ? "border-primary ring-2 ring-primary/20"
+                                        : "border-border/60 hover:border-primary/40",
                                     )}
+                                  >
+                                    <div className="relative aspect-video bg-muted overflow-hidden shrink-0">
+                                      {thumbnail ? (
+                                        <div
+                                          className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                                          style={{ backgroundImage: `url(${thumbnail})` }}
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-muted">
+                                          <Video className="h-5 w-5" />
+                                        </div>
+                                      )}
 
-                                    {isSelected && (
-                                      <div className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                                        <CheckCircle2 className="h-3 w-3" />
-                                      </div>
-                                    )}
+                                      {isSelected && (
+                                        <div className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                          <CheckCircle2 className="h-3 w-3" />
+                                        </div>
+                                      )}
 
-                                    <span
-                                      role="button"
-                                      tabIndex={0}
-                                      aria-label={`Mở Studio chỉnh sửa ${video.name}`}
-                                      className="absolute left-2 top-2 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-white/70 bg-black/65 text-white opacity-0 shadow-sm transition hover:bg-primary group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        void handleEditFeedVideo(video);
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key !== "Enter" && event.key !== " ") {
-                                          return;
-                                        }
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        void handleEditFeedVideo(video);
-                                      }}
-                                    >
-                                      <Edit3 className="h-3.5 w-3.5" />
-                                    </span>
+                                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium text-white tracking-wide leading-none shadow-sm">
+                                        {formatDuration(video.duration)}
+                                      </span>
+                                    </div>
 
-                                    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium text-white tracking-wide leading-none shadow-sm">
-                                      {formatDuration(video.duration)}
-                                    </span>
-                                  </div>
-
-                                  <div className="p-3 space-y-1">
-                                    <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground group-hover:text-primary transition-colors">
-                                      {video.name}
-                                    </p>
-                                  </div>
-                                </button>
+                                    <div className="p-3 space-y-1">
+                                      <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground group-hover:text-primary transition-colors">
+                                        {video.name}
+                                      </p>
+                                    </div>
+                                  </button>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="icon-sm"
+                                    aria-label={`Mở Studio chỉnh sửa ${video.name}`}
+                                    className="absolute left-2 top-2 h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-0 shadow-sm hover:bg-primary hover:text-white group-hover/card:opacity-100 focus:opacity-100 focus:ring-primary/40"
+                                    onClick={() => {
+                                      void handleEditFeedVideo(video);
+                                    }}
+                                  >
+                                    <Edit3 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               );
                             })}
                           </div>

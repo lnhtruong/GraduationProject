@@ -125,6 +125,8 @@ export default function CoreEditor({
             </p>
           </div>
           <UploadDropzone
+            maxSize={0}
+            maxSizeLabel="theo trinh duyet"
             onFileSelect={(file) => {
               const url = URL.createObjectURL(file);
               setVideoSrc(url);
