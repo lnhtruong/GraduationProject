@@ -4,16 +4,23 @@ import {
   OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { ColabConfig } from '../config/colab.config';
 
 interface HealthEntry {
   healthy: boolean;
   checkedAt: number;
   info?: Record<string, unknown>;
   error?: string;
+}
+
+export interface ColabPoolOptions {
+  /** Nhãn pool dùng cho log, vd "highlight" | "mascot". */
+  label: string;
+  urls: string[];
+  healthTimeoutMs: number;
+  healthCacheTtlMs: number;
+  healthPath: string;
 }
 
 export interface PoolStatus {
@@ -39,7 +46,8 @@ export interface PoolStatus {
  */
 @Injectable()
 export class ColabPoolService implements OnModuleInit {
-  private readonly logger = new Logger(ColabPoolService.name);
+  private readonly logger: Logger;
+  private readonly label: string;
   private readonly urls: string[];
   private readonly healthTimeoutMs: number;
   private readonly healthCacheTtlMs: number;
@@ -48,25 +56,27 @@ export class ColabPoolService implements OnModuleInit {
   private readonly healthCache = new Map<string, HealthEntry>();
 
   constructor(
-    config: ConfigService,
+    options: ColabPoolOptions,
     private readonly httpService: HttpService,
   ) {
-    const colab = config.get<ColabConfig>('colab');
-    this.urls = colab?.urls ?? [];
-    this.healthTimeoutMs = colab?.healthTimeoutMs ?? 3000;
-    this.healthCacheTtlMs = colab?.healthCacheTtlMs ?? 5000;
-    this.healthPath = colab?.healthPath ?? '/';
+    this.label = options.label;
+    this.urls = options.urls;
+    this.healthTimeoutMs = options.healthTimeoutMs;
+    this.healthCacheTtlMs = options.healthCacheTtlMs;
+    this.healthPath = options.healthPath;
+    this.logger = new Logger(`ColabPoolService:${options.label}`);
   }
 
   onModuleInit(): void {
     if (this.urls.length === 0) {
       this.logger.error(
-        'ColabPoolService: no COLAB_API_URLS / COLAB_API_URL configured. ' +
-          'Service sẽ trả 503 cho mọi request inference.',
+        `[${this.label}] Không có worker nào được cấu hình (thiếu ` +
+          `${this.label.toUpperCase()}_COLAB_API_URLS / _URL, hoặc COLAB_API_URLS legacy). ` +
+          'Service sẽ trả 503 cho mọi request thuộc pool này.',
       );
     } else {
       this.logger.log(
-        `ColabPoolService: pool size = ${this.urls.length}\n` +
+        `[${this.label}] pool size = ${this.urls.length}\n` +
           this.urls.map((u, i) => `  [${i}] ${u}`).join('\n'),
       );
     }
@@ -83,7 +93,8 @@ export class ColabPoolService implements OnModuleInit {
   async pickHealthy(): Promise<string> {
     if (this.urls.length === 0) {
       throw new ServiceUnavailableException(
-        'No Colab workers configured (set COLAB_API_URLS env)',
+        `No Colab workers configured for pool "${this.label}" ` +
+          `(set ${this.label.toUpperCase()}_COLAB_API_URLS env)`,
       );
     }
 
@@ -97,20 +108,20 @@ export class ColabPoolService implements OnModuleInit {
       if (entry.healthy) {
         // Advance cursor cho lần sau (round-robin)
         this.cursor = (idx + 1) % this.urls.length;
-        this.logger.debug(`Picked Colab worker [${idx}] ${url}`);
+        this.logger.debug(`Picked [${this.label}] worker [${idx}] ${url}`);
         return url;
       }
       tried.push({ url, error: entry.error });
     }
 
     this.logger.error(
-      `All ${this.urls.length} Colab workers are unhealthy:\n` +
+      `All ${this.urls.length} workers in pool "${this.label}" are unhealthy:\n` +
         tried
           .map((t) => `  - ${t.url} :: ${t.error ?? 'unhealthy'}`)
           .join('\n'),
     );
     throw new ServiceUnavailableException({
-      message: 'All Colab workers are unhealthy',
+      message: `All Colab workers in pool "${this.label}" are unhealthy`,
       tried,
     });
   }
