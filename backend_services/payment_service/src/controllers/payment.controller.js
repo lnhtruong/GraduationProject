@@ -112,11 +112,17 @@ const getTransactionById = async (req, res) => {
 const getOrderStatus = async (req, res) => {
     const { orderCode } = req.params;
     try {
-        const status = await paymentService.getOrderStatus(orderCode);
+        const userId = req.headers['x-user-id'];
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập" });
+        }
+
+        const status = await paymentService.getOrderStatus(orderCode, Number(userId));
         res.json({ orderCode, status });
     } catch (err) {
         console.error("Lỗi getOrderStatus:", err.message);
-        res.status(500).json({ error: "Không kiểm tra được trạng thái" });
+        res.status(err.status || 500).json({ error: err.message || "Không kiểm tra được trạng thái" });
     }
 };
 

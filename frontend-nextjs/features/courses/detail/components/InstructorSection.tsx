@@ -41,7 +41,11 @@ export function InstructorSection({ instructor, courseId }: Props) {
         {isAuthenticated && !isOwnContent && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:!bg-muted hover:!text-foreground"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

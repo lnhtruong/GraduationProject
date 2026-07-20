@@ -1,4 +1,5 @@
 import { buildPrivatePageMetadata } from "@/lib/metadata";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PaymentCancelClient from "./PaymentCancelClient";
 
 export const metadata = buildPrivatePageMetadata(
@@ -7,5 +8,9 @@ export const metadata = buildPrivatePageMetadata(
 );
 
 export default function Page() {
-  return <PaymentCancelClient />;
+  return (
+    <ProtectedRoute>
+      <PaymentCancelClient />
+    </ProtectedRoute>
+  );
 }

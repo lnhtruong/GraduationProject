@@ -168,7 +168,7 @@ export function ReviewsSection({ courseId, isEnrolled, currentUserId }: Props) {
             variant="outline"
             onClick={() => setPage((p) => p + 1)}
             disabled={isLoading}
-            className="w-52"
+            className="w-52 border-border bg-background text-foreground hover:!bg-muted hover:!text-foreground"
           >
             {isLoading ? "Đang tải..." : "Xem thêm đánh giá"}
           </Button>

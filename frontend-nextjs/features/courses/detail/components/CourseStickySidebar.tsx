@@ -175,7 +175,12 @@ function EnrollButton({
 }) {
   if (!isAuthenticated) {
     return (
-      <Button size="lg" variant="outline" className="w-full" asChild>
+      <Button
+        size="lg"
+        variant="outline"
+        className="w-full border-border bg-background text-foreground hover:!bg-muted hover:!text-foreground"
+        asChild
+      >
         <Link href={`/signin?returnUrl=/courses/${course.id}`}>
           Đăng nhập để đăng ký
         </Link>
@@ -209,7 +214,7 @@ function EnrollButton({
       <div className="space-y-2">
         <Button
           size="lg"
-          className="w-full bg-accent text-accent-foreground shadow-md shadow-accent/25 hover:bg-accent/90"
+          className="w-full bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:text-primary-foreground"
           onClick={onEnroll}
           disabled={isEnrolling}
         >
@@ -220,7 +225,7 @@ function EnrollButton({
             <Button
               size="lg"
               variant="outline"
-              className="w-full border-green-500/50 bg-green-500/8 text-green-600 hover:bg-green-500/15 dark:text-green-400"
+              className="w-full border-green-500/50 bg-green-500/8 text-green-700 hover:!bg-green-500/15 hover:!text-green-700 dark:text-green-400 dark:hover:!text-green-300"
               asChild
             >
               <Link href="/cart">
@@ -232,7 +237,7 @@ function EnrollButton({
             <Button
               size="lg"
               variant="outline"
-              className="w-full"
+              className="w-full border-border bg-background text-foreground hover:!bg-muted hover:!text-foreground"
               onClick={onAddToCart}
               disabled={isAddingToCart}
             >
@@ -253,7 +258,7 @@ function EnrollButton({
 
   if (enrollment.status === "completed") {
     return (
-      <Button size="lg" variant="outline" className="w-full border-primary/40 text-primary hover:bg-primary/5" asChild>
+      <Button size="lg" className="w-full shadow-sm hover:text-primary-foreground" asChild>
         <Link href={`/courses/${course.id}/learn`}>Xem lại khoá học</Link>
       </Button>
     );
@@ -262,8 +267,7 @@ function EnrollButton({
   return (
     <Button
       size="lg"
-      variant="outline"
-      className="w-full border-primary/40 text-primary hover:bg-primary/5"
+      className="w-full shadow-sm hover:text-primary-foreground"
       asChild
     >
       <Link
@@ -290,8 +294,8 @@ function WishlistToggleButton({
   return (
     <Button
       size="lg"
-      variant="ghost"
-      className="w-full gap-2 border border-border/60 hover:border-border"
+      variant="outline"
+      className="w-full gap-2 border-border bg-background text-foreground hover:!bg-muted hover:!text-foreground"
       onClick={onToggle}
       disabled={isPending}
     >

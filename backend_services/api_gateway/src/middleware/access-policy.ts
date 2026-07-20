@@ -913,7 +913,7 @@ const ACCESS_RULES: AccessRule[] = [
   {
     method: 'GET',
     pattern: '/api/payment/order-status/:orderCode',
-    access: 'public',
+    access: 'authenticated',
   },
   {
     method: 'POST',
