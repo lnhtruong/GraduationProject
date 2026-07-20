@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "../components/providers/ThemeProvider";
 import { QueryProvider } from "../components/providers/QueryProvider";
@@ -8,6 +9,13 @@ import { Toaster } from "../components/ui/sonner";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { BRAND } from "@/lib/brand";
 import { SITE_URL } from "@/lib/env";
+
+const inter = localFont({
+  src: "./fonts/InterVariable.woff2",
+  display: "swap",
+  variable: "--font-inter",
+  weight: "100 900",
+});
 
 export const metadata: Metadata = {
   ...(SITE_URL ? { metadataBase: new URL(SITE_URL) } : {}),
@@ -70,7 +78,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className="font-sans antialiased" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
         <QueryProvider>
           <ThemeProvider defaultTheme="system" storageKey="datn-theme">
             <AuthProvider>
