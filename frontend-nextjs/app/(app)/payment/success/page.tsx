@@ -1,4 +1,5 @@
 import { buildPrivatePageMetadata } from "@/lib/metadata";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export const metadata = buildPrivatePageMetadata(
   "Thanh toán thành công",
@@ -11,7 +12,9 @@ import PaymentSuccessPage from "@/features/payment/PaymentSuccessPage";
 export default function Page() {
   return (
     <Suspense>
-      <PaymentSuccessPage />
+      <ProtectedRoute>
+        <PaymentSuccessPage />
+      </ProtectedRoute>
     </Suspense>
   );
 }

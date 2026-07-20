@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, Loader2, AlertCircle, ShoppingBag, Home, BookOpen, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useOrderStatus } from "./api/payment.hooks";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, BookOpen, Check, Home, Loader2, RotateCcw, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useOrderStatus } from "./api/payment.hooks";
 
 function readStoredCourseIds(orderCode: string | null, courseIdFromUrl: string | null) {
   if (courseIdFromUrl) {
@@ -38,6 +37,97 @@ function readStoredCourseIds(orderCode: string | null, courseIdFromUrl: string |
   return Number.isInteger(single) && single > 0 ? [single] : [];
 }
 
+function OrderSummary({
+  orderCode,
+  formattedTime,
+  statusLabel,
+  statusTone,
+}: {
+  orderCode: string | null;
+  formattedTime: string;
+  statusLabel: string;
+  statusTone: "success" | "warning" | "danger";
+}) {
+  const statusClass =
+    statusTone === "success"
+      ? "text-emerald-600"
+      : statusTone === "warning"
+        ? "text-amber-600"
+        : "text-destructive";
+  const accentClass =
+    statusTone === "success"
+      ? "bg-emerald-500"
+      : statusTone === "warning"
+        ? "bg-amber-500"
+        : "bg-destructive";
+
+  return (
+    <div className="rounded-lg border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <span className={`h-10 w-1 rounded-full ${accentClass}`} aria-hidden="true" />
+        <div>
+          <h2 className="text-base font-semibold">Chi tiết đơn hàng</h2>
+          <p className="text-sm text-muted-foreground">Trạng thái từ PayOS</p>
+        </div>
+      </div>
+
+      <dl className="space-y-3 text-sm">
+        <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 px-3 py-2">
+          <dt className="text-muted-foreground">Trạng thái</dt>
+          <dd className={`font-medium ${statusClass}`}>{statusLabel}</dd>
+        </div>
+        {orderCode ? (
+          <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 px-3 py-2">
+            <dt className="text-muted-foreground">Mã đơn hàng</dt>
+            <dd className="break-all text-right font-mono font-medium">#{orderCode}</dd>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-4 rounded-md bg-muted/50 px-3 py-2">
+          <dt className="text-muted-foreground">Thời gian</dt>
+          <dd className="text-right font-medium">{formattedTime}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function InvalidPaymentState() {
+  return (
+    <section className="flex min-h-[calc(100svh-5rem)] items-center bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl space-y-6 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground shadow-sm">
+          <AlertCircle className="h-7 w-7" />
+        </div>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Liên kết không hợp lệ
+          </p>
+          <h1 className="text-3xl font-bold tracking-normal text-foreground sm:text-4xl">
+            Không tìm thấy giao dịch
+          </h1>
+          <p className="text-base leading-7 text-muted-foreground sm:text-lg">
+            Trang này chỉ hiển thị sau khi bạn quay về từ PayOS với mã đơn hàng hợp lệ.
+          </p>
+        </div>
+        <div className="flex flex-col justify-center gap-3 sm:flex-row">
+          <Button asChild size="lg" variant="outline">
+            <Link href="/">
+              <Home className="mr-2 h-4 w-4" />
+              Trang chủ
+            </Link>
+          </Button>
+          <Button asChild size="lg">
+            <Link href="/my-courses">
+              <BookOpen className="mr-2 h-4 w-4" />
+              Khóa học của tôi
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -54,12 +144,12 @@ export default function PaymentSuccessPage() {
 
   const { data: orderStatus, isLoading } = useOrderStatus(isFree ? null : orderCode);
   const status = isFree ? "PAID" : orderStatus?.status;
+  const hasValidEntryParams = isFree ? !!courseIdFromUrl : !!orderCode;
 
-  // Hiện timeout message sau 10 giây nếu vẫn PENDING
   useEffect(() => {
     if (isFree || status === "PAID" || status === "FAILED" || status === "CANCELLED") return;
-    const timer = setTimeout(() => setShowTimeout(true), 10_000);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(() => setShowTimeout(true), 10_000);
+    return () => window.clearTimeout(timer);
   }, [isFree, status]);
 
   useEffect(() => {
@@ -76,85 +166,7 @@ export default function PaymentSuccessPage() {
     }
   }, [status, courseIds, orderCode, queryClient]);
 
-  // ── Loading / Pending ────────────────────────────────────────────────────
-  if (!isFree && (isLoading || status === "PENDING")) {
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-          <Loader2 className="h-9 w-9 animate-spin text-primary" />
-        </div>
-        <div className="space-y-1.5">
-          <h1 className="text-xl font-bold">Đang xác nhận thanh toán...</h1>
-          <p className="text-sm text-muted-foreground">
-            Trang sẽ tự cập nhật khi ngân hàng xác nhận giao dịch.
-          </p>
-        </div>
-        {showTimeout && (
-          <div className="flex max-w-sm items-start gap-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/8 px-4 py-3 text-left">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              Nếu trang không tự cập nhật, hãy kiểm tra{" "}
-              <Link href="/profile/orders" className="font-medium underline underline-offset-2">
-                lịch sử đơn hàng
-              </Link>{" "}
-              của bạn.
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Failed / Cancelled ───────────────────────────────────────────────────
-  if (status === "FAILED" || status === "CANCELLED") {
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
-          <XCircle className="h-10 w-10 text-destructive" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold">
-            {status === "CANCELLED" ? "Giao dịch đã huỷ" : "Thanh toán không thành công"}
-          </h1>
-          <p className="text-muted-foreground">
-            {status === "CANCELLED"
-              ? "Bạn đã huỷ giao dịch này."
-              : "Giao dịch thất bại. Vui lòng thử lại hoặc chọn phương thức thanh toán khác."}
-          </p>
-          {orderCode && (
-            <p className="text-xs text-muted-foreground">Mã đơn hàng: #{orderCode}</p>
-          )}
-        </div>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button asChild variant="outline">
-            <Link href="/">
-              <Home className="mr-2 h-4 w-4" />
-              Trang chủ
-            </Link>
-          </Button>
-          {courseId ? (
-            <Button asChild>
-              <Link href={`/courses/${courseId}`}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Thử lại
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild>
-              <Link href="/courses/search">
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Xem khoá học khác
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Success (PAID hoặc free) ─────────────────────────────────────────────
-  const now = new Date();
-  const formattedTime = now.toLocaleString("vi-VN", {
+  const formattedTime = new Date().toLocaleString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -162,77 +174,159 @@ export default function PaymentSuccessPage() {
     minute: "2-digit",
   });
 
-  return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-4 py-12 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
-        <CheckCircle className="h-10 w-10 text-green-500" />
-      </div>
+  if (!hasValidEntryParams || (!isFree && !isLoading && !status)) {
+    return <InvalidPaymentState />;
+  }
 
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">
-          {isFree ? "Đăng ký thành công!" : "Thanh toán thành công!"}
-        </h1>
-        <p className="text-muted-foreground">
-          {isFree
-            ? "Khoá học đã được thêm vào thư viện của bạn."
-            : "Cảm ơn bạn đã mua khoá học. Chúc bạn học tốt!"}
-        </p>
-      </div>
+  if (!isFree && (isLoading || status === "PENDING")) {
+    return (
+      <section className="flex min-h-[calc(100svh-5rem)] items-center bg-background px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-7 text-center lg:text-left">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm lg:mx-0">
+              <Loader2 className="h-7 w-7 animate-spin" />
+            </div>
 
-      {/* Order summary card */}
-      <div className="w-full max-w-sm rounded-xl border border-border/60 bg-card text-left shadow-sm">
-        <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3">
-          <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">Chi tiết đơn hàng</span>
-        </div>
-        <div className="space-y-0 px-4 py-3">
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm text-muted-foreground">Trạng thái</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              {isFree ? "Miễn phí" : "Đã thanh toán"}
-            </span>
-          </div>
-          {orderCode && (
-            <>
-              <Separator className="opacity-50" />
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-muted-foreground">Mã đơn hàng</span>
-                <span className="font-mono text-sm font-medium">#{orderCode}</span>
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Đang xác nhận
+              </p>
+              <h1 className="text-3xl font-bold tracking-normal text-foreground sm:text-4xl">
+                Đang kiểm tra thanh toán
+              </h1>
+              <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg lg:mx-0">
+                Trang sẽ tự cập nhật khi PayOS hoặc ngân hàng xác nhận giao dịch.
+                Bạn có thể giữ nguyên trang này trong lúc hệ thống xử lý.
+              </p>
+            </div>
+
+            {showTimeout ? (
+              <div className="mx-auto flex max-w-xl items-start gap-3 rounded-lg border bg-card px-4 py-3 text-left lg:mx-0">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <p className="text-sm text-muted-foreground">
+                  Nếu trạng thái chưa đổi sau vài phút, hãy kiểm tra lại trong trang khóa học của tôi.
+                </p>
               </div>
-            </>
-          )}
-          <Separator className="opacity-50" />
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm text-muted-foreground">Thời gian</span>
-            <span className="text-sm">{formattedTime}</span>
+            ) : null}
+          </div>
+
+          <OrderSummary
+            orderCode={orderCode}
+            formattedTime={formattedTime}
+            statusLabel="Đang xác nhận"
+            statusTone="warning"
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (status === "FAILED" || status === "CANCELLED") {
+    const retryHref = courseId ? `/courses/${courseId}` : "/courses/search";
+
+    return (
+      <section className="flex min-h-[calc(100svh-5rem)] items-center bg-background px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-7 text-center lg:text-left">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm lg:mx-0">
+              <X className="h-7 w-7" strokeWidth={2.4} />
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-wide text-destructive">
+                Giao dịch chưa hoàn tất
+              </p>
+              <h1 className="text-3xl font-bold tracking-normal text-foreground sm:text-4xl">
+                {status === "CANCELLED" ? "Thanh toán đã hủy" : "Thanh toán không thành công"}
+              </h1>
+              <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg lg:mx-0">
+                {status === "CANCELLED"
+                  ? "Bạn đã hủy giao dịch này. Khóa học vẫn chưa được ghi nhận thanh toán."
+                  : "Giao dịch thất bại. Bạn có thể thử lại hoặc chọn phương thức thanh toán khác."}
+              </p>
+            </div>
+
+            <div className="flex w-full flex-col gap-3 sm:mx-auto sm:max-w-md sm:flex-row lg:mx-0">
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <Link href="/">
+                  <Home className="mr-2 h-4 w-4" />
+                  Trang chủ
+                </Link>
+              </Button>
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href={retryHref}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Thử lại
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <OrderSummary
+            orderCode={orderCode}
+            formattedTime={formattedTime}
+            statusLabel={status === "CANCELLED" ? "Đã hủy" : "Thất bại"}
+            statusTone="danger"
+          />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex min-h-[calc(100svh-5rem)] items-center bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-7 text-center lg:text-left">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm lg:mx-0">
+            <Check className="h-7 w-7" strokeWidth={2.4} />
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">
+              Giao dịch hoàn tất
+            </p>
+            <h1 className="text-3xl font-bold tracking-normal text-foreground sm:text-4xl">
+              {isFree ? "Đăng ký thành công" : "Thanh toán thành công"}
+            </h1>
+            <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg lg:mx-0">
+              {isFree
+                ? "Khóa học đã được thêm vào tài khoản của bạn. Bạn có thể bắt đầu học ngay."
+                : "Khóa học đã được ghi nhận vào tài khoản. Chúc bạn học tốt."}
+            </p>
+          </div>
+
+          <div className="flex w-full flex-col gap-3 sm:mx-auto sm:max-w-md sm:flex-row lg:mx-0">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <Link href="/">
+                <Home className="mr-2 h-4 w-4" />
+                Trang chủ
+              </Link>
+            </Button>
+            {courseId ? (
+              <Button asChild size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto">
+                <Link href={`/courses/${courseId}/learn`}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Bắt đầu học
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto">
+                <Link href="/my-courses">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Khóa học của tôi
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button asChild variant="outline">
-          <Link href="/">
-            <Home className="mr-2 h-4 w-4" />
-            Trang chủ
-          </Link>
-        </Button>
-        {courseId ? (
-          <Button asChild>
-            <Link href={`/courses/${courseId}/learn`}>
-              <BookOpen className="mr-2 h-4 w-4" />
-              Bắt đầu học ngay
-            </Link>
-          </Button>
-        ) : (
-          <Button asChild>
-            <Link href="/my-courses">
-              <BookOpen className="mr-2 h-4 w-4" />
-              Khóa học của tôi
-            </Link>
-          </Button>
-        )}
+        <OrderSummary
+          orderCode={orderCode}
+          formattedTime={formattedTime}
+          statusLabel={isFree ? "Miễn phí" : "Đã thanh toán"}
+          statusTone="success"
+        />
       </div>
-    </div>
+    </section>
   );
 }

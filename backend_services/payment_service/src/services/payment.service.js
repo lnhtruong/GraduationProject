@@ -494,7 +494,20 @@ const updateTransactionStatus = async (providerOrderId, status, t = null) => {
 // ============================================================
 // Kiểm tra trạng thái đơn hàng trên PayOS
 // ============================================================
-const getOrderStatus = async (orderCode) => {
+const getOrderStatus = async (orderCode, userId) => {
+  const transaction = await Transaction.findOne({
+    where: {
+      provider_order_id: String(orderCode),
+      user_id: userId,
+    },
+  });
+
+  if (!transaction) {
+    const err = new Error("Không tìm thấy đơn hàng");
+    err.status = 404;
+    throw err;
+  }
+
   // Đọc từ Redis trước — được cập nhật ngay sau webhook
   try {
     const cached = await getPaymentData(orderCode);
