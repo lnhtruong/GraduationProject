@@ -8,6 +8,7 @@ export const highlightParamsSchema = z.object({
   includeKeywords: z.array(z.string()),
   excludeKeywords: z.array(z.string()),
   isMultiOutput: z.boolean(),
+  isOpenAI: z.boolean(),
 });
 
 export type HighlightParamsFormValues = z.infer<typeof highlightParamsSchema>;

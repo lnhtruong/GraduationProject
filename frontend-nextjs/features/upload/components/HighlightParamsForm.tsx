@@ -70,6 +70,7 @@ export default function HighlightParamsForm({
       includeKeywords: [],
       excludeKeywords: [],
       isMultiOutput: false,
+      isOpenAI: false,
     },
   });
 
@@ -79,6 +80,7 @@ export default function HighlightParamsForm({
       includeKeywords: data.includeKeywords,
       excludeKeywords: data.excludeKeywords,
       isMultiOutput: data.isMultiOutput,
+      isOpenAI: data.isOpenAI,
     });
   });
 
@@ -138,6 +140,83 @@ export default function HighlightParamsForm({
 
         <FormField
           control={form.control}
+          name="isOpenAI"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-base font-medium">
+                Chất lượng phân tích
+              </FormLabel>
+              <FormControl>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(false)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      !field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          !field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {!field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
+                      <div>
+                        <div className="font-semibold">Tiêu chuẩn</div>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Dùng luồng phân tích mặc định của StudyLoop.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(true)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
+                      <div>
+                        <div className="font-semibold">Nâng cao với OpenAI</div>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Ưu tiên phân tích bằng OpenAI cho nội dung cần độ chính xác cao hơn.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="isMultiOutput"
           render={({ field }) => (
             <FormItem>
@@ -151,7 +230,7 @@ export default function HighlightParamsForm({
                     disabled={isSubmitting}
                     onClick={() => field.onChange(false)}
                     className={cn(
-                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      "cursor-pointer rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
                       !field.value && "border-primary shadow-sm",
                     )}
                   >
@@ -170,7 +249,7 @@ export default function HighlightParamsForm({
                     disabled={isSubmitting}
                     onClick={() => field.onChange(true)}
                     className={cn(
-                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      "cursor-pointer rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
                       field.value && "border-primary shadow-sm",
                     )}
                   >
@@ -219,7 +298,7 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("includeKeywords", preset, setIncludeInput)
                       }
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {preset}
                     </button>
@@ -262,7 +341,7 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("excludeKeywords", preset, setExcludeInput)
                       }
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {preset}
                     </button>
