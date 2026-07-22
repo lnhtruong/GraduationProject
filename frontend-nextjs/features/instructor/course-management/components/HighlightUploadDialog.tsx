@@ -4,17 +4,28 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  ArrowRight,
   CheckCircle2,
   Film,
   Loader2,
   Search,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -31,6 +42,8 @@ import type { HighlightParams, UploadHookReturn } from "@/features/upload/types"
 import type { Video as StudyLoopVideo } from "@/features/video/types";
 
 type SourceMode = "file" | "existing-video";
+const HIGHLIGHT_PARAMS_FORM_ID = "feed-highlight-params-form";
+const VIDEOS_PER_PAGE = 6;
 
 function formatVideoDuration(duration: number | null | undefined) {
   if (!duration || !Number.isFinite(duration)) return "--:--";
@@ -85,6 +98,7 @@ export function HighlightUploadDialog({
   const [selectedExistingVideoId, setSelectedExistingVideoId] =
     React.useState<number | null>(null);
   const [existingVideoQuery, setExistingVideoQuery] = React.useState("");
+  const [videoPage, setVideoPage] = React.useState(1);
   const [showForm, setShowForm] = React.useState(false);
   const { data: lessonVideos = [], isLoading: lessonVideosLoading } =
     useVideosByUser("long", open && sourceMode === "existing-video");
@@ -105,14 +119,32 @@ export function HighlightUploadDialog({
     [lessonVideos, selectedExistingVideoId],
   );
 
+  const videoTotalPages = Math.max(
+    1,
+    Math.ceil(filteredLessonVideos.length / VIDEOS_PER_PAGE),
+  );
+  const paginatedLessonVideos = React.useMemo(() => {
+    const start = (videoPage - 1) * VIDEOS_PER_PAGE;
+    return filteredLessonVideos.slice(start, start + VIDEOS_PER_PAGE);
+  }, [filteredLessonVideos, videoPage]);
+
   React.useEffect(() => {
     if (!open) {
       setShowForm(false);
       setSourceMode("file");
       setSelectedExistingVideoId(null);
       setExistingVideoQuery("");
+      setVideoPage(1);
     }
   }, [open]);
+
+  React.useEffect(() => {
+    setVideoPage(1);
+  }, [existingVideoQuery, sourceMode]);
+
+  React.useEffect(() => {
+    setVideoPage((currentPage) => Math.min(currentPage, videoTotalPages));
+  }, [videoTotalPages]);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -183,12 +215,16 @@ export function HighlightUploadDialog({
     !file && !showForm && !isProcessing && !isCompleted && !isFailed;
   const isVideoPickerMode =
     sourceMode === "existing-video" && showSourceSwitcher;
+  const isFilePickerMode = sourceMode === "file" && showSourceSwitcher;
   const isResultsMode = isCompleted;
-  const isScrollableMode = isVideoPickerMode || isResultsMode;
+  const showFooter =
+    (showForm && !isProcessing && !isCompleted) || isVideoPickerMode;
   const dialogSizeClass =
     isVideoPickerMode || isResultsMode
-      ? "h-[82vh] !w-[1100px] !max-w-[94vw]"
-      : "h-auto max-h-[86vh] !w-[720px] !max-w-[92vw]";
+      ? "h-[88dvh] !w-[92vw] !max-w-[1120px] max-sm:h-[94dvh]"
+      : isFilePickerMode
+        ? "h-auto !w-[90vw] !max-w-[980px] max-sm:max-h-[calc(100dvh-1rem)]"
+        : "h-[82dvh] !w-[90vw] !max-w-[980px] max-sm:h-[94dvh]";
 
   return (
     <Dialog
@@ -201,18 +237,14 @@ export function HighlightUploadDialog({
       }}
     >
       <DialogContent
+        showCloseButton={false}
         className={cn(
-          "flex overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-[width,max-width,height,max-height] duration-200",
+          "flex max-h-[900px] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-[width,max-width,height,max-height] duration-200 max-sm:!w-[calc(100vw-1rem)] max-sm:rounded-xl",
           dialogSizeClass,
         )}
       >
-        <div
-          className={cn(
-            "flex min-h-0 w-full flex-col",
-            isScrollableMode ? "h-full" : "h-auto",
-          )}
-        >
-          <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-background px-5 py-4 text-left sm:px-6">
+        <div className="flex h-full min-h-0 w-full flex-col">
+          <DialogHeader className="sticky top-0 z-10 shrink-0 border-b border-border/70 bg-background px-4 py-4 pr-12 text-left sm:px-6 sm:pr-14">
             <DialogTitle className="text-xl font-bold">
               Tạo highlight cho feed
             </DialogTitle>
@@ -220,15 +252,19 @@ export function HighlightUploadDialog({
               Chọn file hoặc video bài học đã upload, đặt tiêu chí cắt rồi lưu
               kết quả vào thư viện feed.
             </DialogDescription>
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="absolute right-5 top-4 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Đóng"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
           </DialogHeader>
 
           <div
-            className={cn(
-              "w-full space-y-4 overflow-x-hidden px-5 py-5 sm:px-6",
-              isScrollableMode
-                ? "min-h-0 flex-1 overflow-y-auto"
-                : "overflow-y-visible",
-            )}
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5"
           >
             {showSourceSwitcher && (
               <Tabs
@@ -239,11 +275,11 @@ export function HighlightUploadDialog({
                 }}
               >
                 <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg p-1">
-                  <TabsTrigger value="file" className="gap-2 py-2.5">
+                  <TabsTrigger value="file" className="gap-2 py-2">
                     <UploadCloud className="h-4 w-4" />
                     Tải từ máy
                   </TabsTrigger>
-                  <TabsTrigger value="existing-video" className="gap-2 py-2.5">
+                  <TabsTrigger value="existing-video" className="gap-2 py-2">
                     <Film className="h-4 w-4" />
                     Video bài học
                   </TabsTrigger>
@@ -254,21 +290,14 @@ export function HighlightUploadDialog({
                     onFileSelect={handleFileSelect}
                     title="Kéo video bài giảng vào đây"
                     subtitle="hoặc"
-                    variant="compact"
+                    variant="hero"
                   />
                 </TabsContent>
 
-                <TabsContent value="existing-video" className="mt-4">
-                  <div className="space-y-4 rounded-xl border border-border/70 bg-background p-4 shadow-none sm:p-5">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,20rem)] lg:items-start">
-                      <div className="min-w-0">
-                        <h2 className="font-semibold">Chọn video bài học</h2>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Dùng video long đã upload trong kho bài học của bạn để
-                          cắt highlight cho feed.
-                        </p>
-                      </div>
-                      <div className="relative min-w-0">
+                <TabsContent value="existing-video" className="mt-3">
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <div className="relative w-full min-w-0 md:max-w-[22rem]">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           value={existingVideoQuery}
@@ -281,14 +310,23 @@ export function HighlightUploadDialog({
                       </div>
                     </div>
 
+                    {selectedExistingVideo ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 truncate">
+                          Đã chọn: {getVideoTitle(selectedExistingVideo)}
+                        </span>
+                      </div>
+                    ) : null}
+
                     {lessonVideosLoading ? (
                       <div className="flex min-h-52 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Đang tải video bài học...
                       </div>
                     ) : filteredLessonVideos.length > 0 ? (
-                      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {filteredLessonVideos.map((video) => {
+                      <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {paginatedLessonVideos.map((video) => {
                           const selected =
                             video.id === selectedExistingVideoId;
 
@@ -300,9 +338,9 @@ export function HighlightUploadDialog({
                                 setSelectedExistingVideoId(video.id)
                               }
                               className={cn(
-                                "group min-w-0 cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                "group min-w-0 cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                 selected
-                                  ? "border-primary ring-2 ring-primary/20"
+                                  ? "border-primary shadow-md ring-2 ring-primary/20"
                                   : "border-border/70",
                               )}
                             >
@@ -332,9 +370,6 @@ export function HighlightUploadDialog({
                                 <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground break-words">
                                   {getVideoTitle(video)}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Video bài học #{video.id}
-                                </p>
                               </div>
                             </button>
                           );
@@ -353,18 +388,72 @@ export function HighlightUploadDialog({
                       </div>
                     )}
 
-                    <Button
-                      type="button"
-                      onClick={() => setShowForm(true)}
-                      disabled={!selectedExistingVideo?.url}
-                      className={cn(
-                        "h-11 w-full font-medium transition-all duration-200",
-                        !selectedExistingVideo?.url &&
-                          "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted",
-                      )}
-                    >
-                      Chọn cách cắt highlight
-                    </Button>
+                    {filteredLessonVideos.length > VIDEOS_PER_PAGE ? (
+                      <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground sm:text-sm">
+                        <span className="shrink-0">
+                          Trang {videoPage} / {videoTotalPages}
+                        </span>
+                        <Pagination className="mx-0 w-auto">
+                          <PaginationContent className="gap-0.5 sm:gap-1">
+                            <PaginationItem>
+                              <PaginationPrevious
+                                href="#"
+                                size="icon"
+                                aria-disabled={videoPage <= 1}
+                                className={cn(
+                                  "size-8 cursor-pointer sm:size-9",
+                                  videoPage <= 1 &&
+                                    "pointer-events-none opacity-50",
+                                )}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  setVideoPage((page) =>
+                                    Math.max(1, page - 1),
+                                  );
+                                }}
+                              />
+                            </PaginationItem>
+                            {Array.from(
+                              { length: videoTotalPages },
+                              (_, index) => index + 1,
+                            ).map((pageNumber) => (
+                              <PaginationItem key={pageNumber}>
+                                <PaginationLink
+                                  href="#"
+                                  size="icon"
+                                  isActive={pageNumber === videoPage}
+                                  className="size-8 cursor-pointer text-xs sm:size-9 sm:text-sm"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    setVideoPage(pageNumber);
+                                  }}
+                                >
+                                  {pageNumber}
+                                </PaginationLink>
+                              </PaginationItem>
+                            ))}
+                            <PaginationItem>
+                              <PaginationNext
+                                href="#"
+                                size="icon"
+                                aria-disabled={videoPage >= videoTotalPages}
+                                className={cn(
+                                  "size-8 cursor-pointer sm:size-9",
+                                  videoPage >= videoTotalPages &&
+                                    "pointer-events-none opacity-50",
+                                )}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  setVideoPage((page) =>
+                                    Math.min(videoTotalPages, page + 1),
+                                  );
+                                }}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    ) : null}
                   </div>
                 </TabsContent>
               </Tabs>
@@ -385,10 +474,13 @@ export function HighlightUploadDialog({
 
             {showForm && !isProcessing && !isCompleted && (
               <HighlightParamsForm
+                formId={HIGHLIGHT_PARAMS_FORM_ID}
                 onSubmit={handleFormSubmit}
                 onCancel={() => setShowForm(false)}
                 isSubmitting={false}
                 noCard={true}
+                compact
+                hideActions
               />
             )}
 
@@ -419,23 +511,43 @@ export function HighlightUploadDialog({
             </div>
           </div>
 
-          <div className="sticky bottom-0 flex w-full items-center justify-between gap-3 border-t border-border/70 bg-background px-5 py-4 sm:px-6">
-            <div className="text-xs text-muted-foreground">
-              {isCompleted
-                ? "Xử lý video hoàn tất"
-                : isProcessing
-                  ? "Đang xử lý..."
-                  : "Sẵn sàng chọn video"}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="h-9 px-4 text-xs font-semibold shadow-sm"
-            >
-              Đóng
-            </Button>
+          {showFooter ? (
+          <div className="sticky bottom-0 flex w-full shrink-0 items-center justify-end gap-3 border-t border-border/70 bg-background px-4 py-3 sm:px-5">
+            {showForm && !isProcessing && !isCompleted ? (
+              <div className="flex w-full flex-col-reverse gap-3 sm:w-auto sm:min-w-[420px] sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowForm(false)}
+                  className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
+                >
+                  Quay lại
+                </Button>
+                <Button
+                  type="submit"
+                  form={HIGHLIGHT_PARAMS_FORM_ID}
+                  className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
+                >
+                  Tạo highlight
+                </Button>
+              </div>
+            ) : isVideoPickerMode ? (
+              <Button
+                type="button"
+                onClick={() => setShowForm(true)}
+                disabled={!selectedExistingVideo?.url}
+                className={cn(
+                  "h-10 w-full gap-2 px-5 text-xs font-semibold shadow-sm sm:w-auto sm:min-w-[260px]",
+                  !selectedExistingVideo?.url &&
+                    "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted",
+                )}
+              >
+                Chọn cách cắt highlight
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

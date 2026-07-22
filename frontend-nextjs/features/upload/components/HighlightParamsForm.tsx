@@ -26,6 +26,9 @@ interface HighlightParamsFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   noCard?: boolean;
+  compact?: boolean;
+  formId?: string;
+  hideActions?: boolean;
 }
 
 const INCLUDE_PRESETS = [
@@ -60,6 +63,9 @@ export default function HighlightParamsForm({
   onCancel,
   isSubmitting = false,
   noCard = false,
+  compact = false,
+  formId,
+  hideActions = false,
 }: HighlightParamsFormProps) {
   const [includeInput, setIncludeInput] = React.useState("");
   const [excludeInput, setExcludeInput] = React.useState("");
@@ -70,6 +76,7 @@ export default function HighlightParamsForm({
       includeKeywords: [],
       excludeKeywords: [],
       isMultiOutput: false,
+      isOpenAI: false,
     },
   });
 
@@ -79,6 +86,7 @@ export default function HighlightParamsForm({
       includeKeywords: data.includeKeywords,
       excludeKeywords: data.excludeKeywords,
       isMultiOutput: data.isMultiOutput,
+      isOpenAI: data.isOpenAI,
     });
   });
 
@@ -102,12 +110,16 @@ export default function HighlightParamsForm({
 
   const content = (
     <Form {...form}>
-      <form onSubmit={handleFormSubmit} className="space-y-6">
+      <form
+        id={formId}
+        onSubmit={handleFormSubmit}
+        className={compact ? "space-y-4" : "space-y-6"}
+      >
         <div>
-          <h3 className="text-xl font-semibold">
+          <h3 className={cn("font-semibold", compact ? "text-lg" : "text-xl")}>
             Bạn muốn lấy phần nào trong video?
           </h3>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          <p className="mt-1 text-sm leading-5 text-muted-foreground">
             Mô tả mục tiêu học để StudyLoop ưu tiên đúng đoạn cần giữ.
           </p>
         </div>
@@ -125,13 +137,92 @@ export default function HighlightParamsForm({
                   placeholder="Ví dụ: React hooks, kỹ năng thuyết trình, thuật toán cây nhị phân..."
                   {...field}
                   disabled={isSubmitting}
-                  className="h-12 text-base"
+                  className={cn(compact ? "h-11" : "h-12 text-base")}
                 />
               </FormControl>
               <FormDescription>
                 Càng rõ chủ đề thì đoạn highlight càng dễ đúng ý.
               </FormDescription>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="isOpenAI"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-base font-medium">
+                Chất lượng phân tích
+              </FormLabel>
+              <FormControl>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(false)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border bg-background text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      compact ? "p-3" : "p-4",
+                      !field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          !field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {!field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
+                      <div>
+                        <div className="font-semibold">Tiêu chuẩn</div>
+                        <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                          Dùng luồng phân tích mặc định của StudyLoop.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => field.onChange(true)}
+                    className={cn(
+                      "cursor-pointer rounded-lg border bg-background text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      compact ? "p-3" : "p-4",
+                      field.value && "border-primary shadow-sm",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
+                      <div>
+                        <div className="font-semibold">Nâng cao với OpenAI</div>
+                        <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                          Ưu tiên phân tích bằng OpenAI cho nội dung cần độ chính xác cao hơn.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </FormControl>
             </FormItem>
           )}
         />
@@ -151,14 +242,15 @@ export default function HighlightParamsForm({
                     disabled={isSubmitting}
                     onClick={() => field.onChange(false)}
                     className={cn(
-                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      "cursor-pointer rounded-lg border bg-background text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      compact ? "p-3" : "p-4",
                       !field.value && "border-primary shadow-sm",
                     )}
                   >
                     <div className="flex items-start gap-3">
                       <div>
                         <div className="font-semibold">Một đoạn hay nhất</div>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        <p className="mt-1 text-sm leading-5 text-muted-foreground">
                           Dùng khi muốn mở Studio nhanh và chỉnh tiếp ngay.
                         </p>
                       </div>
@@ -170,14 +262,15 @@ export default function HighlightParamsForm({
                     disabled={isSubmitting}
                     onClick={() => field.onChange(true)}
                     className={cn(
-                      "rounded-lg border bg-background p-4 text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      "cursor-pointer rounded-lg border bg-background text-left transition hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-70",
+                      compact ? "p-3" : "p-4",
                       field.value && "border-primary shadow-sm",
                     )}
                   >
                     <div className="flex items-start gap-3">
                       <div>
                         <div className="font-semibold">Nhiều đoạn để chọn</div>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        <p className="mt-1 text-sm leading-5 text-muted-foreground">
                           Dùng khi video dài và cần so sánh vài phương án.
                         </p>
                       </div>
@@ -210,7 +303,12 @@ export default function HighlightParamsForm({
                     className="h-11"
                   />
                 </FormControl>
-                <div className="flex min-h-[5.75rem] content-start flex-wrap gap-2 pt-1">
+                <div
+                  className={cn(
+                    "flex content-start flex-wrap gap-2 pt-1",
+                    compact ? "min-h-0" : "min-h-[5.75rem]",
+                  )}
+                >
                   {INCLUDE_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -219,7 +317,7 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("includeKeywords", preset, setIncludeInput)
                       }
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {preset}
                     </button>
@@ -253,7 +351,12 @@ export default function HighlightParamsForm({
                     className="h-11"
                   />
                 </FormControl>
-                <div className="flex min-h-[5.75rem] content-start flex-wrap gap-2 pt-1">
+                <div
+                  className={cn(
+                    "flex content-start flex-wrap gap-2 pt-1",
+                    compact ? "min-h-0" : "min-h-[5.75rem]",
+                  )}
+                >
                   {EXCLUDE_PRESETS.map((preset) => (
                     <button
                       key={preset}
@@ -262,7 +365,7 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("excludeKeywords", preset, setExcludeInput)
                       }
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {preset}
                     </button>
@@ -277,7 +380,8 @@ export default function HighlightParamsForm({
           />
         </div>
 
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
+        {!hideActions && (
+        <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row">
           <Button
             type="button"
             variant="outline"
@@ -300,11 +404,12 @@ export default function HighlightParamsForm({
             )}
           </Button>
         </div>
+        )}
       </form>
     </Form>
   );
 
-  if (noCard) return <div className="p-1">{content}</div>;
+  if (noCard) return <div className={compact ? "p-0" : "p-1"}>{content}</div>;
 
   return <Card className="p-5 sm:p-6">{content}</Card>;
 }
