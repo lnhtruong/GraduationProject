@@ -129,8 +129,17 @@ export class LessonProgressService {
   async update(
     id: number,
     dto: UpdateLessonProgressDto,
+    userId: number | undefined,
   ): Promise<LessonProgress> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
     const row = await this.findOne(id);
+    if (row.userId !== userId) {
+      throw new ForbiddenException('Lesson progress does not belong to user');
+    }
+
     await row.update(dto);
     if (dto.progress === LessonProgressStatus.COMPLETED) {
       await this.enrollsService.syncEnrollProgress(row.userId, row.courseId);

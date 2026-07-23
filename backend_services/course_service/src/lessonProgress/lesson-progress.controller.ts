@@ -74,8 +74,14 @@ export class LessonProgressController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateLessonProgressDto,
+    @Headers('x-user-id') userIdHeader?: string,
   ) {
-    return this.lessonProgressService.update(id, dto);
+    const user_id =
+      typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
+        ? Number(userIdHeader)
+        : undefined;
+
+    return this.lessonProgressService.update(id, dto, user_id);
   }
 
   @Delete(':id')
