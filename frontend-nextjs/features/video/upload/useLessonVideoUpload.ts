@@ -130,12 +130,17 @@ export function useLessonVideoUpload() {
     async ({ file, title, courseId, lessonId, onCompleted }: StartUploadArgs) => {
       if (
         session.status === "uploading" ||
-        session.status === "initializing" ||
-        session.status === "processing"
+        session.status === "initializing"
       ) {
         throw new Error(
           "Đang có upload dở dang. Vui lòng chờ hoàn tất hoặc hủy.",
         );
+      }
+
+      if (session.status === "processing") {
+        try {
+          localStorage.removeItem("lessonUploadSession");
+        } catch {}
       }
 
       lastUploadArgsRef.current = { file, title, courseId, lessonId, onCompleted };
@@ -340,6 +345,11 @@ export function useLessonVideoUpload() {
           readyVideoUrl,
           error: null,
         });
+        lessonVideoUploadManager.completeFromRealtime(Number(session.videoId));
+        try {
+          lastUploadArgsRef.current?.onCompleted?.(Number(session.videoId));
+        } catch {}
+        lastUploadArgsRef.current = null;
         try {
           localStorage.removeItem("lessonUploadSession");
         } catch {}
@@ -348,11 +358,13 @@ export function useLessonVideoUpload() {
       }
     };
 
-    void checkVideoReadiness();
-    const timer = window.setInterval(checkVideoReadiness, 15000);
+    const pollDelayMs = 120000;
+    const timeout = window.setTimeout(checkVideoReadiness, pollDelayMs);
+    const timer = window.setInterval(checkVideoReadiness, pollDelayMs);
 
     return () => {
       canceled = true;
+      window.clearTimeout(timeout);
       window.clearInterval(timer);
     };
   }, [
