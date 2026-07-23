@@ -37,6 +37,10 @@ import { EnrollsService } from 'src/enrolls/enrolls.service';
 import { QuizzesService } from 'src/quizzes/quizzes.service';
 import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
+import {
+  HighlightFeed,
+  HighlightFeedStatus,
+} from 'src/models/highlight-feed.model';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
 import { RequesterContext } from 'src/audit_logs/requester.types';
 import { PaginationMetaDto } from 'src/models/pagination.dto';
@@ -137,6 +141,8 @@ export class CoursesService {
     private readonly courseChangeRequestModel: typeof CourseChangeRequest,
     @InjectModel(Feedback)
     private readonly feedbackModel: typeof Feedback,
+    @InjectModel(HighlightFeed)
+    private readonly highlightFeedModel: typeof HighlightFeed,
     @InjectModel(InstructorFollow)
     private readonly followModel: typeof InstructorFollow,
     @InjectModel(LessonActivity)
@@ -2730,6 +2736,19 @@ export class CoursesService {
 
     const before = this.auditableCourseSnapshot(course);
     const updated = await course.update({ status: CourseStatus.PUBLISH });
+
+    // Feed được tạo trước khi course publish luôn ở trạng thái hidden. Khi course
+    // chính thức được publish, chỉ kích hoạt các feed đang hidden; các feed đã bị
+    // removed (hoặc đã active) phải được giữ nguyên.
+    await this.highlightFeedModel.update(
+      { status: HighlightFeedStatus.ACTIVE },
+      {
+        where: {
+          courseId: id,
+          status: HighlightFeedStatus.HIDDEN,
+        },
+      },
+    );
 
     // Publish course → publish luôn các quiz activity còn draft (draft → public)
     // để học viên nộp bài được. Activity đã archived/removed/public giữ nguyên.

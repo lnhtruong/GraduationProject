@@ -1084,7 +1084,10 @@ export class FeedService {
       title: title || video.name,
       caption: caption?.trim() || null,
       hashtags,
-      status: HighlightFeedStatus.HIDDEN,
+      status:
+        course.status === CourseStatus.PUBLISH
+          ? HighlightFeedStatus.ACTIVE
+          : HighlightFeedStatus.HIDDEN,
     });
 
     return feedItem;
