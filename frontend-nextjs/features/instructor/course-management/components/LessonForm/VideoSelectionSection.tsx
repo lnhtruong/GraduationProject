@@ -141,6 +141,7 @@ export function VideoSelectionSection({
   const [isVideoSseConnected, setIsVideoSseConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const refreshedUploadVideoRef = useRef<number | null>(null);
+  const autoSelectedSessionVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
 
   const {
@@ -236,8 +237,10 @@ export function VideoSelectionSection({
 
   useEffect(() => {
     if (!session.videoId) return;
-    if (String(session.videoId) === String(selectedVideoId)) return;
+    if (autoSelectedSessionVideoRef.current === session.videoId) return;
 
+    autoSelectedSessionVideoRef.current = session.videoId;
+    if (String(session.videoId) === String(selectedVideoId)) return;
     onVideoSelect(session.videoId);
   }, [onVideoSelect, selectedVideoId, session.videoId]);
 
