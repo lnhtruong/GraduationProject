@@ -17,6 +17,8 @@ import { Feedback } from '../models/feedback.model';
 import { InstructorFollow } from '../models/instructor-follow.model';
 import { Video } from '../models/video.model';
 import { CourseChangeRequest } from '../models/course-change-request.model';
+import { HighlightFeed } from '../models/highlight-feed.model';
+import { HighlightFeedStatus } from '../models/highlight-feed.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
 import { EnrollsService } from '../enrolls/enrolls.service';
 
@@ -52,6 +54,8 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
   let lessonModel: ModelMock;
   let enrollModel: ModelMock;
   let feedbackModel: ModelMock;
+  let highlightFeedModel: ModelMock;
+  let lessonActivityModel: ModelMock;
 
   beforeEach(async () => {
     courseModel = makeModelMock();
@@ -59,6 +63,8 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     lessonModel = makeModelMock();
     enrollModel = makeModelMock();
     feedbackModel = makeModelMock();
+    highlightFeedModel = makeModelMock();
+    lessonActivityModel = makeModelMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -68,13 +74,14 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         { provide: getModelToken(Lesson), useValue: lessonModel },
         { provide: getModelToken(Enroll), useValue: enrollModel },
         { provide: getModelToken(Feedback), useValue: feedbackModel },
+        { provide: getModelToken(HighlightFeed), useValue: highlightFeedModel },
         { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
         {
           provide: getModelToken(CourseChangeRequest),
           useValue: makeModelMock(),
         },
         { provide: getModelToken(InstructorFollow), useValue: makeModelMock() },
-        { provide: getModelToken(LessonActivity), useValue: makeModelMock() },
+        { provide: getModelToken(LessonActivity), useValue: lessonActivityModel },
         {
           provide: getConnectionToken(),
           useValue: {
@@ -475,5 +482,30 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
       { id: 3, name: 'React', courseCount: 1 },
       { id: 4, name: 'TypeScript', courseCount: 1 },
     ]);
+  });
+
+  it('activates only hidden feeds when publishing a course', async () => {
+    const update = jest.fn().mockResolvedValue({
+      id: 7,
+      status: CourseStatus.PUBLISH,
+    });
+    courseModel.findByPk.mockResolvedValue({
+      id: 7,
+      status: CourseStatus.APPROVED,
+      update,
+    });
+    lessonModel.findAll.mockResolvedValue([]);
+
+    await service.publish(7);
+
+    expect(highlightFeedModel.update).toHaveBeenCalledWith(
+      { status: HighlightFeedStatus.ACTIVE },
+      {
+        where: {
+          courseId: 7,
+          status: HighlightFeedStatus.HIDDEN,
+        },
+      },
+    );
   });
 });

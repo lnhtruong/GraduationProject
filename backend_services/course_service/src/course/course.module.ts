@@ -15,6 +15,7 @@ import { Feedback } from 'src/models/feedback.model';
 import { Video } from 'src/models/video.model';
 import { User } from 'src/users/user.model';
 import { InstructorFollow } from 'src/models/instructor-follow.model';
+import { HighlightFeed } from 'src/models/highlight-feed.model';
 import { EnrollsModule } from 'src/enrolls/enrolls.module';
 import { QuizzesModule } from 'src/quizzes/quizzes.module';
 
@@ -33,6 +34,7 @@ import { QuizzesModule } from 'src/quizzes/quizzes.module';
       Feedback,
       User,
       InstructorFollow,
+      HighlightFeed,
     ]),
     EnrollsModule,
     forwardRef(() => QuizzesModule),
