@@ -8,7 +8,7 @@ import {
   type VideoProgressPayload,
 } from "./media-upload-stream";
 
-export const INFERENCE_JOB_POLL_INTERVAL_MS = 60_000;
+export const INFERENCE_JOB_POLL_INTERVAL_MS = 120_000;
 export const INFERENCE_JOB_SSE_RECONNECT_MS = 5_000;
 export const INFERENCE_JOB_STORAGE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -197,12 +197,18 @@ export function watchInferenceJob<TStatus = unknown>({
     reconnectTimer = null;
   };
 
-  const schedulePoll = () => {
+  const scheduleIdlePoll = () => {
     if (closed || !pollStatus || pollTimer) return;
     pollTimer = window.setTimeout(() => {
       pollTimer = null;
       void pollNow();
     }, pollIntervalMs);
+  };
+
+  const resetIdlePoll = () => {
+    if (!pollStatus) return;
+    clearPollTimer();
+    scheduleIdlePoll();
   };
 
   const pollNow = async () => {
@@ -216,7 +222,7 @@ export function watchInferenceJob<TStatus = unknown>({
       onPollError?.(error);
     } finally {
       isPolling = false;
-      schedulePoll();
+      scheduleIdlePoll();
     }
   };
 
@@ -232,6 +238,7 @@ export function watchInferenceJob<TStatus = unknown>({
         onImageCompleted,
         onError,
         onQuizGenerated,
+        onEvent: resetIdlePoll,
         onConnectionError: (error) => {
           if (closed) return;
           onConnectionError?.(error);
@@ -253,7 +260,7 @@ export function watchInferenceJob<TStatus = unknown>({
     if (pollImmediately) {
       void pollNow();
     } else {
-      schedulePoll();
+      scheduleIdlePoll();
     }
   }
 

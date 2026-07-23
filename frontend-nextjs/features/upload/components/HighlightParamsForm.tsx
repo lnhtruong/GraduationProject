@@ -248,6 +248,18 @@ export default function HighlightParamsForm({
                     )}
                   >
                     <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          !field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {!field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
                       <div>
                         <div className="font-semibold">Một đoạn hay nhất</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
@@ -268,6 +280,18 @@ export default function HighlightParamsForm({
                     )}
                   >
                     <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          field.value
+                            ? "border-primary"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {field.value ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
                       <div>
                         <div className="font-semibold">Nhiều đoạn để chọn</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
