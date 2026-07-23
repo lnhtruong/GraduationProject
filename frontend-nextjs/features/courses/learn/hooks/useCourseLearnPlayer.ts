@@ -16,7 +16,7 @@ import {
   type ConfettiPiece,
   type InVideoQuizPoint,
 } from "../utils";
-import type { SubmitQuizPayload } from "../types";
+import type { QuizSubmissionRecord, SubmitQuizPayload } from "../types";
 
 type OrientationWithLock = ScreenOrientation & {
   lock?: (
@@ -48,14 +48,15 @@ interface Props {
   onMarkLessonCompleted: (
     lessonId: number,
     lessonProgressId?: number | null,
-  ) => void;
+  ) => Promise<void>;
   onHeartbeat: (lessonProgressId: number, positionSec: number) => void;
-  onSubmitQuizAttempt: (payload: SubmitQuizPayload) => void;
+  onSubmitQuizAttempt: (payload: SubmitQuizPayload) => Promise<QuizSubmissionRecord>;
   initialResumePositionSec: number;
   selectedLessonProgressId?: number | null;
   persistedInVideoAnswers: Record<string, number>;
   persistedInVideoSubmitted: Record<string, boolean>;
   persistedInVideoCorrectness: Record<string, boolean>;
+  persistedInVideoCorrectAnswers: Record<string, number>;
   persistedAfterLessonAnswers: Record<string, number>;
   persistedAfterLessonSubmitted: boolean;
   persistedAfterLessonScore: { correct: number; total: number; percent: number } | null;
@@ -80,6 +81,7 @@ export function useCourseLearnPlayer({
   persistedInVideoAnswers,
   persistedInVideoSubmitted,
   persistedInVideoCorrectness,
+  persistedInVideoCorrectAnswers,
   persistedAfterLessonAnswers,
   persistedAfterLessonSubmitted,
   persistedAfterLessonScore,
@@ -105,6 +107,9 @@ export function useCourseLearnPlayer({
   const [inVideoCorrectness, setInVideoCorrectness] = useState<
     Record<string, boolean>
   >(persistedInVideoCorrectness);
+  const [inVideoCorrectAnswers, setInVideoCorrectAnswers] = useState<
+    Record<string, number>
+  >(persistedInVideoCorrectAnswers);
   const [afterLessonAnswers, setAfterLessonAnswers] = useState<
     Record<string, number>
   >({});
@@ -112,6 +117,12 @@ export function useCourseLearnPlayer({
   const [afterLessonCorrectAnswers, setAfterLessonCorrectAnswers] = useState<
     Record<string, number>
   >(persistedAfterLessonCorrectAnswers);
+  const [localAfterLessonScore, setLocalAfterLessonScore] = useState<{
+    correct: number;
+    total: number;
+    percent: number;
+  } | null>(null);
+  const [localAfterLessonPassed, setLocalAfterLessonPassed] = useState(false);
   const [isRetaking, setIsRetaking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState(selectedLessonDuration);
@@ -132,6 +143,7 @@ export function useCourseLearnPlayer({
   const lastVolumeRef = useRef(1);
   const pendingResumePositionRef = useRef<number | null>(null);
   const lastHeartbeatAtRef = useRef<number>(0);
+  const completedMarkedLessonIdRef = useRef<number | null>(null);
 
   const activeQuizPoint = useMemo(
     () =>
@@ -152,6 +164,11 @@ export function useCourseLearnPlayer({
   const effectiveInVideoCorrectness = useMemo(
     () => ({ ...persistedInVideoCorrectness, ...inVideoCorrectness }),
     [inVideoCorrectness, persistedInVideoCorrectness],
+  );
+
+  const effectiveInVideoCorrectAnswers = useMemo(
+    () => ({ ...persistedInVideoCorrectAnswers, ...inVideoCorrectAnswers }),
+    [inVideoCorrectAnswers, persistedInVideoCorrectAnswers],
   );
 
   const effectiveAfterLessonAnswers = useMemo(
@@ -201,23 +218,41 @@ export function useCourseLearnPlayer({
       : 0;
 
   const afterLessonScore = effectiveAfterLessonSubmitted
-    ? persistedAfterLessonScore
+    ? (localAfterLessonScore ?? persistedAfterLessonScore)
     : null;
 
   const afterLessonPassed = effectiveAfterLessonSubmitted
-    ? persistedAfterLessonPassed
+    ? (localAfterLessonScore ? localAfterLessonPassed : persistedAfterLessonPassed)
     : false;
+
+  const markCurrentLessonCompletedOnce = useCallback(async () => {
+    if (!selectedLesson) {
+      return;
+    }
+
+    if (completedMarkedLessonIdRef.current === selectedLesson.id) {
+      return;
+    }
+
+    completedMarkedLessonIdRef.current = selectedLesson.id;
+    try {
+      await onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
+    } catch {
+      completedMarkedLessonIdRef.current = null;
+      toast.error("Không thể cập nhật tiến độ bài học. Vui lòng thử lại.");
+    }
+  }, [onMarkLessonCompleted, selectedLesson, selectedLessonProgressId]);
 
   const inVideoScore = useMemo(() => {
     if (!activeQuizPoint || !effectiveInVideoSubmitted[activeQuizPoint.id]) {
       return null;
     }
 
-    if (loadingQuizSubmissions) {
+    const correctness = effectiveInVideoCorrectness[activeQuizPoint.id];
+    if (correctness === undefined && loadingQuizSubmissions) {
       return null;
     }
 
-    const correctness = effectiveInVideoCorrectness[activeQuizPoint.id];
     return correctness === undefined ? null : correctness === true;
   }, [activeQuizPoint, effectiveInVideoSubmitted, effectiveInVideoCorrectness, loadingQuizSubmissions]);
 
@@ -505,9 +540,7 @@ export function useCourseLearnPlayer({
     setIsPlaying(false);
 
     if (!afterLessonQuiz.length || (effectiveAfterLessonSubmitted && afterLessonPassed)) {
-      if (selectedLesson) {
-        onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
-      }
+      void markCurrentLessonCompletedOnce();
       return;
     }
 
@@ -517,10 +550,25 @@ export function useCourseLearnPlayer({
     afterLessonQuiz.length,
     effectiveAfterLessonSubmitted,
     afterLessonPassed,
-    onMarkLessonCompleted,
-    selectedLesson,
-    selectedLessonProgressId,
+    markCurrentLessonCompletedOnce,
   ]);
+
+  const handleVideoPause = useCallback(
+    (event: SyntheticEvent<HTMLVideoElement>) => {
+      const video = event.currentTarget;
+      const reachedMediaEnd =
+        Number.isFinite(video.duration) &&
+        video.duration > 0 &&
+        video.currentTime >= video.duration;
+
+      if (!video.ended && !reachedMediaEnd) {
+        return;
+      }
+
+      handleVideoEnded();
+    },
+    [handleVideoEnded],
+  );
 
   const handleVideoMetadataLoaded = useCallback(
     (duration: number, aspectRatio?: number) => {
@@ -554,7 +602,7 @@ export function useCourseLearnPlayer({
       return;
     }
 
-    onMarkLessonCompleted(selectedLesson.id, selectedLessonProgressId);
+    void markCurrentLessonCompletedOnce();
 
     if (nextLesson) {
       handleSelectLesson(nextLesson.id);
@@ -565,12 +613,11 @@ export function useCourseLearnPlayer({
     afterLessonPassed,
     handleSelectLesson,
     nextLesson,
-    onMarkLessonCompleted,
+    markCurrentLessonCompletedOnce,
     selectedLesson,
-    selectedLessonProgressId,
   ]);
 
-  const handleSubmitInVideoQuiz = useCallback(() => {
+  const handleSubmitInVideoQuiz = useCallback(async () => {
     if (!activeQuizPoint) {
       return;
     }
@@ -585,43 +632,65 @@ export function useCourseLearnPlayer({
       return;
     }
 
-    onSubmitQuizAttempt({
-      quizId: activeQuizPoint.quizId,
-      answers: [
-        {
-          questionId: activeQuizPoint.questionId,
-          selectedOptionId,
-        },
-      ],
-      timeSpentSeconds: Math.max(0, Math.round(currentTime)),
-    });
-
     setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: true }));
-    if (activeQuizPoint.answerIndex !== null) {
+
+    try {
+      const submission = await onSubmitQuizAttempt({
+        quizId: activeQuizPoint.quizId,
+        answers: [
+          {
+            questionId: activeQuizPoint.questionId,
+            selectedOptionId,
+          },
+        ],
+        timeSpentSeconds: Math.max(0, Math.round(currentTime)),
+      });
+      const savedAnswer = submission.answers.find(
+        (answer) => answer.questionId === activeQuizPoint.questionId,
+      );
+      const correctOptionIndex = activeQuizPoint.optionIds.findIndex(
+        (optionId) => optionId === savedAnswer?.correctOptionId,
+      );
+
       setInVideoCorrectness((prev) => ({
         ...prev,
-        [activeQuizPoint.id]: selectedAnswerIndex === activeQuizPoint.answerIndex,
+        [activeQuizPoint.id]:
+          savedAnswer?.isCorrect ??
+          (activeQuizPoint.answerIndex !== null
+            ? selectedAnswerIndex === activeQuizPoint.answerIndex
+            : false),
       }));
+      if (correctOptionIndex >= 0) {
+        setInVideoCorrectAnswers((prev) => ({
+          ...prev,
+          [activeQuizPoint.id]: correctOptionIndex,
+        }));
+      }
+    } catch {
+      setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: false }));
+      toast.error("Không thể ghi nhận câu trả lời. Vui lòng thử lại.");
+      return;
     }
 
-    if (inVideoQuizResolveTimeoutRef.current !== null) {
-      window.clearTimeout(inVideoQuizResolveTimeoutRef.current);
-      inVideoQuizResolveTimeoutRef.current = null;
-    }
-
-    inVideoQuizResolveTimeoutRef.current = window.setTimeout(() => {
-      setActiveQuizPointId(null);
-      setLastVideoTime(activeQuizPoint.timestamp);
-      window.requestAnimationFrame(() => {
-        void videoRef.current?.play();
-      });
-      inVideoQuizResolveTimeoutRef.current = null;
-    }, 900);
   }, [activeQuizPoint, currentTime, inVideoAnswers, onSubmitQuizAttempt]);
+
+  const handleContinueAfterInVideoQuiz = useCallback(() => {
+    if (!activeQuizPoint || !effectiveInVideoSubmitted[activeQuizPoint.id]) {
+      return;
+    }
+
+    setActiveQuizPointId(null);
+    setLastVideoTime(activeQuizPoint.timestamp);
+    window.requestAnimationFrame(() => {
+      void videoRef.current?.play();
+    });
+  }, [activeQuizPoint, effectiveInVideoSubmitted]);
 
   const handleAdvanceToNextLesson = useCallback(() => {
     if (nextLesson) {
       setAfterLessonSubmitted(false);
+      setLocalAfterLessonScore(null);
+      setLocalAfterLessonPassed(false);
       setCelebrationArmed(false);
       setNextLessonCountdown(null);
       setShowAfterLessonOverlay(false);
@@ -645,6 +714,8 @@ export function useCourseLearnPlayer({
     }
 
     setAfterLessonSubmitted(false);
+    setLocalAfterLessonScore(null);
+    setLocalAfterLessonPassed(false);
     setCelebrationArmed(false);
     setNextLessonCountdown(null);
     setShowAfterLessonOverlay(false);
@@ -690,9 +761,12 @@ export function useCourseLearnPlayer({
       setInVideoAnswers({});
       setInVideoSubmitted({});
       setInVideoCorrectness({});
+      setInVideoCorrectAnswers({});
       setAfterLessonAnswers({});
       setAfterLessonSubmitted(false);
       setAfterLessonCorrectAnswers({});
+      setLocalAfterLessonScore(null);
+      setLocalAfterLessonPassed(false);
       setIsRetaking(false);
       setCelebrationArmed(false);
       setShowAfterLessonOverlay(false);
@@ -702,6 +776,7 @@ export function useCourseLearnPlayer({
       setQualityLevels([]);
       setCurrentQualityLevel(-1);
       setVideoAspectRatio(null);
+      completedMarkedLessonIdRef.current = null;
 
       if (videoRef.current) {
         videoRef.current.playbackRate = 1;
@@ -763,22 +838,6 @@ export function useCourseLearnPlayer({
     return () => window.cancelAnimationFrame(frame);
   }, [activeQuizPointId, currentTime, inVideoQuizPoints, isQuizSolved, loadingQuizSubmissions]);
 
-  useEffect(() => {
-    if (!activeQuizPointId || !activeQuizPoint) {
-      return;
-    }
-    if (inVideoSubmitted[activeQuizPoint.id]) {
-      return;
-    }
-    if (persistedInVideoSubmitted[activeQuizPoint.id]) {
-      const frame = window.requestAnimationFrame(() => {
-        setActiveQuizPointId(null);
-        void videoRef.current?.play().catch(() => {});
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-  }, [activeQuizPointId, activeQuizPoint, persistedInVideoSubmitted, inVideoSubmitted]);
-
   const handleTimeUpdate = useCallback(
     (event: SyntheticEvent<HTMLVideoElement>) => {
       const currentVideoTime = event.currentTarget.currentTime;
@@ -820,8 +879,19 @@ export function useCourseLearnPlayer({
 
       setCurrentTime(currentVideoTime);
       setLastVideoTime(currentVideoTime);
+
+      if (effectiveDuration > 0 && currentVideoTime >= effectiveDuration) {
+        handleVideoEnded();
+      }
     },
-    [inVideoQuizPoints, isQuizSolved, lastVideoTime, loadingQuizSubmissions],
+    [
+      effectiveDuration,
+      handleVideoEnded,
+      inVideoQuizPoints,
+      isQuizSolved,
+      lastVideoTime,
+      loadingQuizSubmissions,
+    ],
   );
 
   const handleOverlayScrubClick = useCallback(
@@ -984,6 +1054,18 @@ export function useCourseLearnPlayer({
     return () => window.clearTimeout(timer);
   }, [handleAdvanceToNextLesson, nextLessonCountdown]);
 
+  useEffect(() => {
+    if (!effectiveAfterLessonSubmitted || !afterLessonPassed) {
+      return;
+    }
+
+    void markCurrentLessonCompletedOnce();
+  }, [
+    afterLessonPassed,
+    effectiveAfterLessonSubmitted,
+    markCurrentLessonCompletedOnce,
+  ]);
+
   const onSelectInVideoAnswer = useCallback(
     (quizPointId: string, optionIndex: number) => {
       setInVideoAnswers((prev) => ({
@@ -1008,7 +1090,7 @@ export function useCourseLearnPlayer({
     [],
   );
 
-  const handleSubmitAfterLessonQuiz = useCallback(() => {
+  const handleSubmitAfterLessonQuiz = useCallback(async () => {
     if (!afterLessonQuiz.length) {
       return;
     }
@@ -1040,14 +1122,47 @@ export function useCourseLearnPlayer({
       return;
     }
 
-    onSubmitQuizAttempt({
-      quizId: firstQuiz.quizId,
-      answers,
-      timeSpentSeconds: Math.max(0, Math.round(currentTime)),
-    });
-
-    setAfterLessonSubmitted(true);
     setIsRetaking(false);
+    setAfterLessonSubmitted(true);
+
+    try {
+      const submission = await onSubmitQuizAttempt({
+        quizId: firstQuiz.quizId,
+        answers,
+        timeSpentSeconds: Math.max(0, Math.round(currentTime)),
+      });
+
+      const correctAnswers: Record<string, number> = {};
+      for (const question of afterLessonQuiz) {
+        const savedAnswer = submission.answers.find(
+          (answer) => answer.questionId === question.questionId,
+        );
+        const correctOptionIndex = question.optionIds.findIndex(
+          (optionId) => optionId === savedAnswer?.correctOptionId,
+        );
+        if (correctOptionIndex >= 0) {
+          correctAnswers[question.id] = correctOptionIndex;
+        }
+      }
+
+      const correctCount = submission.answers.filter((answer) => answer.isCorrect).length;
+      const totalQuestions = submission.answers.length || afterLessonQuiz.length;
+      const percent =
+        submission.percent ??
+        (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0);
+
+      setAfterLessonCorrectAnswers(correctAnswers);
+      setLocalAfterLessonScore({
+        correct: correctCount,
+        total: totalQuestions,
+        percent,
+      });
+      setLocalAfterLessonPassed(submission.passed === true);
+      setIsRetaking(false);
+    } catch {
+      setAfterLessonSubmitted(false);
+      toast.error("Không thể nộp quiz. Vui lòng thử lại.");
+    }
   }, [
     afterLessonQuiz,
     currentTime,
@@ -1059,6 +1174,8 @@ export function useCourseLearnPlayer({
     setAfterLessonAnswers({});
     setAfterLessonSubmitted(false);
     setAfterLessonCorrectAnswers({});
+    setLocalAfterLessonScore(null);
+    setLocalAfterLessonPassed(false);
     setIsRetaking(true);
   }, []);
 
@@ -1076,6 +1193,7 @@ export function useCourseLearnPlayer({
     inVideoAnswers: effectiveInVideoAnswers,
     inVideoSubmitted: effectiveInVideoSubmitted,
     inVideoScore,
+    inVideoCorrectAnswers: effectiveInVideoCorrectAnswers,
     afterLessonAnswers: effectiveAfterLessonAnswers,
     afterLessonSubmitted: effectiveAfterLessonSubmitted,
     afterLessonScore,
@@ -1085,9 +1203,11 @@ export function useCourseLearnPlayer({
     handleSelectLesson,
     handleTogglePlayback,
     handleVideoEnded,
+    handleVideoPause,
     handleVideoMetadataLoaded,
     handleTimeUpdate,
     handleSubmitInVideoQuiz,
+    handleContinueAfterInVideoQuiz,
     handleJumpToQuizPoint,
     handleOverlayScrubClick,
     handleSeekChange,

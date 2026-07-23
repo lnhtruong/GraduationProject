@@ -542,7 +542,7 @@ const ACCESS_RULES: AccessRule[] = [
     method: 'PATCH',
     pattern: '/api/course/lesson-progress/:id',
     access: 'roles',
-    roles: [UserRole.ADMIN, UserRole.LECTURER],
+    roles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN],
   },
   {
     method: 'DELETE',

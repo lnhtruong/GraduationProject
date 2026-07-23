@@ -122,6 +122,7 @@ export default function CourseLearnPage({ courseId }: Props) {
               inVideoAnswers={state.inVideoAnswers}
               inVideoSubmitted={state.inVideoSubmitted}
               inVideoScore={state.inVideoScore}
+              inVideoCorrectAnswers={state.inVideoCorrectAnswers}
               afterLessonQuiz={state.afterLessonQuiz}
               afterLessonAnswers={state.afterLessonAnswers}
               afterLessonSubmitted={state.afterLessonSubmitted}
@@ -154,10 +155,12 @@ export default function CourseLearnPage({ courseId }: Props) {
               onVideoKeyDown={state.handleVideoKeyDown}
               onTimeUpdate={state.handleTimeUpdate}
               onVideoEnded={state.handleVideoEnded}
+              onVideoPause={state.handleVideoPause}
               onVideoMetadataLoaded={state.handleVideoMetadataLoaded}
               onSelectInVideoAnswer={state.onSelectInVideoAnswer}
               onSelectAfterLessonAnswer={state.onSelectAfterLessonAnswer}
               onSubmitAfterLessonQuiz={state.onSubmitAfterLessonQuiz}
+              onContinueAfterInVideoQuiz={state.handleContinueAfterInVideoQuiz}
               onAdvanceToNextLesson={state.handleAdvanceToNextLesson}
               onRetryAfterLessonQuiz={state.handleRetryAfterLessonQuiz}
               onSubmitInVideoQuiz={state.handleSubmitInVideoQuiz}

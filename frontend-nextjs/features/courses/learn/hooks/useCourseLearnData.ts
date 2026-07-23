@@ -85,7 +85,6 @@ export function useCourseLearnData(courseId: number) {
     isFetching: lessonProgressFetching,
   } = useLessonProgressByCourseId(courseId, Boolean(course && lessons.length));
   const {
-    mutate: upsertLessonProgress,
     mutateAsync: upsertLessonProgressAsync,
     isPending: lessonProgressUpdating,
   } = useUpsertLessonProgress(courseId);
@@ -293,7 +292,7 @@ export function useCourseLearnData(courseId: number) {
     selectedLessonQuizIds,
     Boolean(selectedLesson?.id),
   );
-  const { mutate: submitQuizSubmission, isPending: quizSubmissionSubmitting } =
+  const { mutateAsync: submitQuizSubmissionAsync, isPending: quizSubmissionSubmitting } =
     useSubmitQuizSubmission();
 
   const quizSubmissionsByQuizId = useMemo(() => {
@@ -310,6 +309,7 @@ export function useCourseLearnData(courseId: number) {
     const answers: Record<string, number> = {};
     const submitted: Record<string, boolean> = {};
     const correctness: Record<string, boolean> = {};
+    const correctAnswers: Record<string, number> = {};
 
     for (const point of inVideoQuizPoints) {
       const submissions = quizSubmissionsByQuizId.get(point.quizId) ?? [];
@@ -332,11 +332,18 @@ export function useCourseLearnData(courseId: number) {
         answers[point.id] = matchedOptionIndex;
         submitted[point.id] = true;
         correctness[point.id] = matchedAnswer.isCorrect;
+
+        const correctOptionIndex = point.optionIds.findIndex(
+          (optionId) => optionId === matchedAnswer.correctOptionId,
+        );
+        if (correctOptionIndex >= 0) {
+          correctAnswers[point.id] = correctOptionIndex;
+        }
         break;
       }
     }
 
-    return { answers, submitted, correctness };
+    return { answers, submitted, correctness, correctAnswers };
   }, [inVideoQuizPoints, quizSubmissionsByQuizId]);
 
   const persistedAfterLessonState = useMemo(() => {
@@ -425,10 +432,8 @@ export function useCourseLearnData(courseId: number) {
     isQuizQueriesLoading;
 
   const submitQuizAttempt = useCallback(
-    (payload: SubmitQuizPayload) => {
-      submitQuizSubmission(payload);
-    },
-    [submitQuizSubmission],
+    (payload: SubmitQuizPayload) => submitQuizSubmissionAsync(payload),
+    [submitQuizSubmissionAsync],
   );
 
   const handleSelectLesson = useCallback(
@@ -442,15 +447,15 @@ export function useCourseLearnData(courseId: number) {
   );
 
   const markLessonCompleted = useCallback(
-    (lessonId: number, lessonProgressId?: number | null) => {
-      upsertLessonProgress({
+    async (lessonId: number, lessonProgressId?: number | null) => {
+      await upsertLessonProgressAsync({
         courseId,
         lessonId,
         progress: "completed",
         lessonProgressId,
       });
     },
-    [courseId, upsertLessonProgress],
+    [courseId, upsertLessonProgressAsync],
   );
 
   const sendHeartbeat = useCallback(
