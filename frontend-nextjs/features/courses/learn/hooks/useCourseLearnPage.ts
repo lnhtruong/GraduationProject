@@ -20,6 +20,7 @@ export function useCourseLearnPage(courseId: number) {
     persistedInVideoAnswers: data.persistedInVideoState.answers,
     persistedInVideoSubmitted: data.persistedInVideoState.submitted,
     persistedInVideoCorrectness: data.persistedInVideoState.correctness,
+    persistedInVideoCorrectAnswers: data.persistedInVideoState.correctAnswers,
     persistedAfterLessonAnswers: data.persistedAfterLessonState.answers,
     persistedAfterLessonSubmitted: data.persistedAfterLessonState.submitted,
     persistedAfterLessonScore: data.persistedAfterLessonState.score,

@@ -20,6 +20,7 @@ interface Props {
   inVideoAnswers: Record<string, number>;
   inVideoSubmitted: Record<string, boolean>;
   inVideoScore: boolean | null;
+  inVideoCorrectAnswers: Record<string, number>;
   afterLessonQuiz: AfterLessonQuizQuestion[];
   afterLessonAnswers: Record<string, number>;
   afterLessonSubmitted: boolean;
@@ -55,11 +56,13 @@ interface Props {
   onVideoKeyDown: (event: React.KeyboardEvent<HTMLVideoElement>) => void;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onVideoEnded: () => void;
+  onVideoPause: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onVideoMetadataLoaded: (duration: number, aspectRatio?: number) => void;
   videoAspectRatio?: number | null;
   onSelectInVideoAnswer: (quizPointId: string, optionIndex: number) => void;
   onSelectAfterLessonAnswer: (questionId: string, optionIndex: number) => void;
   onSubmitAfterLessonQuiz: () => void;
+  onContinueAfterInVideoQuiz: () => void;
   onAdvanceToNextLesson: () => void;
   onRetryAfterLessonQuiz: () => void;
   onSubmitInVideoQuiz: () => void;
@@ -83,6 +86,7 @@ export function LessonVideoCard({
   inVideoAnswers,
   inVideoSubmitted,
   inVideoScore,
+  inVideoCorrectAnswers,
   afterLessonQuiz,
   afterLessonAnswers,
   afterLessonSubmitted,
@@ -114,10 +118,12 @@ export function LessonVideoCard({
   onVideoKeyDown,
   onTimeUpdate,
   onVideoEnded,
+  onVideoPause,
   onVideoMetadataLoaded,
   onSelectInVideoAnswer,
   onSelectAfterLessonAnswer,
   onSubmitAfterLessonQuiz,
+  onContinueAfterInVideoQuiz,
   onAdvanceToNextLesson,
   onRetryAfterLessonQuiz,
   onSubmitInVideoQuiz,
@@ -131,6 +137,7 @@ export function LessonVideoCard({
 }: Props) {
   const playerBlocked = Boolean(activeQuizPoint) || showAfterLessonOverlay;
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [upNextDismissed, setUpNextDismissed] = useState(false);
   const autoHideTimeoutRef = useRef<number | null>(null);
 
   const clearAutoHide = () => {
@@ -153,13 +160,18 @@ export function LessonVideoCard({
     return () => clearAutoHide();
   }, []);
 
+  useEffect(() => {
+    setUpNextDismissed(false);
+  }, [nextLessonTitle, selectedLessonDuration]);
+
   const remainingForUpNext = selectedLessonDuration - currentTime;
   const showUpNextOverlay =
     hasNextLesson &&
     remainingForUpNext <= 10 &&
     remainingForUpNext > 0 &&
     !isTransitioningNext &&
-    !showAfterLessonOverlay;
+    !showAfterLessonOverlay &&
+    !upNextDismissed;
 
   return (
     <div
@@ -196,6 +208,7 @@ export function LessonVideoCard({
           onVideoKeyDown={onVideoKeyDown}
           onTimeUpdate={onTimeUpdate}
           onVideoEnded={onVideoEnded}
+          onVideoPause={onVideoPause}
           onVideoMetadataLoaded={onVideoMetadataLoaded}
           setIsPlaying={setIsPlaying}
           setCurrentTime={setCurrentTime}
@@ -209,8 +222,10 @@ export function LessonVideoCard({
         inVideoAnswers={inVideoAnswers}
         inVideoSubmitted={inVideoSubmitted}
         inVideoScore={inVideoScore}
+        inVideoCorrectAnswers={inVideoCorrectAnswers}
         onSelectInVideoAnswer={onSelectInVideoAnswer}
         onSubmitInVideoQuiz={onSubmitInVideoQuiz}
+        onContinueAfterInVideoQuiz={onContinueAfterInVideoQuiz}
         showAfterLessonOverlay={showAfterLessonOverlay}
         afterLessonQuiz={afterLessonQuiz}
         afterLessonAnswers={afterLessonAnswers}
@@ -234,6 +249,7 @@ export function LessonVideoCard({
         selectedLessonDuration={selectedLessonDuration}
         currentTime={currentTime}
         onAdvanceToNextLesson={onAdvanceToNextLesson}
+        onDismissUpNext={() => setUpNextDismissed(true)}
         isTransitioningNext={isTransitioningNext}
       />
 

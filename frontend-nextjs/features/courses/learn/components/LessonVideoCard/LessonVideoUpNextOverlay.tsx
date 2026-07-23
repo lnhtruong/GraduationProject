@@ -1,6 +1,6 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LessonVideoUpNextOverlayProps {
@@ -9,6 +9,7 @@ interface LessonVideoUpNextOverlayProps {
   selectedLessonDuration: number;
   currentTime: number;
   onAdvanceToNextLesson: () => void;
+  onDismissUpNext: () => void;
   isTransitioningNext: boolean;
 }
 
@@ -49,7 +50,6 @@ export function LessonVideoUpNextOverlay({
         ) : null}
       </AnimatePresence>
 
-      {/* Transitioning Loading Overlay */}
       <AnimatePresence>
         {isTransitioningNext && nextLessonTitle ? (
           <motion.div

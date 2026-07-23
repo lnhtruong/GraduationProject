@@ -15,6 +15,7 @@ interface LessonVideoPlayerProps {
   onVideoKeyDown: (event: React.KeyboardEvent<HTMLVideoElement>) => void;
   onTimeUpdate: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
   onVideoEnded: () => void;
+  onVideoPause: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
   onVideoMetadataLoaded: (duration: number, aspectRatio?: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -36,6 +37,7 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
       onVideoKeyDown,
       onTimeUpdate,
       onVideoEnded,
+      onVideoPause,
       onVideoMetadataLoaded,
       setIsPlaying,
       setCurrentTime,
@@ -175,7 +177,10 @@ export const LessonVideoPlayer = forwardRef<HTMLVideoElement, LessonVideoPlayerP
               }
               setIsPlaying(true);
             }}
-            onPause={() => setIsPlaying(false)}
+            onPause={(event) => {
+              setIsPlaying(false);
+              onVideoPause(event);
+            }}
             onTimeUpdate={onTimeUpdate}
             onEnded={onVideoEnded}
             onResize={(event) => {
