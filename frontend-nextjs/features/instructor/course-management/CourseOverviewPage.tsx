@@ -105,6 +105,9 @@ export default function CourseOverviewPage({ courseId }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<LessonStatusFilter>("all");
+  const [expandedDescriptionCourseId, setExpandedDescriptionCourseId] =
+    useState<number | null>(null);
+  const descriptionExpanded = expandedDescriptionCourseId === courseId;
 
   const lessonCount = lessons?.length ?? 0;
   const readyLessons = (lessons ?? []).filter(
@@ -142,6 +145,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
       ),
     [course?.description],
   );
+  const hasLongCourseDescription = (course?.description ?? "").length > 520;
 
   const totalPages = Math.max(
     1,
@@ -421,10 +425,36 @@ export default function CourseOverviewPage({ courseId }: Props) {
                 Giới thiệu khóa học
               </h3>
               <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed pl-5.5">
-                <div
-                  className="course-overview-description"
-                  dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
-                />
+                <div className="relative">
+                  <div
+                    className={cn(
+                      "course-overview-description",
+                      hasLongCourseDescription &&
+                        !descriptionExpanded &&
+                        "line-clamp-6",
+                    )}
+                    dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
+                  />
+                  {hasLongCourseDescription && !descriptionExpanded ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  ) : null}
+                </div>
+                {hasLongCourseDescription ? (
+                  <Button
+                    type="button"
+                    aria-expanded={descriptionExpanded}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setExpandedDescriptionCourseId((expandedCourseId) =>
+                        expandedCourseId === courseId ? null : courseId,
+                      )
+                    }
+                    className="mt-2 h-8 cursor-pointer px-0 text-primary hover:bg-transparent hover:text-primary/80"
+                  >
+                    {descriptionExpanded ? "Thu gọn" : "Xem thêm"}
+                  </Button>
+                ) : null}
               </div>
             </div>
 

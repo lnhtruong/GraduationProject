@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
 	ArrowRight,
@@ -152,6 +152,8 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 	const isInCart = useIsInCart(courseId);
 	const { data: enrollment } = useEnrollmentCheck(courseId, user?.id);
 	const isEnrolled = enrollment != null;
+	const [expandedDescriptionFeedId, setExpandedDescriptionFeedId] = useState<number | null>(null);
+	const descriptionExpanded = expandedDescriptionFeedId === video.feedId;
 
 	const roadmapQuery = useRoadmapsPaginated(
 		{ userId: video.course.userId, page: 1, limit: 50 },
@@ -163,6 +165,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 		() => sanitizeHtml(video.course.description),
 		[video.course.description],
 	);
+	const hasLongCourseDescription = (video.course.description ?? "").length > 420;
 
 	const activeRoadmap = useMemo(() => {
 		if (!roadmaps.length || !courseId) {
@@ -175,7 +178,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 			),
 		);
 
-		return matchedRoadmap ?? roadmaps[0] ?? null;
+		return matchedRoadmap ?? null;
 	}, [courseId, roadmaps]);
 
 	const roadmapCourses = useMemo(() => {
@@ -197,6 +200,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 			: roadmapCourses.length
 				? `--/${roadmapCourses.length}`
 				: "0/0";
+	const shouldShowRoadmapPanel = roadmapQuery.isLoading || roadmapCourses.length > 0;
 	const languageLabel = video.course.language === "vi" ? "Tiếng Việt" : video.course.language === "en" ? "Tiếng Anh" : video.course.language;
 	const levelMeta = LEVEL_META[video.course.level] ?? {
 		label: LEVEL_LABELS[video.course.level] ?? video.course.level,
@@ -261,10 +265,34 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 						<h3 className="text-2xl font-bold leading-tight sm:text-[2rem]">
 							{video.course.name}
 						</h3>
-						<div
-							className="mt-3 max-w-none text-sm leading-7 text-muted-foreground"
-							dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
-						/>
+						<div className="mt-3">
+							<div className="relative">
+								<div
+									className={cn(
+										"max-w-none text-sm leading-7 text-muted-foreground",
+										hasLongCourseDescription && !descriptionExpanded && "line-clamp-6",
+									)}
+									dangerouslySetInnerHTML={{ __html: safeCourseDescription }}
+								/>
+								{hasLongCourseDescription && !descriptionExpanded ? (
+									<div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent" />
+								) : null}
+							</div>
+							{hasLongCourseDescription ? (
+								<button
+									type="button"
+									aria-expanded={descriptionExpanded}
+									onClick={() =>
+										setExpandedDescriptionFeedId((expandedFeedId) =>
+											expandedFeedId === video.feedId ? null : video.feedId,
+										)
+									}
+									className="mt-2 inline-flex cursor-pointer items-center text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+								>
+									{descriptionExpanded ? "Thu gọn" : "Xem thêm"}
+								</button>
+							) : null}
+						</div>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -365,59 +393,57 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 				</div>
 			</section>
 
-			<section className="flex-1 bg-muted/30 px-4 py-5 text-foreground sm:px-5">
-				<div className="space-y-4">
-					<div className="flex items-start justify-between gap-3">
-						<div>
-							<div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-								Lộ trình gợi ý
+			{shouldShowRoadmapPanel ? (
+				<section className="flex-1 bg-muted/30 px-4 py-5 text-foreground sm:px-5">
+					<div className="space-y-4">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+									Lộ trình gợi ý
+								</div>
+								<p className="mt-2 text-sm leading-6 text-muted-foreground">
+									Xem khóa học này nằm ở đâu trong tuyến nội dung của giảng viên.
+								</p>
 							</div>
-							<p className="mt-2 text-sm leading-6 text-muted-foreground">
-								Xem khóa học này nằm ở đâu trong tuyến nội dung của giảng viên.
-							</p>
+							<div className="text-right text-xs text-muted-foreground">
+								<p>{currentStepLabel}</p>
+								<p className="mt-1">{activeRoadmap?.name ?? "Chưa có lộ trình"}</p>
+							</div>
 						</div>
-						<div className="text-right text-xs text-muted-foreground">
-							<p>{currentStepLabel}</p>
-							<p className="mt-1">{activeRoadmap?.name ?? "Chưa có lộ trình"}</p>
-						</div>
+
+						{roadmapQuery.isLoading ? (
+							<div className="space-y-3 text-muted-foreground">
+								<div className="h-4 w-1/2 animate-pulse bg-muted" />
+								<div className="h-4 w-3/4 animate-pulse bg-muted" />
+								<div className="h-4 w-2/3 animate-pulse bg-muted" />
+							</div>
+						) : roadmapCourses.length ? (
+							<div className="space-y-0.5">
+								{roadmapCourses.map((roadmapCourse, index) => {
+									const course = roadmapCourse.course;
+									const isCurrent = activeCourseIndex >= 0 && index === activeCourseIndex;
+									const isBeforeCurrent = activeCourseIndex >= 0 && index < activeCourseIndex;
+
+									if (!course) {
+										return null;
+									}
+
+									return (
+										<RoadmapLaneItem
+											key={roadmapCourse.id}
+											course={course}
+											index={index}
+											total={roadmapCourses.length}
+											isCurrent={isCurrent}
+											isBeforeCurrent={isBeforeCurrent}
+										/>
+									);
+								})}
+							</div>
+						) : null}
 					</div>
-
-					{roadmapQuery.isLoading ? (
-						<div className="space-y-3 text-muted-foreground">
-							<div className="h-4 w-1/2 animate-pulse bg-muted" />
-							<div className="h-4 w-3/4 animate-pulse bg-muted" />
-							<div className="h-4 w-2/3 animate-pulse bg-muted" />
-						</div>
-					) : roadmapCourses.length ? (
-						<div className="space-y-0.5">
-							{roadmapCourses.map((roadmapCourse, index) => {
-								const course = roadmapCourse.course;
-								const isCurrent = activeCourseIndex >= 0 && index === activeCourseIndex;
-								const isBeforeCurrent = activeCourseIndex >= 0 && index < activeCourseIndex;
-
-								if (!course) {
-									return null;
-								}
-
-								return (
-									<RoadmapLaneItem
-										key={roadmapCourse.id}
-										course={course}
-										index={index}
-										total={roadmapCourses.length}
-										isCurrent={isCurrent}
-										isBeforeCurrent={isBeforeCurrent}
-									/>
-								);
-							})}
-						</div>
-					) : (
-						<div className="text-sm leading-7 text-muted-foreground">
-							Chưa tìm thấy roadmap phù hợp cho khóa học này.
-						</div>
-					)}
-				</div>
-			</section>
+				</section>
+			) : null}
 		</div>
 	);
 }
