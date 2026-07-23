@@ -143,6 +143,7 @@ export function VideoSelectionSection({
   const refreshedUploadVideoRef = useRef<number | null>(null);
   const autoSelectedSessionVideoRef = useRef<number | null>(null);
   const onDraftVideoChangeRef = useRef(onDraftVideoChange);
+  const uploadSessionStorageKey = `lessonUploadSession:${courseId}:${lessonId ?? "new"}`;
 
   const {
     session,
@@ -150,7 +151,7 @@ export function VideoSelectionSection({
     retryUpload,
     clearSession,
     isUploadBlocking,
-  } = useLessonVideoUpload();
+  } = useLessonVideoUpload({ storageKey: uploadSessionStorageKey });
 
   useEffect(() => {
     onDraftVideoChangeRef.current = onDraftVideoChange;
@@ -176,7 +177,12 @@ export function VideoSelectionSection({
         duration: previewDuration,
         created_at: new Date().toISOString(),
         type: "long",
-        thumbnail: "processing",
+        thumbnail:
+          session.status === "initializing" ||
+          session.status === "uploading" ||
+          session.status === "processing"
+            ? "processing"
+            : null,
         name: session.fileName,
       },
       ...videos,
@@ -186,6 +192,7 @@ export function VideoSelectionSection({
     session.fileName,
     session.initialVideoUrl,
     session.readyVideoUrl,
+    session.status,
     session.videoId,
     userVideos,
   ]);
@@ -371,16 +378,17 @@ export function VideoSelectionSection({
             data.video_id;
 
           if (!completedVideoId) return;
-          if (String(completedVideoId) !== String(selectedVideoId)) return;
 
           void (async () => {
-            await queryClient.invalidateQueries({
-              queryKey: videoKeys.detail(Number(selectedVideoId)),
-            });
-            await queryClient.refetchQueries({
-              queryKey: videoKeys.detail(Number(selectedVideoId)),
-              type: "active",
-            });
+            if (String(completedVideoId) === String(selectedVideoId)) {
+              await queryClient.invalidateQueries({
+                queryKey: videoKeys.detail(Number(selectedVideoId)),
+              });
+              await queryClient.refetchQueries({
+                queryKey: videoKeys.detail(Number(selectedVideoId)),
+                type: "active",
+              });
+            }
             await onRefreshVideos?.();
           })();
         },
@@ -425,7 +433,7 @@ export function VideoSelectionSection({
 
     const timer = window.setInterval(() => {
       void refreshSelectedVideo();
-    }, 60000);
+    }, 120000);
 
     return () => {
       canceled = true;
@@ -444,22 +452,48 @@ export function VideoSelectionSection({
   };
 
   const handleLibraryVideoSelect = (videoId: number) => {
+    if (session.videoId && String(session.videoId) !== String(videoId)) {
+      clearSession();
+    }
+
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+      setPreviewBlobUrl(null);
+      setPreviewFileName(null);
+      setPreviewDuration(null);
+      onDraftVideoChangeRef.current?.({
+        blobUrl: null,
+        durationSeconds: null,
+        fileName: null,
+      });
+    }
+
     onVideoSelect(videoId);
     setIsVideoPickerOpen(false);
   };
 
   const hasActiveVideo = Boolean(selectedVideoId || previewBlobUrl);
+  const isSelectedUploadSession = Boolean(
+    session.videoId &&
+      selectedVideoId &&
+      String(session.videoId) === String(selectedVideoId),
+  );
+  const isShowingUploadSession = Boolean(previewBlobUrl || isSelectedUploadSession);
   // While the file is still uploading, keep the local blob preview so the user
   // can see the selected file immediately. Once Bunny's webhook/SSE reports the
   // processed playback URL, prefer that URL over the initial `/original` URL
   // stored at init-upload time.
-  const videoUrl = previewBlobUrl ?? session.readyVideoUrl ?? selectedVideo?.url ?? null;
+  const videoUrl =
+    previewBlobUrl ??
+    (isSelectedUploadSession ? session.readyVideoUrl : null) ??
+    selectedVideo?.url ??
+    null;
   const videoName = previewFileName ?? (selectedVideo ? getVideoCardTitle(selectedVideo.name, selectedVideo.id) : "Đang tải thông tin video...");
   const durationSec = previewDuration ?? selectedVideo?.duration ?? null;
   const formattedDur = formatDuration(durationSec);
 
   let statusText = "";
-  if (previewBlobUrl) {
+  if (isShowingUploadSession) {
     if (session.status === "uploading" || session.status === "initializing") {
       statusText = "Đang tải lên...";
     } else if (session.status === "failed") {
@@ -471,7 +505,10 @@ export function VideoSelectionSection({
     }
   }
 
-  const showStatus = session.status !== "idle" && session.status !== "completed";
+  const showStatus =
+    isShowingUploadSession &&
+    session.status !== "idle" &&
+    session.status !== "completed";
 
   return (
     <div className="grid gap-4 min-w-0">
@@ -679,7 +716,7 @@ export function VideoSelectionSection({
                 <Loader2 className="h-4 w-4 animate-spin mr-2 text-primary" />
                 Đang tải thư viện video...
               </div>
-            ) : userVideos?.length ? (
+            ) : libraryVideos.length ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {displayedVideos.map((video: Video) => {

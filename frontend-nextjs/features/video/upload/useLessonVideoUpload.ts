@@ -42,6 +42,12 @@ type StartUploadArgs = {
 
 type LastUploadArgs = StartUploadArgs | null;
 
+type UseLessonVideoUploadOptions = {
+  storageKey?: string;
+};
+
+const DEFAULT_UPLOAD_SESSION_STORAGE_KEY = "lessonUploadSession";
+
 const INITIAL_SESSION: LessonVideoUploadSession = {
   status: "idle",
   fileName: null,
@@ -59,11 +65,13 @@ const INITIAL_SESSION: LessonVideoUploadSession = {
   updatedAt: null,
 };
 
-function readPendingLessonUploadSession(): LessonVideoUploadSession {
+function readPendingLessonUploadSession(
+  storageKey = DEFAULT_UPLOAD_SESSION_STORAGE_KEY,
+): LessonVideoUploadSession {
   if (typeof window === "undefined") return INITIAL_SESSION;
 
   try {
-    const raw = window.localStorage.getItem("lessonUploadSession");
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return INITIAL_SESSION;
 
     const pending = JSON.parse(raw) as {
@@ -76,7 +84,7 @@ function readPendingLessonUploadSession(): LessonVideoUploadSession {
     };
 
     if (!pending.videoId) {
-      window.localStorage.removeItem("lessonUploadSession");
+      window.localStorage.removeItem(storageKey);
       return INITIAL_SESSION;
     }
 
@@ -95,7 +103,7 @@ function readPendingLessonUploadSession(): LessonVideoUploadSession {
       updatedAt: Date.now(),
     };
   } catch {
-    window.localStorage.removeItem("lessonUploadSession");
+    window.localStorage.removeItem(storageKey);
     return INITIAL_SESSION;
   }
 }
@@ -109,9 +117,12 @@ function isReadyPlaybackUrl(
   return readyVideoUrl !== initialVideoUrl && !isOriginalUrl;
 }
 
-export function useLessonVideoUpload() {
-  const [session, setSession] =
-    useState<LessonVideoUploadSession>(readPendingLessonUploadSession);
+export function useLessonVideoUpload({
+  storageKey = DEFAULT_UPLOAD_SESSION_STORAGE_KEY,
+}: UseLessonVideoUploadOptions = {}) {
+  const [session, setSession] = useState<LessonVideoUploadSession>(() =>
+    readPendingLessonUploadSession(storageKey),
+  );
   const lastUploadArgsRef = useRef<LastUploadArgs>(null);
   const { user } = useAuth();
 
@@ -139,7 +150,7 @@ export function useLessonVideoUpload() {
 
       if (session.status === "processing") {
         try {
-          localStorage.removeItem("lessonUploadSession");
+          localStorage.removeItem(storageKey);
         } catch {}
       }
 
@@ -188,7 +199,7 @@ export function useLessonVideoUpload() {
                 startedAt: Date.now(),
               } as const;
               localStorage.setItem(
-                "lessonUploadSession",
+                storageKey,
                 JSON.stringify(pending),
               );
             } catch {}
@@ -224,7 +235,7 @@ export function useLessonVideoUpload() {
             lastUploadArgsRef.current = null;
             // clear persisted session on completion
             try {
-              localStorage.removeItem("lessonUploadSession");
+              localStorage.removeItem(storageKey);
             } catch {}
             onCompleted?.(videoId);
           },
@@ -234,13 +245,13 @@ export function useLessonVideoUpload() {
               error: message,
             });
             try {
-              localStorage.removeItem("lessonUploadSession");
+              localStorage.removeItem(storageKey);
             } catch {}
           },
         },
       );
     },
-    [session.status, patchSession],
+    [session.status, patchSession, storageKey],
   );
 
   const cancelUpload = useCallback(async () => {
@@ -251,9 +262,9 @@ export function useLessonVideoUpload() {
       error: null,
     });
     try {
-      localStorage.removeItem("lessonUploadSession");
+      localStorage.removeItem(storageKey);
     } catch {}
-  }, [patchSession]);
+  }, [patchSession, storageKey]);
 
   const retryUpload = useCallback(async () => {
     const lastUploadArgs = lastUploadArgsRef.current;
@@ -269,13 +280,13 @@ export function useLessonVideoUpload() {
     setSession(INITIAL_SESSION);
     lastUploadArgsRef.current = null;
     try {
-      localStorage.removeItem("lessonUploadSession");
+      localStorage.removeItem(storageKey);
     } catch {}
-  }, []);
+  }, [storageKey]);
 
   const getPendingSession = useCallback(() => {
     try {
-      const raw = localStorage.getItem("lessonUploadSession");
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       return JSON.parse(raw) as {
         videoId: number;
@@ -288,7 +299,7 @@ export function useLessonVideoUpload() {
     } catch {
       return null;
     }
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     const shouldWarn =
@@ -351,7 +362,7 @@ export function useLessonVideoUpload() {
         } catch {}
         lastUploadArgsRef.current = null;
         try {
-          localStorage.removeItem("lessonUploadSession");
+          localStorage.removeItem(storageKey);
         } catch {}
       } catch {
         // Keep the restored processing session alive; SSE may still complete it.
@@ -372,6 +383,7 @@ export function useLessonVideoUpload() {
     session.initialVideoUrl,
     session.status,
     session.videoId,
+    storageKey,
   ]);
 
   // Real-time SSE for media events (upload/video completed, progress, error)
@@ -454,7 +466,7 @@ export function useLessonVideoUpload() {
                 } catch {}
                 lastUploadArgsRef.current = null;
                 try {
-                  localStorage.removeItem("lessonUploadSession");
+                  localStorage.removeItem(storageKey);
                 } catch {}
               })();
             }
@@ -463,12 +475,21 @@ export function useLessonVideoUpload() {
 
         onError: (payload) => {
           try {
+            const payloadVideoId = payload.error?.id ?? payload.jobId ?? null;
+            if (
+              payloadVideoId &&
+              session.videoId &&
+              String(payloadVideoId) !== String(session.videoId)
+            ) {
+              return;
+            }
+
             patchSession({
               status: "failed",
               error: payload.error?.message ?? "Lỗi xử lý video",
             });
             try {
-              localStorage.removeItem("lessonUploadSession");
+              localStorage.removeItem(storageKey);
             } catch {}
           } catch {}
         },
@@ -484,7 +505,7 @@ export function useLessonVideoUpload() {
     return () => {
       stream.close();
     };
-  }, [user?.id, session.videoId, getPendingSession, patchSession]);
+  }, [user?.id, session.videoId, getPendingSession, patchSession, storageKey]);
 
   return {
     session,
