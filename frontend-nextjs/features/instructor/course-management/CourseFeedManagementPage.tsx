@@ -6,7 +6,6 @@ import {
   BarChart3,
   Bookmark,
   ChevronLeft,
-  ChevronRight,
   Eye,
   Heart,
   Plus,
@@ -27,6 +26,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
   useCourseFeedPage,
@@ -37,6 +44,12 @@ import {
 
 type FeedStatusFilter = "all" | "active" | "hidden" | "removed";
 const FEED_PAGE_SIZE = 6;
+
+function getVisiblePages(page: number, totalPages: number): number[] {
+  const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const end = Math.min(totalPages, start + 4);
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
 
 interface Props {
   courseId: number;
@@ -191,15 +204,15 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
       }
       noCard
     >
-      <div className="space-y-3 p-3 sm:p-4 lg:p-5">
-        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border/60 bg-background p-3">
+      <div className="space-y-4 py-3 sm:py-4 lg:py-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex min-h-24 flex-col justify-between rounded-xl border border-border/60 bg-background p-4 shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Tổng feed
             </p>
             <p className="mt-1 text-xl font-semibold">{stats.total}</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background p-3">
+          <div className="flex min-h-24 flex-col justify-between rounded-xl border border-border/60 bg-background p-4 shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Tổng lượt xem
             </p>
@@ -208,7 +221,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
               {stats.views}
             </p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background p-3">
+          <div className="flex min-h-24 flex-col justify-between rounded-xl border border-border/60 bg-background p-4 shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Tổng lượt thích
             </p>
@@ -217,7 +230,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
               {stats.likes}
             </p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background p-3">
+          <div className="flex min-h-24 flex-col justify-between rounded-xl border border-border/60 bg-background p-4 shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Tổng lượt lưu
             </p>
@@ -228,15 +241,16 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-background p-2.5 sm:p-3">
-          <div className="grid gap-2 sm:grid-cols-[1fr_220px]">
+        <div className="rounded-xl border border-border/60 bg-background p-3 shadow-sm sm:p-4">
+          <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_280px]">
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Tìm theo tiêu đề, hashtag hoặc feed id..."
+              className="h-11"
             />
             <select
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               value={statusFilter}
               onChange={(event) => {
                 setStatusFilter(event.target.value as FeedStatusFilter);
@@ -249,11 +263,6 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
               <option value="removed">Removed</option>
             </select>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {search.trim()
-              ? `Tìm thấy ${filteredFeeds.length} feed trong trang này`
-              : `Hiển thị ${pageStart}-${pageEnd} / ${pagination.total} feed`}
-          </p>
         </div>
 
         <div className="space-y-2.5">
@@ -266,9 +275,9 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
               {filteredFeeds.map((feed) => (
                 <div
                   key={feed.feed_id}
-                  className="group relative flex flex-col gap-2.5 rounded-xl border border-border/40 bg-card p-2.5 transition-all duration-200 hover:border-primary/30 hover:shadow-md sm:flex-row sm:gap-3 sm:p-3"
+                  className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm transition-all duration-200 hover:border-primary/35 hover:shadow-md sm:flex-row"
                 >
-                  <div className="relative h-44 w-24 shrink-0 overflow-hidden rounded-lg border border-border/50 bg-black shadow-sm">
+                  <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-black sm:aspect-[4/5] sm:w-28 md:w-32 xl:w-28 2xl:w-32">
                     {feed.video?.url ? (
                       <video
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -299,10 +308,10 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
 
                   </div>
 
-                  <div className="flex min-w-0 flex-1 flex-col py-0.5">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between gap-2.5 p-3">
                     <div className="space-y-2.5">
-                      <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
-                        <div className="min-w-0 space-y-1">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
                             {feed.title}
                           </h3>
@@ -313,12 +322,12 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                           ) : null}
                         </div>
 
-                        <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+                        <div className="flex w-full items-center gap-2 md:w-auto md:shrink-0">
                           <Button
                             asChild
                             variant="secondary"
                             size="sm"
-                            className="h-8 flex-1 px-3 sm:flex-none"
+                            className="h-9 flex-1 border border-transparent px-3 transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary hover:shadow-sm md:flex-none"
                           >
                             <Link
                               href={`/instructor/courses/${course.id}/feed/${feed.feed_id}/edit`}
@@ -330,7 +339,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            className="h-9 w-9 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => {
                               setPendingDeleteFeed({
                                 id: feed.feed_id,
@@ -348,7 +357,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                           (feed.hashtags ?? []).map((tag) => (
                             <span
                               key={`${feed.feed_id}-${tag}`}
-                              className="rounded-md border border-border/60 bg-muted/30 px-2 py-0.5 text-xs font-normal text-muted-foreground"
+                              className="rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-xs font-normal text-muted-foreground"
                             >
                               #{tag}
                             </span>
@@ -361,7 +370,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                       </div>
                     </div>
 
-                    <div className="mt-2.5 flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground sm:mt-3 sm:gap-4">
+                    <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-2.5 text-xs font-medium text-muted-foreground sm:gap-4">
                       <div className="flex items-center gap-1.5">
                         <Eye className="h-4 w-4" />
                         {feed.stats?.views ?? 0} lượt xem
@@ -388,38 +397,72 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
         </div>
 
         {pagination.totalPages > 1 ? (
-          <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <p className="text-xs text-muted-foreground">
-              Trang {pagination.page} / {pagination.totalPages}
+              Hiển thị {pageStart}-{pageEnd} / {pagination.total} feed
             </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                disabled={pagination.page <= 1 || feedLoading}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                aria-label="Trang trước"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                disabled={pagination.page >= pagination.totalPages || feedLoading}
-                onClick={() =>
-                  setPage((current) =>
-                    Math.min(pagination.totalPages, current + 1),
-                  )
-                }
-                aria-label="Trang sau"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={pagination.page <= 1 || feedLoading}
+                    className={
+                      pagination.page <= 1 || feedLoading
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (pagination.page > 1 && !feedLoading) {
+                        setPage((current) => Math.max(1, current - 1));
+                      }
+                    }}
+                  />
+                </PaginationItem>
+
+                {getVisiblePages(pagination.page, pagination.totalPages).map(
+                  (pageNumber) => (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pageNumber === pagination.page}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (!feedLoading) {
+                            setPage(pageNumber);
+                          }
+                        }}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ),
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={
+                      pagination.page >= pagination.totalPages || feedLoading
+                    }
+                    className={
+                      pagination.page >= pagination.totalPages || feedLoading
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (pagination.page < pagination.totalPages && !feedLoading) {
+                        setPage((current) =>
+                          Math.min(pagination.totalPages, current + 1),
+                        );
+                      }
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         ) : null}
       </div>

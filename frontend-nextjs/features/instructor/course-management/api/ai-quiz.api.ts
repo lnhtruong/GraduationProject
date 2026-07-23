@@ -1,4 +1,7 @@
-import { apiHttpClient } from "@/features/_shared/api-factories";
+import {
+  apiHttpClient,
+  inferenceHttpClient,
+} from "@/features/_shared/api-factories";
 
 export interface CreateQuizAIPayload {
   videoId: number;
@@ -23,6 +26,23 @@ export interface AiQuizJobResponse {
   lessonActivityId: number;
   videoId: number;
   quizName: string;
+}
+
+export interface AiQuizJobStatus {
+  jobId?: string;
+  job_id?: string;
+  status?: string;
+  stage?: string;
+  type?: string;
+  result?: {
+    quiz?: unknown;
+    error?: string;
+    lesson_activity_id?: number;
+    lessonActivityId?: number;
+    video_id?: number;
+    videoId?: number;
+  } | null;
+  error?: string;
 }
 
 export interface QuizOptionData {
@@ -53,6 +73,13 @@ export interface AllQuizQuestionsResponse {
 export const aiQuizApi = {
   generate: async (payload: CreateQuizAIPayload): Promise<AiQuizJobResponse> => {
     const { data } = await apiHttpClient.post<AiQuizJobResponse>("/course/quizzes/ai", payload);
+    return data;
+  },
+
+  getJobStatus: async (jobId: string): Promise<AiQuizJobStatus> => {
+    const { data } = await inferenceHttpClient.get<AiQuizJobStatus>(
+      `/mascot_colab/jobs/status/${encodeURIComponent(jobId)}`,
+    );
     return data;
   },
 

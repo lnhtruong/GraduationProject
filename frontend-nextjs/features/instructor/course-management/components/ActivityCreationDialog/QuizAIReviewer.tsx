@@ -19,7 +19,7 @@ import {
 interface Props {
   quizId: number;
   lessonVideoUrl?: string;
-  onComplete: () => void;
+  onComplete: () => Promise<void> | void;
 }
 
 type ReviewQuestionOption = {
@@ -42,7 +42,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const hlsDesktopRef = useRef<Hls | null>(null);
   const hlsMobileRef = useRef<Hls | null>(null);
 
-  const { data, isLoading } = useAllQuizQuestionsQuery(quizId);
+  const { data, isFetching, isLoading } = useAllQuizQuestionsQuery(quizId);
   const deleteMutation = useDeleteQuizQuestionMutation(quizId);
   const restoreMutation = useRestoreQuizQuestionsMutation(quizId);
   const filterMutation = useFilterQuizQuestionsMutation(quizId);
@@ -52,6 +52,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<number[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Mobile viewport states
   const [showVideoMobile, setShowVideoMobile] = useState<boolean>(true);
@@ -284,10 +285,39 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     }
   };
 
+  const isQuestionMutationPending =
+    deleteMutation.isPending ||
+    restoreMutation.isPending ||
+    filterMutation.isPending ||
+    isSaving;
+  const canSaveQuiz =
+    Boolean(data) &&
+    !isLoading &&
+    !isFetching &&
+    !isQuestionMutationPending &&
+    activeQuestions.length > 0;
+
   const handleSaveAndComplete = async () => {
+    if (!data || isLoading || isFetching) {
+      toast.warning("Danh sách câu hỏi chưa tải xong, vui lòng thử lại sau.");
+      return;
+    }
+
     const keepIds = activeQuestions.map((q) => q.id);
-    await filterMutation.mutateAsync(keepIds);
-    onComplete();
+    if (keepIds.length === 0) {
+      toast.warning("Cần giữ lại ít nhất một câu hỏi trước khi lưu quiz.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await filterMutation.mutateAsync(keepIds);
+      await onComplete();
+    } catch {
+      toast.error("Không thể lưu quiz. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderActiveQuestionCard = (q: ReviewQuestion, idx: number) => {
@@ -582,11 +612,11 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         <div className="pt-2 border-t border-border/60 shrink-0">
           <Button
             onClick={handleSaveAndComplete}
-            disabled={activeQuestions.length === 0 || filterMutation.isPending}
+            disabled={!canSaveQuiz}
             className="w-full h-11 rounded-xl font-bold shadow-md flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="h-4 w-4" />
-            {filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
+            {isSaving || filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
           </Button>
         </div>
 
@@ -728,11 +758,11 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         {/* Action Button */}
         <Button
           onClick={handleSaveAndComplete}
-          disabled={activeQuestions.length === 0 || filterMutation.isPending}
+          disabled={!canSaveQuiz}
           className="w-full h-11 rounded-xl font-bold shadow-md shrink-0 flex items-center justify-center gap-2"
         >
           <CheckCircle2 className="h-4 w-4" />
-              {filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
+              {isSaving || filterMutation.isPending ? "Đang lưu..." : "Lưu quiz"}
         </Button>
       </div>
 
