@@ -180,8 +180,8 @@ export function LessonVideoQuizOverlay({
                     inVideoScore === null
                       ? "border-white/20 bg-white/8 text-white/80"
                       : inVideoScore
-                      ? "border-success/40 bg-success/12 text-success"
-                      : "border-destructive/40 bg-destructive/12 text-destructive"
+                        ? "border-success/40 bg-success/12 text-success"
+                        : "border-destructive/40 bg-destructive/12 text-destructive"
                   }`}
                 >
                   {inVideoScore === null ? (
@@ -337,6 +337,7 @@ export function LessonVideoQuizOverlay({
                         <Button
                           size="sm"
                           className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
+                          disabled={afterLessonSubmitted}
                           onClick={onSubmitAfterLessonQuiz}
                         >
                           Kiểm tra đáp án
