@@ -33,7 +33,7 @@ export class BunnyService {
   constructor(
     @InjectModel(Video)
     private readonly videoModel: typeof Video,
-  ) { }
+  ) {}
 
   private getConfig() {
     const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
@@ -61,12 +61,21 @@ export class BunnyService {
   }
 
   private getCdnBaseUrl() {
-    return (process.env.BUNNY_STREAM_CDN_BASE_URL?.trim() || this.defaultCdnBaseUrl)
-      .replace(/\/+$/, '');
+    return (
+      process.env.BUNNY_STREAM_CDN_BASE_URL?.trim() || this.defaultCdnBaseUrl
+    ).replace(/\/+$/, '');
   }
 
   private buildOriginalVideoUrl(videoId: string) {
     return `${this.getCdnBaseUrl()}/${encodeURIComponent(videoId)}/original`;
+  }
+
+  /**
+   * HLS playlist URL follows Bunny's fixed CDN path — no API call needed.
+   * (`/library/{id}/videos/{id}/play` requires CDN token auth we don't have, so avoid it.)
+   */
+  buildPlaylistUrl(videoId: string) {
+    return `${this.getCdnBaseUrl()}/${encodeURIComponent(videoId)}/playlist.m3u8`;
   }
 
   private parsePositiveInt(value: unknown): number | undefined {
@@ -74,16 +83,19 @@ export class BunnyService {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
   }
 
-  private buildUploadContext(meta?: Record<string, unknown>): VideoUploadContext | null {
+  private buildUploadContext(
+    meta?: Record<string, unknown>,
+  ): VideoUploadContext | null {
     if (!meta || typeof meta !== 'object') {
       return null;
     }
 
     const courseId = this.parsePositiveInt(meta.courseId);
     const lessonId = this.parsePositiveInt(meta.lessonId);
-    const purpose = typeof meta.purpose === 'string' && meta.purpose.trim()
-      ? meta.purpose.trim()
-      : undefined;
+    const purpose =
+      typeof meta.purpose === 'string' && meta.purpose.trim()
+        ? meta.purpose.trim()
+        : undefined;
 
     if (!courseId && !lessonId && !purpose) {
       return null;
@@ -101,10 +113,10 @@ export class BunnyService {
       throw new BadRequestException('Missing userId');
     }
     const { libraryId, streamApiKey } = this.getConfig();
-    const title = typeof body?.title === 'string' && body.title.trim().length > 0
-      ? body.title.trim()
-      : `video-${Date.now()}`;
-
+    const title =
+      typeof body?.title === 'string' && body.title.trim().length > 0
+        ? body.title.trim()
+        : `video-${Date.now()}`;
 
     try {
       const createVideoResponse = await axios.post(
@@ -126,7 +138,9 @@ export class BunnyService {
 
       const bunnyVideoId = createVideoResponse.data?.guid;
       if (!bunnyVideoId) {
-        throw new InternalServerErrorException('Bunny did not return a valid video guid');
+        throw new InternalServerErrorException(
+          'Bunny did not return a valid video guid',
+        );
       }
 
       const initialVideoUrl = this.buildOriginalVideoUrl(bunnyVideoId);
@@ -174,7 +188,10 @@ export class BunnyService {
     } catch (error: any) {
       const bunnyError = error?.response?.data;
       throw new BadRequestException(
-        bunnyError?.message || bunnyError || error?.message || 'Failed to init Bunny upload',
+        bunnyError?.message ||
+          bunnyError ||
+          error?.message ||
+          'Failed to init Bunny upload',
       );
     }
   }
@@ -195,7 +212,10 @@ export class BunnyService {
     } catch (error: any) {
       const bunnyError = error?.response?.data;
       throw new BadRequestException(
-        bunnyError?.message || bunnyError || error?.message || 'Failed to get Bunny video status',
+        bunnyError?.message ||
+          bunnyError ||
+          error?.message ||
+          'Failed to get Bunny video status',
       );
     }
   }
@@ -216,7 +236,10 @@ export class BunnyService {
     } catch (error: any) {
       const bunnyError = error?.response?.data;
       throw new BadRequestException(
-        bunnyError?.message || bunnyError || error?.message || 'Failed to get Bunny play data',
+        bunnyError?.message ||
+          bunnyError ||
+          error?.message ||
+          'Failed to get Bunny play data',
       );
     }
   }
@@ -231,12 +254,17 @@ export class BunnyService {
     const { readOnlyApiKey } = this.getConfig();
 
     if (!rawBody || rawBody.length === 0) {
-      throw new BadRequestException('Missing raw body for Bunny webhook verification');
+      throw new BadRequestException(
+        'Missing raw body for Bunny webhook verification',
+      );
     }
 
     const signature = this.getHeader(headers, 'x-bunnystream-signature');
     const version = this.getHeader(headers, 'x-bunnystream-signature-version');
-    const algorithm = this.getHeader(headers, 'x-bunnystream-signature-algorithm');
+    const algorithm = this.getHeader(
+      headers,
+      'x-bunnystream-signature-algorithm',
+    );
 
     if (!signature) {
       throw new UnauthorizedException('Missing X-BunnyStream-Signature');
@@ -249,7 +277,9 @@ export class BunnyService {
       throw new UnauthorizedException('Unsupported Bunny signature algorithm');
     }
 
-    const expected = createHmac('sha256', readOnlyApiKey).update(rawBody).digest('hex');
+    const expected = createHmac('sha256', readOnlyApiKey)
+      .update(rawBody)
+      .digest('hex');
 
     const sigBuf = Buffer.from(signature, 'utf8');
     const expBuf = Buffer.from(expected, 'utf8');
@@ -258,7 +288,10 @@ export class BunnyService {
     }
   }
 
-  private getHeader(headers: IncomingHttpHeaders, name: string): string | undefined {
+  private getHeader(
+    headers: IncomingHttpHeaders,
+    name: string,
+  ): string | undefined {
     const lower = name.toLowerCase();
     const direct =
       headers[name] ??
