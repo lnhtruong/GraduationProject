@@ -230,17 +230,17 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
         </div>
       }
     >
-      <div className="p-3 sm:p-4 lg:p-5">
+      <div className="px-0 py-5">
         <form
           id="edit-feed-form"
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
         >
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* Cột trái: Thông tin bài viết & Video bài viết */}
-            <div className="space-y-6 lg:col-span-8">
+            <div className="min-w-0 space-y-5">
               {/* Card 1: Thông tin feed */}
               <Card className="border-border/60 shadow-sm">
-                <CardContent className="space-y-5 p-6">
+                <CardContent className="space-y-5 p-4 sm:p-5">
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg bg-primary/10 p-2 text-primary">
                       <NotebookText className="h-4 w-4" />
@@ -280,7 +280,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
 
                   <div className="grid gap-2">
                     <Label htmlFor="feed-hashtags">Hashtags</Label>
-                    <div className="space-y-3 rounded-xl border border-input bg-background p-3">
+                    <div className="space-y-3 rounded-xl border border-input bg-background p-2.5 sm:p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         {formHashtags.map((hashtag, index) => (
                           <span
@@ -336,7 +336,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
 
               {/* Card 2: Video bài viết */}
               <Card className="border-border/60 shadow-sm">
-                <CardContent className="space-y-5 p-6">
+                <CardContent className="space-y-5 p-4 sm:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-center gap-2">
                       <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -404,10 +404,10 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
             </div>
 
             {/* Cột phải: Live Preview */}
-            <div className="space-y-6 lg:col-span-4 lg:sticky lg:top-24 lg:h-fit">
+            <div className="min-w-0 space-y-5 xl:sticky xl:top-24 xl:h-fit">
               <Card className="border-border/60 shadow-sm overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="flex items-center gap-2 border-b border-border/60 px-5 py-4 bg-muted/20">
+                  <div className="flex items-center gap-2 border-b border-border/60 bg-muted/20 px-4 py-3.5 sm:px-5 sm:py-4">
                     <div className="rounded-lg bg-primary/10 p-2 text-primary">
                       <Sparkles className="h-4 w-4" />
                     </div>
@@ -419,7 +419,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                     </div>
                   </div>
 
-                  <div className="p-5">
+                  <div className="p-4 sm:p-5">
                     <div className="relative overflow-hidden rounded-xl border border-border bg-black shadow-lg aspect-video w-full">
                       {/* Video Area */}
                       <div className="relative h-full w-full bg-black flex items-center justify-center overflow-hidden">
