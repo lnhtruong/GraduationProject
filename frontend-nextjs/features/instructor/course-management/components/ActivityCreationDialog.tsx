@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -35,6 +35,8 @@ import {
   useQuizzesByLessonId,
 } from "../api/course-management.hooks";
 import { useGenerateQuizAIMutation } from "../api/ai-quiz.hooks";
+import { aiQuizApi, type AiQuizJobStatus } from "../api/ai-quiz.api";
+import { quizApi } from "../api/course-management.api";
 import { useVideoById } from "@/features/video/api/video.hooks";
 
 import type { QuizEditorState } from "../types";
@@ -49,9 +51,16 @@ import { AssignmentForm } from "./ActivityCreationDialog/AssignmentForm";
 import { InvalidVideoWarning } from "./ActivityCreationDialog/InvalidVideoWarning";
 import { QuizModeSection } from "./ActivityCreationDialog/QuizModeSection";
 import {
-  createMediaUploadStream,
-  type UploadStreamSubscription,
-} from "@/features/_shared/realtime/media-upload-stream";
+  clearPersistedInferenceJob,
+  INFERENCE_JOB_POLL_INTERVAL_MS,
+  INFERENCE_JOB_SSE_RECONNECT_MS,
+  INFERENCE_JOB_STORAGE_TTL_MS,
+  type InferenceJobWatcher,
+  type PersistedInferenceJob,
+  readPersistedInferenceJob,
+  watchInferenceJob,
+  writePersistedInferenceJob,
+} from "@/features/_shared/realtime/inference-job-watcher";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface Props {
@@ -66,8 +75,91 @@ interface Props {
   userId?: number;
 }
 
+const AI_QUIZ_POLL_INTERVAL_MS = INFERENCE_JOB_POLL_INTERVAL_MS;
+const AI_QUIZ_RECONNECT_MS = INFERENCE_JOB_SSE_RECONNECT_MS;
+const AI_QUIZ_ACTIVE_STATUSES = ["processing", "completed"];
+
+type AiQuizSession = PersistedInferenceJob & {
+  lessonId: number;
+  lessonActivityId: number;
+  videoId: number;
+  quizName?: string;
+  quizId?: number;
+  status: "processing" | "completed";
+};
+
 function getErrorMessage(error: unknown, fallback: string) {
   return getUserFacingErrorMessage(error, fallback);
+}
+
+function getAiQuizSessionKey(lessonId: number) {
+  return `studyloop:ai-quiz:${lessonId}`;
+}
+
+function getAiQuizSessionStorage(lessonId: number, userId?: number | null) {
+  return {
+    key: getAiQuizSessionKey(lessonId),
+    storage: "session" as const,
+    ttlMs: INFERENCE_JOB_STORAGE_TTL_MS,
+    userId,
+    contextId: lessonId,
+    activeStatuses: AI_QUIZ_ACTIVE_STATUSES,
+  };
+}
+
+function readAiQuizSession(
+  lessonId: number,
+  userId?: number | null,
+): AiQuizSession | null {
+  const parsed = readPersistedInferenceJob<AiQuizSession>(
+    getAiQuizSessionStorage(lessonId, userId),
+  );
+  if (
+    !parsed ||
+    parsed.lessonId !== lessonId ||
+    !parsed.lessonActivityId ||
+    !parsed.videoId
+  ) {
+    return null;
+  }
+
+  return {
+    ...parsed,
+    lessonId,
+    status: parsed.status === "completed" ? "completed" : "processing",
+  };
+}
+
+function writeAiQuizSession(session: AiQuizSession, userId?: number | null) {
+  writePersistedInferenceJob(getAiQuizSessionStorage(session.lessonId, userId), {
+    ...session,
+    lessonId: session.lessonId,
+  });
+}
+
+function clearAiQuizSession(lessonId: number) {
+  clearPersistedInferenceJob({
+    key: getAiQuizSessionKey(lessonId),
+    storage: "session",
+  });
+}
+
+function isCompletedStatus(status?: string) {
+  return ["completed", "complete", "success", "succeeded"].includes(
+    status?.trim().toLowerCase() ?? "",
+  );
+}
+
+function isFailedStatus(status?: string) {
+  return ["failed", "error", "cancelled", "canceled"].includes(
+    status?.trim().toLowerCase() ?? "",
+  );
+}
+
+function getAiQuizStatusError(status: AiQuizJobStatus) {
+  if (typeof status.error === "string") return status.error;
+  if (typeof status.result?.error === "string") return status.result.error;
+  return undefined;
 }
 
 export function ActivityCreationDialog({
@@ -97,6 +189,7 @@ export function ActivityCreationDialog({
   const [generatedQuizId, setGeneratedQuizId] = useState<number | null>(null);
   const [generatedActivityId, setGeneratedActivityId] = useState<number | null>(null);
   const finalizedActivityIdsRef = useRef<Set<number>>(new Set());
+  const isFinalizingReviewRef = useRef(false);
   const { data: lessonActivities } = useLessonActivitiesByLessonId(lessonId);
   const { data: lessonVideo } = useVideoById(lessonVideoId ?? null);
   const { data: inVideoQuizzes } = useQuizzesByLessonId(
@@ -111,7 +204,8 @@ export function ActivityCreationDialog({
   const deleteLessonActivityMutation = useDeleteLessonActivity();
   const createQuizMutation = useCreateQuiz();
   const generateQuizAIMutation = useGenerateQuizAIMutation();
-  const sseRef = useRef<UploadStreamSubscription | null>(null);
+  const aiQuizWatcherRef = useRef<InferenceJobWatcher | null>(null);
+  const aiQuizSessionRef = useRef<AiQuizSession | null>(null);
 
   const { url: activeVideoUrl, durationSeconds: activeVideoDurationSeconds, hasVideoSource } =
     resolveActiveVideoSource({
@@ -143,17 +237,179 @@ export function ActivityCreationDialog({
     activeVideoDurationSeconds > 0 ? 1 : 0,
   );
 
+  const clearAiQuizWatcher = useCallback(() => {
+    aiQuizWatcherRef.current?.close();
+    aiQuizWatcherRef.current = null;
+  }, []);
+
+  const findGeneratedQuizForActivity = useCallback(
+    async (lessonActivityId: number) => {
+      const [inVideo, afterVideo] = await Promise.all([
+        quizApi.listByLesson(lessonId, "in_video"),
+        quizApi.listByLesson(lessonId, "after_video"),
+      ]);
+      return [...inVideo, ...afterVideo].find(
+        (quiz) => quiz.lessonActivityId === lessonActivityId,
+      ) ?? null;
+    },
+    [lessonId],
+  );
+
+  const showGeneratedQuizReview = useCallback(
+    async (session: AiQuizSession, quizId?: number) => {
+      let resolvedQuizId = quizId ?? session.quizId;
+
+      if (!resolvedQuizId) {
+        setStage("Đã tạo xong, đang lưu câu hỏi...");
+        const quiz = await findGeneratedQuizForActivity(session.lessonActivityId);
+        resolvedQuizId = quiz?.id;
+      }
+
+      if (!resolvedQuizId) return false;
+
+      const completedSession: AiQuizSession = {
+        ...session,
+        quizId: resolvedQuizId,
+        status: "completed",
+      };
+      aiQuizSessionRef.current = completedSession;
+      writeAiQuizSession(completedSession, userId);
+      finalizedActivityIdsRef.current.delete(session.lessonActivityId);
+      setGeneratedActivityId(session.lessonActivityId);
+      setGeneratedQuizId(resolvedQuizId);
+      setStage("");
+      setView("review");
+      clearAiQuizWatcher();
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "in_video", "all"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "after_video", "all"],
+        }),
+      ]);
+      return true;
+    },
+    [clearAiQuizWatcher, findGeneratedQuizForActivity, lessonId, queryClient, userId],
+  );
+
+  const startAiQuizWatcher = useCallback(
+    (session: AiQuizSession, options: { restored?: boolean } = {}) => {
+      clearAiQuizWatcher();
+      aiQuizSessionRef.current = session;
+      writeAiQuizSession(session, userId);
+      setGeneratedActivityId(session.lessonActivityId);
+      setActivityTab("quiz-ai");
+      setView(session.status === "completed" ? "review" : "generating");
+      setStage(
+        session.status === "completed"
+          ? ""
+          : options.restored
+            ? "Đang nối lại tiến trình tạo quiz..."
+            : "Đang gửi yêu cầu tạo câu hỏi...",
+      );
+
+      let finished = false;
+      const finishWithReview = async (quizId?: number) => {
+        if (finished) return;
+        const opened = await showGeneratedQuizReview(session, quizId);
+        if (!opened) return;
+        finished = true;
+        if (!options.restored) toast.success("Đã tạo câu hỏi.");
+      };
+
+      const failJob = (message?: string) => {
+        if (finished) return;
+        finished = true;
+        clearAiQuizWatcher();
+        clearAiQuizSession(session.lessonId);
+        aiQuizSessionRef.current = null;
+        setView("create");
+        setStage("");
+        toast.error(message || "Không thể tạo quiz. Vui lòng thử lại.");
+      };
+
+      if (session.status === "completed") {
+        void finishWithReview(session.quizId);
+        return;
+      }
+
+      if (!userId) {
+        failJob("Không thể theo dõi tiến trình tạo quiz. Vui lòng đăng nhập lại.");
+        return;
+      }
+
+      aiQuizWatcherRef.current = watchInferenceJob<AiQuizJobStatus>({
+        userId,
+        pollIntervalMs: AI_QUIZ_POLL_INTERVAL_MS,
+        reconnectMs: AI_QUIZ_RECONNECT_MS,
+        pollStatus: () => aiQuizApi.getJobStatus(session.jobId),
+        onPollStatus: async (status) => {
+          if (finished) return;
+          const statusJobId = status.jobId ?? status.job_id;
+          if (statusJobId && statusJobId !== session.jobId) return;
+
+          if (typeof status.stage === "string" && status.stage.trim()) {
+            setStage(status.stage.trim());
+          }
+
+          const error = getAiQuizStatusError(status);
+          if (isFailedStatus(status.status) || error) {
+            failJob(error);
+            return;
+          }
+
+          if (isCompletedStatus(status.status)) {
+            await finishWithReview();
+          }
+        },
+        onProgress: (payload) => {
+          if (payload.jobId !== session.jobId) return;
+          setStage(payload.stage || "Đang phân tích video...");
+        },
+        onError: (payload) => {
+          if (payload.jobId !== session.jobId) return;
+          failJob(
+            getErrorMessage(
+              payload.error,
+              "Không thể tạo quiz. Vui lòng thử lại.",
+            ),
+          );
+        },
+        onQuizGenerated: (payload) => {
+          if (payload.jobId !== session.jobId) return;
+          if (payload.status === "completed") {
+            void finishWithReview(payload.quizId);
+          } else {
+            failJob("Không thể tạo câu hỏi từ video.");
+          }
+        },
+      });
+    },
+    [clearAiQuizWatcher, showGeneratedQuizReview, userId],
+  );
+
+  useEffect(() => {
+    if (!open || view !== "create") return;
+    const session = readAiQuizSession(lessonId, userId);
+    if (!session) return;
+    const restoreTimer = window.setTimeout(() => {
+      startAiQuizWatcher(session, { restored: true });
+    }, 0);
+    return () => window.clearTimeout(restoreTimer);
+  }, [lessonId, open, startAiQuizWatcher, userId, view]);
+
+  useEffect(() => () => clearAiQuizWatcher(), [clearAiQuizWatcher]);
+
   const handleOpenChange = async (val: boolean) => {
     if (!val) {
-      if (sseRef.current) {
-        sseRef.current.close();
-        sseRef.current = null;
-      }
+      clearAiQuizWatcher();
 
       // Clean up the draft activity if the user cancels AI generation or review
       if (
-        (view === "generating" || view === "review") &&
+        view === "review" &&
         generatedActivityId &&
+        !isFinalizingReviewRef.current &&
         !finalizedActivityIdsRef.current.has(generatedActivityId)
       ) {
         try {
@@ -163,6 +419,10 @@ export function ActivityCreationDialog({
         }
       }
 
+      if (view !== "generating") {
+        clearAiQuizSession(lessonId);
+        aiQuizSessionRef.current = null;
+      }
       setView("create");
       setStage("");
       setGeneratedQuizId(null);
@@ -255,51 +515,16 @@ export function ActivityCreationDialog({
         endTime: values.endTime,
       });
 
-      const jobId = jobResp.jobId;
-      setStage("Đang gửi yêu cầu tạo câu hỏi...");
-      setView("generating");
-
-      if (sseRef.current) {
-        sseRef.current.close();
-      }
-
-      sseRef.current = createMediaUploadStream({
-        onProgress: (payload) => {
-          if (payload.jobId === jobId) {
-            setStage(payload.stage || "Đang phân tích video...");
-          }
-        },
-        onError: (payload) => {
-          if (payload.jobId === jobId) {
-            const message = getErrorMessage(
-              payload.error,
-              "Không thể tạo quiz. Vui lòng thử lại.",
-            );
-            toast.error(message);
-            setView("create");
-            setStage("");
-
-          }
-        },
-        onQuizGenerated: (payload) => {
-          if (payload.jobId === jobId) {
-            if (payload.status === "completed") {
-              toast.success("Đã tạo câu hỏi.");
-              setGeneratedQuizId(payload.quizId);
-              setView("review");
-            } else {
-              toast.error("Không thể tạo câu hỏi từ video.");
-              setView("create");
-            }
-            setStage("");
-            if (sseRef.current) {
-              sseRef.current.close();
-              sseRef.current = null;
-            }
-
-          }
-        },
-      }, { userId });
+      startAiQuizWatcher({
+        jobId: jobResp.jobId,
+        lessonId,
+        lessonActivityId: createdActivity.id,
+        videoId: readyVideoId,
+        quizName: jobResp.quizName,
+        status: "processing",
+        userId,
+        contextId: lessonId,
+      });
 
 
     } catch (err: unknown) {
@@ -308,10 +533,10 @@ export function ActivityCreationDialog({
   };
 
   const handleCancelGeneration = async () => {
-    if (sseRef.current) {
-      sseRef.current.close();
-      sseRef.current = null;
-    }
+    isFinalizingReviewRef.current = false;
+    clearAiQuizWatcher();
+    clearAiQuizSession(lessonId);
+    aiQuizSessionRef.current = null;
 
     if (generatedActivityId) {
       try {
@@ -324,10 +549,12 @@ export function ActivityCreationDialog({
     setView("create");
     setStage("");
     setGeneratedActivityId(null);
+    setGeneratedQuizId(null);
     toast.info("Đã hủy bản nháp quiz đang tạo.");
   };
 
   const handleCompleteReview = async () => {
+    isFinalizingReviewRef.current = true;
     const activityId = generatedActivityId;
     if (activityId) {
       try {
@@ -340,6 +567,7 @@ export function ActivityCreationDialog({
         });
       } catch (err) {
         console.error("Failed to finalize activity description:", err);
+        isFinalizingReviewRef.current = false;
         toast.error("Không thể lưu quiz. Vui lòng thử lại.");
         return;
       }
@@ -357,8 +585,11 @@ export function ActivityCreationDialog({
       ]);
     }
     setGeneratedActivityId(null);
+    clearAiQuizSession(lessonId);
+    aiQuizSessionRef.current = null;
     toast.success("Đã lưu quiz.");
-    handleOpenChange(false);
+    await handleOpenChange(false);
+    isFinalizingReviewRef.current = false;
     router.refresh();
   };
 
@@ -489,4 +720,3 @@ export function ActivityCreationDialog({
     </Dialog>
   );
 }
-

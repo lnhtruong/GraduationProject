@@ -1,8 +1,12 @@
-import {
-  createMediaUploadStream,
-  type VideoCompletedPayload,
-  type VideoErrorPayload,
+import type {
+  VideoCompletedPayload,
+  VideoErrorPayload,
 } from "@/features/_shared/realtime/media-upload-stream";
+import {
+  INFERENCE_JOB_POLL_INTERVAL_MS,
+  INFERENCE_JOB_SSE_RECONNECT_MS,
+  watchInferenceJob,
+} from "@/features/_shared/realtime/inference-job-watcher";
 import { mascotApi } from "@/features/editor/api/mascot.api";
 
 type UnknownRecord = Record<string, unknown>;
@@ -27,8 +31,7 @@ export type WaitForMascotJobOptions = {
 };
 
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
-const DEFAULT_POLL_INTERVAL_MS = 60_000;
-const DEFAULT_SSE_RECONNECT_MS = 5_000;
+const DEFAULT_POLL_INTERVAL_MS = INFERENCE_JOB_POLL_INTERVAL_MS;
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -135,22 +138,13 @@ export function waitForMascotJobCompletion({
 }: WaitForMascotJobOptions): Promise<MascotJobCompletion> {
   return new Promise((resolve, reject) => {
     let finished = false;
-    let stream: ReturnType<typeof createMediaUploadStream> | null = null;
-    let pollTimer: number | null = null;
-    let reconnectTimer: number | null = null;
     let timeoutTimer: number | null = null;
-    let isPolling = false;
-    let sseConnected = false;
-    let sseConnecting = false;
+    let watcher: ReturnType<typeof watchInferenceJob> | null = null;
 
     const cleanup = () => {
-      stream?.close();
-      stream = null;
-      if (pollTimer) window.clearTimeout(pollTimer);
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      watcher?.close();
+      watcher = null;
       if (timeoutTimer) window.clearTimeout(timeoutTimer);
-      pollTimer = null;
-      reconnectTimer = null;
       timeoutTimer = null;
     };
 
@@ -189,82 +183,33 @@ export function waitForMascotJobCompletion({
       complete(payload);
     };
 
-    const poll = async () => {
-      if (finished || isPolling) return;
-      isPolling = true;
-      try {
-        const status = await mascotApi.getJobStatus(jobId);
-        handlePayload(status);
-      } catch {
-        // SSE is the primary channel; status polling is only a disconnected fallback.
-      } finally {
-        isPolling = false;
-        scheduleDisconnectedFallback();
-      }
-    };
-
-    const scheduleDisconnectedFallback = () => {
-      if (finished || sseConnected || pollTimer) return;
-      pollTimer = window.setTimeout(() => {
-        pollTimer = null;
-        void poll();
-      }, pollIntervalMs);
-    };
-
-    const clearDisconnectedFallback = () => {
-      if (!pollTimer) return;
-      window.clearTimeout(pollTimer);
-      pollTimer = null;
-    };
-
-    const scheduleSseReconnect = () => {
-      if (finished || sseConnected || sseConnecting || reconnectTimer) return;
-      reconnectTimer = window.setTimeout(() => {
-        reconnectTimer = null;
-        openStream();
-      }, DEFAULT_SSE_RECONNECT_MS);
-    };
-
-    const openStream = () => {
-      if (finished || sseConnected || sseConnecting) return;
-      sseConnecting = true;
-      stream?.close();
-      stream = createMediaUploadStream(
-      {
-        onOpen: () => {
-          sseConnected = true;
-          sseConnecting = false;
-          clearDisconnectedFallback();
-        },
-        onEvent: () => {},
-        onProgress: (payload) => {
-          const normalized = normalizeMascotJobPayload(payload);
-          if (!isMascotCompletionForJob(normalized, jobId)) return;
-          if (normalized.stage) onProgress?.(normalized.stage);
-        },
-        onCompleted: (payload: VideoCompletedPayload) => {
-          handlePayload(payload);
-        },
-        onError: (payload: VideoErrorPayload) => {
-          const normalized = normalizeMascotJobPayload(payload);
-          if (!isMascotCompletionForJob(normalized, jobId)) return;
-          fail(new Error(normalized.errorMessage ?? "Tạo video mascot thất bại."));
-        },
-        onConnectionError: () => {
-          sseConnected = false;
-          sseConnecting = false;
-          scheduleSseReconnect();
-          scheduleDisconnectedFallback();
-        },
+    watcher = watchInferenceJob({
+      userId,
+      pollIntervalMs,
+      reconnectMs: INFERENCE_JOB_SSE_RECONNECT_MS,
+      pollStatus: () => mascotApi.getJobStatus(jobId),
+      onPollStatus: handlePayload,
+      onProgress: (payload) => {
+        const normalized = normalizeMascotJobPayload(payload);
+        if (!isMascotCompletionForJob(normalized, jobId)) return;
+        if (normalized.stage) onProgress?.(normalized.stage);
       },
-      { userId },
-    );
-    };
+      onCompleted: (payload: VideoCompletedPayload) => {
+        handlePayload(payload);
+      },
+      onError: (payload: VideoErrorPayload) => {
+        const normalized = normalizeMascotJobPayload(payload);
+        if (!isMascotCompletionForJob(normalized, jobId)) return;
+        fail(new Error(normalized.errorMessage ?? "Tạo video mascot thất bại."));
+      },
+    });
 
-    openStream();
-    scheduleDisconnectedFallback();
     timeoutTimer = window.setTimeout(() => {
-      fail(new Error("Tạo video mascot quá lâu. Vui lòng kiểm tra lại trong thư viện."));
+      fail(
+        new Error(
+          "Tạo video mascot quá lâu. Vui lòng kiểm tra lại trong thư viện.",
+        ),
+      );
     }, timeoutMs);
   });
 }

@@ -33,16 +33,27 @@ import {
   type MascotJobCompletion,
   waitForMascotJobCompletion,
 } from "@/features/editor/utils/mascot-job.utils";
+import {
+  clearPersistedInferenceJob,
+  INFERENCE_JOB_STORAGE_TTL_MS,
+  type PersistedInferenceJob,
+  readPersistedInferenceJob,
+  writePersistedInferenceJob,
+} from "@/features/_shared/realtime/inference-job-watcher";
 
 const ACTIVE_MASCOT_RENDER_JOB_KEY = "studyloop:active-mascot-render-job";
+const ACTIVE_MASCOT_RENDER_JOB_STORAGE = {
+  key: ACTIVE_MASCOT_RENDER_JOB_KEY,
+  storage: "local" as const,
+  ttlMs: INFERENCE_JOB_STORAGE_TTL_MS,
+  activeStatuses: ["processing"],
+};
 
-type ActiveMascotRenderJob = {
-  jobId: string;
+type ActiveMascotRenderJob = PersistedInferenceJob & {
   userId: number;
   editId: number | null;
   sourceVideoName?: string;
   stage?: string;
-  startedAt: number;
 };
 
 const MASCOT_STAGE_TRANSLATIONS: Record<string, string> = {
@@ -59,52 +70,29 @@ function getMascotStageLabel(stage: string) {
 }
 
 function readActiveMascotRenderJob(): ActiveMascotRenderJob | null {
-  if (typeof window === "undefined") return null;
+  const parsed = readPersistedInferenceJob<ActiveMascotRenderJob>(
+    ACTIVE_MASCOT_RENDER_JOB_STORAGE,
+  );
+  if (!parsed?.userId) return null;
 
-  try {
-    const raw = window.localStorage.getItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<ActiveMascotRenderJob>;
-    if (!parsed.jobId || !parsed.userId) {
-      window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
-      return null;
-    }
-
-    return {
-      jobId: parsed.jobId,
-      userId: parsed.userId,
-      editId:
-        typeof parsed.editId === "number" && Number.isFinite(parsed.editId)
-          ? parsed.editId
-          : null,
-      sourceVideoName: parsed.sourceVideoName,
-      stage: parsed.stage,
-      startedAt:
-        typeof parsed.startedAt === "number" && Number.isFinite(parsed.startedAt)
-          ? parsed.startedAt
-          : Date.now(),
-    };
-  } catch {
-    window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
-    return null;
-  }
+  return {
+    ...parsed,
+    editId:
+      typeof parsed.editId === "number" && Number.isFinite(parsed.editId)
+        ? parsed.editId
+        : null,
+  };
 }
 
 function saveActiveMascotRenderJob(job: ActiveMascotRenderJob) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(ACTIVE_MASCOT_RENDER_JOB_KEY, JSON.stringify(job));
+  writePersistedInferenceJob(ACTIVE_MASCOT_RENDER_JOB_STORAGE, {
+    ...job,
+    status: "processing",
+  });
 }
 
 function clearActiveMascotRenderJob(jobId?: string) {
-  if (typeof window === "undefined") return;
-
-  if (jobId) {
-    const current = readActiveMascotRenderJob();
-    if (current?.jobId && current.jobId !== jobId) return;
-  }
-
-  window.localStorage.removeItem(ACTIVE_MASCOT_RENDER_JOB_KEY);
+  clearPersistedInferenceJob(ACTIVE_MASCOT_RENDER_JOB_STORAGE, jobId);
 }
 
 function clampPercent(value: number) {
@@ -772,7 +760,6 @@ export function useCoreEditorController({
         editId: editId ?? null,
         sourceVideoName,
         stage: "Đang chờ hệ thống bắt đầu xử lý...",
-        startedAt: Date.now(),
       });
 
       await completeMascotRenderJob({ jobId, userId });

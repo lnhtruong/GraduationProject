@@ -9,13 +9,22 @@ import {
   useProcessHighlightLink,
 } from "../api/upload.hooks";
 import { uploadApi } from "../api/upload.api";
-import {
-  createMediaUploadStream,
-  type UploadStreamSubscription,
-  type VideoCompletedPayload,
-  type VideoErrorPayload,
-  type VideoProgressPayload,
+import type {
+  VideoCompletedPayload,
+  VideoErrorPayload,
+  VideoProgressPayload,
 } from "@/features/_shared/realtime/media-upload-stream";
+import {
+  clearPersistedInferenceJob,
+  hasPersistedInferenceJob,
+  INFERENCE_JOB_STORAGE_TTL_MS,
+  INFERENCE_JOB_POLL_INTERVAL_MS,
+  INFERENCE_JOB_SSE_RECONNECT_MS,
+  type PersistedInferenceJob,
+  readPersistedInferenceJob,
+  watchInferenceJob,
+  writePersistedInferenceJob,
+} from "@/features/_shared/realtime/inference-job-watcher";
 import { useCreateProject } from "@/features/project/api/project.hooks";
 import { authStorageHelper } from "@/store/auth";
 import type {
@@ -51,7 +60,13 @@ const INITIAL_STATE: UploadState = {
 };
 
 const ACTIVE_HIGHLIGHT_JOB_KEY = "learnhub:active-highlight-job";
-const HIGHLIGHT_STATUS_FALLBACK_MS = 120_000;
+const HIGHLIGHT_STATUS_FALLBACK_MS = INFERENCE_JOB_POLL_INTERVAL_MS;
+const ACTIVE_HIGHLIGHT_JOB_STORAGE = {
+  key: ACTIVE_HIGHLIGHT_JOB_KEY,
+  storage: "local" as const,
+  ttlMs: INFERENCE_JOB_STORAGE_TTL_MS,
+  activeStatuses: ["pending", "processing", "completed"],
+};
 
 type UploadEventEnvelope = {
   jobId?: string | number;
@@ -81,6 +96,8 @@ type UploadEventEnvelope = {
   data?: Record<string, unknown>;
   result?: Record<string, unknown>;
 };
+
+type SavedHighlightJob = PersistedInferenceJob & Partial<UploadState>;
 
 export interface UseUploadOptions {
   autoCreateProject?: boolean;
@@ -336,40 +353,25 @@ function mergeCompletedClips(current: Clip[], incoming: Clip[]): Clip[] {
   return Array.from(merged.values());
 }
 
-function restoreActiveHighlightJob(): UploadState {
-  if (typeof window === "undefined") return INITIAL_STATE;
+function restoreActiveHighlightJob(currentUserId?: number): UploadState {
+  const saved = readPersistedInferenceJob<SavedHighlightJob>({
+    ...ACTIVE_HIGHLIGHT_JOB_STORAGE,
+    userId: currentUserId,
+  });
+  if (!saved) return INITIAL_STATE;
 
-  try {
-    const raw = window.localStorage.getItem(ACTIVE_HIGHLIGHT_JOB_KEY);
-    if (!raw) return INITIAL_STATE;
-
-    const saved = JSON.parse(raw) as Partial<UploadState>;
-    if (
-      !saved.jobId ||
-      (saved.status !== "pending" &&
-        saved.status !== "processing" &&
-        saved.status !== "completed")
-    ) {
-      window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
-      return INITIAL_STATE;
-    }
-
-    return {
-      ...INITIAL_STATE,
-      ...saved,
-      file: null,
-      progress: null,
-      clips: Array.isArray(saved.clips) ? saved.clips : [],
-      status:
-        saved.status === "completed" && saved.clips?.length
-          ? "completed"
-          : "processing",
-      stage: saved.stage || "Đang khôi phục tiến trình tạo highlight",
-    };
-  } catch {
-    window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
-    return INITIAL_STATE;
-  }
+  return {
+    ...INITIAL_STATE,
+    ...saved,
+    file: null,
+    progress: null,
+    clips: Array.isArray(saved.clips) ? saved.clips : [],
+    status:
+      saved.status === "completed" && saved.clips?.length
+        ? "completed"
+        : "processing",
+    stage: saved.stage || "Đang khôi phục tiến trình tạo highlight",
+  };
 }
 
 function resolveProjectId(response: unknown): number | null {
@@ -449,6 +451,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   const autoCreateProject = options?.autoCreateProject ?? true;
   const [state, setState] = useState<UploadState>(restoreActiveHighlightJob);
   const { user } = useAuth();
+  const resolvedUserId = resolveUserId(user?.id);
   const router = useRouter();
   const { mutateAsync: createProject } = useCreateProject();
   const createProjectPromiseRef = useRef<Promise<{
@@ -456,9 +459,6 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     videoId?: number;
   } | null> | null>(null);
   const redirectedProjectRef = useRef<number | null>(null);
-  const lastSseEventAtRef = useRef<number>(0);
-  const sseOpenedAtRef = useRef<number>(0);
-  const sseConnectionFailedRef = useRef(false);
 
   const setJobStarted = useCallback((jobId: string) => {
     setState((prev) => ({
@@ -502,6 +502,27 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     awaitingPersistedVideoIds;
 
   useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !state.jobId ||
+      resolvedUserId == null
+    ) {
+      return;
+    }
+
+    const hasStoredJob = hasPersistedInferenceJob(ACTIVE_HIGHLIGHT_JOB_STORAGE);
+    if (!hasStoredJob) return;
+
+    const saved = readPersistedInferenceJob<SavedHighlightJob>({
+      ...ACTIVE_HIGHLIGHT_JOB_STORAGE,
+      userId: resolvedUserId,
+    });
+    if (!saved) {
+      setState(INITIAL_STATE);
+    }
+  }, [resolvedUserId, state.jobId]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     if (
@@ -510,9 +531,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
         state.status === "processing" ||
         awaitingPersistedVideoIds)
     ) {
-      window.localStorage.setItem(
-        ACTIVE_HIGHLIGHT_JOB_KEY,
-        JSON.stringify({
+      writePersistedInferenceJob(
+        { ...ACTIVE_HIGHLIGHT_JOB_STORAGE, userId: resolvedUserId },
+        {
           jobId: state.jobId,
           status: state.status,
           source: state.source,
@@ -523,12 +544,12 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           progressPercent: state.progressPercent,
           clips: state.clips,
           jobType: state.jobType,
-        }),
+        },
       );
       return;
     }
 
-    window.localStorage.removeItem(ACTIVE_HIGHLIGHT_JOB_KEY);
+    clearPersistedInferenceJob(ACTIVE_HIGHLIGHT_JOB_STORAGE);
   }, [
     state.bunnyVideoId,
     state.jobId,
@@ -540,6 +561,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     state.status,
     state.clips,
     state.jobType,
+    resolvedUserId,
     awaitingPersistedVideoIds,
   ]);
 
@@ -592,14 +614,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     const userId = resolveUserId(user?.id);
     if (!userId || !sseSessionActive) return;
 
-    let stream: UploadStreamSubscription | null = null;
-    sseConnectionFailedRef.current = false;
-    sseOpenedAtRef.current = 0;
-
     const onProgress = (payload: VideoProgressPayload) => {
-      lastSseEventAtRef.current = Date.now();
-      sseConnectionFailedRef.current = false;
-
       setState((prev) => {
         if (prev.status === "completed" || prev.status === "failed") return prev;
 
@@ -631,8 +646,6 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     };
 
     const onCompleted = (payload: VideoCompletedPayload) => {
-      lastSseEventAtRef.current = Date.now();
-      sseConnectionFailedRef.current = false;
       const { clips, jobId } = readCompletedClips(payload);
       if (clips.length === 0) return;
 
@@ -659,8 +672,6 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     };
 
     const onError = (payload: VideoErrorPayload) => {
-      lastSseEventAtRef.current = Date.now();
-      sseConnectionFailedRef.current = false;
       setState((prev) => {
         const errorJobId = readEventJobId(payload as unknown as UploadEventEnvelope);
         if (prev.jobId && !errorJobId) {
@@ -681,131 +692,90 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       });
     };
 
-    stream = createMediaUploadStream(
-      {
-        onProgress,
-        onCompleted,
-        onError,
-        onOpen: () => {
-          sseOpenedAtRef.current = Date.now();
-          sseConnectionFailedRef.current = false;
-        },
-        onConnectionError: () => {
-          sseConnectionFailedRef.current = true;
-        },
-      },
-      { userId },
-    );
+    const handlePolledStatus = (payload: Record<string, unknown>) => {
+      const status = String(
+        payload.status ??
+          (asRecord(payload.result)?.status ?? ""),
+      ).toLowerCase();
 
-    return () => stream?.close();
-  }, [user?.id, sseSessionActive]);
-
-  useEffect(() => {
-    if (
-      !state.jobId ||
-      (state.status !== "pending" && state.status !== "processing")
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const checkJob = async () => {
-      const hasFreshSse =
-        lastSseEventAtRef.current > 0 &&
-        Date.now() - lastSseEventAtRef.current < HIGHLIGHT_STATUS_FALLBACK_MS;
-      const hasOpenSse =
-        sseOpenedAtRef.current > 0 &&
-        Date.now() - sseOpenedAtRef.current < HIGHLIGHT_STATUS_FALLBACK_MS;
-
-      if ((hasFreshSse || hasOpenSse) && !sseConnectionFailedRef.current) {
+      if (["completed", "complete", "success", "succeeded"].includes(status)) {
+        const { clips } = readCompletedClips(payload as UploadEventEnvelope);
+        if (clips.length > 0) {
+          setState((prev) => ({
+            ...prev,
+            status: "completed",
+            clips,
+            progress: null,
+            progressPercent: 100,
+            jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
+            stage: "HoÃ n thÃ nh",
+          }));
+        }
         return;
       }
 
-      try {
-        const payload = await uploadApi.getJobStatus(String(state.jobId));
-        if (cancelled) return;
+      if (["pending", "queued", "queue", "waiting", "processing", "running"].includes(status)) {
+        const envelope = payload as UploadEventEnvelope;
+        const rawStage =
+          typeof envelope.stage === "string"
+            ? envelope.stage.trim()
+            : typeof envelope.data?.stage === "string"
+              ? envelope.data.stage.trim()
+              : undefined;
+        const progress =
+          typeof envelope.progress === "number"
+            ? envelope.progress
+            : typeof envelope.data?.progress === "number"
+              ? envelope.data.progress
+              : undefined;
 
-        const status = String(
-          payload.status ??
-            (asRecord(payload.result)?.status ?? ""),
-        ).toLowerCase();
-
-        if (["completed", "complete", "success", "succeeded"].includes(status)) {
-          const { clips } = readCompletedClips(payload as UploadEventEnvelope);
-          if (clips.length > 0) {
-            setState((prev) => ({
-              ...prev,
-              status: "completed",
-              clips,
-              progress: null,
-              progressPercent: 100,
-              jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
-              stage: "Hoàn thành",
-            }));
+        setState((prev) => {
+          if (prev.status === "completed" || prev.status === "failed") {
+            return prev;
           }
-          return;
-        }
 
-        if (["pending", "queued", "queue", "waiting", "processing", "running"].includes(status)) {
-          const envelope = payload as UploadEventEnvelope;
-          const rawStage =
-            typeof envelope.stage === "string"
-              ? envelope.stage.trim()
-              : typeof envelope.data?.stage === "string"
-                ? envelope.data.stage.trim()
-                : undefined;
-          const progress =
-            typeof envelope.progress === "number"
-              ? envelope.progress
-              : typeof envelope.data?.progress === "number"
-                ? envelope.data.progress
-                : undefined;
-
-          setState((prev) => {
-            if (prev.status === "completed" || prev.status === "failed") {
-              return prev;
-            }
-
-            return {
-              ...prev,
-              status: resolveRunningStatus(envelope),
-              jobType: readJobType(envelope) ?? prev.jobType,
-              stage: rawStage ?? prev.stage,
-              progressPercent:
-                typeof progress === "number" ? progress : undefined,
-            };
-          });
-          return;
-        }
-
-        if (["failed", "error", "cancelled", "canceled"].includes(status)) {
-          setState((prev) => ({
+          return {
             ...prev,
-            status: "failed",
-            progress: null,
-            stage: "Không thành công",
-            error:
-              readErrorMessage(payload as UploadEventEnvelope) ??
-              "Không thể tạo highlight.",
-          }));
-        }
-      } catch {
-        // SSE remains the primary channel. A transient status request must not
-        // turn a running job into a failed job.
+            status: resolveRunningStatus(envelope),
+            jobType: readJobType(envelope) ?? prev.jobType,
+            stage: rawStage ?? prev.stage,
+            progressPercent:
+              typeof progress === "number" ? progress : undefined,
+          };
+        });
+        return;
+      }
+
+      if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+        setState((prev) => ({
+          ...prev,
+          status: "failed",
+          progress: null,
+          stage: "KhÃ´ng thÃ nh cÃ´ng",
+          error:
+            readErrorMessage(payload as UploadEventEnvelope) ??
+            "KhÃ´ng thá»ƒ táº¡o highlight.",
+        }));
       }
     };
 
-    const timer = window.setInterval(
-      checkJob,
-      HIGHLIGHT_STATUS_FALLBACK_MS,
-    );
+    const watcher = watchInferenceJob({
+      userId,
+      pollIntervalMs: HIGHLIGHT_STATUS_FALLBACK_MS,
+      reconnectMs: INFERENCE_JOB_SSE_RECONNECT_MS,
+      pollStatus:
+        state.jobId &&
+        (state.status === "pending" || state.status === "processing")
+          ? () => uploadApi.getJobStatus(String(state.jobId))
+          : undefined,
+      onPollStatus: handlePolledStatus,
+      onProgress,
+      onCompleted,
+      onError,
+    });
 
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [state.jobId, state.status]);
+    return () => watcher.close();
+  }, [user?.id, sseSessionActive, state.jobId, state.status]);
 
   useEffect(() => {
     if (!awaitingPersistedVideoIds) return;
