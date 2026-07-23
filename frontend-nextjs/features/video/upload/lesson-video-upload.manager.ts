@@ -51,7 +51,7 @@ class LessonVideoUploadManager {
 
   private lastSseActivityAt = 0;
 
-  private readonly fallbackPollIntervalMs = 60000;
+  private readonly fallbackPollIntervalMs = 120000;
 
   notifySSEConnection(connected: boolean) {
     this.isSseConnected = connected;
@@ -82,6 +82,10 @@ class LessonVideoUploadManager {
     if (this.upload) {
       throw new Error("Đang có một video khác được upload.");
     }
+    if (this.processingPollTimer || this.activeVideoId || this.activeBunnyVideoId) {
+      this.cleanupAll();
+    }
+
     if (payload.file.size > BUNNY_MAX_UPLOAD_BYTES) {
       throw new Error(
         `File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`,
