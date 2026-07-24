@@ -226,8 +226,46 @@ export const useQuickPublishCourse = createMutationHooks<
 
 type LessonQuizTypeFilter = "in_video" | "after_video";
 
-const lessonQuizKeys = createKeyFactory("lesson-quizzes");
+export const lessonQuizKeys = createKeyFactory("lesson-quizzes");
 export const courseFeedKeys = createKeyFactory("course-feed");
+
+export async function invalidateLessonQuizCache(
+  queryClient: {
+    invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<void>;
+  },
+  lessonId?: number | null,
+) {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: lessonQuizKeys.root }),
+  ];
+  if (typeof lessonId === "number") {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: lessonQuizKeys.custom("by-lesson", lessonId),
+      }),
+    );
+  }
+  await Promise.all(invalidations);
+}
+
+export async function invalidateCourseFeedCache(
+  queryClient: {
+    invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<void>;
+  },
+  courseId?: number | null,
+) {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: courseFeedKeys.root }),
+  ];
+  if (typeof courseId === "number") {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: courseFeedKeys.custom("mine-page", courseId),
+      }),
+    );
+  }
+  await Promise.all(invalidations);
+}
 
 export function useQuizzesByLessonId(
   lessonId: number | null,

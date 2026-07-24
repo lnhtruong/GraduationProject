@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Eye,
   Heart,
@@ -27,6 +28,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
+  invalidateCourseFeedCache,
   useCourseFeed,
   useCourseFeedById,
   useInstructorCourseById,
@@ -61,6 +63,7 @@ function normalizeCaption(value?: string): string | undefined {
 
 export default function CourseFeedEditPage({ courseId, feedId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const { data: feedDetail, isLoading: feedDetailLoading } =
@@ -143,6 +146,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
         hashtags: values.hashtags,
       },
     });
+    await invalidateCourseFeedCache(queryClient, courseId);
 
     toast.success("Đã cập nhật feed");
     router.push(`/instructor/courses/${courseId}/feed`);

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   PencilLine,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
+  instructorCourseKeys,
   useDeleteLesson,
   useInstructorCourseById,
   usePublishCourse,
@@ -62,6 +64,7 @@ interface Props {
 export default function CourseOverviewPage({ courseId }: Props) {
   const LESSONS_PER_PAGE = 10;
   type LessonStatusFilter = "all" | "active" | "blocked";
+  const queryClient = useQueryClient();
 
   const toSeconds = (duration?: number | string | null) => {
     if (typeof duration === "number" && Number.isFinite(duration)) {
@@ -160,6 +163,14 @@ export default function CourseOverviewPage({ courseId }: Props) {
 
   const handleDeleteLesson = async (lessonId: number) => {
     await deleteLessonMutation.mutateAsync(lessonId);
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: instructorCourseKeys.detail(courseId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: instructorCourseKeys.root,
+      }),
+    ]);
     toast.success("Đã xóa bài học");
     setCurrentPage(1);
   };

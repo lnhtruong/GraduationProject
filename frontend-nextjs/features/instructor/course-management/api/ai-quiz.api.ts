@@ -96,7 +96,7 @@ export const aiQuizApi = {
 
   restoreQuestions: async (quizId: number, restoreQuestionIds: number[]): Promise<unknown> => {
     const { data } = await apiHttpClient.post<unknown>(`/course/quizzes/${quizId}/restore-questions`, {
-      restoreQuestionIds,
+      questionIds: restoreQuestionIds,
     });
     return data;
   },

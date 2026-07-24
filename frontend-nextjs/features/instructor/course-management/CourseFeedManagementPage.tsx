@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
   Bookmark,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/pagination";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
+  invalidateCourseFeedCache,
   useCourseFeedPage,
   useCourseFeedCandidateVideos,
   useDeleteCourseFeed,
@@ -56,6 +58,7 @@ interface Props {
 }
 
 export default function CourseFeedManagementPage({ courseId }: Props) {
+  const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>("all");
@@ -135,6 +138,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
 
   const handleDelete = async (feedId: number) => {
     await deleteFeedMutation.mutateAsync(feedId);
+    await invalidateCourseFeedCache(queryClient, courseId);
     toast.success("Đã xóa feed");
     setPendingDeleteFeed(null);
   };

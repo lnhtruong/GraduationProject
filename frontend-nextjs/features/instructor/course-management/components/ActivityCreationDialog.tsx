@@ -27,6 +27,7 @@ import {
 import { AIQuizProgress } from "./ActivityCreationDialog/AIQuizProgress";
 import { QuizAIReviewer } from "./ActivityCreationDialog/QuizAIReviewer";
 import {
+  invalidateLessonQuizCache,
   useCreateLessonActivity,
   useUpdateLessonActivity,
   useDeleteLessonActivity,
@@ -281,12 +282,7 @@ export function ActivityCreationDialog({
       setView("review");
       clearAiQuizWatcher();
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "in_video", "all"],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["lesson-quizzes", "by-lesson", lessonId, "after_video", "all"],
-        }),
+        invalidateLessonQuizCache(queryClient, lessonId),
       ]);
       return true;
     },
@@ -472,6 +468,7 @@ export function ActivityCreationDialog({
     );
 
     await createQuizMutation.mutateAsync(payload);
+    await invalidateLessonQuizCache(queryClient, lessonId);
     toast.success("Đã tạo quiz từ popup");
     handleOpenChange(false);
     router.refresh();

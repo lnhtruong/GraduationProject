@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { NotebookText, Clapperboard, X } from "lucide-react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +21,7 @@ import {
   useVideosByUser,
 } from "@/features/video/api/video.hooks";
 import {
+  invalidateLessonQuizCache,
   useLessonActivitiesByLessonId,
   useQuizzesByLessonId,
   useCreateLessonActivity,
@@ -66,6 +68,7 @@ interface Props {
 }
 
 export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange, onRegisterQuizModalOpener }: Props) {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const isEdit = isLessonEditMode(lesson);
@@ -320,6 +323,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         ...pendingQuiz,
         lessonActivityId: createdActivity.id,
       });
+      await invalidateLessonQuizCache(queryClient, targetLessonId);
     }
 
     setPendingQuizStates([]);
@@ -348,6 +352,7 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
       );
 
       await createQuizMutation.mutateAsync(quizPayload);
+      await invalidateLessonQuizCache(queryClient, lessonId);
 
       toast.success("Đã tạo quiz");
       setShowQuizEditorModal(false);

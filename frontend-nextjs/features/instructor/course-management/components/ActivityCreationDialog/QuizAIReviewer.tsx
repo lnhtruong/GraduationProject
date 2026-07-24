@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type MutableRefObject } from "react";
 import { CheckCircle2, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import Hls from "hls.js";
 import { toast } from "sonner";
@@ -36,6 +36,73 @@ type ReviewQuestion = {
   options: ReviewQuestionOption[];
 };
 
+function isHlsUrl(url: string) {
+  return /\.m3u8(?:$|[?#])/i.test(url);
+}
+
+function attachVideoSource(
+  videoElement: HTMLVideoElement,
+  sourceUrl: string | undefined,
+  hlsRef: MutableRefObject<Hls | null>,
+) {
+  videoElement.pause();
+  videoElement.removeAttribute("src");
+
+  if (hlsRef.current) {
+    hlsRef.current.destroy();
+    hlsRef.current = null;
+  }
+
+  if (!sourceUrl) {
+    videoElement.load();
+    return;
+  }
+
+  if (isHlsUrl(sourceUrl)) {
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        maxMaxBufferLength: 15,
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(sourceUrl);
+      hls.attachMedia(videoElement);
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return;
+
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            console.error("[QuizAIReviewer] HLS playback failed", data);
+            hls.destroy();
+            hlsRef.current = null;
+            break;
+        }
+      });
+      return;
+    }
+
+    if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+      videoElement.src = sourceUrl;
+      videoElement.load();
+      return;
+    }
+
+    console.error("[QuizAIReviewer] Browser cannot play HLS video", sourceUrl);
+    return;
+  }
+
+  videoElement.src = sourceUrl;
+  videoElement.load();
+}
+
 export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const videoRefDesktop = useRef<HTMLVideoElement | null>(null);
   const videoRefMobile = useRef<HTMLVideoElement | null>(null);
@@ -49,6 +116,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
 
   const activeQuestions = (data?.active ?? []) as ReviewQuestion[];
   const deletedQuestions = (data?.deleted ?? []) as ReviewQuestion[];
+  const knownActiveIdsRef = useRef<Set<number>>(new Set());
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<number[]>([]);
@@ -59,57 +127,37 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   const [activeTabMobile, setActiveTabMobile] = useState<"active" | "deleted">("active");
 
   useEffect(() => {
+    if (!data) return;
+
+    const nextActiveIds = ((data.active ?? []) as ReviewQuestion[]).map(
+      (question) => question.id,
+    );
+    const nextActiveSet = new Set(nextActiveIds);
+    const previousActiveSet = knownActiveIdsRef.current;
+
+    setSelectedIds((prev) => {
+      const stillActiveSelection = prev.filter((id) => nextActiveSet.has(id));
+      const newlyActiveIds = nextActiveIds.filter((id) => !previousActiveSet.has(id));
+      return Array.from(new Set([...stillActiveSelection, ...newlyActiveIds]));
+    });
+
+    knownActiveIdsRef.current = nextActiveSet;
+  }, [data]);
+
+  useEffect(() => {
+    if (!data) return;
+
+    const deletedIdSet = new Set(
+      ((data.deleted ?? []) as ReviewQuestion[]).map((question) => question.id),
+    );
+    setSelectedDeletedIds((prev) => prev.filter((id) => deletedIdSet.has(id)));
+  }, [data]);
+
+  useEffect(() => {
     const videoElement = videoRefDesktop.current;
     if (!videoElement) return;
 
-    if (!lessonVideoUrl) {
-      videoElement.removeAttribute("src");
-      if (hlsDesktopRef.current) {
-        hlsDesktopRef.current.destroy();
-        hlsDesktopRef.current = null;
-      }
-      return;
-    }
-
-    const isHls = lessonVideoUrl.includes(".m3u8");
-    if (hlsDesktopRef.current) {
-      hlsDesktopRef.current.destroy();
-      hlsDesktopRef.current = null;
-    }
-
-    if (isHls) {
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          maxMaxBufferLength: 15,
-          enableWorker: true,
-          lowLatencyMode: true,
-        });
-        hlsDesktopRef.current = hls;
-        hls.loadSource(lessonVideoUrl);
-        hls.attachMedia(videoElement);
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
-                break;
-              default:
-                hls.destroy();
-                hlsDesktopRef.current = null;
-                break;
-            }
-          }
-        });
-      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-        videoElement.src = lessonVideoUrl;
-      }
-    } else {
-      videoElement.src = lessonVideoUrl;
-    }
+    attachVideoSource(videoElement, lessonVideoUrl, hlsDesktopRef);
 
     return () => {
       if (videoElement) {
@@ -130,54 +178,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     const videoElement = videoRefMobile.current;
     if (!videoElement) return;
 
-    if (!lessonVideoUrl) {
-      videoElement.removeAttribute("src");
-      if (hlsMobileRef.current) {
-        hlsMobileRef.current.destroy();
-        hlsMobileRef.current = null;
-      }
-      return;
-    }
-
-    const isHls = lessonVideoUrl.includes(".m3u8");
-    if (hlsMobileRef.current) {
-      hlsMobileRef.current.destroy();
-      hlsMobileRef.current = null;
-    }
-
-    if (isHls) {
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          maxMaxBufferLength: 15,
-          enableWorker: true,
-          lowLatencyMode: true,
-        });
-        hlsMobileRef.current = hls;
-        hls.loadSource(lessonVideoUrl);
-        hls.attachMedia(videoElement);
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError();
-                break;
-              default:
-                hls.destroy();
-                hlsMobileRef.current = null;
-                break;
-            }
-          }
-        });
-      } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-        videoElement.src = lessonVideoUrl;
-      }
-    } else {
-      videoElement.src = lessonVideoUrl;
-    }
+    attachVideoSource(videoElement, lessonVideoUrl, hlsMobileRef);
 
     return () => {
       if (videoElement) {
@@ -223,11 +224,15 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
+    const deleteIds = activeQuestions
+      .map((question) => question.id)
+      .filter((id) => !selectedIds.includes(id));
+
+    if (deleteIds.length === 0) return;
     try {
-      await Promise.all(selectedIds.map((id) => deleteMutation.mutateAsync(id)));
-      setSelectedIds([]);
-      toast.success(`Đã loại bỏ ${selectedIds.length} câu hỏi đã chọn.`);
+      await Promise.all(deleteIds.map((id) => deleteMutation.mutateAsync(id)));
+      setSelectedIds((prev) => prev.filter((id) => !deleteIds.includes(id)));
+      toast.success(`Đã loại bỏ ${deleteIds.length} câu hỏi chưa chọn.`);
     } catch {
       toast.error("Đã xảy ra lỗi khi loại bỏ câu hỏi.");
     }
@@ -295,7 +300,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     !isLoading &&
     !isFetching &&
     !isQuestionMutationPending &&
-    activeQuestions.length > 0;
+    selectedIds.some((id) => activeQuestions.some((question) => question.id === id));
 
   const handleSaveAndComplete = async () => {
     if (!data || isLoading || isFetching) {
@@ -303,9 +308,10 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
       return;
     }
 
-    const keepIds = activeQuestions.map((q) => q.id);
+    const activeIdSet = new Set(activeQuestions.map((q) => q.id));
+    const keepIds = selectedIds.filter((id) => activeIdSet.has(id));
     if (keepIds.length === 0) {
-      toast.warning("Cần giữ lại ít nhất một câu hỏi trước khi lưu quiz.");
+      toast.warning("Vui lòng chọn ít nhất một câu hỏi để lưu quiz.");
       return;
     }
 
@@ -330,6 +336,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                 type="checkbox"
                 checked={selectedIds.includes(q.id)}
                 onChange={() => toggleSelect(q.id)}
+                aria-label="Chọn câu hỏi để lưu"
                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer accent-primary shrink-0 mt-1"
               />
               <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -466,7 +473,14 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                   ref={videoRefMobile}
                   className="w-full h-full object-contain"
                   controls
+                  preload="metadata"
                   playsInline
+                  onError={(event) => {
+                    console.error("[QuizAIReviewer] Mobile video element error", {
+                      error: event.currentTarget.error,
+                      lessonVideoUrl,
+                    });
+                  }}
                 />
               </div>
             )}
@@ -524,7 +538,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                     <span>Chọn tất cả ({activeQuestions.length})</span>
                   </label>
 
-                  {selectedIds.length > 0 && (
+                  {selectedIds.length > 0 && selectedIds.length < activeQuestions.length && (
                     <Button
                       variant="destructive"
                       size="sm"
@@ -532,7 +546,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                       className="h-8 rounded-lg text-xs font-bold gap-1.5 shadow-xs"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      Loại bỏ ({selectedIds.length})
+                      Loại bỏ chưa chọn ({activeQuestions.length - selectedIds.length})
                     </Button>
                   )}
                 </div>
@@ -637,7 +651,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
             </p>
           </div>
           <Badge variant="outline" className="rounded-full bg-primary/5 text-primary border-primary/20">
-            Đã chọn {activeQuestions.length}/{activeQuestions.length + deletedQuestions.length}
+            Sẽ lưu {selectedIds.length}/{activeQuestions.length + deletedQuestions.length}
           </Badge>
         </div>
 
@@ -654,7 +668,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
               <span>Chọn tất cả ({activeQuestions.length})</span>
             </label>
 
-            {selectedIds.length > 0 && (
+            {selectedIds.length > 0 && selectedIds.length < activeQuestions.length && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -662,7 +676,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                 className="h-8 rounded-lg text-xs font-bold gap-1.5 shadow-xs"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Loại bỏ đã chọn ({selectedIds.length})
+                Loại bỏ chưa chọn ({activeQuestions.length - selectedIds.length})
               </Button>
             )}
           </div>
@@ -691,7 +705,14 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
               ref={videoRefDesktop}
               className="w-full h-full object-contain"
               controls
+              preload="metadata"
               playsInline
+              onError={(event) => {
+                console.error("[QuizAIReviewer] Desktop video element error", {
+                  error: event.currentTarget.error,
+                  lessonVideoUrl,
+                });
+              }}
             />
           </div>
         ) : (
