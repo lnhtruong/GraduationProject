@@ -39,7 +39,6 @@ import { ManagementPageShell } from "./components/ManagementPageShell";
 import {
   invalidateCourseFeedCache,
   useCourseFeedPage,
-  useCourseFeedCandidateVideos,
   useDeleteCourseFeed,
   useInstructorCourseById,
 } from "./api/course-management.hooks";
@@ -74,9 +73,6 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
       status: statusFilter === "all" ? undefined : statusFilter,
     },
   );
-  const { isLoading: candidateLoading } =
-    useCourseFeedCandidateVideos(courseId);
-
   const deleteFeedMutation = useDeleteCourseFeed();
 
   const [search, setSearch] = useState("");
@@ -196,7 +192,6 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
           </Button>
           <Button
             asChild
-            disabled={candidateLoading}
             className="w-full sm:w-auto"
           >
             <Link href={`/instructor/courses/${course.id}/feed/new`}>

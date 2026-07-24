@@ -310,10 +310,6 @@ export function VideoSelectionSection({
           await queryClient.invalidateQueries({
             queryKey: videoKeys.detail(videoId),
           });
-          await queryClient.refetchQueries({
-            queryKey: videoKeys.detail(videoId),
-            type: "active",
-          });
           await onRefreshVideos?.();
           onVideoSelect(videoId);
           setIsVideoPickerOpen(false);
@@ -384,10 +380,6 @@ export function VideoSelectionSection({
               await queryClient.invalidateQueries({
                 queryKey: videoKeys.detail(Number(selectedVideoId)),
               });
-              await queryClient.refetchQueries({
-                queryKey: videoKeys.detail(Number(selectedVideoId)),
-                type: "active",
-              });
             }
             await onRefreshVideos?.();
           })();
@@ -420,10 +412,6 @@ export function VideoSelectionSection({
       if (canceled) return;
       await queryClient.invalidateQueries({
         queryKey: videoKeys.detail(Number(selectedVideoId)),
-      });
-      await queryClient.refetchQueries({
-        queryKey: videoKeys.detail(Number(selectedVideoId)),
-        type: "active",
       });
       await onRefreshVideos?.();
     };

@@ -59,7 +59,6 @@ export function useWorkspace({
     try {
       setDeletingProjectId(project.edit_id);
       await deleteProjectMutation.mutateAsync(project.edit_id);
-      await projectsQuery.refetch();
     } finally {
       setDeletingProjectId(null);
     }
@@ -83,7 +82,6 @@ export function useWorkspace({
         id: project.edit_id,
         data: { session_name: trimmedName },
       });
-      await projectsQuery.refetch();
       toast.success("Đã cập nhật tên dự án");
       return true;
     } catch (renameError) {
