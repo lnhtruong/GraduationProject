@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Hls from "hls.js";
 import { QuizEditor } from "../QuizEditor";
-import { useQuizById, useUpdateQuiz } from "../../api/course-management.hooks";
+import {
+  invalidateLessonQuizCache,
+  useQuizById,
+  useUpdateQuiz,
+} from "../../api/course-management.hooks";
 import type { QuizEditorState } from "../../types";
 import { mapQuizToEditorState } from "../../utils/quiz-editor.utils";
 import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
@@ -38,6 +43,7 @@ interface Props {
 }
 
 export function VideoPreview({
+  lessonId,
   videoUrl,
   videoDurationSeconds,
   videoLoading,
@@ -46,6 +52,7 @@ export function VideoPreview({
   thumbnailUrl,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineTrackRef = useRef<HTMLDivElement>(null);
   const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -347,6 +354,7 @@ export function VideoPreview({
       id: editingQuiz.id,
       data: state,
     });
+    await invalidateLessonQuizCache(queryClient, lessonId);
 
     setEditingMarker(null);
     router.refresh();

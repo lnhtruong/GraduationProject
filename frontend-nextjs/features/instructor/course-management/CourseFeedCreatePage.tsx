@@ -34,6 +34,7 @@ import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
 import { useUpload } from "@/features/upload/hooks/useUpload";
 import {
   courseFeedKeys,
+  invalidateCourseFeedCache,
   useCourseFeeds,
   useCourseFeedCandidateVideos,
   useCreateCourseFeed,
@@ -403,6 +404,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         caption: normalizeCaption(values.caption),
         hashtags: values.hashtags,
       });
+      await invalidateCourseFeedCache(queryClient, courseId);
 
       toast.success("Đã thêm video vào feed");
       router.push(`/instructor/courses/${courseId}/feed`);
