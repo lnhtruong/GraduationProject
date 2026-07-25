@@ -18,8 +18,11 @@ export function shouldPrefetchNewsfeedPage(params: {
 }
 
 function buildViewPayload(currentTime: number, duration: number) {
-	const watchDuration = Math.max(0, Math.floor(currentTime));
-	const completed = duration > 0 ? currentTime / duration >= NEWSFEED_COMPLETION_RATIO : false;
+	const watchDuration = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
+	const completed =
+		Number.isFinite(duration) && duration > 0
+			? watchDuration / duration >= NEWSFEED_COMPLETION_RATIO
+			: false;
 
 	return { watchDuration, completed };
 }
@@ -44,17 +47,19 @@ export function useNewsfeedViewTracker(params: {
 		}
 	}, [params.isActive]);
 
-	const flushView = useCallback(async () => {
+	const flushView = useCallback(async (completedOverride = false) => {
 		const video = params.videoRef.current;
 		if (!params.enabled || !video || !params.feedId || didRecordRef.current || isRecordingRef.current) {
 			return;
 		}
 
-		const { watchDuration, completed } = buildViewPayload(
+		const payload = buildViewPayload(
 			video.currentTime || 0,
 			video.duration || 0,
 		);
-		if (watchDuration < NEWSFEED_MIN_VIEW_SECONDS) {
+		const watchDuration = payload.watchDuration;
+		const completed = completedOverride || payload.completed;
+		if (!completed && watchDuration < NEWSFEED_MIN_VIEW_SECONDS) {
 			return;
 		}
 
@@ -90,7 +95,7 @@ export function useNewsfeedViewTracker(params: {
 		const flushWhenCompleted = () => {
 			const { completed } = buildViewPayload(video.currentTime || 0, video.duration || 0);
 			if (completed || video.ended) {
-				void flushView();
+				void flushView(video.ended);
 			}
 		};
 
@@ -104,17 +109,20 @@ export function useNewsfeedViewTracker(params: {
 	}, [flushView, params.isActive, params.videoRef]);
 
 	useEffect(() => {
+		const onPageHide = () => {
+			void flushView();
+		};
 		const onVisibilityChange = () => {
 			if (document.visibilityState === "hidden") {
 				void flushView();
 			}
 		};
 
-		window.addEventListener("pagehide", flushView);
+		window.addEventListener("pagehide", onPageHide);
 		document.addEventListener("visibilitychange", onVisibilityChange);
 
 		return () => {
-			window.removeEventListener("pagehide", flushView);
+			window.removeEventListener("pagehide", onPageHide);
 			document.removeEventListener("visibilitychange", onVisibilityChange);
 			void flushView();
 		};
