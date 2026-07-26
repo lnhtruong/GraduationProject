@@ -392,6 +392,9 @@
 
 .system-ckeditor .ck.ck-editor__main > .ck-editor__editable {
   min-height: 220px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 0;
   background: var(--card);
   color: var(--foreground);
