@@ -723,11 +723,10 @@ export function CourseForm({ course, onSave }: Props) {
         </div>
 
         {/* ─── Cột phải: Thao tác & Thumbnail (4/12) ─── */}
-        <div className="space-y-6 lg:col-span-4 lg:sticky lg:top-52 lg:h-fit">
-          {/* Card 3: Giá bán & Thao tác */}
+        <div className="space-y-4 lg:sticky lg:top-24 lg:col-span-4 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
           {/* Card 3: Giá bán */}
           <Card className="border-border/60 shadow-sm">
-            <CardContent className="space-y-5 p-6">
+            <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-2">
                 <div className="rounded-lg bg-primary/10 p-2 text-primary">
                   <ShoppingBag className="h-4 w-4" />
@@ -757,7 +756,7 @@ export function CourseForm({ course, onSave }: Props) {
 
           {/* Card 4: Ảnh đại diện (Thumbnail) */}
           <Card className="border-border/60 shadow-sm">
-            <CardContent className="space-y-5 p-6">
+            <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-2">
                 <div className="rounded-lg bg-primary/10 p-2 text-primary">
                   <Plus className="h-4 w-4" />
@@ -773,12 +772,12 @@ export function CourseForm({ course, onSave }: Props) {
               <div className="grid gap-2">
                 {thumbnailUrlValue ? (
                   <div className="space-y-3">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border shadow-xs">
+                    <div className="relative h-40 w-full overflow-hidden rounded-lg border border-border bg-muted/20 shadow-xs xl:h-44">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={thumbnailUrlValue}
                         alt="Ảnh đại diện khóa học"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -815,7 +814,7 @@ export function CourseForm({ course, onSave }: Props) {
                   <div
                     onClick={() => !isUploading && fileInputRef.current?.click()}
                     className={cn(
-                      "flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors text-muted-foreground text-center",
+                      "flex h-40 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/20 p-5 text-center text-muted-foreground transition-colors hover:bg-muted/40 xl:h-44",
                       isUploading ? "pointer-events-none opacity-60" : ""
                     )}
                   >
