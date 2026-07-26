@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -121,14 +121,18 @@ function formatDuration(duration: number | null | undefined): string {
 
 export default function CourseFeedCreatePage({ courseId }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
   // Fetch ALL feeds of the instructor (all courses) to deduplicate globally —
   // backend rejects a video that is ALREADY in ANY feed (not just this course).
   const { data: allMyFeeds } = useCourseFeeds({ pageSize: 500 });
-  const { data: candidateVideos, isLoading: candidateLoading } =
-    useCourseFeedCandidateVideos(courseId);
+  const {
+    data: candidateVideos,
+    isLoading: candidateLoading,
+    refetch: refetchCandidateVideos,
+  } = useCourseFeedCandidateVideos(courseId);
   const createFeedMutation = useCreateCourseFeed();
   const highlightUpload = useUpload({ autoCreateProject: false });
 
@@ -214,6 +218,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       const params = new URLSearchParams({
         src: video.url,
         from: "highlight",
+        returnUrl: `/instructor/courses/${courseId}/feed/new`,
       });
 
       if (ensured?.projectId) {
@@ -227,8 +232,59 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
 
       router.push(`/editor?${params.toString()}`);
     },
-    [highlightUpload, router],
+    [courseId, highlightUpload, router],
   );
+
+  useEffect(() => {
+    const returnedVideoId = searchParams.get("video_id");
+    if (!returnedVideoId) return;
+
+    let cancelled = false;
+
+    const pickReturnedVideo = async () => {
+      const findAvailableVideo = (videos: CourseFeedCandidateVideo[] = []) =>
+        videos.find(
+          (video) =>
+            String(video.id) === returnedVideoId && !feedVideoIds.has(video.id),
+        ) ?? null;
+
+      let matchedVideo = findAvailableVideo(availableVideosForCreate);
+
+      if (!matchedVideo) {
+        await queryClient.invalidateQueries({
+          queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+        });
+        const refreshed = await refetchCandidateVideos();
+        matchedVideo = findAvailableVideo(refreshed.data ?? []);
+      }
+
+      if (cancelled || !matchedVideo) return;
+
+      selectVideoForFeed(matchedVideo);
+      toast.success("Da chon video vua tao cho feed", {
+        id: "feed-editor-video-selected",
+      });
+
+      router.replace(`/instructor/courses/${courseId}/feed/new`, {
+        scroll: false,
+      });
+    };
+
+    void pickReturnedVideo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    availableVideosForCreate,
+    courseId,
+    feedVideoIds,
+    queryClient,
+    refetchCandidateVideos,
+    router,
+    searchParams,
+    selectVideoForFeed,
+  ]);
 
   const handleHighlightUploadSuccess = useCallback(
     async (clips: Clip[]) => {
