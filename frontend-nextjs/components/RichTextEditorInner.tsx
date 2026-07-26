@@ -48,6 +48,7 @@ import {
   // Utils
   Essentials,
   Autoformat,
+  PasteFromOffice,
   SourceEditing,
   Undo,
 } from "ckeditor5";
@@ -129,6 +130,7 @@ export default function RichTextEditorInner({
               // Core
               Essentials,
               Autoformat,
+              PasteFromOffice,
               Undo,
               // Layout
               Alignment,
