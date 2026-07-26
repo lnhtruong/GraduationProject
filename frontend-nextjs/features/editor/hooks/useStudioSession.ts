@@ -61,6 +61,24 @@ function normalizeComparableUrl(value?: string) {
     return value;
   }
 }
+function getSafeInternalReturnPath(value?: string | null): string | null {
+  if (!value) return null;
+
+  if (value.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+
+  if (typeof window === "undefined") return null;
+
+  try {
+    const parsed = new URL(value, window.location.origin);
+    if (parsed.origin !== window.location.origin) return null;
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return null;
+  }
+}
 
 export function useStudioSession() {
   const { user } = useAuth();
@@ -721,6 +739,21 @@ export function useStudioSession() {
         status: "finalized",
       },
     });
+
+    const returnPath = getSafeInternalReturnPath(searchParams.get("returnUrl"));
+
+    if (returnPath) {
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      const nextUrl = new URL(returnPath, baseUrl);
+      nextUrl.searchParams.set("video_id", String(resolvedVideoId));
+      nextUrl.searchParams.set("from_editor", "1");
+
+      router.replace(`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`, {
+        scroll: false,
+      });
+      return;
+    }
 
     const params = new URLSearchParams();
     params.set("type", "mascot");
