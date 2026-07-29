@@ -208,6 +208,13 @@ function fallbackStageInfo(stage?: string, isMultiHighlight = false): StageInfo 
 
   const raw = normalized.replace(/^\d+b?\/\d+\s*:\s*/i, "").trim().toLowerCase();
 
+  if (/gửi yêu cầu|gui yeu cau|request|queued|queue|waiting|chờ|cho/.test(raw)) {
+    return {
+      label: "Đang gửi yêu cầu tạo highlight",
+      progress: 5,
+      activeStep: 0,
+    };
+  }
   if (/download.*srt|transcrib|transcript|speech|audio|subtitle/.test(raw)) {
     return {
       label: "Đang tải hoặc tạo transcript",
@@ -288,9 +295,10 @@ function resolveTargetProgress(
   if (status === "failed") return 0;
   if (status === "completed") return 100;
 
-  const values = [stageProgress, progressPercent, statusProgress].filter(
+  const explicitValues = [stageProgress, progressPercent].filter(
     (value): value is number => typeof value === "number" && Number.isFinite(value),
   );
+  const values = explicitValues.length > 0 ? explicitValues : [statusProgress];
 
   return Math.max(0, Math.min(100, Math.max(...values)));
 }

@@ -950,13 +950,9 @@ function HighlightShowcase({
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Video className="h-3.5 w-3.5" />
               </span>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                Luồng highlight
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Video gốc → Video highlight</p>
             </div>
-            <h2 className="max-w-5xl text-2xl font-black tracking-tight sm:text-4xl">
-              Từ clip gốc sang highlight học nhanh.
-            </h2>
+            <h2 className="max-w-5xl text-2xl font-black tracking-tight sm:text-4xl">Một video gốc có thể tạo nhiều video highlight đa chủ đề.</h2>
           </div>
         </div>
 
@@ -998,25 +994,45 @@ function HighlightShowcase({
               <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                    Clip highlight
+                    Nhiều video highlight
                   </p>
                   <h3 className="mt-1 line-clamp-1 text-base font-black">
-                    {demoCases[0].shortTitle}
+                    Tách theo từng chủ đề học tập
                   </h3>
                 </div>
                 <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-black text-primary-foreground">
-                  {demoCases[0].shortDuration}
+                  {demoCases.length} video
                 </span>
               </div>
-              <div className="relative aspect-video bg-muted">
-                <video
-                  src={demoCases[0].shortVideo}
-                  poster={demoCases[0].shortThumbnail}
-                  className="h-full w-full object-cover"
-                  preload="metadata"
-                  playsInline
-                  controls
-                />
+              <div className="grid gap-3 p-3">
+                {demoCases.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="grid min-w-0 grid-cols-[7.5rem_1fr] overflow-hidden rounded-xl border border-border/70 bg-muted/30 sm:grid-cols-[9rem_1fr]"
+                  >
+                    <div className="relative aspect-video bg-muted">
+                      <video
+                        src={item.shortVideo}
+                        poster={item.shortThumbnail}
+                        className="h-full w-full object-cover"
+                        preload="metadata"
+                        playsInline
+                        muted
+                      />
+                    </div>
+                    <div className="min-w-0 px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                        Chủ đề {index + 1} · {item.shortDuration}
+                      </p>
+                      <h4 className="mt-1 line-clamp-2 text-sm font-black leading-5">
+                        {item.shortTitle}
+                      </h4>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                        Video highlight riêng từ cùng clip gốc
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
