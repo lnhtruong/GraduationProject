@@ -87,7 +87,7 @@ export class AppController {
     return this.appService.getPoolStatus(force === '1' || force === 'true');
   }
 
-  // GET /quota — số dư credit hôm nay + bảng giá để FE tự tính cost
+  // GET /quota — số dư credit còn lại + bảng giá để FE tự tính cost
   @Get('quota')
   async getQuota(
     @Headers('x-user-id') userIdHeader?: string,

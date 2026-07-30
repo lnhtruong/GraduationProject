@@ -52,9 +52,37 @@ export function describeCost(
   return `${rate} × ${minutes} phút`;
 }
 
-/** "2026-07-29T00:00:00+07:00" → "00:00". Chuỗi hỏng → "". */
-export function formatResetAt(resetAtIso: string): string {
-  const match = /T(\d{2}):(\d{2})/.exec(resetAtIso);
-  if (!match) return "";
-  return `${match[1]}:${match[2]}`;
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Số ngày lịch từ hôm nay tới `d`, theo múi giờ của trình duyệt. */
+function daysFromToday(d: Date): number {
+  const midnight = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  return Math.round((midnight(d) - midnight(new Date())) / 86_400_000);
+}
+
+/**
+ * Mốc reset quota thành giờ địa phương: "20:30" (hôm nay) hoặc
+ * "08:00 ngày mai". Cửa sổ quota dài 24h nên mốc luôn rơi vào một trong hai
+ * trường hợp đó; nhánh cuối chỉ là lưới an toàn.
+ *
+ * Cố tình hiển thị thời điểm tuyệt đối chứ không phải "còn 5 giờ nữa" — chuỗi
+ * đếm ngược sẽ sai dần nếu không refetch, còn mốc giờ thì đứng yên.
+ *
+ * null (chưa dùng credit nào, cửa sổ chưa bắt đầu) hoặc chuỗi hỏng → "", và
+ * mọi nơi gọi đều bỏ luôn phần "reset lúc ..." thay vì hiện mốc bịa.
+ */
+export function formatResetAt(resetAtIso: string | null): string {
+  if (!resetAtIso) return "";
+
+  const reset = new Date(resetAtIso);
+  if (Number.isNaN(reset.getTime())) return "";
+
+  const time = `${pad(reset.getHours())}:${pad(reset.getMinutes())}`;
+  const days = daysFromToday(reset);
+  if (days <= 0) return time;
+  if (days === 1) return `${time} ngày mai`;
+  return `${time} ${pad(reset.getDate())}/${pad(reset.getMonth() + 1)}`;
 }

@@ -10,14 +10,19 @@ export interface FeatureCost {
 
 export interface QuotaConfig {
   enabled: boolean;
-  /** role number → credit/ngày. Role: 1 = admin, 2 = student, 3 = lecturer. */
+  /**
+   * role number → credit mỗi cửa sổ 24h. Role: 1 = admin, 2 = student,
+   * 3 = lecturer.
+   */
   dailyLimits: Record<number, number>;
   /** Áp dụng khi request thiếu role hoặc role lạ (fail-safe = mức Student). */
   defaultLimit: number;
   costs: Record<QuotaFeature, FeatureCost>;
   maxDurationSec: number;
-  ttlSeconds: number;
-  timezoneOffsetHours: number;
+  /** Độ dài cửa sổ quota, tính từ lần trừ credit đầu tiên của người dùng. */
+  windowSeconds: number;
+  /** TTL của record hoàn credit theo job — phải dài hơn thời gian job chạy. */
+  jobTtlSeconds: number;
 }
 
 export const ROLE_ADMIN = 1;
@@ -52,7 +57,7 @@ export default registerAs<QuotaConfig>('quota', () => {
       mascot: { credits: intEnv('QUOTA_COST_MASCOT', 10), perMinute: true },
     },
     maxDurationSec: intEnv('QUOTA_MAX_DURATION_SEC', 14400),
-    ttlSeconds: intEnv('QUOTA_TTL_SECONDS', 172800),
-    timezoneOffsetHours: intEnv('QUOTA_TIMEZONE_OFFSET_HOURS', 7),
+    windowSeconds: intEnv('QUOTA_WINDOW_SECONDS', 86400),
+    jobTtlSeconds: intEnv('QUOTA_JOB_TTL_SECONDS', 172800),
   };
 });

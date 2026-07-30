@@ -12,8 +12,8 @@ import { REDIS_CLIENT } from '../redis/redis.module';
 import type { FeatureCost, QuotaConfig, QuotaFeature } from './quota.config';
 import {
   calcCost,
-  dayKey,
   jobKey,
+  quotaKey,
   resetAtIso,
   resolveLimit,
 } from './quota.pricing';
@@ -29,7 +29,8 @@ export interface QuotaSnapshot {
   limit: number;
   used: number;
   remaining: number;
-  resetAt: string;
+  /** null = chưa dùng credit nào, cửa sổ 24h chưa bắt đầu nên chưa có mốc reset. */
+  resetAt: string | null;
   pricing: {
     costs: Record<QuotaFeature, FeatureCost>;
     maxDurationSec: number;
@@ -71,17 +72,32 @@ export class QuotaService {
     const cost = this.price(ctx.feature, ctx.durationSec);
     const limit = resolveLimit(ctx.role, this.cfg);
     const now = new Date();
-    const key = dayKey(ctx.userId, now, this.cfg.timezoneOffsetHours);
+    const key = quotaKey(ctx.userId);
 
     let used: number;
+    let pttlMs: number;
     try {
-      used = await this.redis.incrby(key, cost);
-      if (used === cost) {
-        await this.redis.expire(key, this.cfg.ttlSeconds);
-      }
+      // EXPIRE ... NX chỉ gắn TTL khi key chưa có hạn, tức đúng lần dùng đầu của
+      // cửa sổ. Gia hạn ở mọi lần dùng thì người dùng thường xuyên sẽ không bao
+      // giờ được reset.
+      const res = await this.redis
+        .multi()
+        .incrby(key, cost)
+        .expire(key, this.cfg.windowSeconds, 'NX')
+        .pttl(key)
+        .exec();
+      used = Number(res?.[0]?.[1] ?? NaN);
+      pttlMs = Number(res?.[2]?.[1] ?? -1);
     } catch (err) {
       this.logger.warn(
         `Quota check bị bỏ qua (Redis lỗi, userId=${ctx.userId}): ${(err as Error).message}`,
+      );
+      return 0;
+    }
+
+    if (!Number.isFinite(used)) {
+      this.logger.warn(
+        `Quota check bị bỏ qua (Redis trả kết quả lạ, userId=${ctx.userId})`,
       );
       return 0;
     }
@@ -97,13 +113,13 @@ export class QuotaService {
       throw new HttpException(
         {
           error: 'QUOTA_EXCEEDED',
-          message: 'Bạn đã dùng hết hạn mức AI hôm nay',
+          message: 'Bạn đã dùng hết hạn mức AI',
           quota: {
             limit,
             used: used - cost,
             remaining: Math.max(0, limit - (used - cost)),
             cost,
-            resetAt: resetAtIso(now, this.cfg.timezoneOffsetHours),
+            resetAt: resetAtIso(now, pttlMs),
           },
         },
         HttpStatus.TOO_MANY_REQUESTS,
@@ -128,7 +144,7 @@ export class QuotaService {
         jobKey(jobId),
         `${userId}:${cost}`,
         'EX',
-        this.cfg.ttlSeconds,
+        this.cfg.jobTtlSeconds,
       );
     } catch (err) {
       this.logger.warn(
@@ -171,9 +187,13 @@ export class QuotaService {
   /** Hoàn credit khi submit sang Colab thất bại đồng bộ. Best-effort. */
   async refund(userId: number | undefined, cost: number): Promise<void> {
     if (!this.cfg.enabled || userId === undefined || cost <= 0) return;
-    const key = dayKey(userId, new Date(), this.cfg.timezoneOffsetHours);
+    const key = quotaKey(userId);
     try {
-      await this.redis.decrby(key, cost);
+      // Cửa sổ có thể đã hết hạn trước khi job chết: DECRBY sẽ tạo lại key với
+      // giá trị âm và không có TTL — biếu không credit vĩnh viễn. Về 0 hoặc âm
+      // nghĩa là không còn gì để hoàn, xoá luôn cho cửa sổ neo lại từ đầu.
+      const used = await this.redis.decrby(key, cost);
+      if (used <= 0) await this.redis.del(key);
     } catch (err) {
       this.logger.warn(
         `Hoàn quota thất bại (userId=${userId}, cost=${cost}): ${(err as Error).message}`,
@@ -190,13 +210,14 @@ export class QuotaService {
     };
 
     let used = 0;
+    let pttlMs = -1;
     if (userId !== undefined) {
       try {
-        const raw = await this.redis.get(
-          dayKey(userId, now, this.cfg.timezoneOffsetHours),
-        );
-        const parsed = parseInt(raw ?? '0', 10);
+        const key = quotaKey(userId);
+        const res = await this.redis.multi().get(key).pttl(key).exec();
+        const parsed = parseInt((res?.[0]?.[1] as string | null) ?? '0', 10);
         used = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+        pttlMs = Number(res?.[1]?.[1] ?? -1);
       } catch (err) {
         this.logger.warn(
           `Đọc quota thất bại (userId=${userId}): ${(err as Error).message}`,
@@ -208,7 +229,7 @@ export class QuotaService {
       limit,
       used,
       remaining: Math.max(0, limit - used),
-      resetAt: resetAtIso(now, this.cfg.timezoneOffsetHours),
+      resetAt: resetAtIso(now, pttlMs),
       pricing,
     };
   }

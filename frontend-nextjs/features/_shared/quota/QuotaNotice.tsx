@@ -64,7 +64,7 @@ export function QuotaNotice({
         ) : null}
       </span>
       <span className="text-xs">
-        Bạn còn {data.remaining}/{data.limit} credit hôm nay
+        Bạn còn {data.remaining}/{data.limit} credit
         {resetAt ? ` · Reset lúc ${resetAt}` : ""}
       </span>
     </div>

@@ -188,7 +188,7 @@ export function HighlightUploadDialog({
 
   const handleFormSubmit = (params: HighlightParams) => {
     if (quotaBlocked) {
-      toast.error("Bạn không còn đủ credit AI cho hôm nay.");
+      toast.error("Bạn không còn đủ credit AI.");
       return;
     }
     if (sourceMode === "file") {

@@ -242,6 +242,9 @@ export function ActivityCreationDialog({
   const isAiQuizBlocked = Boolean(
     isVideoPreparing || !lessonVideoId || !hasAiQuizSource || isQuotaBlocked,
   );
+  // Chưa gọi được quota thì không bịa ra mốc reset — cửa sổ 24h neo theo lần
+  // dùng đầu của từng người nên không có giờ mặc định nào đúng.
+  const quotaResetAt = formatResetAt(quota?.resetAt ?? null);
   const aiQuizBlockedReason = isVideoPreparing
     ? "Video đang được upload hoặc xử lý trên Bunny. Vui lòng chờ hệ thống nhận URL video trước khi tạo quiz."
     : !lessonVideoId
@@ -249,7 +252,7 @@ export function ActivityCreationDialog({
       : !hasAiQuizSource
         ? "Video chưa có URL hoặc phụ đề để tạo câu hỏi. Vui lòng chờ Bunny xử lý xong."
         : isQuotaBlocked
-          ? `Bạn không còn đủ credit AI cho hôm nay. Hạn mức reset lúc ${formatResetAt(quota?.resetAt ?? "") || "00:00"}.`
+          ? `Bạn không còn đủ credit AI.${quotaResetAt ? ` Hạn mức reset lúc ${quotaResetAt}.` : ""}`
           : "";
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(

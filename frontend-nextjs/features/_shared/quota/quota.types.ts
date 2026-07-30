@@ -16,7 +16,10 @@ export interface QuotaSnapshot {
   limit: number;
   used: number;
   remaining: number;
-  /** ISO có offset, ví dụ "2026-07-29T00:00:00+07:00". */
-  resetAt: string;
+  /**
+   * Thời điểm counter hết hạn, ISO UTC — ví dụ "2026-07-31T01:00:00.000Z".
+   * null = chưa dùng credit nào, cửa sổ 24h chưa bắt đầu nên chưa có mốc reset.
+   */
+  resetAt: string | null;
   pricing: QuotaPricing;
 }
