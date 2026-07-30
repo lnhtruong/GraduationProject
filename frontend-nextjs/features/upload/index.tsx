@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FilePreview from "@/features/upload/components/FilePreview";
+import { getVideoDurationFromUrl } from "@/features/upload/utils/video-duration";
+import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
+import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import HighlightParamsForm from "@/features/upload/components/HighlightParamsForm";
 import ResultsSection from "@/features/upload/components/ResultsSection";
 import UploadDropzone from "@/features/upload/components/UploadDropzone";
@@ -117,7 +120,9 @@ function WorkflowRail({
                     />
                   )}
                 </div>
-                <div className={index < WORKFLOW_STEPS.length - 1 ? "pb-4" : ""}>
+                <div
+                  className={index < WORKFLOW_STEPS.length - 1 ? "pb-4" : ""}
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold">{step.title}</p>
                     {isActive && (
@@ -184,7 +189,46 @@ export default function Upload() {
   const [showForm, setShowForm] = React.useState(false);
   const [existingVideoUrl, setExistingVideoUrl] = React.useState("");
   const [isOpeningStudio, setIsOpeningStudio] = React.useState(false);
-  const [hasSubmittedHighlight, setHasSubmittedHighlight] = React.useState(false);
+  const [hasSubmittedHighlight, setHasSubmittedHighlight] =
+    React.useState(false);
+
+  // Thời lượng video nguồn để tính trước chi phí credit: đọc từ File ở nhánh
+  // upload, từ URL (kèm fallback hls.js) ở nhánh "Thư viện".
+  const [sourceDurationSec, setSourceDurationSec] = React.useState<
+    number | undefined
+  >(undefined);
+
+  const trimmedExistingUrl = existingVideoUrl.trim();
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const apply = (seconds: number | null) => {
+      if (!cancelled) setSourceDurationSec(seconds ?? undefined);
+    };
+
+    if (sourceMode === "file") {
+      if (!file) {
+        setSourceDurationSec(undefined);
+        return;
+      }
+      void getVideoDurationFromFile(file).then(apply);
+    } else {
+      if (!isAllowedStudyLoopVideoUrl(trimmedExistingUrl)) {
+        setSourceDurationSec(undefined);
+        return;
+      }
+      void getVideoDurationFromUrl(trimmedExistingUrl).then(apply);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceMode, file, trimmedExistingUrl]);
+
+  const { blocked: quotaBlocked } = useQuotaCost(
+    "highlight",
+    sourceDurationSec,
+  );
 
   if (authLoading) {
     return (
@@ -232,7 +276,7 @@ export default function Upload() {
     if (sourceMode === "file") {
       if (!file) return;
       setHasSubmittedHighlight(true);
-      void startUpload(file, params);
+      void startUpload(file, params, sourceDurationSec);
     } else {
       const trimmedUrl = existingVideoUrl.trim();
       if (!isAllowedStudyLoopVideoUrl(trimmedUrl)) {
@@ -240,7 +284,7 @@ export default function Upload() {
         return;
       }
       setHasSubmittedHighlight(true);
-      void startFromExistingVideo(trimmedUrl, params);
+      void startFromExistingVideo(trimmedUrl, params, sourceDurationSec);
     }
 
     setShowForm(false);
@@ -303,7 +347,8 @@ export default function Upload() {
     status === "idle" &&
     !isCompleted;
   const showResults = isCompleted;
-  const showSourceSwitcher = !file && !showForm && !isProcessing && !isCompleted;
+  const showSourceSwitcher =
+    !file && !showForm && !isProcessing && !isCompleted;
   const currentStep =
     isCompleted || isOpeningStudio
       ? 3
@@ -325,7 +370,8 @@ export default function Upload() {
                   Tạo highlight từ video bài giảng
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                  Đưa bài giảng vào StudyLoop, chọn mục tiêu học, rồi để AI tìm các đoạn giúp người học hiểu nhanh và ôn lại.
+                  Đưa bài giảng vào StudyLoop, chọn mục tiêu học, rồi để AI tìm
+                  các đoạn giúp người học hiểu nhanh và ôn lại.
                 </p>
               </div>
             </div>
@@ -357,7 +403,8 @@ export default function Upload() {
                             Chọn nguồn bài giảng
                           </h2>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            MP4, MOV, AVI, WEBM hoặc MKV · tối đa {BUNNY_MAX_UPLOAD_LABEL}
+                            MP4, MOV, AVI, WEBM hoặc MKV · tối đa{" "}
+                            {BUNNY_MAX_UPLOAD_LABEL}
                           </p>
                         </div>
                         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl p-1 sm:w-[360px]">
@@ -398,7 +445,8 @@ export default function Upload() {
                                 Chọn video trên StudyLoop
                               </h2>
                               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                                Dán đường dẫn video đã có sẵn trên hệ thống để bắt đầu trích xuất highlight.
+                                Dán đường dẫn video đã có sẵn trên hệ thống để
+                                bắt đầu trích xuất highlight.
                               </p>
                             </div>
                           </div>
@@ -426,7 +474,9 @@ export default function Upload() {
                             type="button"
                             onClick={() => {
                               if (
-                                !isAllowedStudyLoopVideoUrl(existingVideoUrl.trim())
+                                !isAllowedStudyLoopVideoUrl(
+                                  existingVideoUrl.trim(),
+                                )
                               ) {
                                 toast.error(
                                   "Vui lòng nhập link video StudyLoop hợp lệ.",
@@ -435,7 +485,9 @@ export default function Upload() {
                               }
                               setShowForm(true);
                             }}
-                            disabled={!existingVideoUrl.trim() || !isAuthenticated}
+                            disabled={
+                              !existingVideoUrl.trim() || !isAuthenticated
+                            }
                             className={cn(
                               "h-11 w-full font-medium transition-all duration-200",
                               !existingVideoUrl.trim()
@@ -461,11 +513,19 @@ export default function Upload() {
                 )}
 
                 {showForm && !isProcessing && (
-                  <HighlightParamsForm
-                    onSubmit={handleFormSubmit}
-                    onCancel={handleCancelForm}
-                    isSubmitting={false}
-                  />
+                  <>
+                    <QuotaNotice
+                      feature="highlight"
+                      durationSec={sourceDurationSec}
+                      className="mb-3"
+                    />
+                    <HighlightParamsForm
+                      onSubmit={handleFormSubmit}
+                      onCancel={handleCancelForm}
+                      isSubmitting={false}
+                      submitDisabled={quotaBlocked}
+                    />
+                  </>
                 )}
 
                 {(isProcessing || isCompleted || isFailed) && (
@@ -497,7 +557,10 @@ export default function Upload() {
           </div>
         </section>
 
-        <WorkflowRail currentStep={currentStep} isAuthenticated={isAuthenticated} />
+        <WorkflowRail
+          currentStep={currentStep}
+          isAuthenticated={isAuthenticated}
+        />
       </div>
     </main>
   );

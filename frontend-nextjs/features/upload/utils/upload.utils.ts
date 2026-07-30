@@ -10,6 +10,7 @@ export type HighlightReelLinkPayload = {
   exclude_keywords?: string;
   isOpenAI: string;
   isMultiOutput: string;
+  duration_sec?: string;
 };
 
 export function buildHighlightReelLinkPayload(params: {
@@ -22,6 +23,7 @@ export function buildHighlightReelLinkPayload(params: {
   excludeKeywords?: string;
   isMultiOutput?: boolean;
   isOpenAI?: boolean;
+  durationSec?: number | null;
 }): HighlightReelLinkPayload {
   const videoUrl = params.videoUrl.trim();
   let userIdVal = params.userId;
@@ -46,5 +48,9 @@ export function buildHighlightReelLinkPayload(params: {
       : {}),
     isOpenAI: String(params.isOpenAI ?? false),
     isMultiOutput: String(params.isMultiOutput ?? false),
+    // Thời lượng để backend tính credit quota. Thiếu → backend tính hệ số ×1.
+    ...(params.durationSec && params.durationSec > 0
+      ? { duration_sec: String(Math.round(params.durationSec)) }
+      : {}),
   };
 }

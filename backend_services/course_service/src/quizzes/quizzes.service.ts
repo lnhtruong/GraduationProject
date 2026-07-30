@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -202,12 +203,14 @@ export class QuizzesService {
       const data = text ? JSON.parse(text) : {};
 
       if (!response.ok) {
-        throw new BadRequestException(data);
+        // Giữ nguyên status upstream để 429 (hết quota) tới được FE thay vì
+        // bị bọc thành 400.
+        throw new HttpException(data, response.status);
       }
 
       return data as T;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof HttpException) throw error;
       const message = error instanceof Error ? error.message : String(error);
       throw new InternalServerErrorException(
         `AI service request failed: ${message}`,
@@ -300,6 +303,29 @@ export class QuizzesService {
     return { startTime, endTime };
   }
 
+  /**
+   * Thời lượng dùng để tính credit quota. Quiz AI cho phép sinh câu hỏi trên
+   * một đoạn của video, nên phải tính theo đoạn đã chọn — tính cả video sẽ
+   * khiến lecturer bị trừ oan.
+   */
+  private resolveAiQuizDurationSec(
+    timeRange: AiQuizTimeRange | null,
+    videoDuration: number | null,
+  ): number | undefined {
+    if (timeRange) {
+      const span = timeRange.endTime - timeRange.startTime;
+      if (Number.isFinite(span) && span > 0) return span;
+    }
+    if (
+      videoDuration !== null &&
+      Number.isFinite(videoDuration) &&
+      videoDuration > 0
+    ) {
+      return videoDuration;
+    }
+    return undefined;
+  }
+
   async createOneByAI(
     payload: CreateQuizAIDto,
     requester: RequesterContext,
@@ -358,9 +384,26 @@ export class QuizzesService {
       formData.append('end_time', String(timeRange.endTime));
     }
 
+    const durationSec = this.resolveAiQuizDurationSec(
+      timeRange,
+      video.duration ?? null,
+    );
+    if (durationSec !== undefined) {
+      formData.append('duration_sec', String(Math.round(durationSec)));
+    }
+
     const response = await this.fetchJsonWithTimeout<ColabJobResponse>(
       `${baseUrl}/generate-quiz`,
-      { method: 'POST', body: formData },
+      {
+        method: 'POST',
+        body: formData,
+        // Gọi thẳng inference_service (không qua gateway) nên phải tự gắn
+        // ngữ cảnh người dùng để nó tính đúng hạn mức quota theo role.
+        headers: {
+          'x-user-id': String(requester.requesterUserId),
+          'x-user-role': String(requester.requesterRole),
+        },
+      },
       60_000,
     );
 

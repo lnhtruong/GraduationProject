@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import * as tus from "tus-js-client";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useProcessHighlightLink } from "../api/upload.hooks";
 import {
-  useProcessHighlightLink,
-} from "../api/upload.hooks";
+  getVideoDurationFromUrl,
+  resolveDurationSec,
+} from "../utils/video-duration";
+import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
 import { uploadApi } from "../api/upload.api";
 import type {
   VideoCompletedPayload,
@@ -35,10 +38,7 @@ import type {
   UploadStatus,
 } from "@/features/upload/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
-import {
-  BUNNY_MAX_UPLOAD_BYTES,
-  BUNNY_MAX_UPLOAD_LABEL,
-} from "@/lib/env";
+import { BUNNY_MAX_UPLOAD_BYTES, BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
 import { videoApi } from "@/features/video/api/video.api";
 
 const INITIAL_STATE: UploadState = {
@@ -105,12 +105,18 @@ export interface UseUploadOptions {
 
 function resolveUserId(authUserId: number | undefined): number | undefined {
   if (authUserId != null) return authUserId;
-  const stored = authStorageHelper.getUser() as { id?: number; user_id?: number } | null;
+  const stored = authStorageHelper.getUser() as {
+    id?: number;
+    user_id?: number;
+  } | null;
   return stored?.id ?? stored?.user_id;
 }
 
 function formatKeywords(items: string[]) {
-  return items.map((item) => item.trim()).filter(Boolean).join(",");
+  return items
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(",");
 }
 
 function readEventJobId(payload: UploadEventEnvelope): string | null {
@@ -132,7 +138,8 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
   if (typeof value === "string") {
     return {
       url: value,
-      name: value.split("/").pop()?.split("?")[0] || `highlight-${index + 1}.mp4`,
+      name:
+        value.split("/").pop()?.split("?")[0] || `highlight-${index + 1}.mp4`,
     };
   }
 
@@ -154,7 +161,8 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
 
   if (!url) return null;
 
-  const rawVideoId = record.videoId ?? record.video_id ?? record.id ?? record.source_id;
+  const rawVideoId =
+    record.videoId ?? record.video_id ?? record.id ?? record.source_id;
   const parsedVideoId =
     typeof rawVideoId === "number"
       ? rawVideoId
@@ -167,14 +175,16 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
   const topicId =
     typeof record.topicId === "number" || typeof record.topicId === "string"
       ? record.topicId
-      : typeof record.topic_id === "number" || typeof record.topic_id === "string"
+      : typeof record.topic_id === "number" ||
+          typeof record.topic_id === "string"
         ? record.topic_id
         : null;
 
   const duration =
     typeof record.duration === "number"
       ? record.duration
-      : typeof record.duration === "string" && Number.isFinite(Number(record.duration))
+      : typeof record.duration === "string" &&
+          Number.isFinite(Number(record.duration))
         ? Number(record.duration)
         : null;
 
@@ -244,7 +254,9 @@ function resolveRunningStatus(payload: UploadEventEnvelope): UploadStatus {
   return "processing";
 }
 
-function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope): {
+function readCompletedClips(
+  payload: VideoCompletedPayload | UploadEventEnvelope,
+): {
   clips: Clip[];
   jobId: string | null;
 } {
@@ -291,7 +303,9 @@ function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope
   }
 
   const videoIds = Array.isArray(source.videoIds)
-    ? source.videoIds.filter((value): value is number => typeof value === "number")
+    ? source.videoIds.filter(
+        (value): value is number => typeof value === "number",
+      )
     : [];
   if (videoIds.length > 0) {
     clips.forEach((clip, index) => {
@@ -311,7 +325,9 @@ function readCompletedClips(payload: VideoCompletedPayload | UploadEventEnvelope
   };
 }
 
-function readErrorMessage(payload: VideoErrorPayload | UploadEventEnvelope): string | null {
+function readErrorMessage(
+  payload: VideoErrorPayload | UploadEventEnvelope,
+): string | null {
   const envelope = payload as UploadEventEnvelope;
   const data = asRecord(envelope.data) ?? {};
   const source = { ...envelope, ...data } as Record<string, unknown>;
@@ -320,7 +336,8 @@ function readErrorMessage(payload: VideoErrorPayload | UploadEventEnvelope): str
   if (typeof error === "string" && error.trim()) return error;
 
   const errorRecord = asRecord(error);
-  const message = errorRecord?.message ?? source.error_message ?? source.errorMessage;
+  const message =
+    errorRecord?.message ?? source.error_message ?? source.errorMessage;
   return typeof message === "string" && message.trim() ? message : null;
 }
 
@@ -417,7 +434,9 @@ async function uploadFileToBunny(
         title: file.name,
       },
       onProgress: (bytesUploaded, bytesTotal) => {
-        const percent = Math.round((bytesUploaded / Math.max(bytesTotal, 1)) * 100);
+        const percent = Math.round(
+          (bytesUploaded / Math.max(bytesTotal, 1)) * 100,
+        );
         onProgress(Math.min(percent, 99));
       },
       onSuccess: () => resolve(),
@@ -433,7 +452,9 @@ async function uploadFileToBunny(
   }
 
   if (!isBunnyOriginalUrl(videoUrl)) {
-    throw new Error("Hệ thống chưa trả về URL /original của Bunny để tạo highlight.");
+    throw new Error(
+      "Hệ thống chưa trả về URL /original của Bunny để tạo highlight.",
+    );
   }
 
   // TUS completion means the original file is available. Highlight processing
@@ -616,7 +637,8 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
 
     const onProgress = (payload: VideoProgressPayload) => {
       setState((prev) => {
-        if (prev.status === "completed" || prev.status === "failed") return prev;
+        if (prev.status === "completed" || prev.status === "failed")
+          return prev;
 
         const envelope = payload as UploadEventEnvelope;
         const eventJobId = readEventJobId(envelope);
@@ -624,9 +646,10 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           return prev;
         }
 
-        const rawStage = typeof envelope.stage === "string"
-          ? envelope.stage.trim()
-          : undefined;
+        const rawStage =
+          typeof envelope.stage === "string"
+            ? envelope.stage.trim()
+            : undefined;
         if (!rawStage && typeof payload.progress !== "number") return prev;
         if (prev.jobId && !eventJobId && !isHighlightJobEvent(envelope)) {
           return prev;
@@ -638,9 +661,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           jobType: readJobType(envelope) ?? prev.jobType,
           stage: rawStage ?? `Đang xử lý (${payload.progress}%)`,
           progressPercent:
-            typeof payload.progress === "number"
-              ? payload.progress
-              : undefined,
+            typeof payload.progress === "number" ? payload.progress : undefined,
         };
       });
     };
@@ -665,7 +686,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           isDownloading: false,
           progress: null,
           progressPercent: 100,
-          jobType: readJobType(payload as unknown as UploadEventEnvelope) ?? prev.jobType,
+          jobType:
+            readJobType(payload as unknown as UploadEventEnvelope) ??
+            prev.jobType,
           stage: "Hoàn thành",
         };
       });
@@ -673,7 +696,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
 
     const onError = (payload: VideoErrorPayload) => {
       setState((prev) => {
-        const errorJobId = readEventJobId(payload as unknown as UploadEventEnvelope);
+        const errorJobId = readEventJobId(
+          payload as unknown as UploadEventEnvelope,
+        );
         if (prev.jobId && !errorJobId) {
           return prev;
         }
@@ -694,8 +719,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
 
     const handlePolledStatus = (payload: Record<string, unknown>) => {
       const status = String(
-        payload.status ??
-          (asRecord(payload.result)?.status ?? ""),
+        payload.status ?? asRecord(payload.result)?.status ?? "",
       ).toLowerCase();
 
       if (["completed", "complete", "success", "succeeded"].includes(status)) {
@@ -707,14 +731,24 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
             clips,
             progress: null,
             progressPercent: 100,
-            jobType: readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
-            stage: "HoÃ n thÃ nh",
+            jobType:
+              readJobType(payload as UploadEventEnvelope) ?? prev.jobType,
+            stage: "Hoàn thành",
           }));
         }
         return;
       }
 
-      if (["pending", "queued", "queue", "waiting", "processing", "running"].includes(status)) {
+      if (
+        [
+          "pending",
+          "queued",
+          "queue",
+          "waiting",
+          "processing",
+          "running",
+        ].includes(status)
+      ) {
         const envelope = payload as UploadEventEnvelope;
         const rawStage =
           typeof envelope.stage === "string"
@@ -751,10 +785,10 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           ...prev,
           status: "failed",
           progress: null,
-          stage: "KhÃ´ng thÃ nh cÃ´ng",
+          stage: "Không thành công",
           error:
             readErrorMessage(payload as UploadEventEnvelope) ??
-            "KhÃ´ng thá»ƒ táº¡o highlight.",
+            "Không thể tạo highlight.",
         }));
       }
     };
@@ -794,7 +828,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
         );
         const videoIdByJobId = new Map(
           videos
-            .filter((video) => Boolean(video.job_id ?? video.jobId) && video.id > 0)
+            .filter(
+              (video) => Boolean(video.job_id ?? video.jobId) && video.id > 0,
+            )
             .map((video) => [String(video.job_id ?? video.jobId), video.id]),
         );
 
@@ -804,7 +840,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
             ...clip,
             videoId:
               clip.videoId ??
-              (prev.jobId ? videoIdByJobId.get(String(prev.jobId)) : undefined) ??
+              (prev.jobId
+                ? videoIdByJobId.get(String(prev.jobId))
+                : undefined) ??
               videoIdByUrl.get(normalizeAssetUrl(clip.url)),
           })),
         }));
@@ -875,12 +913,23 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     return () => {
       isMounted = false;
     };
-  }, [autoCreateProject, createOrGetProjectForClip, router, state.clips, state.status, user?.id]);
+  }, [
+    autoCreateProject,
+    createOrGetProjectForClip,
+    router,
+    state.clips,
+    state.status,
+    user?.id,
+  ]);
 
   const startHighlightFromUrl = async (
     videoUrl: string,
     params: HighlightParams,
-    meta?: { videoId?: number | null; sourceOriginalFilename?: string },
+    meta?: {
+      videoId?: number | null;
+      sourceOriginalFilename?: string;
+      durationSec?: number | null;
+    },
   ) => {
     const trimmedVideoUrl = videoUrl.trim();
     if (!trimmedVideoUrl) {
@@ -897,14 +946,17 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       excludeKeywords: formatKeywords(params.excludeKeywords),
       isMultiOutput: params.isMultiOutput,
       isOpenAI: params.isOpenAI,
+      durationSec: meta?.durationSec,
     });
   };
 
-  const startUpload = async (fileToUpload: File, params: HighlightParams) => {
+  const startUpload = async (
+    fileToUpload: File,
+    params: HighlightParams,
+    sourceDurationSec?: number,
+  ) => {
     if (fileToUpload.size > BUNNY_MAX_UPLOAD_BYTES) {
-      toast.error(
-        `File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`,
-      );
+      toast.error(`File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`);
       return;
     }
 
@@ -944,6 +996,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       await startHighlightFromUrl(bunny.videoUrl, params, {
         videoId: bunny.videoId,
         sourceOriginalFilename: fileToUpload.name,
+        durationSec: await resolveDurationSec(sourceDurationSec, () =>
+          getVideoDurationFromFile(fileToUpload),
+        ),
       });
     } catch (error) {
       setState((prev) => ({
@@ -958,7 +1013,11 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     }
   };
 
-  const startFromExistingVideo = async (videoUrl: string, params: HighlightParams) => {
+  const startFromExistingVideo = async (
+    videoUrl: string,
+    params: HighlightParams,
+    durationSec?: number,
+  ) => {
     updateState({
       file: null,
       source: "existing-video",
@@ -977,7 +1036,11 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     });
 
     try {
-      await startHighlightFromUrl(videoUrl, params);
+      await startHighlightFromUrl(videoUrl, params, {
+        durationSec: await resolveDurationSec(durationSec, () =>
+          getVideoDurationFromUrl(videoUrl),
+        ),
+      });
     } catch (error) {
       setState((prev) => ({
         ...prev,

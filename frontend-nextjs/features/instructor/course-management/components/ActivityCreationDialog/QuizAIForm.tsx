@@ -3,7 +3,19 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type React from "react";
 import Hls from "hls.js";
-import { Sparkles, Languages, Trophy, Timer, Video, Shuffle, Play, Pause, RotateCcw, RotateCw, Clock3 } from "lucide-react";
+import {
+  Sparkles,
+  Languages,
+  Trophy,
+  Timer,
+  Video,
+  Shuffle,
+  Play,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Clock3,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -16,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { Quiz } from "@/features/quizzes/types";
+import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 
 export interface QuizAIFormValues {
   name: string;
@@ -40,6 +53,8 @@ interface Props {
   existingQuizzes?: Quiz[];
   videoDurationSeconds?: number;
   videoUrl?: string;
+  /** Giá quiz phụ thuộc đoạn video chọn ở đây, nên dialog cha phải hỏi ngược. */
+  onQuotaBlockedChange?: (blocked: boolean) => void;
 }
 
 function parseTimestampToSeconds(ts: string | null | undefined): number | null {
@@ -97,7 +112,7 @@ interface TimeScopingSuggestion {
 
 function calculateSmartTimeScoping(
   quizzes: Quiz[] | undefined,
-  duration: number
+  duration: number,
 ): TimeScopingSuggestion {
   if (!duration || duration <= 0) {
     return { type: "all", startTime: 0, endTime: 0 };
@@ -164,7 +179,9 @@ function calculateSmartTimeScoping(
     }
   }
 
-  const viableSegments = freeSegments.filter((seg) => seg.end - seg.start >= 30);
+  const viableSegments = freeSegments.filter(
+    (seg) => seg.end - seg.start >= 30,
+  );
 
   if (viableSegments.length === 0) {
     return { type: "fully_covered", startTime: 0, endTime: duration };
@@ -172,7 +189,10 @@ function calculateSmartTimeScoping(
 
   let largest = viableSegments[0];
   for (let i = 1; i < viableSegments.length; i++) {
-    if (viableSegments[i].end - viableSegments[i].start > largest.end - largest.start) {
+    if (
+      viableSegments[i].end - viableSegments[i].start >
+      largest.end - largest.start
+    ) {
       largest = viableSegments[i];
     }
   }
@@ -193,9 +213,12 @@ export function QuizAIForm({
   existingQuizzes,
   videoDurationSeconds,
   videoUrl,
+  onQuotaBlockedChange,
 }: Props) {
   const [name, setName] = useState(`Quiz từ video - ${lessonTitle}`);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
+  const [difficulty, setDifficulty] = useState<
+    "easy" | "medium" | "hard" | "mixed"
+  >("mixed");
   const [numQuestions, setNumQuestions] = useState(10);
   const [language, setLanguage] = useState("vi");
   const [startTime, setStartTime] = useState("");
@@ -208,6 +231,38 @@ export function QuizAIForm({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [hasManuallyEdited, setHasManuallyEdited] = useState(false);
+
+  /**
+   * Đoạn video sẽ xử lý. Bỏ trống ô nào thì lấy mặc định của ô đó: bắt đầu từ 0,
+   * kết thúc ở cuối video. Backend bắt buộc gửi cả start lẫn end hoặc không gửi
+   * gì, nên đây là nguồn duy nhất cho cả báo giá lẫn payload submit.
+   */
+  const timeRange = useMemo(() => {
+    const start = startTime.trim() ? parseTimeToSeconds(startTime) : 0;
+    const end = endTime.trim()
+      ? parseTimeToSeconds(endTime)
+      : (videoDurationSeconds ?? null);
+    if (start === null || end === null) return null;
+    if (end <= start) return null;
+    return { startSec: start, endSec: end };
+  }, [startTime, endTime, videoDurationSeconds]);
+
+  /** Người dùng có gõ gì đó nhưng ra khoảng vô nghĩa (end <= start, sai định dạng). */
+  const hasInvalidRange =
+    timeRange === null && Boolean(startTime.trim() || endTime.trim());
+
+  const quizDurationSec = timeRange
+    ? timeRange.endSec - timeRange.startSec
+    : videoDurationSeconds;
+
+  const { cost: quotaCost, blocked: quotaBlocked } = useQuotaCost(
+    "quiz",
+    quizDurationSec,
+  );
+
+  useEffect(() => {
+    onQuotaBlockedChange?.(quotaBlocked);
+  }, [quotaBlocked, onQuotaBlockedChange]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -288,7 +343,9 @@ export function QuizAIForm({
   const [startX, setStartX] = useState(0);
   const [startSeconds, setStartSeconds] = useState(0);
   const [showSwipeIndicator, setShowSwipeIndicator] = useState(false);
-  const [swipeDirection, setSwipeDirection] = useState<"forward" | "backward" | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<
+    "forward" | "backward" | null
+  >(null);
 
   const formatClock = (totalSeconds: number): string => {
     const safe = Math.max(0, totalSeconds);
@@ -322,12 +379,12 @@ export function QuizAIForm({
   const handleVideoMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
     if (!isMouseDown || !videoRef.current || !safeDuration) return;
     const diffX = e.clientX - startX;
-    
+
     // 1px clientX equivalent to 0.15 seconds
     const seekDelta = diffX * 0.15;
     let nextSeconds = startSeconds + seekDelta;
     nextSeconds = Math.min(safeDuration, Math.max(0, nextSeconds));
-    
+
     videoRef.current.currentTime = nextSeconds;
     setCurrentSeconds(nextSeconds);
 
@@ -365,7 +422,10 @@ export function QuizAIForm({
     }
   };
   const suggestion = useMemo(() => {
-    return calculateSmartTimeScoping(existingQuizzes, videoDurationSeconds || 0);
+    return calculateSmartTimeScoping(
+      existingQuizzes,
+      videoDurationSeconds || 0,
+    );
   }, [existingQuizzes, videoDurationSeconds]);
 
   useEffect(() => {
@@ -411,30 +471,29 @@ export function QuizAIForm({
       timeLimitMinutes,
       isInVideo,
     };
-    if (startTime.trim()) {
-      const parsedStart = parseTimeToSeconds(startTime);
-      if (parsedStart !== null) {
-        payload.startTime = parsedStart;
-      }
+    if (timeRange) {
+      payload.startTime = timeRange.startSec;
+      payload.endTime = timeRange.endSec;
     }
-    if (endTime.trim()) {
-      const parsedEnd = parseTimeToSeconds(endTime);
-      if (parsedEnd !== null) {
-        payload.endTime = parsedEnd;
-      }
-    }
-    if (disabled) return;
+    if (disabled || quotaBlocked || hasInvalidRange) return;
     onSubmit(payload);
   };
 
   return (
-    <form id="quiz-ai-form" onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-200">
+    <form
+      id="quiz-ai-form"
+      onSubmit={handleSubmit}
+      className="space-y-6 animate-in fade-in duration-200"
+    >
+      <QuotaNotice feature="quiz" durationSec={quizDurationSec} />
       {disabled && disabledReason ? (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-800 shadow-sm dark:text-amber-200">
           <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="space-y-1">
             <p className="font-semibold">Chưa thể tạo quiz</p>
-            <p className="text-xs leading-relaxed opacity-90">{disabledReason}</p>
+            <p className="text-xs leading-relaxed opacity-90">
+              {disabledReason}
+            </p>
           </div>
         </div>
       ) : null}
@@ -447,7 +506,7 @@ export function QuizAIForm({
           </span>
           Cấu hình cơ bản
         </h3>
-        
+
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Name */}
           <div className="grid gap-1.5 sm:col-span-2">
@@ -468,7 +527,10 @@ export function QuizAIForm({
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               Số lượng câu hỏi
             </Label>
-            <Select value={String(numQuestions)} onValueChange={(v) => setNumQuestions(Number(v))}>
+            <Select
+              value={String(numQuestions)}
+              onValueChange={(v) => setNumQuestions(Number(v))}
+            >
               <SelectTrigger className="h-10 bg-background border-border rounded-xl">
                 <SelectValue placeholder="Chọn số lượng..." />
               </SelectTrigger>
@@ -495,8 +557,14 @@ export function QuizAIForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="after_lesson">Làm sau bài học (Post-lesson)</SelectItem>
-                {hasVideo && <SelectItem value="in_video">Pop-up trong video (In-video)</SelectItem>}
+                <SelectItem value="after_lesson">
+                  Làm sau bài học (Post-lesson)
+                </SelectItem>
+                {hasVideo && (
+                  <SelectItem value="in_video">
+                    Pop-up trong video (In-video)
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -512,7 +580,9 @@ export function QuizAIForm({
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                 <Shuffle className="h-4 w-4" />
               </span>
-              <span className="text-sm font-bold text-foreground">Tùy chọn nâng cao</span>
+              <span className="text-sm font-bold text-foreground">
+                Tùy chọn nâng cao
+              </span>
             </div>
             <Switch
               id="show-advanced-toggle"
@@ -520,7 +590,7 @@ export function QuizAIForm({
               onCheckedChange={setShowAdvanced}
             />
           </label>
-          
+
           {showAdvanced && (
             <div className="mt-4 px-3 space-y-5 animate-in fade-in duration-200">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -529,14 +599,21 @@ export function QuizAIForm({
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Độ khó
                   </Label>
-                  <Select value={difficulty} onValueChange={(v: "easy" | "medium" | "hard" | "mixed") => setDifficulty(v)}>
+                  <Select
+                    value={difficulty}
+                    onValueChange={(v: "easy" | "medium" | "hard" | "mixed") =>
+                      setDifficulty(v)
+                    }
+                  >
                     <SelectTrigger className="h-10 bg-background border-border rounded-xl">
                       <SelectValue placeholder="Chọn độ khó..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="mixed">Hỗn hợp (Mixed)</SelectItem>
                       <SelectItem value="easy">Dễ (Easy)</SelectItem>
-                      <SelectItem value="medium">Trung bình (Medium)</SelectItem>
+                      <SelectItem value="medium">
+                        Trung bình (Medium)
+                      </SelectItem>
                       <SelectItem value="hard">Khó (Hard)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -585,7 +662,9 @@ export function QuizAIForm({
                     type="number"
                     min={0}
                     value={timeLimitMinutes}
-                    onChange={(e) => setTimeLimitMinutes(Number(e.target.value))}
+                    onChange={(e) =>
+                      setTimeLimitMinutes(Number(e.target.value))
+                    }
                     placeholder="0 (Không giới hạn)"
                     className="h-10 border-border rounded-xl"
                   />
@@ -594,12 +673,30 @@ export function QuizAIForm({
 
               <div className="grid gap-3 sm:grid-cols-2 pt-4 border-t border-border/20">
                 <div className="flex items-center justify-between rounded-xl border border-border/50 p-3 bg-muted/10 hover:bg-muted/20 transition-colors">
-                  <Label htmlFor="shuffle-q-ai" className="text-sm font-semibold cursor-pointer">Xáo trộn câu hỏi</Label>
-                  <Switch id="shuffle-q-ai" checked={shuffleQuestion} onCheckedChange={setShuffleQuestion} />
+                  <Label
+                    htmlFor="shuffle-q-ai"
+                    className="text-sm font-semibold cursor-pointer"
+                  >
+                    Xáo trộn câu hỏi
+                  </Label>
+                  <Switch
+                    id="shuffle-q-ai"
+                    checked={shuffleQuestion}
+                    onCheckedChange={setShuffleQuestion}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-border/50 p-3 bg-muted/10 hover:bg-muted/20 transition-colors">
-                  <Label htmlFor="shuffle-o-ai" className="text-sm font-semibold cursor-pointer">Xáo trộn đáp án</Label>
-                  <Switch id="shuffle-o-ai" checked={shuffleOption} onCheckedChange={setShuffleOption} />
+                  <Label
+                    htmlFor="shuffle-o-ai"
+                    className="text-sm font-semibold cursor-pointer"
+                  >
+                    Xáo trộn đáp án
+                  </Label>
+                  <Switch
+                    id="shuffle-o-ai"
+                    checked={shuffleOption}
+                    onCheckedChange={setShuffleOption}
+                  />
                 </div>
               </div>
             </div>
@@ -614,15 +711,18 @@ export function QuizAIForm({
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-500">
               <Video className="h-4 w-4" />
             </span>
-              Phạm vi video
+            Phạm vi video
           </h3>
           <p className="text-xs text-muted-foreground leading-normal">
-              Giới hạn khoảng thời gian để tạo câu hỏi. Bỏ trống nếu muốn dùng toàn bộ video.
+            Giới hạn khoảng thời gian để tạo câu hỏi. Bỏ trống nếu muốn dùng
+            toàn bộ video.
           </p>
-          
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">Bắt đầu từ</Label>
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Bắt đầu từ
+              </Label>
               <div className="relative">
                 <Input
                   type="text"
@@ -634,7 +734,7 @@ export function QuizAIForm({
                   }}
                   className={cn(
                     "h-10 border-border bg-background rounded-xl",
-                    videoUrl && "pr-9"
+                    videoUrl && "pr-9",
                   )}
                 />
                 {videoUrl && (
@@ -650,7 +750,9 @@ export function QuizAIForm({
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">Kết thúc tại</Label>
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Kết thúc tại
+              </Label>
               <div className="relative">
                 <Input
                   type="text"
@@ -662,7 +764,7 @@ export function QuizAIForm({
                   }}
                   className={cn(
                     "h-10 border-border bg-background rounded-xl",
-                    videoUrl && "pr-9"
+                    videoUrl && "pr-9",
                   )}
                 />
                 {videoUrl && (
@@ -679,18 +781,46 @@ export function QuizAIForm({
             </div>
           </div>
 
+          {hasInvalidRange ? (
+            <p className="text-xs text-destructive">
+              Khoảng thời gian không hợp lệ — thời điểm kết thúc phải lớn hơn
+              thời điểm bắt đầu.
+            </p>
+          ) : timeRange ? (
+            <p className="text-xs text-muted-foreground">
+              Đoạn đang chọn:{" "}
+              <strong className="text-foreground">
+                {formatSeconds(timeRange.startSec)} –{" "}
+                {formatSeconds(timeRange.endSec)}
+              </strong>{" "}
+              ({formatSeconds(timeRange.endSec - timeRange.startSec)}) · sẽ tốn{" "}
+              <strong
+                className={
+                  quotaBlocked ? "text-destructive" : "text-foreground"
+                }
+              >
+                {quotaCost} credit
+              </strong>
+            </p>
+          ) : null}
+
           {/* Smart Recommendation Banner */}
           {videoDurationSeconds !== undefined && videoDurationSeconds > 0 && (
-            <div className={cn(
-              "rounded-xl p-3 border text-xs flex flex-col gap-1.5 transition-all duration-200 mt-2",
-              suggestion.type === "all" && "bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-300",
-              suggestion.type === "suggested" && "bg-sky-500/5 border-sky-500/20 text-sky-700 dark:text-sky-300",
-              suggestion.type === "fully_covered" && "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-300"
-            )}>
+            <div
+              className={cn(
+                "rounded-xl p-3 border text-xs flex flex-col gap-1.5 transition-all duration-200 mt-2",
+                suggestion.type === "all" &&
+                  "bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-300",
+                suggestion.type === "suggested" &&
+                  "bg-sky-500/5 border-sky-500/20 text-sky-700 dark:text-sky-300",
+                suggestion.type === "fully_covered" &&
+                  "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-300",
+              )}
+            >
               {suggestion.type === "all" && (
                 <div className="font-medium flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 animate-pulse text-amber-500 shrink-0" />
-                    <span>Tự động đề xuất toàn bộ thời lượng video.</span>
+                  <span>Tự động đề xuất toàn bộ thời lượng video.</span>
                 </div>
               )}
               {suggestion.type === "suggested" && (
@@ -698,9 +828,10 @@ export function QuizAIForm({
                   <div className="font-medium flex items-start gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                     <span>
-                    Gợi ý đoạn chưa có quiz:{" "}
+                      Gợi ý đoạn chưa có quiz:{" "}
                       <strong className="underline">
-                        {formatSeconds(suggestion.startTime)} - {formatSeconds(suggestion.endTime)}
+                        {formatSeconds(suggestion.startTime)} -{" "}
+                        {formatSeconds(suggestion.endTime)}
                       </strong>{" "}
                       (tránh trùng ngữ cảnh).
                     </span>
@@ -728,7 +859,8 @@ export function QuizAIForm({
                 <div className="font-medium flex items-start gap-1.5">
                   <span className="shrink-0 mt-0.5">⚠️</span>
                   <span>
-                  Video đã có quiz ở nhiều đoạn. Bạn vẫn có thể nhập khoảng thời gian thủ công để tạo thêm.
+                    Video đã có quiz ở nhiều đoạn. Bạn vẫn có thể nhập khoảng
+                    thời gian thủ công để tạo thêm.
                   </span>
                 </div>
               )}
@@ -766,7 +898,7 @@ export function QuizAIForm({
 
               {/* Large Play Overlay on Pause */}
               {!isPlaying && !isMouseDown && (
-                <div 
+                <div
                   className="absolute inset-0 flex items-center justify-center bg-black/40 transition-all cursor-pointer"
                   onClick={togglePlay}
                 >
@@ -790,13 +922,14 @@ export function QuizAIForm({
 
               {/* Custom Bottom Controller Bar */}
               <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/95 via-black/70 to-transparent p-3 pt-8 flex flex-col gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 z-10">
-                
                 {/* Custom Progress Bar / Slider */}
                 <div className="relative h-1.5 w-full bg-white/20 rounded-full cursor-pointer group/timeline">
                   {/* Progress fill */}
-                  <div 
+                  <div
                     className="absolute h-full bg-primary rounded-full"
-                    style={{ width: `${(currentSeconds / (safeDuration || 1)) * 100}%` }}
+                    style={{
+                      width: `${(currentSeconds / (safeDuration || 1)) * 100}%`,
+                    }}
                   />
                   {/* Overlay Range Input for smooth slider handling */}
                   <input
@@ -815,18 +948,20 @@ export function QuizAIForm({
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                   />
                   {/* Thumb Indicator */}
-                  <div 
+                  <div
                     className="absolute h-3.5 w-3.5 rounded-full bg-primary border-2 border-white -top-[4px] -translate-x-1/2 opacity-0 group-hover/timeline:opacity-100 transition-opacity duration-150 shadow-md pointer-events-none"
-                    style={{ left: `${(currentSeconds / (safeDuration || 1)) * 100}%` }}
+                    style={{
+                      left: `${(currentSeconds / (safeDuration || 1)) * 100}%`,
+                    }}
                   />
                 </div>
 
                 {/* Sub Controls Row */}
                 <div className="flex items-center justify-between text-white text-xs font-semibold select-none">
                   <div className="flex items-center gap-3">
-                    <button 
-                      type="button" 
-                      onClick={togglePlay} 
+                    <button
+                      type="button"
+                      onClick={togglePlay}
                       className="hover:text-primary transition-colors focus:outline-none p-1"
                     >
                       {isPlaying ? (
@@ -836,16 +971,17 @@ export function QuizAIForm({
                       )}
                     </button>
                     <span className="font-mono text-[11px] tracking-wide text-zinc-200">
-                      {formatClock(currentSeconds)} / {formatClock(safeDuration)}
+                      {formatClock(currentSeconds)} /{" "}
+                      {formatClock(safeDuration)}
                     </span>
                   </div>
                   <div>
                     <span className="bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                      Khoảng chạy: {startTime || "00:00"} - {endTime || formatSeconds(safeDuration)}
+                      Khoảng chạy: {startTime || "00:00"} -{" "}
+                      {endTime || formatSeconds(safeDuration)}
                     </span>
                   </div>
                 </div>
-
               </div>
             </div>
           )}

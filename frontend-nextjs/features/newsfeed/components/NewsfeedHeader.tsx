@@ -7,6 +7,7 @@ import { Menu, Search, ShoppingCart, User, X } from "lucide-react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderUserMenu } from "@/components/HeaderUserMenu";
+import { QuotaBadge } from "@/components/QuotaBadge";
 import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
@@ -104,6 +105,8 @@ export function NewsfeedHeader({
             {isAuthenticated ? (
               <NotificationBell className="h-9 w-9 bg-transparent hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground sm:h-10 sm:w-10" />
             ) : null}
+
+            {isAuthenticated ? <QuotaBadge /> : null}
 
             {isAuthenticated ? (
               <HeaderUserMenu

@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FileVideo, Upload, X } from "lucide-react";
+import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
 
 interface FilePreviewProps {
   file: File;
@@ -20,25 +21,6 @@ function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-}
-
-async function getVideoDuration(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      resolve(video.duration);
-    };
-
-    video.onerror = () => {
-      window.URL.revokeObjectURL(video.src);
-      resolve(null);
-    };
-
-    video.src = URL.createObjectURL(file);
-  });
 }
 
 function formatDuration(seconds: number): string {
@@ -61,7 +43,7 @@ export default function FilePreview({
   React.useEffect(() => {
     const loadVideoMetadata = async () => {
       try {
-        const videoDuration = await getVideoDuration(file);
+        const videoDuration = await getVideoDurationFromFile(file);
         setDuration(videoDuration);
 
         const video = document.createElement("video");

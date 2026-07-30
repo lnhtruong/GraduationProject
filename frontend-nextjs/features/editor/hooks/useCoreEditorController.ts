@@ -585,6 +585,7 @@ export function useCoreEditorController({
       {
         effect: buildMascotRenderEffect(effect),
         textOverlays: buildMascotRenderTextOverlays(layers),
+        durationSec: videoDurationMs / 1000,
       },
     );
   }, [
@@ -599,6 +600,7 @@ export function useCoreEditorController({
     voice,
     sourceVideoName,
     setVideoSrc,
+    videoDurationMs,
   ]);
 
   const completeMascotRenderJob = useCallback(
@@ -789,6 +791,7 @@ export function useCoreEditorController({
     effect,
     layers,
     voice,
+    videoDurationMs,
   ]);
 
   const hasSelectedVideo =
@@ -908,6 +911,7 @@ export function useCoreEditorController({
       selectedTextId,
       onTextSelect: setSelectedTextId,
       currentTimeMs,
+      videoDurationMs,
     });
   }, [
     editId,
@@ -934,6 +938,7 @@ export function useCoreEditorController({
     handleUpdateText,
     handleRemoveText,
     currentTimeMs,
+    videoDurationMs,
   ]);
 
   const buildEditorPayload = () => {

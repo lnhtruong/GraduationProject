@@ -14,6 +14,8 @@ import { useMascotJob } from "../api/mascot.hooks";
 export type MascotRenderOptions = {
   textOverlays?: MascotRenderTextOverlay[];
   effect?: EffectOption;
+  /** Thời lượng video, giây. Dùng để backend tính credit quota. */
+  durationSec?: number;
 };
 
 function resolvePublicAssetUrl(value: string) {
@@ -109,6 +111,7 @@ export function useMascot() {
     margin_x: mascotOption.margin_x,
     margin_y: mascotOption.margin_y,
     scale: mascotOption.scale,
+    durationSec: renderOptions?.durationSec,
     audio: mascotOption.audioFile,
     textOverlays: renderOptions?.textOverlays,
     brightness: renderOptions?.effect?.brightness,

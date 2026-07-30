@@ -173,6 +173,7 @@ export interface ExternalEditorPanelBindings {
   selectedTextId: string | null;
   onTextSelect: (id: string | null) => void;
   currentTimeMs?: number;
+  videoDurationMs?: number;
 }
 
 
@@ -275,6 +276,8 @@ export interface MascotParams {
   videoOrUrl: File | string;
   mascotImageUrl: string;
   origin_file_name?: string;
+  /** Thời lượng video, giây. Dùng để backend tính credit quota. */
+  durationSec?: number;
   position:
     | "top-left"
     | "top-right"
