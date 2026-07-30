@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Flag, ImagePlus, Loader2, X } from "lucide-react";
+import { Flag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 import {
@@ -42,13 +42,11 @@ function getErrorMessage(error: unknown): string {
 
 export function ReportDialog({ open, onClose, targetType, targetId, targetLabel }: Props) {
   const [reason, setReason] = useState("");
-  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const submit = useSubmitReport();
 
   const handleClose = () => {
     setReason("");
-    setEvidenceFiles([]);
     setErrorMsg(null);
     onClose();
   };
@@ -57,14 +55,7 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
     if (reason.trim().length < MIN_REASON) return;
     setErrorMsg(null);
     try {
-      const evidenceNote = evidenceFiles.length
-        ? "\n\nMinh chứng đã chọn: " + evidenceFiles.map((file) => file.name).join(", ")
-        : "";
-      await submit.mutateAsync({
-        targetType,
-        targetId,
-        reason: reason.trim() + evidenceNote,
-      });
+      await submit.mutateAsync({ targetType, targetId, reason: reason.trim() });
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.");
       handleClose();
     } catch (err) {
@@ -108,58 +99,6 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
             <span className={charCount > MAX_REASON * 0.9 ? "text-amber-500" : ""}>
               {charCount}/{MAX_REASON}
             </span>
-          </div>
-
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">Ảnh minh chứng</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Frontend đã hỗ trợ chọn ảnh; backend upload minh chứng sẽ nối API sau.
-                </p>
-              </div>
-              <Button type="button" variant="outline" size="sm" asChild disabled={submit.isPending}>
-                <label className="cursor-pointer gap-2">
-                  <ImagePlus className="h-3.5 w-3.5" />
-                  Chọn ảnh
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? []).slice(0, 5);
-                      setEvidenceFiles(files);
-                      event.currentTarget.value = "";
-                    }}
-                  />
-                </label>
-              </Button>
-            </div>
-            {evidenceFiles.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {evidenceFiles.map((file) => (
-                  <span
-                    key={file.name}
-                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
-                  >
-                    <span className="truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() =>
-                        setEvidenceFiles((current) =>
-                          current.filter((item) => item.name !== file.name),
-                        )
-                      }
-                      aria-label={"Gỡ " + file.name}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
 
           {errorMsg && (
