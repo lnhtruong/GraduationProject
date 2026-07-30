@@ -1130,10 +1130,21 @@ export class CoursesService {
 
     const shouldPaginate = page !== undefined || limit !== undefined;
 
+    const listIncludes = [
+      Video,
+      {
+        model: Lesson,
+        as: 'lessons',
+        required: false,
+        attributes: ['id', 'status'],
+        where: { status: { [Op.ne]: LessonStatus.REMOVED } },
+      },
+    ];
+
     if (!shouldPaginate) {
       return await this.courseModel.findAll({
         where: whereCondition,
-        include: [Video],
+        include: listIncludes,
       });
     }
 
@@ -1144,7 +1155,8 @@ export class CoursesService {
 
     const { rows, count } = await this.courseModel.findAndCountAll({
       where: whereCondition,
-      include: [Video],
+      include: listIncludes,
+      distinct: true,
       offset,
       limit: safeLimit,
       order: [['id', 'DESC']],

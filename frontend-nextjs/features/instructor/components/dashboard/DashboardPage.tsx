@@ -11,6 +11,17 @@ import { QuickActions } from "./QuickActions";
 import { RecentCourses } from "./RecentCourses";
 import { RecentQA } from "./RecentQA";
 
+function getCourseCount(course: Course, keys: string[]): number {
+  for (const key of keys) {
+    const value = (course as unknown as Record<string, unknown>)[key];
+    const count = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(count) && count >= 0) {
+      return count;
+    }
+  }
+  return 0;
+}
+
 function mapCourseToInstructor(course: Course): InstructorCourse {
   return {
     id: course.id,
@@ -18,8 +29,10 @@ function mapCourseToInstructor(course: Course): InstructorCourse {
     description: course.description,
     thumbnailUrl: (course as unknown as { thumbnailUrl?: string }).thumbnailUrl,
     status: course.status as InstructorCourse["status"],
-    lessonCount: 0,
-    studentCount: 0,
+    lessonCount: Array.isArray(course.lessons)
+      ? course.lessons.length
+      : getCourseCount(course, ["totalLessons", "lessonCount", "lessonsCount", "lessons_count"]),
+    studentCount: getCourseCount(course, ["totalStudents", "studentCount", "studentsCount", "enrolled_count"]),
     updatedAt: course.updated_at ?? course.created_at ?? new Date().toISOString(),
   };
 }

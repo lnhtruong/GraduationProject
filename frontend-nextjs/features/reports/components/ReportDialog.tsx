@@ -42,11 +42,13 @@ function getErrorMessage(error: unknown): string {
 
 export function ReportDialog({ open, onClose, targetType, targetId, targetLabel }: Props) {
   const [reason, setReason] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const submit = useSubmitReport();
 
   const handleClose = () => {
     setReason("");
+    setEvidenceFiles([]);
     setErrorMsg(null);
     onClose();
   };
