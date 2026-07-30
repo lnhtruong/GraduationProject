@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -358,11 +359,7 @@ export default function CourseFeedEditPage({ courseId, feedId }: Props) {
                   <div className="grid gap-4 rounded-xl border border-border/60 bg-muted/10 p-4 sm:grid-cols-[176px_minmax(0,1fr)]">
                     <div className="relative aspect-video overflow-hidden rounded-xl border border-border/60 bg-muted">
                       {feed.video?.thumbnail ? (
-                        <img
-                          src={feed.video.thumbnail}
-                          alt={feed.title}
-                          className="h-full w-full object-cover"
-                        />
+                        <Image src={feed.video.thumbnail} alt={feed.title} fill sizes="176px" className="object-cover" />
                       ) : (
                         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
                           <Clapperboard className="h-7 w-7 opacity-60" />

@@ -365,7 +365,8 @@ export class CoursesService {
       const courseName =
         (course as Course & { name?: string }).name ?? 'khóa học';
       const kind = request.kind ?? CourseChangeRequestKind.COURSE_UPDATE;
-      const redirectUrl = `/courses/${courseId}`;
+      const teacherRedirectUrl = `/instructor/courses/${courseId}/edit`;
+      const studentRedirectUrl = `/courses/${courseId}/learn`;
       const items: InternalNotificationItem[] = [];
 
       // Giảng viên: người tạo request + chủ khóa học (dedup, thường trùng nhau).
@@ -385,7 +386,7 @@ export class CoursesService {
             courseId,
             changeRequestId: request.id,
             kind,
-            redirectUrl,
+            redirectUrl: teacherRedirectUrl,
           },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
@@ -417,7 +418,7 @@ export class CoursesService {
           sseEventType: NOTIFY_CREATED_SSE_EVENT,
           title,
           message,
-          payload: { courseId, kind, redirectUrl },
+          payload: { courseId, kind, redirectUrl: studentRedirectUrl },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
         });
@@ -468,7 +469,7 @@ export class CoursesService {
             courseId: request.courseId,
             changeRequestId: request.id,
             kind: request.kind ?? CourseChangeRequestKind.COURSE_UPDATE,
-            redirectUrl: `/courses/${request.courseId}`,
+            redirectUrl: `/instructor/courses/${request.courseId}/edit`,
             note: trimmedNote ?? null,
           },
           sourceType: COURSE_SOURCE,
@@ -1129,10 +1130,21 @@ export class CoursesService {
 
     const shouldPaginate = page !== undefined || limit !== undefined;
 
+    const listIncludes = [
+      Video,
+      {
+        model: Lesson,
+        as: 'lessons',
+        required: false,
+        attributes: ['id', 'status'],
+        where: { status: { [Op.ne]: LessonStatus.REMOVED } },
+      },
+    ];
+
     if (!shouldPaginate) {
       return await this.courseModel.findAll({
         where: whereCondition,
-        include: [Video],
+        include: listIncludes,
       });
     }
 
@@ -1143,7 +1155,8 @@ export class CoursesService {
 
     const { rows, count } = await this.courseModel.findAndCountAll({
       where: whereCondition,
-      include: [Video],
+      include: listIncludes,
+      distinct: true,
       offset,
       limit: safeLimit,
       order: [['id', 'DESC']],
@@ -1947,7 +1960,8 @@ export class CoursesService {
       const courseId = course.id;
       const courseName =
         (course as Course & { name?: string }).name ?? 'khóa học';
-      const redirectUrl = `/courses/${courseId}`;
+      const teacherRedirectUrl = `/instructor/courses/${courseId}/edit`;
+      const studentRedirectUrl = `/courses/${courseId}/learn`;
       const ownerId = (course as Course & { userId?: number }).userId;
       const items: InternalNotificationItem[] = [];
 
@@ -1960,7 +1974,7 @@ export class CoursesService {
           sseEventType: NOTIFY_CREATED_SSE_EVENT,
           title: ownerCopy.title,
           message: ownerCopy.message,
-          payload: { courseId, kind, redirectUrl },
+          payload: { courseId, kind, redirectUrl: teacherRedirectUrl },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
         });
@@ -1992,7 +2006,7 @@ export class CoursesService {
           sseEventType: NOTIFY_CREATED_SSE_EVENT,
           title,
           message,
-          payload: { courseId, kind, redirectUrl },
+          payload: { courseId, kind, redirectUrl: studentRedirectUrl },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
         });

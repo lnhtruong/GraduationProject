@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   Video,
@@ -50,11 +51,7 @@ export function CourseStickySidebar({ course, enrollment, isAuthenticated, onEnr
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden bg-zinc-900">
         {course.thumbnailUrl ? (
-          <img
-            src={course.thumbnailUrl}
-            alt={course.name}
-            className="h-full w-full object-cover"
-          />
+          <Image src={course.thumbnailUrl} alt={course.name} fill sizes="(max-width: 1024px) 100vw, 384px" className="object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/20 via-primary/8 to-accent/10" />
         )}

@@ -4,7 +4,12 @@ import { buildCourseMetadata } from "@/lib/metadata";
 import { BRAND } from "@/lib/brand";
 
 interface NewsfeedProps {
-	searchParams?: Promise<{ videoId?: string | string[]; courseId?: string | string[] }>;
+	searchParams?: Promise<{
+		feedId?: string | string[];
+		commentId?: string | string[];
+		parentCommentId?: string | string[];
+		courseId?: string | string[];
+	}>;
 }
 
 export async function generateMetadata({ searchParams }: NewsfeedProps) {
@@ -28,11 +33,11 @@ export async function generateMetadata({ searchParams }: NewsfeedProps) {
 		}
 	}
 
-	const rawVideoId = Array.isArray(resolvedSearchParams?.videoId)
-		? resolvedSearchParams.videoId[0]
-		: resolvedSearchParams?.videoId;
+	const rawFeedId = Array.isArray(resolvedSearchParams?.feedId)
+		? resolvedSearchParams.feedId[0]
+		: resolvedSearchParams?.feedId;
 
-	if (rawVideoId) {
+	if (rawFeedId) {
 		return {
 			title: "Xem video ngắn",
 			description: "Xem các bài học ngắn, sinh động trên bảng tin StudyLoop.",
@@ -59,10 +64,24 @@ export default async function NewsfeedRoutePage({
 	searchParams,
 }: NewsfeedProps) {
 	const resolvedSearchParams = await searchParams;
-	const rawVideoId = Array.isArray(resolvedSearchParams?.videoId)
-		? resolvedSearchParams.videoId[0]
-		: resolvedSearchParams?.videoId;
-	const initialVideoId = rawVideoId ? Number(rawVideoId) : null;
+	const rawFeedId = Array.isArray(resolvedSearchParams?.feedId)
+		? resolvedSearchParams.feedId[0]
+		: resolvedSearchParams?.feedId;
+	const rawCommentId = Array.isArray(resolvedSearchParams?.commentId)
+		? resolvedSearchParams.commentId[0]
+		: resolvedSearchParams?.commentId;
+	const rawParentCommentId = Array.isArray(resolvedSearchParams?.parentCommentId)
+		? resolvedSearchParams.parentCommentId[0]
+		: resolvedSearchParams?.parentCommentId;
+	const initialFeedId = rawFeedId ? Number(rawFeedId) : null;
+	const initialCommentId = rawCommentId ? Number(rawCommentId) : null;
+	const initialParentCommentId = rawParentCommentId ? Number(rawParentCommentId) : null;
 
-	return <NewsfeedPage initialVideoId={Number.isFinite(initialVideoId ?? NaN) ? initialVideoId : null} />;
+	return (
+		<NewsfeedPage
+			initialFeedId={Number.isFinite(initialFeedId ?? NaN) ? initialFeedId : null}
+			initialCommentId={Number.isFinite(initialCommentId ?? NaN) ? initialCommentId : null}
+			initialParentCommentId={Number.isFinite(initialParentCommentId ?? NaN) ? initialParentCommentId : null}
+		/>
+	);
 }

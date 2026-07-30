@@ -41,7 +41,6 @@ export function useBuyNow(courseId: number | null | undefined) {
       }
 
       if (data.enrolled) {
-        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", resolvedCourseId] });
         queryClient.invalidateQueries({ queryKey: ["enrollment"] });
         queryClient.invalidateQueries({ queryKey: ["cart"] });
         router.push(`/payment/success?free=1&courseId=${resolvedCourseId}`);

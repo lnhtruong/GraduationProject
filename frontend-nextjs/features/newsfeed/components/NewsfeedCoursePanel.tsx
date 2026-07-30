@@ -383,7 +383,7 @@ export function NewsfeedCoursePanel({ video, onClose }: NewsfeedCoursePanelProps
 					</div>
 					<div className="flex justify-end pt-1">
 						<Link
-							href={courseDetailHref ?? `/newsfeed?videoId=${video.feedId}`}
+							href={courseDetailHref ?? `/newsfeed?feedId=${video.feedId}`}
 							className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 transition-colors hover:underline hover:text-primary/80"
 						>
 							Xem chi tiết khóa học

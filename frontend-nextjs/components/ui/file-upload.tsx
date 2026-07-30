@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { Slot } from "@radix-ui/react-slot";
@@ -1019,11 +1020,7 @@ const FileUploadItemPreview = React.forwardRef<
 
       if (isImage) {
         return (
-          <img
-            src={URL.createObjectURL(file)}
-            alt={file.name}
-            className="size-full rounded-md object-cover"
-          />
+          <span className="relative block size-full overflow-hidden rounded-md"><Image src={URL.createObjectURL(file)} alt={file.name} fill unoptimized sizes="64px" className="object-cover" /></span>
         );
       }
 

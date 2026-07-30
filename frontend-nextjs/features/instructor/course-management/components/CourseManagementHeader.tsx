@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -70,7 +71,7 @@ export function CourseManagementHeader({
         <div className="flex min-w-0 flex-1 flex-col items-start gap-4 sm:flex-row">
           {thumbnailUrl && (
             <div className="relative hidden aspect-video w-36 shrink-0 overflow-hidden rounded-xl border border-border/50 bg-muted shadow-xs sm:block">
-              <img src={thumbnailUrl} alt={title} className="h-full w-full object-cover" />
+              <Image src={thumbnailUrl} alt={title} fill sizes="144px" className="object-cover" />
             </div>
           )}
           <div className="min-w-0 flex-1 space-y-2">

@@ -2407,14 +2407,27 @@ export class FeedService {
     };
   }
 
-  private buildFeedRedirectUrl(feedId: number): string {
-    return `/newsfeed?videoId=${feedId}`;
+  private buildFeedRedirectUrl(
+    feedId: number,
+    options?: { commentId?: number | null; parentCommentId?: number | null },
+  ): string {
+    const params = new URLSearchParams({ feedId: String(feedId) });
+    if (options?.commentId) {
+      params.set('commentId', String(options.commentId));
+    }
+    if (options?.parentCommentId) {
+      params.set('parentCommentId', String(options.parentCommentId));
+    }
+    return `/newsfeed?${params.toString()}`;
   }
 
   private async notifyFeedLiked(userId: number, feed: HighlightFeed): Promise<void> {
     try {
       const feedWithCourse = await this.highlightFeedModel.findByPk(feed.id, {
-        include: [{ model: Course, attributes: ['id', 'userId'] }],
+        include: [
+          { model: Course, attributes: ['id', 'userId'] },
+          { model: Video, attributes: ['id', 'thumbnail'] },
+        ],
       });
       const feedOwnerId = feedWithCourse?.course?.userId;
       if (feedOwnerId == null || feedOwnerId === userId) return;
@@ -2423,18 +2436,26 @@ export class FeedService {
         attributes: ['id', 'firstName', 'lastName'],
       });
       const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+      const actorName = fullName || 'Một người dùng';
 
       await this.notificationService.createAndEmit({
         userId: feedOwnerId,
         eventType: NotificationEventType.FEED_LIKE_CREATED,
         sseEventType: NotificationSseEventType.NOTIFY_CREATED,
-        title: 'New like on your feed',
-        message: fullName ? `${fullName} liked your post` : 'Someone liked your post',
+        title: 'Có lượt thích mới trên bài đăng của bạn',
+        message: `${actorName} đã thích bài đăng của bạn`,
         sourceType: NotificationSourceType.FEED,
         sourceId: feed.id,
         payload: {
           feedId: feed.id,
+          feedTitle: feedWithCourse?.title ?? feed.title ?? null,
+          thumbnailUrl: feedWithCourse?.video?.thumbnail ?? null,
           actorUserId: userId,
+          actorName,
+          actor: {
+            id: userId,
+            name: actorName,
+          },
           redirectUrl: this.buildFeedRedirectUrl(feed.id),
         },
       });
@@ -2591,49 +2612,62 @@ export class FeedService {
     });
 
     const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+    const actorName = fullName || 'Một người dùng';
+    const feedForNotification = await this.highlightFeedModel.findByPk(feedId, {
+      include: [
+        { model: Course, attributes: ['id', 'userId'] },
+        { model: Video, attributes: ['id', 'thumbnail'] },
+      ],
+    });
+    const notificationBasePayload = {
+      feedId,
+      feedTitle: feedForNotification?.title ?? null,
+      thumbnailUrl: feedForNotification?.video?.thumbnail ?? null,
+      actorUserId: userId,
+      actorName,
+      actor: {
+        id: userId,
+        name: actorName,
+      },
+      content: trimmedContent,
+    };
 
     if (parentComment && parentComment.user_id !== userId) {
       await this.notificationService.createAndEmit({
         userId: parentComment.user_id,
         eventType: NotificationEventType.FEED_COMMENT_REPLY,
         sseEventType: NotificationSseEventType.NOTIFY_CREATED,
-        title: 'New reply to your comment',
-        message: fullName
-          ? `${fullName} replied to your comment`
-          : 'Someone replied to your comment',
+        title: 'Có phản hồi mới cho bình luận của bạn',
+        message: `${actorName} đã phản hồi bình luận của bạn`,
         sourceType: NotificationSourceType.FEED_COMMENT,
         sourceId: comment.id,
         payload: {
-          feedId,
+          ...notificationBasePayload,
           commentId: comment.id,
           parentCommentId: parentComment.id,
-          actorUserId: userId,
-          content: trimmedContent,
-          redirectUrl: this.buildFeedRedirectUrl(feedId),
+          redirectUrl: this.buildFeedRedirectUrl(feedId, {
+            commentId: comment.id,
+            parentCommentId: parentComment.id,
+          }),
         },
       });
     } else if (!parentComment) {
-      const feed = await this.highlightFeedModel.findByPk(feedId, {
-        include: [{ model: Course, attributes: ['id', 'userId'] }],
-      });
-      const feedOwnerId = feed?.course?.userId;
+      const feedOwnerId = feedForNotification?.course?.userId;
       if (feedOwnerId != null && feedOwnerId !== userId) {
         await this.notificationService.createAndEmit({
           userId: feedOwnerId,
           eventType: NotificationEventType.FEED_COMMENT_CREATED,
           sseEventType: NotificationSseEventType.NOTIFY_CREATED,
-          title: 'New comment on your feed',
-          message: fullName
-            ? `${fullName} commented on your post`
-            : 'Someone commented on your post',
+          title: 'Có bình luận mới trên bài đăng của bạn',
+          message: `${actorName} đã bình luận về bài đăng của bạn`,
           sourceType: NotificationSourceType.FEED_COMMENT,
           sourceId: comment.id,
           payload: {
-            feedId,
+            ...notificationBasePayload,
             commentId: comment.id,
-            actorUserId: userId,
-            content: trimmedContent,
-            redirectUrl: this.buildFeedRedirectUrl(feedId),
+            redirectUrl: this.buildFeedRedirectUrl(feedId, {
+              commentId: comment.id,
+            }),
           },
         });
       }

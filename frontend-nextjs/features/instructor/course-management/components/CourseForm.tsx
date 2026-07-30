@@ -100,6 +100,16 @@ const DEFAULT_DURATION = "00:00:00";
 const CATEGORY_SUGGESTION_LIMIT = 5;
 const CATEGORY_SUGGESTION_EXPANDED_LIMIT = 14;
 
+function formatVndInput(value?: number | null) {
+  const amount = Number(value ?? 0);
+  return amount > 0 ? amount.toLocaleString("vi-VN") + " đ" : "";
+}
+
+function parseVndInput(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+}
+
 export function CourseForm({ course, onSave }: Props) {
   const { user } = useAuth();
   const [categoryInput, setCategoryInput] = useState("");
@@ -741,11 +751,21 @@ export function CourseForm({ course, onSave }: Props) {
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Giá bán (VND)</label>
-                <Input
-                  type="number"
-                  {...register("price", { valueAsNumber: true })}
-                  min="0"
-                  className={cn("h-11", errors.price && "border-destructive focus-visible:ring-destructive")}
+                <Controller
+                  name="price"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      ref={field.ref}
+                      inputMode="numeric"
+                      value={formatVndInput(field.value)}
+                      onChange={(event) => field.onChange(parseVndInput(event.target.value))}
+                      onBlur={field.onBlur}
+                      onFocus={(event) => event.currentTarget.select()}
+                      placeholder="Nhập giá bán, ví dụ 1.000.000 đ"
+                      className={cn("h-11", errors.price && "border-destructive focus-visible:ring-destructive")}
+                    />
+                  )}
                 />
                 {errors.price && (
                   <p className="text-xs text-destructive mt-0.5">{errors.price.message}</p>

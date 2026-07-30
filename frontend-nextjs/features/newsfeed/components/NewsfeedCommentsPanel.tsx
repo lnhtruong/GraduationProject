@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/store/auth";
+import { cn } from "@/lib/utils";
 import {
   useCreateNewsfeedComment,
   useNewsfeedCommentDetail,
@@ -109,6 +110,8 @@ function CommentThread({
   isAuthenticated,
   onAuthRequired,
   sortOrder,
+  targetCommentId,
+  targetParentCommentId,
 }: {
   feedId: number;
   comment: NewsfeedCommentItem;
@@ -120,18 +123,23 @@ function CommentThread({
   isAuthenticated: boolean;
   onAuthRequired: () => void;
   sortOrder: CommentSortOrder;
+  targetCommentId?: number | null;
+  targetParentCommentId?: number | null;
 }) {
   const [replyContent, setReplyContent] = useState("");
   const [showReplies, setShowReplies] = useState(false);
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentRef = useRef<HTMLDivElement | null>(null);
 
-  const repliesQuery = useNewsfeedCommentDetail(feedId, comment.id, showReplies);
+  const isReplying = replyTargetId === comment.id;
+  const isTargetComment = targetCommentId === comment.id;
+  const shouldOpenTargetReplies = targetParentCommentId === comment.id;
+  const repliesOpen = showReplies || shouldOpenTargetReplies;
+  const repliesQuery = useNewsfeedCommentDetail(feedId, comment.id, repliesOpen);
   const replies = useMemo(
     () => sortCommentsByOrder(repliesQuery.data?.pages.flatMap((page) => page.items) ?? [], sortOrder),
     [repliesQuery.data?.pages, sortOrder],
   );
-
-  const isReplying = replyTargetId === comment.id;
   const replyCount = comment.total_nested_cmt ?? replies.length;
   const canSubmitReply =
     isAuthenticated &&
@@ -159,8 +167,35 @@ function CommentThread({
     autosizeTextarea(replyTextareaRef.current);
   }, [replyContent, isReplying]);
 
+useEffect(() => {
+    if (!isTargetComment) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      commentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [isTargetComment]);
+
+  useEffect(() => {
+    if (!targetCommentId || !repliesOpen) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      document.getElementById(`newsfeed-comment-${targetCommentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [repliesOpen, targetCommentId]);
+
   return (
-    <div className="space-y-3 border-b border-border/40 py-4 last:border-b-0">
+    <div
+      id={`newsfeed-comment-${comment.id}`}
+      ref={commentRef}
+      className={cn(
+        "space-y-3 border-b border-border/40 py-4 last:border-b-0",
+        isTargetComment && "rounded-lg bg-primary/8 px-2 ring-1 ring-primary/30",
+      )}
+    >
       <div className="flex items-start gap-3">
         <Avatar className="h-8 w-8 border border-border/60 bg-background">
           <AvatarFallback className="text-[11px] font-semibold">
@@ -214,7 +249,7 @@ function CommentThread({
                 onClick={() => setShowReplies((current) => !current)}
                 disabled={repliesQuery.isFetching}
               >
-                {showReplies ? "Ẩn phản hồi" : `${replyCount} phản hồi`}
+                {repliesOpen ? "Ẩn phản hồi" : `${replyCount} phản hồi`}
               </button>
             ) : null}
           </div>
@@ -241,12 +276,19 @@ function CommentThread({
             </form>
           ) : null}
 
-          {showReplies ? (
+          {repliesOpen ? (
             <div className="mt-3 space-y-3 border-l border-border/40 pl-4">
               {replies.map((reply) => {
                 const replyAuthorName = getCommentAuthorName(reply, "Người dùng");
                 return (
-                  <div key={reply.id} className="flex items-start gap-3">
+                  <div
+                    id={`newsfeed-comment-${reply.id}`}
+                    key={reply.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg",
+                      targetCommentId === reply.id && "bg-primary/8 px-2 py-1 ring-1 ring-primary/30",
+                    )}
+                  >
                     <Avatar className="h-7 w-7 border border-border/60 bg-background">
                       <AvatarFallback className="text-[10px] font-semibold">
                         {getInitials(replyAuthorName)}
@@ -279,12 +321,16 @@ interface NewsfeedCommentsPanelProps {
   video: NewsfeedItem | null;
   viewerName: string;
   sortOrder: CommentSortOrder;
+  targetCommentId?: number | null;
+  targetParentCommentId?: number | null;
   onCommentCountChange?: (count: number) => void;
 }
 
 export function NewsfeedCommentsPanel({
   video,
   sortOrder,
+  targetCommentId,
+  targetParentCommentId,
   onCommentCountChange,
 }: NewsfeedCommentsPanelProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -295,6 +341,7 @@ export function NewsfeedCommentsPanel({
   const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const feedId = video?.feedId ?? null;
   const commentsQuery = useNewsfeedComments(feedId, Boolean(feedId));
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = commentsQuery;
   const createCommentMutation = useCreateNewsfeedComment();
 
   const requireAuth = () => {
@@ -305,6 +352,7 @@ export function NewsfeedCommentsPanel({
     () => sortCommentsByOrder(commentsQuery.data?.pages.flatMap((page) => page.items) ?? [], sortOrder),
     [commentsQuery.data?.pages, sortOrder],
   );
+  const targetThreadId = targetParentCommentId ?? targetCommentId ?? null;
   const loadedCommentCount = useMemo(
     () =>
       comments.reduce(
@@ -351,6 +399,17 @@ export function NewsfeedCommentsPanel({
     syncNewsfeedCommentCount(queryClient, feedId, loadedCommentCount);
   }, [feedId, loadedCommentCount, onCommentCountChange, queryClient]);
 
+  useEffect(() => {
+    if (!targetThreadId || !hasNextPage || isFetchingNextPage) {
+      return;
+    }
+    if (comments.some((comment) => comment.id === targetThreadId)) {
+      return;
+    }
+
+    void fetchNextPage();
+  }, [comments, fetchNextPage, hasNextPage, isFetchingNextPage, targetThreadId]);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ScrollArea className="min-h-0 flex-1 px-5 py-4 pb-6">
@@ -377,6 +436,8 @@ export function NewsfeedCommentsPanel({
               isAuthenticated={isAuthenticated}
               onAuthRequired={requireAuth}
               sortOrder={sortOrder}
+              targetCommentId={targetCommentId}
+              targetParentCommentId={targetParentCommentId}
             />
           ))}
 
@@ -396,7 +457,7 @@ export function NewsfeedCommentsPanel({
             <Button
               variant="outline"
               onClick={() => {
-                void commentsQuery.fetchNextPage();
+                void fetchNextPage();
               }}
               disabled={commentsQuery.isFetchingNextPage}
               className="w-full"

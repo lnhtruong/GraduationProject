@@ -283,8 +283,8 @@ export class WebhookService {
             userId: row.user_id,
             eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
             sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
-            title: 'Video upload completed',
-            message: 'Your course video is ready to use',
+            title: 'Tải video lên hoàn tất',
+            message: 'Video bài học của bạn đã sẵn sàng sử dụng',
             sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
@@ -420,6 +420,31 @@ export class WebhookService {
         return displayName || null;
     }
 
+    private buildLibraryRedirectUrl(options?: {
+        videoId?: number | null;
+        type?: VideoType | string | null;
+        imageId?: number | null;
+        tab?: 'video' | 'mascot' | 'image';
+    }): string {
+        const params = new URLSearchParams();
+
+        if (options?.videoId) {
+            params.set('type', options.type === VideoType.MASCOT ? 'mascot' : 'video');
+            params.set('videoId', String(options.videoId));
+        } else if (options?.tab) {
+            params.set('tab', options.tab);
+        }
+
+        if (options?.imageId) {
+            params.set('imageId', String(options.imageId));
+            if (!params.has('tab')) {
+                params.set('tab', 'image');
+            }
+        }
+
+        const query = params.toString();
+        return query ? `/library?${query}` : '/library';
+    }
     private async handleCloudinaryVideo(params: {
         assetUrl: string;
         public_id?: string;
@@ -505,8 +530,8 @@ export class WebhookService {
             userId,
             eventType: NotificationEventType.VIDEO_UPLOAD_COMPLETED,
             sseEventType: NotificationSseEventType.UPLOAD_VIDEO_COMPLETED,
-            title: 'Video upload completed',
-            message: 'Your video has been uploaded successfully',
+            title: 'Tải video lên hoàn tất',
+            message: 'Video của bạn đã được tải lên thành công',
             sourceType: NotificationSourceType.VIDEO,
             sourceId: row.id,
             payload: {
@@ -517,7 +542,7 @@ export class WebhookService {
                 duration: duration ?? undefined,
                 name: resolvedName ?? undefined,
                 job_id: jobId,
-                redirectUrl: '/library',
+                redirectUrl: this.buildLibraryRedirectUrl({ videoId: row.id, type: row.type }),
             },
         });
 
@@ -886,8 +911,8 @@ export class WebhookService {
             userId,
             eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
             sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
-            title: 'Highlight videos completed',
-            message: `${createdVideos.length} highlight videos are ready`,
+            title: 'Tạo video highlight hoàn tất',
+            message: `${createdVideos.length} video highlight đã sẵn sàng`,
             sourceType: NotificationSourceType.VIDEO_JOB,
             sourceId: createdVideos[0]?.videoId,
             payload: {
@@ -900,7 +925,7 @@ export class WebhookService {
                 thumbnailUrl: createdVideos[0]?.thumbnailUrl,
                 srtUrl: payload.srt_url,
                 sourceOriginalFilename: payload.source_original_filename,
-                redirectUrl: '/library',
+                redirectUrl: this.buildLibraryRedirectUrl({ videoId: createdVideos[0]?.videoId, type: VideoType.HIGHLIGHT }),
             },
         });
 
@@ -954,10 +979,8 @@ export class WebhookService {
                     userId,
                     eventType: NotificationEventType.VIDEO_JOB_PROGRESS,
                     sseEventType: NotificationSseEventType.VIDEO_PROGRESS,
-                    title: 'Video processing update',
-                    message: payload.stage
-                        ? `Current stage: ${payload.stage}`
-                        : 'Your video is being processed',
+                    title: 'Cập nhật xử lý video',
+                    message: 'Video của bạn đang được xử lý',
                     sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         jobId: this.parseJobId(payload),
@@ -976,8 +999,8 @@ export class WebhookService {
                     userId,
                     eventType: NotificationEventType.VIDEO_JOB_FAILED,
                     sseEventType: NotificationSseEventType.VIDEO_ERROR,
-                    title: 'Video processing failed',
-                    message: payload.error_message ?? payload.errorMessage ?? 'Unexpected error while processing video',
+                    title: 'Xử lý video thất bại',
+                    message: payload.error_message ?? payload.errorMessage ?? 'Đã xảy ra lỗi khi xử lý video',
                     sourceType: NotificationSourceType.VIDEO_JOB,
                     payload: {
                         success: false,
@@ -1052,8 +1075,8 @@ export class WebhookService {
                         userId,
                         eventType: NotificationEventType.TRANSCRIBE_COMPLETED,
                         sseEventType: NotificationSseEventType.TRANSCRIBE_COMPLETED,
-                        title: 'Transcribe completed',
-                        message: 'Your video subtitle is ready',
+                        title: 'Tạo phụ đề hoàn tất',
+                        message: 'Phụ đề video của bạn đã sẵn sàng',
                         sourceType: NotificationSourceType.VIDEO_JOB,
                         sourceId: completedVideoId,
                         payload: {
@@ -1064,6 +1087,7 @@ export class WebhookService {
                             type: 'subtitle',
                             sourceOriginalFilename: payload.source_original_filename,
                             status: 'completed',
+                            redirectUrl: this.buildLibraryRedirectUrl({ videoId: completedVideoId, type: VideoType.HIGHLIGHT }),
                         },
                     });
                     break;
@@ -1148,8 +1172,8 @@ export class WebhookService {
                             userId,
                             eventType: NotificationEventType.QUIZ_GENERATED,
                             sseEventType: NotificationSseEventType.QUIZ_GENERATED,
-                            title: 'Quiz generated',
-                            message: `${quiz.questions.length} questions saved to your lesson`,
+                            title: 'Tạo quiz hoàn tất',
+                            message: `Đã tạo xong ${quiz.questions.length} câu hỏi. Vui lòng xem lại trước khi lưu quiz.`,
                             sourceType: NotificationSourceType.VIDEO_JOB,
                             payload: {
                                 jobId,
@@ -1175,8 +1199,8 @@ export class WebhookService {
                             userId,
                             eventType: NotificationEventType.VIDEO_JOB_FAILED,
                             sseEventType: NotificationSseEventType.VIDEO_ERROR,
-                            title: 'Quiz insert failed',
-                            message: 'Could not save generated quiz to lesson',
+                            title: 'Lưu quiz thất bại',
+                            message: 'Không thể chuẩn bị quiz AI để xem lại',
                             sourceType: NotificationSourceType.VIDEO_JOB,
                             payload: {
                                 jobId, type: 'quiz', status: 'failed',
@@ -1264,8 +1288,8 @@ export class WebhookService {
                     userId,
                     eventType: NotificationEventType.VIDEO_JOB_COMPLETED,
                     sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
-                    title: 'Video processing completed',
-                    message: `Your ${completedVideoLabel} video is ready`,
+                    title: 'Xử lý video hoàn tất',
+                    message: `Video ${completedVideoLabel} của bạn đã sẵn sàng`,
                     sourceType: NotificationSourceType.VIDEO,
                     sourceId: videoId,
                     payload: {
@@ -1277,7 +1301,7 @@ export class WebhookService {
                         type: typeForSse,
                         duration: payload.duration ?? undefined,
                         status: 'completed',
-                        redirectUrl: '/library',
+                        redirectUrl: this.buildLibraryRedirectUrl({ videoId, type: completedVideoType }),
                     },
                 });
                 break;
@@ -1373,8 +1397,8 @@ export class WebhookService {
             userId,
             eventType: NotificationEventType.IMAGE_UPLOAD_COMPLETED,
             sseEventType: NotificationSseEventType.UPLOAD_IMAGE_COMPLETED,
-            title: 'Image upload completed',
-            message: 'Your image has been uploaded successfully',
+            title: 'Tải ảnh lên hoàn tất',
+            message: 'Ảnh của bạn đã được tải lên thành công',
             sourceType: NotificationSourceType.IMAGE,
             sourceId: row.image_id,
             payload: {
@@ -1383,7 +1407,7 @@ export class WebhookService {
                 name: row.name,
                 type: row.type,
                 job_id: jobId,
-                redirectUrl: '/library',
+                redirectUrl: this.buildLibraryRedirectUrl({ imageId: row.image_id, tab: 'image' }),
             },
         });
 
