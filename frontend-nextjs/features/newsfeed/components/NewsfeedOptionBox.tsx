@@ -16,6 +16,8 @@ interface NewsfeedOptionBoxProps {
   contentType: NewsfeedOptionBoxContentType;
   video: NewsfeedItem | null;
   viewerName: string;
+  targetCommentId?: number | null;
+  targetParentCommentId?: number | null;
   onClose: () => void;
 }
 
@@ -24,6 +26,8 @@ export function NewsfeedOptionBox({
   contentType,
   video,
   viewerName,
+  targetCommentId,
+  targetParentCommentId,
   onClose,
 }: NewsfeedOptionBoxProps) {
   const [sortOrder, setSortOrder] = useState<CommentSortOrder>("newest");
@@ -97,6 +101,8 @@ export function NewsfeedOptionBox({
               video={video}
               viewerName={viewerName}
               sortOrder={sortOrder}
+              targetCommentId={targetCommentId}
+              targetParentCommentId={targetParentCommentId}
               onCommentCountChange={handleCommentCountChange}
             />
           ) : video ? (

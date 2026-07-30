@@ -10,13 +10,13 @@ function uniqueByFeedId<T extends { feedId: number }>(items: T[]) {
   return items.filter((item, index, list) => list.findIndex((candidate) => candidate.feedId === item.feedId) === index);
 }
 
-export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVideoId?: number | null) {
+export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialFeedId?: number | null) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const feedQuery = useNewsfeedFeed(enabled, undefined, searchTerm, undefined, isAuthenticated);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeFeedId, setActiveFeedId] = useState<number | null>(null);
   const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
-  const appliedInitialVideoIdRef = useRef<number | null>(null);
+  const appliedInitialFeedIdRef = useRef<number | null>(null);
   // Throttle điều hướng: chặn thao tác kế tiếp cho tới khi hết cooldown.
   const navLockedRef = useRef(false);
   const navTimeoutRef = useRef<number | null>(null);
@@ -47,13 +47,13 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
   );
 
   const hasInitialVideo = useMemo(
-    () => initialVideoId != null && feedItems.some((item) => item.feedId === initialVideoId || item.id === initialVideoId),
-    [feedItems, initialVideoId],
+    () => initialFeedId != null && feedItems.some((item) => item.feedId === initialFeedId || item.id === initialFeedId),
+    [feedItems, initialFeedId],
   );
 
   const detailQuery = useNewsfeedFeedDetail(
-    initialVideoId ?? null,
-    enabled && initialVideoId != null && !hasInitialVideo,
+    initialFeedId ?? null,
+    enabled && initialFeedId != null && !hasInitialVideo,
   );
 
   const videos = useMemo(
@@ -71,23 +71,23 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
       setActiveIndex(0);
       setActiveFeedId(null);
       setScrollToIndex(null);
-      appliedInitialVideoIdRef.current = null;
+      appliedInitialFeedIdRef.current = null;
     }, 0);
     return () => window.clearTimeout(timer);
   }, [searchTerm]);
 
   useEffect(() => {
-    if (initialVideoId == null) {
-      appliedInitialVideoIdRef.current = null;
+    if (initialFeedId == null) {
+      appliedInitialFeedIdRef.current = null;
       return;
     }
 
-    if (appliedInitialVideoIdRef.current === initialVideoId) {
+    if (appliedInitialFeedIdRef.current === initialFeedId) {
       return;
     }
 
     const targetIndex = videos.findIndex(
-      (item) => item.feedId === initialVideoId || item.id === initialVideoId,
+      (item) => item.feedId === initialFeedId || item.id === initialFeedId,
     );
 
     if (targetIndex < 0) {
@@ -98,10 +98,10 @@ export function useNewsfeedVideoFeed(enabled = true, searchTerm = "", initialVid
       setActiveIndex(targetIndex);
       setActiveFeedId(videos[targetIndex]?.feedId ?? null);
       setScrollToIndex(targetIndex);
-      appliedInitialVideoIdRef.current = initialVideoId;
+      appliedInitialFeedIdRef.current = initialFeedId;
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [initialVideoId, videos]);
+  }, [initialFeedId, videos]);
 
   const clampedIndex = useMemo(() => {
     if (!totalVideos) {

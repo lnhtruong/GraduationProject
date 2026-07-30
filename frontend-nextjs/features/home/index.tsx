@@ -49,7 +49,7 @@ const demoCases = [
       "https://vz-e0f2a12f-935.b-cdn.net/10506623-c382-4062-bb6c-27c8185fed19/thumbnail.jpg",
     shortTitle: "Introduction to Participles",
     shortDuration: "02:00",
-    videoId: 32,
+    feedId: 32,
     shortVideo:
       "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779542387/jobs/7470b5e8-d2ae-4c23-a81d-bb53e2366ccb/topics/1/highlight_topic1_7470b5e8-d2ae-4c23-a81d-bb53e2366ccb.mp4",
     shortThumbnail:
@@ -66,7 +66,7 @@ const demoCases = [
       "https://vz-e0f2a12f-935.b-cdn.net/f3377768-3355-469c-9f1e-f6d010f9969f/thumbnail.jpg",
     shortTitle: "Two-Verb Structures",
     shortDuration: "02:05",
-    videoId: 35,
+    feedId: 35,
     shortVideo:
       "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779543612/jobs/f451598a-dde9-448f-ac7e-2cc54a453379/topics/1/highlight_topic1_f451598a-dde9-448f-ac7e-2cc54a453379.mp4",
     shortThumbnail:
@@ -83,7 +83,7 @@ const demoCases = [
       "https://vz-e0f2a12f-935.b-cdn.net/f53ee3cc-c963-43dd-883b-99fcd55c07cf/thumbnail.jpg",
     shortTitle: "Common Tenses in TOEIC",
     shortDuration: "02:49",
-    videoId: 42,
+    feedId: 42,
     shortVideo:
       "https://res.cloudinary.com/dbwqzrbur/video/upload/v1779544415/jobs/2e069ab1-fe01-486c-a863-8d307e338fe8/topics/1/highlight_topic1_2e069ab1-fe01-486c-a863-8d307e338fe8.mp4",
     shortThumbnail:
@@ -864,7 +864,7 @@ function TrendingFeedCard({
   if (variant === "compact") {
     return (
       <Link
-        href={`/newsfeed?videoId=${item.feedId}`}
+        href={`/newsfeed?feedId=${item.feedId}`}
         className="group flex gap-3 rounded-lg border border-border/70 bg-card p-2.5 transition hover:border-primary/40 hover:shadow-sm"
       >
         <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md bg-muted">
@@ -900,7 +900,7 @@ function TrendingFeedCard({
 
   return (
     <Link
-      href={`/newsfeed?videoId=${item.feedId}`}
+      href={`/newsfeed?feedId=${item.feedId}`}
       className="group overflow-hidden rounded-xl border border-border/70 bg-card transition hover:border-primary/40 hover:shadow-lg"
     >
       <div className="relative aspect-video overflow-hidden bg-muted">
@@ -1094,7 +1094,7 @@ export default function Home() {
   const trendingFeedQuery = useHomeTrendingFeed();
   const trendingHashtagsQuery = useHomeTrendingHashtags();
 
-  const newsfeedHref = `/newsfeed?videoId=${demoCases[0].videoId}`;
+  const newsfeedHref = `/newsfeed?feedId=${demoCases[0].feedId}`;
 
   const popularCourses = popularCoursesQuery.data ?? [];
   const trendingFeed = trendingFeedQuery.data?.items ?? [];
