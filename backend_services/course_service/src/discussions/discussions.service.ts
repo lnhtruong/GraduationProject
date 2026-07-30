@@ -211,12 +211,12 @@ export class DiscussionsService {
           .join(' ')
           .trim() ||
         (replyAuthor as any)?.email ||
-        'Someone';
-      const lessonTitle = (lesson as any)?.title ?? 'this lesson';
+        'Một người dùng';
+      const lessonTitle = (lesson as any)?.title ?? 'bài học này';
       const courseId = (lesson as any)?.courseId;
       const redirectUrl = courseId
-        ? `/courses/${courseId}/lessons/${reply.lessonId}#discussion-${root.id}`
-        : `/lessons/${reply.lessonId}#discussion-${root.id}`;
+        ? `/courses/${courseId}/learn?lessonId=${reply.lessonId}#discussion-${root.id}`
+        : `/my-courses`;
 
       const mediaServiceUrl =
         process.env.MEDIA_SERVICE_URL || 'http://localhost:8003';
@@ -224,8 +224,8 @@ export class DiscussionsService {
         userId: root.userId,
         eventType: DISCUSSION_REPLY_EVENT,
         sseEventType: NOTIFY_CREATED_SSE_EVENT,
-        title: 'You have a new reply for your discussion!',
-        message: `${replyName} has answered your question in the post ${lessonTitle}`,
+        title: 'Có phản hồi mới cho thảo luận của bạn',
+        message: `${replyName} đã trả lời câu hỏi của bạn trong bài học ${lessonTitle}`,
         payload: {
           replyId: reply.id,
           rootPostId: root.id,
