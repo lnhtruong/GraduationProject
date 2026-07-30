@@ -9,11 +9,21 @@ import {
   UploadedFile,
   Res,
   BadRequestException,
+  UnauthorizedException,
+  HttpCode,
   Headers,
 } from '@nestjs/common';
 import { FileInterceptor, NoFilesInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
+import type { QuotaFeature } from './quota/quota.config';
 import type { Response } from 'express';
+
+interface ReserveQuotaDto {
+  userId?: number;
+  role?: number;
+  feature: QuotaFeature;
+  durationSec?: number;
+}
 
 /** Header `x-user-id` / `x-user-role` do api_gateway đóng dấu sau khi xác thực JWT. */
 function parseNumericHeader(header?: string): number | undefined {
@@ -205,6 +215,61 @@ export class AppController {
       parseNumericHeader(roleHeader),
       parseDurationSec(body),
     );
+  }
+
+  // ---------------------------------------------------------------
+  // Quota nội bộ — cho service tự submit job sang Colab (không qua đây)
+  // nhưng vẫn muốn trừ credit. Không expose qua api_gateway.
+  // ---------------------------------------------------------------
+  private assertInternalSecret(secret?: string): void {
+    const expected = process.env.INTERNAL_SERVICE_SECRET;
+    if (expected && expected !== secret) {
+      throw new UnauthorizedException('Invalid internal secret');
+    }
+  }
+
+  @Post('quota/reserve')
+  async reserveQuota(
+    @Body() body: ReserveQuotaDto,
+    @Headers('x-internal-secret') secret?: string,
+  ): Promise<{ cost: number }> {
+    this.assertInternalSecret(secret);
+    if (!body?.feature) {
+      throw new BadRequestException('feature is required');
+    }
+    return this.appService.reserveQuota({
+      userId: body.userId,
+      role: body.role,
+      feature: body.feature,
+      durationSec: body.durationSec,
+    });
+  }
+
+  @Post('quota/job')
+  @HttpCode(204)
+  async rememberQuotaJob(
+    @Body() body: { jobId?: string; userId?: number; cost?: number },
+    @Headers('x-internal-secret') secret?: string,
+  ): Promise<void> {
+    this.assertInternalSecret(secret);
+    if (!body?.jobId) {
+      throw new BadRequestException('jobId is required');
+    }
+    await this.appService.rememberQuotaJob(
+      body.jobId,
+      body.userId,
+      Number(body.cost ?? 0),
+    );
+  }
+
+  @Post('quota/refund')
+  @HttpCode(204)
+  async refundQuota(
+    @Body() body: { userId?: number; cost?: number },
+    @Headers('x-internal-secret') secret?: string,
+  ): Promise<void> {
+    this.assertInternalSecret(secret);
+    await this.appService.refundQuota(body?.userId, Number(body?.cost ?? 0));
   }
 
   // GET /jobs/status/:job_id

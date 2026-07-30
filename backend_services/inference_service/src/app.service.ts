@@ -467,14 +467,42 @@ export class AppService {
   // -----------------------------------------------------------------
   private async resolveJobColab(jobId: string): Promise<string> {
     const colabUrl = await this.jobs.resolve(jobId);
-    if (!colabUrl) {
-      this.logger.warn(
-        `Job ${jobId} not found in Redis registry — mapping mất hoặc TTL expire.`,
-      );
+    if (colabUrl) return colabUrl;
+
+    // Không có mapping: job submit thẳng Colab (không qua service này), hoặc
+    // TTL đã hết. Thử worker healthy trong pool thay vì bỏ cuộc — pool 1 worker
+    // thì luôn đúng, pool nhiều worker thì đây là phỏng đoán tốt nhất có thể.
+    this.logger.warn(
+      `Job ${jobId} không có mapping — fallback sang worker healthy trong pool.`,
+    );
+    try {
+      return await this.highlightPool.pickHealthy();
+    } catch {
       throw new NotFoundException(
-        `Job ${jobId} mapping not found. Có thể TTL đã hết, hoặc job được tạo từ trước khi bật scale-out.`,
+        `Job ${jobId} mapping not found và không có Colab worker nào healthy để tra cứu.`,
       );
     }
-    return colabUrl;
+  }
+
+  /** Trừ credit cho job mà service khác tự submit sang Colab. Trả về cost đã trừ. */
+  async reserveQuota(ctx: QuotaContext): Promise<{ cost: number }> {
+    return { cost: await this.quota.reserve(ctx) };
+  }
+
+  /** Hoàn credit khi service gọi submit thất bại. */
+  async refundQuota(userId: number | undefined, cost: number): Promise<void> {
+    await this.quota.refund(userId, cost);
+  }
+
+  /**
+   * Ghi nhớ credit của job do service khác submit, để `getJobStatus` hoàn lại
+   * khi job chết trên Colab. Không có bước này thì job fail = mất credit.
+   */
+  async rememberQuotaJob(
+    jobId: string,
+    userId: number | undefined,
+    cost: number,
+  ): Promise<void> {
+    await this.quota.rememberJob(jobId, userId, cost);
   }
 }

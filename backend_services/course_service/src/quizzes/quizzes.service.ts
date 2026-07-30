@@ -15,7 +15,10 @@ import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Video } from 'src/models/video.model';
-import { ActivityStatus, LessonActivity } from 'src/models/lesson-activity.model';
+import {
+  ActivityStatus,
+  LessonActivity,
+} from 'src/models/lesson-activity.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
@@ -31,6 +34,11 @@ import {
   CourseChangeRequest,
   CourseChangeRequestKind,
 } from 'src/models/course-change-request.model';
+import {
+  refundAiQuota,
+  rememberAiQuotaJob,
+  reserveAiQuota,
+} from './ai-quota.helper';
 
 const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
 const ADMIN_ROLE = 1;
@@ -392,27 +400,44 @@ export class QuizzesService {
       formData.append('duration_sec', String(Math.round(durationSec)));
     }
 
-    const response = await this.fetchJsonWithTimeout<ColabJobResponse>(
-      `${baseUrl}/generate-quiz`,
-      {
-        method: 'POST',
-        body: formData,
-        // Gọi thẳng inference_service (không qua gateway) nên phải tự gắn
-        // ngữ cảnh người dùng để nó tính đúng hạn mức quota theo role.
-        headers: {
-          'x-user-id': String(requester.requesterUserId),
-          'x-user-role': String(requester.requesterRole),
+    // Job đi thẳng Colab, nên phải tự trừ credit qua inference_service trước.
+    // Ném 429 nguyên trạng khi hết hạn mức, trước khi tốn compute của Colab.
+    const quotaCost = await reserveAiQuota('quiz', durationSec, {
+      userId: requester.requesterUserId,
+      role: requester.requesterRole,
+    });
+
+    let response: ColabJobResponse;
+    try {
+      response = await this.fetchJsonWithTimeout<ColabJobResponse>(
+        `${baseUrl}/generate-quiz`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'x-user-id': String(requester.requesterUserId),
+            'x-user-role': String(requester.requesterRole),
+          },
         },
-      },
-      60_000,
-    );
+        60_000,
+      );
+    } catch (error) {
+      // Colab chưa nhận job → hoàn lại credit vừa trừ.
+      await refundAiQuota(requester.requesterUserId, quotaCost);
+      throw error;
+    }
 
     const jobId = response.job_id ?? response.jobId;
     if (!jobId) {
+      await refundAiQuota(requester.requesterUserId, quotaCost);
       throw new InternalServerErrorException(
         'AI service did not return job_id',
       );
     }
+
+    // Colab đã nhận job → không rollback được nữa. Đăng ký để inference_service
+    // hoàn credit khi FE poll thấy job fail.
+    await rememberAiQuotaJob(jobId, requester.requesterUserId, quotaCost);
 
     return {
       jobId,
@@ -446,7 +471,11 @@ export class QuizzesService {
    * Caller dự kiến: `media_service` webhook `handleAIResult` case `type=quiz`.
    */
   async createFromAI(payload: CreateQuizFromAIDto): Promise<
-    Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null }
+    Quiz & {
+      lessonId?: number | null;
+      courseId?: number | null;
+      redirectUrl?: string | null;
+    }
   > {
     if (!payload.questions?.length) {
       throw new BadRequestException('questions[] is required and non-empty');
@@ -529,19 +558,25 @@ export class QuizzesService {
       return await this.findOne(quiz.id, { transaction });
     });
 
-    const course = await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
+    const course =
+      await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
     const lessonId = lessonActivity.lessonId ?? null;
     const courseId = course?.id ?? null;
-    const redirectUrl = courseId && lessonId
-      ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
-      : null;
+    const redirectUrl =
+      courseId && lessonId
+        ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
+        : null;
 
     return {
       ...quiz.toJSON(),
       lessonId,
       courseId,
       redirectUrl,
-    } as Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null };
+    } as Quiz & {
+      lessonId?: number | null;
+      courseId?: number | null;
+      redirectUrl?: string | null;
+    };
   }
 
   private isNewColabQuestionFormat(q: QuizQuestionFromAIDto): boolean {
@@ -955,9 +990,12 @@ export class QuizzesService {
         });
         if (lesson) courseId = (lesson as any).courseId;
       } else if (options.lessonActivityId) {
-        const activity = await this.lessonActivityModel.findByPk(options.lessonActivityId, {
-          attributes: ['id', 'lessonId'],
-        });
+        const activity = await this.lessonActivityModel.findByPk(
+          options.lessonActivityId,
+          {
+            attributes: ['id', 'lessonId'],
+          },
+        );
         if (activity?.lessonId) {
           const lesson = await Lesson.findByPk(activity.lessonId, {
             attributes: ['id', 'courseId'],
@@ -969,9 +1007,12 @@ export class QuizzesService {
           attributes: ['id', 'lessonActivityId'],
         });
         if (quiz?.lessonActivityId) {
-          const activity = await this.lessonActivityModel.findByPk(quiz.lessonActivityId, {
-            attributes: ['id', 'lessonId'],
-          });
+          const activity = await this.lessonActivityModel.findByPk(
+            quiz.lessonActivityId,
+            {
+              attributes: ['id', 'lessonId'],
+            },
+          );
           if (activity?.lessonId) {
             const lesson = await Lesson.findByPk(activity.lessonId, {
               attributes: ['id', 'courseId'],
@@ -1066,10 +1107,7 @@ export class QuizzesService {
    * Entry point từ controller cho `DELETE /quizzes/:id`. Xoá (soft) TRỰC TIẾP
    * (không còn change request); chỉ admin/chủ khóa. Báo học viên nếu khóa đã publish.
    */
-  async removeWithReview(
-    id: number,
-    requester?: QuizRequester,
-  ): Promise<void> {
+  async removeWithReview(id: number, requester?: QuizRequester): Promise<void> {
     const quiz = await this.findOne(id);
     const courseId = await this.resolveQuizCourseId(
       quiz.lessonActivityId,
