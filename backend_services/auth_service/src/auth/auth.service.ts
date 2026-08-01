@@ -123,10 +123,23 @@ export class AuthService {
     }
 
     let user = await this.userModel.findOne({ where: { email } });
+    const profile = this.resolveOAuthProfile({
+      firstName: googlePayload.given_name,
+      lastName: googlePayload.family_name,
+      avatarUrl: googlePayload.picture,
+    });
 
     if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        profile,
+      );
       if (!user.googleId) {
-        await user.update({ googleId, emailVerified: true });
+        updates.googleId = googleId;
+        updates.emailVerified = true;
+      }
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
       return this.issueAuthTokens(user);
     }
@@ -134,12 +147,12 @@ export class AuthService {
     user = await this.userModel.create({
       email,
       password: null,
-      firstName: googlePayload.given_name || null,
-      lastName: googlePayload.family_name || null,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
       role: DEFAULT_USER_ROLE,
       googleId,
       emailVerified: true,
-      avatarUrl: googlePayload.picture || null,
+      avatarUrl: profile.avatarUrl,
     });
 
     return this.issueAuthTokens(user);
@@ -516,26 +529,43 @@ export class AuthService {
       }
     }
 
+    const accountEmail = email ?? `github_${githubId}@noemail.local`;
+    const [githubFirstName, githubLastName] = this.splitOAuthFullName(
+      profile.name,
+    );
+    const oauthProfile = this.resolveOAuthProfile({
+      firstName: githubFirstName,
+      lastName: githubLastName,
+      avatarUrl: profile.avatar_url,
+    });
+
     let user = await this.userModel.findOne({ where: { githubId } });
 
     if (!user && email) {
       user = await this.userModel.findOne({ where: { email } });
-      if (user) {
-        await user.update({ githubId });
+    }
+
+    if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        oauthProfile,
+      );
+      if (!user.githubId) updates.githubId = githubId;
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
     }
 
     if (!user) {
-      const nameParts = (profile.name || '').split(' ');
       user = await this.userModel.create({
-        email: email ?? `github_${githubId}@noemail.local`,
+        email: accountEmail,
         password: null,
-        firstName: nameParts[0] || null,
-        lastName: nameParts.slice(1).join(' ') || null,
+        firstName: oauthProfile.firstName,
+        lastName: oauthProfile.lastName,
         role: DEFAULT_USER_ROLE,
         githubId,
         emailVerified: !!email,
-        avatarUrl: profile.avatar_url || null,
+        avatarUrl: oauthProfile.avatarUrl,
       });
     }
 
@@ -609,26 +639,40 @@ export class AuthService {
     const facebookId = String(profile.id);
     const email: string | null = profile.email?.trim().toLowerCase() || null;
     const avatarUrl: string | null = profile.picture?.data?.url || null;
+    const accountEmail = email ?? `facebook_${facebookId}@noemail.local`;
+    const oauthProfile = this.resolveOAuthProfile({
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      avatarUrl,
+    });
 
     let user = await this.userModel.findOne({ where: { facebookId } });
 
     if (!user && email) {
       user = await this.userModel.findOne({ where: { email } });
-      if (user) {
-        await user.update({ facebookId });
+    }
+
+    if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        oauthProfile,
+      );
+      if (!user.facebookId) updates.facebookId = facebookId;
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
     }
 
     if (!user) {
       user = await this.userModel.create({
-        email: email ?? `facebook_${facebookId}@noemail.local`,
+        email: accountEmail,
         password: null,
-        firstName: profile.first_name || null,
-        lastName: profile.last_name || null,
+        firstName: oauthProfile.firstName,
+        lastName: oauthProfile.lastName,
         role: DEFAULT_USER_ROLE,
         facebookId,
         emailVerified: !!email,
-        avatarUrl,
+        avatarUrl: oauthProfile.avatarUrl,
       });
     }
 
@@ -662,6 +706,66 @@ export class AuthService {
       role: user.role,
       avatarUrl: user.avatarUrl,
     };
+  }
+
+  /** A provider name is usable only when it contains both name fields. */
+  private resolveOAuthProfile(input: {
+    firstName?: string | null;
+    lastName?: string | null;
+    avatarUrl?: string | null;
+  }) {
+    const firstName = this.readProfileText(input.firstName);
+    const lastName = this.readProfileText(input.lastName);
+    const hasCompleteName = Boolean(firstName && lastName);
+
+    return {
+      firstName: hasCompleteName ? firstName : null,
+      lastName: hasCompleteName ? lastName : null,
+      avatarUrl: this.readProfileText(input.avatarUrl),
+    };
+  }
+
+  /**
+   * Name is an atomic pair: only a complete provider name may fill a profile
+   * whose first and last name are both blank. User-edited values are preserved.
+   */
+  private getOAuthProfileBackfill(
+    user: User,
+    profile: {
+      firstName: string | null;
+      lastName: string | null;
+      avatarUrl: string | null;
+    },
+  ): Record<string, string> {
+    const updates: Record<string, string> = {};
+    const userHasName = Boolean(
+      this.readProfileText(user.firstName) ||
+        this.readProfileText(user.lastName),
+    );
+
+    if (!userHasName && profile.firstName && profile.lastName) {
+      updates.firstName = profile.firstName;
+      updates.lastName = profile.lastName;
+    }
+    if (!this.readProfileText(user.avatarUrl) && profile.avatarUrl) {
+      updates.avatarUrl = profile.avatarUrl;
+    }
+
+    return updates;
+  }
+
+  private splitOAuthFullName(value: unknown): [string | null, string | null] {
+    const fullName = this.readProfileText(value);
+    if (!fullName) return [null, null];
+
+    const [firstName, ...lastNameParts] = fullName.split(/\s+/);
+    return [firstName ?? null, lastNameParts.join(' ') || null];
+  }
+
+  private readProfileText(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim();
+    return normalized || null;
   }
 
   private async verifyGoogleIdToken(
