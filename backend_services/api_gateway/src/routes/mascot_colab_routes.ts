@@ -31,6 +31,9 @@ router.use(
                 if (req.user.email) {
                     proxyReq.setHeader('X-User-Email', req.user.email);
                 }
+                if (req.user.role !== undefined) {
+                    proxyReq.setHeader('X-User-Role', req.user.role.toString());
+                }
             }
 
             //Fix lỗi Proxy với file upload
