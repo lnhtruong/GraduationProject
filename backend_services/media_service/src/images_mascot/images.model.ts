@@ -16,6 +16,8 @@ export enum MascotImageType {
     THUMBNAIL_VIDEO = 'thumbnail_video',
     THUMBNAIL_COURSE = 'thumbnail_course',
     AVT = 'avt',
+    REPORT = 'report',
+    ROLE_UPGRADE = 'role_upgrade',
 }
 
 @Table({
@@ -32,13 +34,13 @@ export class MascotImage extends Model {
         type: DataType.INTEGER,
         allowNull: false,
     })
-    user_id: number;
+    declare user_id: number;
 
     @Column({
         type: DataType.STRING(255),
         allowNull: false,
     })
-    url: string;
+    declare url: string;
 
     /** Same id as Colab / client session when image is part of a multi-step flow (optional). */
     @Index({ unique: true, name: 'uq_mascot_images_job_id' })

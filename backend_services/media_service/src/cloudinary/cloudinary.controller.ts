@@ -24,7 +24,9 @@ type SignedUploadContextType =
   | UploadVideoType
   | 'thumbnail_video'
   | 'thumbnail_course'
-  | 'avt';
+  | 'avt'
+  | 'report'
+  | 'role_upgrade';
 
 const SIGNED_UPLOAD_CONTEXT_TYPES = new Set<SignedUploadContextType>([
   'highlight',
@@ -32,6 +34,8 @@ const SIGNED_UPLOAD_CONTEXT_TYPES = new Set<SignedUploadContextType>([
   'thumbnail_video',
   'thumbnail_course',
   'avt',
+  'report',
+  'role_upgrade',
 ]);
 
 /** Optional `job_id` is forwarded in signed context so the webhook can upsert by job. */
