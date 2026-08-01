@@ -6,7 +6,11 @@ export interface Image {
 	id: number;
 	user_id?: number;
 	url: string;
-	thumbnail?: string | null;
+  thumbnail?: string | null;
+  type?: string;
+  job_id?: string | null;
+  name?: string | null;
+  format?: string | null;
 	created_at?: string;
 	updated_at?: string;
 }

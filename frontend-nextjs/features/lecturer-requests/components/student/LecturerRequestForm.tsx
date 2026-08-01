@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import { lecturerRequestSchema, type LecturerRequestFormData } from "../../schemas";
 import { useCreateLecturerRequest } from "../../api/lecturer-requests.hooks";
+import { EvidenceImagePicker } from "@/features/image/components/EvidenceImagePicker";
 
 interface LecturerRequestFormProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface LecturerRequestFormProps {
 
 export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps) {
   const createMutation = useCreateLecturerRequest();
+  const [evidenceImageIds, setEvidenceImageIds] = useState<number[]>([]);
 
   const form = useForm<LecturerRequestFormData>({
     resolver: zodResolver(lecturerRequestSchema),
@@ -42,10 +44,18 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
   const confirmValue = form.watch("confirm") ?? "";
 
   const handleSubmit = async (values: LecturerRequestFormData) => {
+    if (evidenceImageIds.length === 0) {
+      toast.error("Vui lòng tải lên ít nhất một ảnh chứng minh năng lực.");
+      return;
+    }
     try {
-      await createMutation.mutateAsync({ confirm: values.confirm || undefined });
+      await createMutation.mutateAsync({
+        confirm: values.confirm || undefined,
+        evidenceImageIds,
+      });
       toast.success("Yêu cầu đã được gửi! Chúng tôi sẽ xem xét sớm nhất.");
       form.reset();
+      setEvidenceImageIds([]);
       onClose();
     } catch {
       toast.error("Không thể gửi yêu cầu. Vui lòng thử lại.");
@@ -91,6 +101,14 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
                   </div>
                 </FormItem>
               )}
+            />
+
+            <EvidenceImagePicker
+              type="role_upgrade"
+              value={evidenceImageIds}
+              onChange={setEvidenceImageIds}
+              disabled={createMutation.isPending}
+              required
             />
 
             <DialogFooter>

@@ -25,6 +25,10 @@ type ImageApiResponse = {
   user_id?: number;
   url?: string;
   thumbnail?: string | null;
+  type?: string;
+  job_id?: string | null;
+  name?: string | null;
+  format?: string | null;
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
@@ -36,12 +40,20 @@ export type ImageLibraryPageParams = {
   limit: number;
 };
 
+export type ImageListParams = {
+  type?: string;
+};
+
 function mapImage(raw: ImageApiResponse): Image {
   return {
     id: raw.id ?? raw.image_id ?? 0,
     user_id: raw.user_id,
     url: raw.url ?? "",
     thumbnail: raw.thumbnail ?? null,
+    type: raw.type,
+    job_id: raw.job_id ?? null,
+    name: raw.name ?? null,
+    format: raw.format ?? null,
     created_at: raw.created_at ?? raw.createdAt,
     updated_at: raw.updated_at ?? raw.updatedAt,
   };
@@ -64,7 +76,13 @@ const imageCrudApi = createResourceApi<
 export const imageApi = {
   ...imageCrudApi,
   findById: imageCrudApi.getOne,
-  getAllByUser: () => imageCrudApi.list?.() ?? Promise.resolve([]),
+  getAllByUser: async (params?: ImageListParams): Promise<Image[]> => {
+    const { data } = await apiClient.get<ImageApiResponse[]>(
+      `${IMAGE_ENDPOINT}/user`,
+      { params },
+    );
+    return data.map(mapImage);
+  },
   getAllByUserPaginated: async ({
     page,
     limit,

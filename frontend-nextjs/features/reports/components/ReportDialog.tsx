@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitReport } from "../api/report.hooks";
 import type { ReportTargetType } from "../types";
+import { EvidenceImagePicker } from "@/features/image/components/EvidenceImagePicker";
 
 interface Props {
   open: boolean;
@@ -43,11 +44,13 @@ function getErrorMessage(error: unknown): string {
 export function ReportDialog({ open, onClose, targetType, targetId, targetLabel }: Props) {
   const [reason, setReason] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [evidenceImageIds, setEvidenceImageIds] = useState<number[]>([]);
   const submit = useSubmitReport();
 
   const handleClose = () => {
     setReason("");
     setErrorMsg(null);
+    setEvidenceImageIds([]);
     onClose();
   };
 
@@ -55,7 +58,12 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
     if (reason.trim().length < MIN_REASON) return;
     setErrorMsg(null);
     try {
-      await submit.mutateAsync({ targetType, targetId, reason: reason.trim() });
+      await submit.mutateAsync({
+        targetType,
+        targetId,
+        reason: reason.trim(),
+        ...(evidenceImageIds.length > 0 ? { evidenceImageIds } : {}),
+      });
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.");
       handleClose();
     } catch (err) {
@@ -100,6 +108,13 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
               {charCount}/{MAX_REASON}
             </span>
           </div>
+
+          <EvidenceImagePicker
+            type="report"
+            value={evidenceImageIds}
+            onChange={setEvidenceImageIds}
+            disabled={submit.isPending}
+          />
 
           {errorMsg && (
             <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs text-destructive">
