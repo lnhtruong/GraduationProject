@@ -29,6 +29,8 @@ interface HighlightParamsFormProps {
   compact?: boolean;
   formId?: string;
   hideActions?: boolean;
+  /** Chặn submit khi không đủ credit quota. Nội dung riêng render bên ngoài form. */
+  submitDisabled?: boolean;
 }
 
 const INCLUDE_PRESETS = [
@@ -66,6 +68,7 @@ export default function HighlightParamsForm({
   compact = false,
   formId,
   hideActions = false,
+  submitDisabled = false,
 }: HighlightParamsFormProps) {
   const [includeInput, setIncludeInput] = React.useState("");
   const [excludeInput, setExcludeInput] = React.useState("");
@@ -415,7 +418,11 @@ export default function HighlightParamsForm({
           >
             Quay lại
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="h-11 flex-1">
+          <Button
+            type="submit"
+            disabled={isSubmitting || submitDisabled}
+            className="h-11 flex-1"
+          >
             {isSubmitting ? (
               <>
                 <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

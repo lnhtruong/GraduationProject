@@ -32,6 +32,10 @@ export function buildMascotFormData(params: MascotParams): FormData {
   formData.append("margin_x", String(params.margin_x ?? 40));
   formData.append("margin_y", String(params.margin_y ?? 40));
   formData.append("scale", String(params.scale ?? 1));
+  // Thời lượng để backend tính credit quota. Thiếu → backend tính hệ số ×1.
+  if (params.durationSec && params.durationSec > 0) {
+    formData.append("duration_sec", String(Math.round(params.durationSec)));
+  }
   if (params.textOverlays?.length) {
     formData.append("text_overlays", JSON.stringify(params.textOverlays));
   }

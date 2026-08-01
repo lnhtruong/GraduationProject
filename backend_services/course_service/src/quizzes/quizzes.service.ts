@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -14,7 +15,10 @@ import { Quiz } from 'src/models/quiz.model';
 import { QuizQuestion } from 'src/models/quiz-question.model';
 import { QuizOption } from 'src/models/quiz-option.model';
 import { Video } from 'src/models/video.model';
-import { ActivityStatus, LessonActivity } from 'src/models/lesson-activity.model';
+import {
+  ActivityStatus,
+  LessonActivity,
+} from 'src/models/lesson-activity.model';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuizAIDto } from './dto/create-quiz-ai.dto';
@@ -30,6 +34,11 @@ import {
   CourseChangeRequest,
   CourseChangeRequestKind,
 } from 'src/models/course-change-request.model';
+import {
+  refundAiQuota,
+  rememberAiQuotaJob,
+  reserveAiQuota,
+} from './ai-quota.helper';
 
 const VIDEO_TIMESTAMP_REGEX = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
 const ADMIN_ROLE = 1;
@@ -202,12 +211,14 @@ export class QuizzesService {
       const data = text ? JSON.parse(text) : {};
 
       if (!response.ok) {
-        throw new BadRequestException(data);
+        // Giữ nguyên status upstream để 429 (hết quota) tới được FE thay vì
+        // bị bọc thành 400.
+        throw new HttpException(data, response.status);
       }
 
       return data as T;
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+      if (error instanceof HttpException) throw error;
       const message = error instanceof Error ? error.message : String(error);
       throw new InternalServerErrorException(
         `AI service request failed: ${message}`,
@@ -300,6 +311,29 @@ export class QuizzesService {
     return { startTime, endTime };
   }
 
+  /**
+   * Thời lượng dùng để tính credit quota. Quiz AI cho phép sinh câu hỏi trên
+   * một đoạn của video, nên phải tính theo đoạn đã chọn — tính cả video sẽ
+   * khiến lecturer bị trừ oan.
+   */
+  private resolveAiQuizDurationSec(
+    timeRange: AiQuizTimeRange | null,
+    videoDuration: number | null,
+  ): number | undefined {
+    if (timeRange) {
+      const span = timeRange.endTime - timeRange.startTime;
+      if (Number.isFinite(span) && span > 0) return span;
+    }
+    if (
+      videoDuration !== null &&
+      Number.isFinite(videoDuration) &&
+      videoDuration > 0
+    ) {
+      return videoDuration;
+    }
+    return undefined;
+  }
+
   async createOneByAI(
     payload: CreateQuizAIDto,
     requester: RequesterContext,
@@ -358,18 +392,52 @@ export class QuizzesService {
       formData.append('end_time', String(timeRange.endTime));
     }
 
-    const response = await this.fetchJsonWithTimeout<ColabJobResponse>(
-      `${baseUrl}/generate-quiz`,
-      { method: 'POST', body: formData },
-      60_000,
+    const durationSec = this.resolveAiQuizDurationSec(
+      timeRange,
+      video.duration ?? null,
     );
+    if (durationSec !== undefined) {
+      formData.append('duration_sec', String(Math.round(durationSec)));
+    }
+
+    // Job đi thẳng Colab, nên phải tự trừ credit qua inference_service trước.
+    // Ném 429 nguyên trạng khi hết hạn mức, trước khi tốn compute của Colab.
+    const quotaCost = await reserveAiQuota('quiz', durationSec, {
+      userId: requester.requesterUserId,
+      role: requester.requesterRole,
+    });
+
+    let response: ColabJobResponse;
+    try {
+      response = await this.fetchJsonWithTimeout<ColabJobResponse>(
+        `${baseUrl}/generate-quiz`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'x-user-id': String(requester.requesterUserId),
+            'x-user-role': String(requester.requesterRole),
+          },
+        },
+        60_000,
+      );
+    } catch (error) {
+      // Colab chưa nhận job → hoàn lại credit vừa trừ.
+      await refundAiQuota(requester.requesterUserId, quotaCost);
+      throw error;
+    }
 
     const jobId = response.job_id ?? response.jobId;
     if (!jobId) {
+      await refundAiQuota(requester.requesterUserId, quotaCost);
       throw new InternalServerErrorException(
         'AI service did not return job_id',
       );
     }
+
+    // Colab đã nhận job → không rollback được nữa. Đăng ký để inference_service
+    // hoàn credit khi FE poll thấy job fail.
+    await rememberAiQuotaJob(jobId, requester.requesterUserId, quotaCost);
 
     return {
       jobId,
@@ -403,7 +471,11 @@ export class QuizzesService {
    * Caller dự kiến: `media_service` webhook `handleAIResult` case `type=quiz`.
    */
   async createFromAI(payload: CreateQuizFromAIDto): Promise<
-    Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null }
+    Quiz & {
+      lessonId?: number | null;
+      courseId?: number | null;
+      redirectUrl?: string | null;
+    }
   > {
     if (!payload.questions?.length) {
       throw new BadRequestException('questions[] is required and non-empty');
@@ -486,19 +558,25 @@ export class QuizzesService {
       return await this.findOne(quiz.id, { transaction });
     });
 
-    const course = await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
+    const course =
+      await this.coursesService.findCourseByLessonActivityId(lessonActivityId);
     const lessonId = lessonActivity.lessonId ?? null;
     const courseId = course?.id ?? null;
-    const redirectUrl = courseId && lessonId
-      ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
-      : null;
+    const redirectUrl =
+      courseId && lessonId
+        ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
+        : null;
 
     return {
       ...quiz.toJSON(),
       lessonId,
       courseId,
       redirectUrl,
-    } as Quiz & { lessonId?: number | null; courseId?: number | null; redirectUrl?: string | null };
+    } as Quiz & {
+      lessonId?: number | null;
+      courseId?: number | null;
+      redirectUrl?: string | null;
+    };
   }
 
   private isNewColabQuestionFormat(q: QuizQuestionFromAIDto): boolean {
@@ -912,9 +990,12 @@ export class QuizzesService {
         });
         if (lesson) courseId = (lesson as any).courseId;
       } else if (options.lessonActivityId) {
-        const activity = await this.lessonActivityModel.findByPk(options.lessonActivityId, {
-          attributes: ['id', 'lessonId'],
-        });
+        const activity = await this.lessonActivityModel.findByPk(
+          options.lessonActivityId,
+          {
+            attributes: ['id', 'lessonId'],
+          },
+        );
         if (activity?.lessonId) {
           const lesson = await Lesson.findByPk(activity.lessonId, {
             attributes: ['id', 'courseId'],
@@ -926,9 +1007,12 @@ export class QuizzesService {
           attributes: ['id', 'lessonActivityId'],
         });
         if (quiz?.lessonActivityId) {
-          const activity = await this.lessonActivityModel.findByPk(quiz.lessonActivityId, {
-            attributes: ['id', 'lessonId'],
-          });
+          const activity = await this.lessonActivityModel.findByPk(
+            quiz.lessonActivityId,
+            {
+              attributes: ['id', 'lessonId'],
+            },
+          );
           if (activity?.lessonId) {
             const lesson = await Lesson.findByPk(activity.lessonId, {
               attributes: ['id', 'courseId'],
@@ -1023,10 +1107,7 @@ export class QuizzesService {
    * Entry point từ controller cho `DELETE /quizzes/:id`. Xoá (soft) TRỰC TIẾP
    * (không còn change request); chỉ admin/chủ khóa. Báo học viên nếu khóa đã publish.
    */
-  async removeWithReview(
-    id: number,
-    requester?: QuizRequester,
-  ): Promise<void> {
+  async removeWithReview(id: number, requester?: QuizRequester): Promise<void> {
     const quiz = await this.findOne(id);
     const courseId = await this.resolveQuizCourseId(
       quiz.lessonActivityId,

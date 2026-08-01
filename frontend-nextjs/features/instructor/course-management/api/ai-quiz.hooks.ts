@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { aiQuizApi, CreateQuizAIPayload } from "./ai-quiz.api";
+import { useInvalidateQuota } from "@/features/_shared/quota";
 
 const aiQuizKeys = {
   all: ["ai-quiz"] as const,
@@ -7,8 +8,12 @@ const aiQuizKeys = {
 };
 
 export function useGenerateQuizAIMutation() {
+  const invalidateQuota = useInvalidateQuota();
   return useMutation({
     mutationFn: (payload: CreateQuizAIPayload) => aiQuizApi.generate(payload),
+    onSuccess: () => {
+      invalidateQuota();
+    },
   });
 }
 

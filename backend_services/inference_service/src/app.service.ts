@@ -15,11 +15,13 @@ import type { Readable } from 'stream';
 
 import { ColabPoolService } from './colab/colab-pool.service';
 import { JobRegistryService } from './colab/job-registry.service';
-import {
-  HIGHLIGHT_COLAB_POOL,
-  MASCOT_COLAB_POOL,
-} from './colab/colab.module';
+import { HIGHLIGHT_COLAB_POOL, MASCOT_COLAB_POOL } from './colab/colab.module';
 import { ColabConfig } from './config/colab.config';
+import {
+  QuotaService,
+  type QuotaContext,
+  type QuotaSnapshot,
+} from './quota/quota.service';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -51,6 +53,18 @@ function appendMascotField(
   if (normalized !== undefined) formData.append(key, normalized);
 }
 
+/** Trạng thái Colab coi là job đã chết, khớp danh sách FE đang dùng. */
+const FAILED_JOB_STATUSES = ['failed', 'error', 'cancelled', 'canceled'];
+
+function isFailedJob(data: unknown): boolean {
+  if (!isRecord(data)) return false;
+  const status = data['status'];
+  return (
+    typeof status === 'string' &&
+    FAILED_JOB_STATUSES.includes(status.trim().toLowerCase())
+  );
+}
+
 /**
  * Cố gắng đọc job_id từ response Colab.
  * Colab notebook hiện trả `{"job_id": "...", "status": "queued", ...}`.
@@ -79,9 +93,11 @@ export class AppService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    @Inject(HIGHLIGHT_COLAB_POOL) private readonly highlightPool: ColabPoolService,
+    @Inject(HIGHLIGHT_COLAB_POOL)
+    private readonly highlightPool: ColabPoolService,
     @Inject(MASCOT_COLAB_POOL) private readonly mascotPool: ColabPoolService,
     private readonly jobs: JobRegistryService,
+    private readonly quota: QuotaService,
   ) {
     this.requestTimeoutMs =
       this.configService.get<ColabConfig>('colab')?.requestTimeoutMs ?? 600000;
@@ -132,14 +148,28 @@ export class AppService {
 
   private async pickAndPersist(
     pool: ColabPoolService,
+    quotaCtx: QuotaContext,
     callable: (colabUrl: string) => Promise<unknown>,
   ): Promise<unknown> {
-    const colabUrl = await pool.pickHealthy();
+    const cost = await this.quota.reserve(quotaCtx);
+
+    let colabUrl: string;
+    try {
+      colabUrl = await pool.pickHealthy();
+    } catch (error) {
+      // Không có worker nào healthy → job chưa hề được submit, hoàn credit.
+      await this.quota.refund(quotaCtx.userId, cost);
+      throw error;
+    }
+
     try {
       const data = await callable(colabUrl);
       const jobId = extractJobId(data);
       if (jobId) {
         await this.jobs.bind(jobId, colabUrl);
+        // Colab đã nhận job → reserve không rollback được nữa, phải ghi lại
+        // credit để hoàn nếu job chết dọc đường.
+        await this.quota.rememberJob(jobId, quotaCtx.userId, cost);
         this.logger.log(`Bound job ${jobId} → ${colabUrl}`);
       } else {
         this.logger.debug(
@@ -148,8 +178,14 @@ export class AppService {
       }
       return data;
     } catch (error) {
+      // Submit thất bại đồng bộ (ngrok chết, HTTP lỗi) → hoàn credit.
+      await this.quota.refund(quotaCtx.userId, cost);
       this.rethrowAxios(error);
     }
+  }
+
+  async getQuota(userId?: number, role?: number): Promise<QuotaSnapshot> {
+    return this.quota.peek(userId, role);
   }
 
   // -----------------------------------------------------------------
@@ -159,8 +195,16 @@ export class AppService {
     video: Express.Multer.File,
     body: unknown,
     userIdFromHeader?: number,
+    role?: number,
+    durationSec?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'highlight',
+      durationSec,
+    };
+    return this.pickAndPersist(this.highlightPool, quota, async (colabUrl) => {
       const formData = new FormData();
       formData.append('video', video.buffer, {
         filename: video.originalname,
@@ -188,8 +232,16 @@ export class AppService {
   async createHighlightReelLink(
     body: unknown,
     userIdFromHeader?: number,
+    role?: number,
+    durationSec?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'highlight',
+      durationSec,
+    };
+    return this.pickAndPersist(this.highlightPool, quota, async (colabUrl) => {
       const payload: Record<string, unknown> = {
         user_id: userIdFromHeader ?? null,
       };
@@ -219,8 +271,16 @@ export class AppService {
   async createTranscribe(
     body: unknown,
     userIdFromHeader?: number,
+    role?: number,
+    durationSec?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'transcribe',
+      durationSec,
+    };
+    return this.pickAndPersist(this.highlightPool, quota, async (colabUrl) => {
       const formData = new FormData();
       formData.append('user_id', String(userIdFromHeader ?? ''));
 
@@ -246,8 +306,16 @@ export class AppService {
     audio: Express.Multer.File | undefined,
     body: unknown,
     userIdFromHeader?: number,
+    role?: number,
+    durationSec?: number,
   ): Promise<unknown> {
-    return this.pickAndPersist(this.mascotPool, async (colabUrl) => {
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'mascot',
+      durationSec,
+    };
+    return this.pickAndPersist(this.mascotPool, quota, async (colabUrl) => {
       const formData = new FormData();
 
       appendMascotField(formData, body, 'video_url');
@@ -304,8 +372,19 @@ export class AppService {
   // -----------------------------------------------------------------
   // 4. Generate Quiz
   // -----------------------------------------------------------------
-  async generateQuiz(body: unknown): Promise<unknown> {
-    return this.pickAndPersist(this.highlightPool, async (colabUrl) => {
+  async generateQuiz(
+    body: unknown,
+    userIdFromHeader?: number,
+    role?: number,
+    durationSec?: number,
+  ): Promise<unknown> {
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'quiz',
+      durationSec,
+    };
+    return this.pickAndPersist(this.highlightPool, quota, async (colabUrl) => {
       const formData = new FormData();
       if (isRecord(body)) {
         for (const key of Object.keys(body)) {
@@ -329,6 +408,11 @@ export class AppService {
           timeout: this.requestTimeoutMs,
         }),
       );
+      // FE poll status xuyên qua đây, nên đây là chỗ duy nhất server tự biết
+      // job đã chết mà không phải tin client.
+      if (isFailedJob(resp.data)) {
+        await this.quota.refundJob(jobId);
+      }
       return resp.data;
     } catch (error) {
       this.rethrowAxios(error);
@@ -383,14 +467,42 @@ export class AppService {
   // -----------------------------------------------------------------
   private async resolveJobColab(jobId: string): Promise<string> {
     const colabUrl = await this.jobs.resolve(jobId);
-    if (!colabUrl) {
-      this.logger.warn(
-        `Job ${jobId} not found in Redis registry — mapping mất hoặc TTL expire.`,
-      );
+    if (colabUrl) return colabUrl;
+
+    // Không có mapping: job submit thẳng Colab (không qua service này), hoặc
+    // TTL đã hết. Thử worker healthy trong pool thay vì bỏ cuộc — pool 1 worker
+    // thì luôn đúng, pool nhiều worker thì đây là phỏng đoán tốt nhất có thể.
+    this.logger.warn(
+      `Job ${jobId} không có mapping — fallback sang worker healthy trong pool.`,
+    );
+    try {
+      return await this.highlightPool.pickHealthy();
+    } catch {
       throw new NotFoundException(
-        `Job ${jobId} mapping not found. Có thể TTL đã hết, hoặc job được tạo từ trước khi bật scale-out.`,
+        `Job ${jobId} mapping not found và không có Colab worker nào healthy để tra cứu.`,
       );
     }
-    return colabUrl;
+  }
+
+  /** Trừ credit cho job mà service khác tự submit sang Colab. Trả về cost đã trừ. */
+  async reserveQuota(ctx: QuotaContext): Promise<{ cost: number }> {
+    return { cost: await this.quota.reserve(ctx) };
+  }
+
+  /** Hoàn credit khi service gọi submit thất bại. */
+  async refundQuota(userId: number | undefined, cost: number): Promise<void> {
+    await this.quota.refund(userId, cost);
+  }
+
+  /**
+   * Ghi nhớ credit của job do service khác submit, để `getJobStatus` hoàn lại
+   * khi job chết trên Colab. Không có bước này thì job fail = mất credit.
+   */
+  async rememberQuotaJob(
+    jobId: string,
+    userId: number | undefined,
+    cost: number,
+  ): Promise<void> {
+    await this.quota.rememberJob(jobId, userId, cost);
   }
 }
