@@ -17,11 +17,13 @@ import { useNewsfeedHistory } from "../hooks/useNewsfeedHistory";
 import { useNewsfeedInteractMutation } from "../api/newsfeed.hooks";
 
 interface NewsfeedPageProps {
-	initialVideoId?: number | null;
+	initialFeedId?: number | null;
+	initialCommentId?: number | null;
+	initialParentCommentId?: number | null;
 }
 
-export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
-	const feed = useNewsfeedVideoFeed(true, "", initialVideoId);
+export function NewsfeedPage({ initialFeedId, initialCommentId, initialParentCommentId }: NewsfeedPageProps) {
+	const feed = useNewsfeedVideoFeed(true, "", initialFeedId);
 	const {
 		isMenuOpen,
 		isOptionBoxOpen,
@@ -42,7 +44,6 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 
 	useEffect(() => {
 		setActiveVideoId(activeVideo?.id ?? null);
-		// Reset trạng thái pause toàn cục khi chuyển video để video mới phát tự động
 		useNewsfeedUiStore.getState().setGlobalPaused(false);
 	}, [activeVideo?.id, setActiveVideoId]);
 
@@ -50,10 +51,17 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 		if (activeVideo?.id) {
 			const url = new URL(window.location.href);
 			url.pathname = "/newsfeed";
-			url.searchParams.set("videoId", String(activeVideo.id));
+			url.searchParams.set("feedId", String(activeVideo.feedId));
 			window.history.replaceState(null, "", url.toString());
 		}
-	}, [activeVideo?.id]);
+	}, [activeVideo?.id, activeVideo?.feedId]);
+
+	useEffect(() => {
+		if (!initialCommentId || !activeVideo || activeVideo.feedId !== initialFeedId) {
+			return;
+		}
+		openOptionBox("comments");
+	}, [activeVideo, initialCommentId, initialFeedId, openOptionBox]);
 
 	useEffect(() => {
 		if (activeVideo) {
@@ -232,6 +240,8 @@ export function NewsfeedPage({ initialVideoId }: NewsfeedPageProps) {
 				contentType={optionBoxContentType}
 				video={activeVideo}
 				viewerName="bạn"
+				targetCommentId={initialCommentId}
+				targetParentCommentId={initialParentCommentId}
 				onClose={closeOptionBox}
 			/>
 

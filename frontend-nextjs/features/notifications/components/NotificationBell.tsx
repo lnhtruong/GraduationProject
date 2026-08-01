@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,25 +60,39 @@ function getRouteForNotification(
   const isAdmin = userRole === ROLES.ADMIN;
   const isLecturer = userRole === ROLES.LECTURER;
 
+  const readFeedId = () => readNumber(data.feedId) || readNumber(data.feed_id);
   const routeForRole = (instructorRoute: string, adminRoute = "/admin/dashboard") =>
     isAdmin ? adminRoute : instructorRoute;
 
-  // 1. Prioritize explicit redirect URL from backend
+  const buildFeedRoute = () => {
+    const feedId = readFeedId();
+    if (!feedId) {
+      return "/newsfeed";
+    }
+    const params = new URLSearchParams({ feedId: String(feedId) });
+    const commentId = readNumber(data.commentId) || readNumber(data.comment_id);
+    const parentCommentId = readNumber(data.parentCommentId) || readNumber(data.parent_comment_id);
+    if (commentId) {
+      params.set("commentId", String(commentId));
+    }
+    if (parentCommentId) {
+      params.set("parentCommentId", String(parentCommentId));
+    }
+    return `/newsfeed?${params.toString()}`;
+  };
+
+  // Backend redirect is still validated against the current frontend routes.
   const redirectUrl = data.redirectUrl;
   if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
     if (isAdmin && redirectUrl.startsWith("/instructor")) {
       return "/admin/dashboard";
     }
-    if (redirectUrl === "/newsfeed") {
-      const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
-      if (feedId) {
-        return `/newsfeed?videoId=${feedId}`;
-      }
+    if (redirectUrl === "/newsfeed" || redirectUrl.startsWith("/newsfeed?")) {
+      return buildFeedRoute();
     }
     return redirectUrl;
   }
 
-  // 2. Specific event types mapping
   if (type === "quiz.generated") {
     return routeForRole("/instructor/courses", "/admin/courses");
   }
@@ -110,12 +125,8 @@ function getRouteForNotification(
     return routeForRole("/instructor/analytics", "/admin/dashboard");
   }
 
-  if (type === "feed.comment.created" || type === "feed.comment.reply") {
-    const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
-    if (feedId) {
-      return `/newsfeed?videoId=${feedId}`;
-    }
-    return "/newsfeed";
+  if (type === "feed.comment.created" || type === "feed.comment.reply" || type === "feed.like.created") {
+    return buildFeedRoute();
   }
 
   if (type === "discussion.reply.created") {
@@ -133,19 +144,20 @@ function getRouteForNotification(
     return "/my-courses";
   }
 
-  // 3. Fallback checks by general payload fields if no specific event matched
-  const feedId = readNumber(data.feedId) || readNumber(data.feed_id) || readNumber(data.videoId) || readNumber(data.video_id);
+  const feedId = readFeedId();
   if (feedId) {
-    return `/newsfeed?videoId=${feedId}`;
+    return `/newsfeed?feedId=${feedId}`;
   }
 
   const courseId = readNumber(data.courseId) || readNumber(data.course_id);
   const lessonId = readNumber(data.lessonId) || readNumber(data.lesson_id);
   if (courseId && lessonId) {
-    return `/courses/${courseId}/learn?lessonId=${lessonId}`;
+    return isLecturer
+      ? `/instructor/courses/${courseId}/lessons/${lessonId}/edit`
+      : `/courses/${courseId}/learn?lessonId=${lessonId}`;
   }
   if (courseId) {
-    return `/courses/${courseId}`;
+    return isLecturer ? `/instructor/courses/${courseId}` : `/courses/${courseId}`;
   }
 
   if (typeof data.url === "string") {
@@ -501,29 +513,39 @@ export function NotificationBell({ className }: { className?: string }) {
                                   >
                                     <div className="relative mt-0.5 shrink-0">
                                       {thumbnailUrl || (payloadUrl && String(notification.event_type).toLowerCase().includes("image")) ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                          src={String(thumbnailUrl ?? payloadUrl)}
-                                          alt="thumb"
+                                        <span
                                           className={cn(
-                                            "h-10 w-10 rounded-full border object-cover",
+                                            "relative block h-10 w-10 overflow-hidden rounded-full border",
                                             isRead
                                               ? "border-border/50 bg-muted/50"
                                               : "border-primary/30 bg-primary/20 shadow-sm",
                                           )}
-                                        />
+                                        >
+                                          <Image
+                                            src={String(thumbnailUrl ?? payloadUrl)}
+                                            alt="thumb"
+                                            fill
+                                            sizes="40px"
+                                            className="object-cover"
+                                          />
+                                        </span>
                                       ) : actorAvatar ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                          src={String(actorAvatar)}
-                                          alt="avatar"
+                                        <span
                                           className={cn(
-                                            "h-10 w-10 rounded-full border object-cover",
+                                            "relative block h-10 w-10 overflow-hidden rounded-full border",
                                             isRead
                                               ? "border-border/50 bg-muted/50"
                                               : "border-primary/30 bg-primary/20 shadow-sm",
                                           )}
-                                        />
+                                        >
+                                          <Image
+                                            src={String(actorAvatar)}
+                                            alt="avatar"
+                                            fill
+                                            sizes="40px"
+                                            className="object-cover"
+                                          />
+                                        </span>
                                       ) : (
                                         <div
                                           className={cn(

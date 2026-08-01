@@ -973,7 +973,7 @@ export function NewsfeedVideoCard({
               event.stopPropagation();
               onOpenShare(
                 video.feedId,
-                `${window.location.origin}/newsfeed?videoId=${video.feedId}&courseId=${video.course.id}`,
+                `${window.location.origin}/newsfeed?feedId=${video.feedId}&courseId=${video.course.id}`,
               );
             }}
           >

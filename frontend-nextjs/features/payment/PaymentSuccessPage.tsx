@@ -154,9 +154,6 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     if (status === "PAID") {
-      for (const id of courseIds) {
-        queryClient.invalidateQueries({ queryKey: ["enrollment", "check", id] });
-      }
       queryClient.invalidateQueries({ queryKey: ["enrollment"] });
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       if (orderCode) {

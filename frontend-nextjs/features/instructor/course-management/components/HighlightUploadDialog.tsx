@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -386,11 +387,7 @@ export function HighlightUploadDialog({
                             >
                               <div className="relative aspect-video bg-muted">
                                 {video.thumbnail ? (
-                                  <img
-                                    src={video.thumbnail}
-                                    alt={getVideoTitle(video)}
-                                    className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                                  />
+                                  <Image src={video.thumbnail} alt={getVideoTitle(video)} fill sizes="(max-width: 768px) 100vw, 280px" className="object-cover transition group-hover:scale-[1.02]" />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                                     <Film className="h-8 w-8" />

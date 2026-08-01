@@ -137,7 +137,9 @@ export function LessonVideoCard({
 }: Props) {
   const playerBlocked = Boolean(activeQuizPoint) || showAfterLessonOverlay;
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [upNextDismissed, setUpNextDismissed] = useState(false);
+  const [dismissedUpNextKey, setDismissedUpNextKey] = useState<string | null>(
+    null,
+  );
   const autoHideTimeoutRef = useRef<number | null>(null);
 
   const clearAutoHide = () => {
@@ -160,10 +162,7 @@ export function LessonVideoCard({
     return () => clearAutoHide();
   }, []);
 
-  useEffect(() => {
-    setUpNextDismissed(false);
-  }, [nextLessonTitle, selectedLessonDuration]);
-
+  const upNextKey = `${nextLessonTitle ?? ""}:${selectedLessonDuration}`;
   const remainingForUpNext = selectedLessonDuration - currentTime;
   const showUpNextOverlay =
     hasNextLesson &&
@@ -171,7 +170,7 @@ export function LessonVideoCard({
     remainingForUpNext > 0 &&
     !isTransitioningNext &&
     !showAfterLessonOverlay &&
-    !upNextDismissed;
+    dismissedUpNextKey !== upNextKey;
 
   return (
     <div
@@ -249,7 +248,7 @@ export function LessonVideoCard({
         selectedLessonDuration={selectedLessonDuration}
         currentTime={currentTime}
         onAdvanceToNextLesson={onAdvanceToNextLesson}
-        onDismissUpNext={() => setUpNextDismissed(true)}
+        onDismissUpNext={() => setDismissedUpNextKey(upNextKey)}
         isTransitioningNext={isTransitioningNext}
       />
 

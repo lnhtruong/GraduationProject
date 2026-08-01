@@ -470,7 +470,7 @@ async function uploadFileToBunny(
 
 export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   const autoCreateProject = options?.autoCreateProject ?? true;
-  const [state, setState] = useState<UploadState>(restoreActiveHighlightJob);
+  const [state, setState] = useState<UploadState>(INITIAL_STATE);
   const { user } = useAuth();
   const resolvedUserId = resolveUserId(user?.id);
   const router = useRouter();
@@ -512,6 +512,20 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   const updateState = (updates: Partial<UploadState>) => {
     setState((prev) => ({ ...prev, ...updates }));
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    redirectedProjectRef.current = null;
+    createProjectPromiseRef.current = null;
+
+    if (resolvedUserId == null) {
+      setState(INITIAL_STATE);
+      return;
+    }
+
+    setState(restoreActiveHighlightJob(resolvedUserId));
+  }, [resolvedUserId]);
 
   const awaitingPersistedVideoIds =
     state.status === "completed" &&
@@ -661,7 +675,9 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
           jobType: readJobType(envelope) ?? prev.jobType,
           stage: rawStage ?? `Đang xử lý (${payload.progress}%)`,
           progressPercent:
-            typeof payload.progress === "number" ? payload.progress : undefined,
+            typeof payload.progress === "number"
+              ? payload.progress
+              : prev.progressPercent,
         };
       });
     };
@@ -774,7 +790,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
             jobType: readJobType(envelope) ?? prev.jobType,
             stage: rawStage ?? prev.stage,
             progressPercent:
-              typeof progress === "number" ? progress : undefined,
+              typeof progress === "number" ? progress : prev.progressPercent,
           };
         });
         return;
@@ -984,11 +1000,11 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
 
       updateState({
         progress: null,
-        status: "processing",
+        status: "pending",
         bunnyVideoId: bunny.bunnyVideoId,
         sourceVideoId: bunny.videoId,
         sourceVideoUrl: bunny.videoUrl,
-        stage: "Video đã sẵn sàng, đang tạo highlight",
+        stage: "Đang gửi yêu cầu tạo highlight",
         progressPercent: 5,
         jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
       });
@@ -1022,7 +1038,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       file: null,
       source: "existing-video",
       progress: null,
-      status: "processing",
+      status: "pending",
       clips: [],
       jobId: null,
       bunnyVideoId: null,
@@ -1030,7 +1046,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       sourceVideoUrl: videoUrl,
       createdProjectId: null,
       error: null,
-      stage: "Đang tạo highlight từ video đã có",
+      stage: "Đang gửi yêu cầu tạo highlight",
       progressPercent: 5,
       jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
     });

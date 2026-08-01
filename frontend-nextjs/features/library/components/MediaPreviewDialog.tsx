@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
 	Dialog,
@@ -96,11 +97,7 @@ export function MediaPreviewDialog({
 							Trình duyệt không hỗ trợ phát video.
 						</video>
 					) : (
-						<img
-							src={preview.item.url}
-							alt={preview.label}
-							className="mx-auto max-h-[72vh] w-auto rounded-md object-contain"
-						/>
+						<div className="relative mx-auto h-[72vh] w-full max-w-5xl"><Image src={preview.item.url} alt={preview.label} fill sizes="(max-width: 1280px) 100vw, 1024px" className="rounded-md object-contain" /></div>
 					)}
 				</div>
 			</DialogContent>

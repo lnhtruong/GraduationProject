@@ -41,8 +41,15 @@ function StatusBadge({ status }: { status: CourseStatus }) {
   );
 }
 
+function toTime(value: string): number {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export function RecentCourses({ courses }: Props) {
-  const recent = courses.slice(0, 3);
+  const recent = [...courses]
+    .sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt) || b.id - a.id)
+    .slice(0, 3);
 
   return (
     <div className="rounded-xl border border-border/60 bg-card p-5">

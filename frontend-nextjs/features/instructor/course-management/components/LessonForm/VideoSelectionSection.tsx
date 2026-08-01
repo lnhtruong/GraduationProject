@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -76,12 +77,7 @@ function VideoThumbnail({
   }
 
   return (
-    <img
-      src={thumbnail}
-      alt={title}
-      onError={() => setError(true)}
-      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-    />
+    <Image src={thumbnail} alt={title} fill sizes="(max-width: 640px) 100vw, 240px" onError={() => setError(true)} className="object-cover transition-transform duration-300 group-hover:scale-105" />
   );
 }
 
@@ -109,12 +105,7 @@ function VideoHeaderThumbnail({
   }
 
   return (
-    <img
-      src={thumbnailSrc}
-      alt={title}
-      onError={() => setError(true)}
-      className="h-10 w-10 shrink-0 rounded-lg border border-border/70 object-cover shadow-inner"
-    />
+    <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border/70 shadow-inner"><Image src={thumbnailSrc} alt={title} fill sizes="40px" onError={() => setError(true)} className="object-cover" /></span>
   );
 }
 
@@ -310,10 +301,6 @@ export function VideoSelectionSection({
           await queryClient.invalidateQueries({
             queryKey: videoKeys.detail(videoId),
           });
-          await queryClient.refetchQueries({
-            queryKey: videoKeys.detail(videoId),
-            type: "active",
-          });
           await onRefreshVideos?.();
           onVideoSelect(videoId);
           setIsVideoPickerOpen(false);
@@ -384,10 +371,6 @@ export function VideoSelectionSection({
               await queryClient.invalidateQueries({
                 queryKey: videoKeys.detail(Number(selectedVideoId)),
               });
-              await queryClient.refetchQueries({
-                queryKey: videoKeys.detail(Number(selectedVideoId)),
-                type: "active",
-              });
             }
             await onRefreshVideos?.();
           })();
@@ -420,10 +403,6 @@ export function VideoSelectionSection({
       if (canceled) return;
       await queryClient.invalidateQueries({
         queryKey: videoKeys.detail(Number(selectedVideoId)),
-      });
-      await queryClient.refetchQueries({
-        queryKey: videoKeys.detail(Number(selectedVideoId)),
-        type: "active",
       });
       await onRefreshVideos?.();
     };

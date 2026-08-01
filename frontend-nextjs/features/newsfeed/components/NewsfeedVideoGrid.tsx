@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,7 +59,7 @@ function getAuthorInitials(name: string) {
 }
 
 function buildFeedHref(video: NewsfeedItem) {
-	return `/newsfeed?videoId=${video.feedId}`;
+	return `/newsfeed?feedId=${video.feedId}`;
 }
 
 function normalizeHashtag(tag: string) {
@@ -116,11 +117,7 @@ export function NewsfeedVideoGrid({ videos, emptyTitle, emptyDescription, badgeL
 						>
 							<div className="relative aspect-[2/3] overflow-hidden bg-muted">
 								{video.thumbnail ? (
-									<img
-										src={video.thumbnail}
-										alt={video.title}
-										className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-									/>
+									<Image src={video.thumbnail} alt={video.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 260px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
 								) : (
 									<div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-muted/70" />
 								)}

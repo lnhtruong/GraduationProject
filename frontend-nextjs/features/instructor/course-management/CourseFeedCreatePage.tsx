@@ -294,9 +294,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       setPendingHighlightClip(clip);
 
       await queryClient.invalidateQueries({
-        queryKey: courseFeedKeys.custom("candidate-videos", courseId),
-      });
-      await queryClient.invalidateQueries({
         queryKey: courseFeedKeys.root,
       });
       await queryClient.refetchQueries({
