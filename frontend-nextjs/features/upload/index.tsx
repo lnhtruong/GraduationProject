@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,11 +19,13 @@ import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import { useUpload } from "@/features/upload/hooks/useUpload";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
 import type { HighlightParams } from "@/features/upload/types";
 import {
   Check,
+  Copyright,
   FileVideo,
   Link2,
   Loader2,
@@ -165,7 +168,9 @@ function WorkflowRail({
 }
 
 export default function Upload() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const isLecturerOrAdmin =
+    user?.role === ROLES.LECTURER || user?.role === ROLES.ADMIN;
   const {
     file,
     setFile,
@@ -374,6 +379,16 @@ export default function Upload() {
                   các đoạn giúp người học hiểu nhanh và ôn lại.
                 </p>
               </div>
+              {!isLecturerOrAdmin && (
+                <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                  <Copyright className="text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-amber-800 dark:text-amber-300">
+                    Highlight tạo ra chỉ dùng cho mục đích tự học. Vui lòng đảm
+                    bảo bạn có quyền sử dụng nội dung video và không vi phạm
+                    bản quyền của tác giả gốc.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 

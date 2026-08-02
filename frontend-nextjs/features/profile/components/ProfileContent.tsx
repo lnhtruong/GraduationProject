@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AvatarUploader from "@/features/auth/components/AvatarUploader";
 import { useAuth, useAuthActions } from "@/features/auth/hooks/useAuth";
 import { BecomeInstructorSection } from "@/features/lecturer-requests/components/student/BecomeInstructorSection";
-import { Badge } from "@/components/ui/badge";
+import { RoleBadge } from "@/components/RoleBadge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,17 +33,6 @@ function getErrorMessage(error: unknown) {
     return (error as { response: { data: { message: string } } }).response.data.message;
   }
   return "Có lỗi xảy ra khi cập nhật thông tin.";
-}
-
-function getRoleVariant(role: number): "default" | "secondary" | "destructive" | "outline" {
-  switch (role) {
-    case 2:
-      return "destructive";
-    case 3:
-      return "secondary";
-    default:
-      return "default";
-  }
 }
 
 export function ProfileContent() {
@@ -127,9 +116,7 @@ export function ProfileContent() {
           <div className="hidden pb-2 md:block">
             <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
             <div className="mt-1 flex items-center gap-2">
-              <Badge variant={getRoleVariant(user?.role || 1)} className="font-medium shadow-none">
-                {getRoleName(user?.role || 1)}
-              </Badge>
+              <RoleBadge role={user?.role} />
             </div>
           </div>
         </div>
@@ -138,9 +125,7 @@ export function ProfileContent() {
       <div className="mb-8 mt-4 px-2 md:hidden">
         <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
         <div className="mt-2 flex items-center gap-2">
-          <Badge variant={getRoleVariant(user?.role || 1)} className="font-medium shadow-none">
-            {getRoleName(user?.role || 1)}
-          </Badge>
+          <RoleBadge role={user?.role} />
         </div>
       </div>
 
