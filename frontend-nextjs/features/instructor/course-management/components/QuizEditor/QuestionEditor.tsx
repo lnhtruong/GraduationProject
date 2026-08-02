@@ -1,28 +1,12 @@
 "use client";
 
-import { useRef } from "react";
-import { Plus, Trash2, Crosshair } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { QuizEditorQuestion, QuizEditorOption } from "../../types";
-import { parseVideoTimestampToSeconds } from "../../utils/quiz-timeline.utils";
-import { EvidenceVideoPlayer } from "./EvidenceVideoPlayer";
-
-const VIDEO_TIMESTAMP_PATTERN = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
-
-function formatSecondsToTimestamp(totalSeconds: number): string {
-  const safe = Math.max(0, totalSeconds);
-  const totalMillis = Math.round(safe * 1000);
-  const wholeSeconds = Math.floor(totalMillis / 1000);
-  const hours = Math.floor(wholeSeconds / 3600);
-  const minutes = Math.floor((wholeSeconds % 3600) / 60);
-  const seconds = wholeSeconds % 60;
-  const millis = totalMillis % 1000;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")},${String(millis).padStart(3, "0")}`;
-}
 
 interface Props {
   question: QuizEditorQuestion | null;
@@ -32,8 +16,6 @@ interface Props {
   ) => void;
   onAddOption: (questionId: number) => void;
   onRemoveOption: (questionId: number, optionId: string) => void;
-  videoUrl?: string | null;
-  videoDurationSeconds?: number;
 }
 
 export function QuestionEditor({
@@ -41,10 +23,7 @@ export function QuestionEditor({
   onUpdateQuestion,
   onAddOption,
   onRemoveOption,
-  videoUrl,
-  videoDurationSeconds,
 }: Props) {
-  const evidenceVideoRef = useRef<HTMLVideoElement | null>(null);
   if (!question) {
     return (
       <Card className="border-border/60">
@@ -180,72 +159,9 @@ export function QuestionEditor({
                 explanation: event.target.value,
               }))
             }
-            placeholder="Giải thích tại sao đáp án trên lại đúng..."
+            placeholder="Giải giải thích tại sao đáp án trên lại đúng..."
             className="min-h-16 rounded-lg border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50 resize-y"
           />
-        </div>
-
-        <div className="grid gap-2 pt-2 border-t border-border/40">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-            Bằng chứng video (Tùy chọn)
-          </Label>
-          <EvidenceVideoPlayer
-            videoUrl={videoUrl}
-            videoDurationSeconds={videoDurationSeconds}
-            seekToSeconds={parseVideoTimestampToSeconds(
-              question.evidenceTimestamp,
-            )}
-            onVideoRefChange={(element) => {
-              evidenceVideoRef.current = element;
-            }}
-          />
-          <div className="flex gap-2">
-            <Input
-              value={question.evidenceTimestamp ?? ""}
-              onChange={(event) =>
-                onUpdateQuestion(question.id, (current) => ({
-                  ...current,
-                  evidenceTimestamp: event.target.value,
-                }))
-              }
-              placeholder="HH:MM:SS,mmm"
-              className={`rounded-lg font-mono text-sm ${
-                question.evidenceTimestamp &&
-                !VIDEO_TIMESTAMP_PATTERN.test(question.evidenceTimestamp.trim())
-                  ? "border-destructive focus-visible:ring-destructive/30"
-                  : "border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
-              }`}
-            />
-            {videoUrl ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                title="Lấy thời điểm hiện tại của video"
-                onClick={() =>
-                  onUpdateQuestion(question.id, (current) => ({
-                    ...current,
-                    evidenceTimestamp: formatSecondsToTimestamp(
-                      evidenceVideoRef.current?.currentTime ?? 0,
-                    ),
-                  }))
-                }
-                className="h-10 shrink-0 px-2.5 rounded-lg border-border/80 bg-background hover:bg-muted/40"
-              >
-                <Crosshair className="h-3.5 w-3.5" />
-              </Button>
-            ) : null}
-          </div>
-          {question.evidenceTimestamp &&
-          !VIDEO_TIMESTAMP_PATTERN.test(question.evidenceTimestamp.trim()) ? (
-            <p className="text-xs text-destructive">
-              Định dạng không hợp lệ. Dùng HH:MM:SS,mmm (ví dụ 00:01:23,500).
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground/70">
-              Mốc thời gian trong video chứng minh đáp án — để trống nếu không có.
-            </p>
-          )}
         </div>
       </CardContent>
     </Card>

@@ -21,13 +21,11 @@ export function useCourseLearnPage(courseId: number) {
     persistedInVideoSubmitted: data.persistedInVideoState.submitted,
     persistedInVideoCorrectness: data.persistedInVideoState.correctness,
     persistedInVideoCorrectAnswers: data.persistedInVideoState.correctAnswers,
-    persistedInVideoExplanations: data.persistedInVideoState.explanations,
     persistedAfterLessonAnswers: data.persistedAfterLessonState.answers,
     persistedAfterLessonSubmitted: data.persistedAfterLessonState.submitted,
     persistedAfterLessonScore: data.persistedAfterLessonState.score,
     persistedAfterLessonPassed: data.persistedAfterLessonState.passed,
     persistedAfterLessonCorrectAnswers: data.persistedAfterLessonState.correctAnswers,
-    persistedAfterLessonExplanations: data.persistedAfterLessonState.explanations,
     loadingQuizSubmissions: data.isQuizQueriesLoading,
   });
 

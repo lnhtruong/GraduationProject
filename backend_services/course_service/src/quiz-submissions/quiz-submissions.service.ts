@@ -508,8 +508,6 @@ export class QuizSubmissionsService {
       isCorrect,
       point: isCorrect ? maxPoint : 0,
       maxPoint,
-      explanation: question.explanation ?? null,
-      evidenceTimestamp: question.evidenceTimestamp ?? null,
     };
   }
 

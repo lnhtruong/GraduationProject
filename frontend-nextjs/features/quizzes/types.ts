@@ -12,10 +12,9 @@ export interface QuizQuestion {
 	quesType: QuizQuestionType;
 	quesText: string;
 	point?: number;
-	explanation?: string;
+	correctAns?: string;
 	orderIndex?: number;
 	videoTimestamp?: string | null;
-	evidenceTimestamp?: string | null;
 	options?: QuizOption[];
 }
 

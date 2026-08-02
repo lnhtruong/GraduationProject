@@ -37,11 +37,6 @@ type WebKitFullscreenVideo = HTMLVideoElement & {
   webkitEnterFullscreen?: () => void;
 };
 
-export interface QuizAnswerExplanation {
-  explanation: string | null;
-  evidenceTimestamp: string | null;
-}
-
 interface Props {
   selectedLesson?: InstructorLesson;
   selectedLessonDuration: number;
@@ -62,13 +57,11 @@ interface Props {
   persistedInVideoSubmitted: Record<string, boolean>;
   persistedInVideoCorrectness: Record<string, boolean>;
   persistedInVideoCorrectAnswers: Record<string, number>;
-  persistedInVideoExplanations: Record<string, QuizAnswerExplanation>;
   persistedAfterLessonAnswers: Record<string, number>;
   persistedAfterLessonSubmitted: boolean;
   persistedAfterLessonScore: { correct: number; total: number; percent: number } | null;
   persistedAfterLessonPassed: boolean;
   persistedAfterLessonCorrectAnswers: Record<string, number>;
-  persistedAfterLessonExplanations: Record<string, QuizAnswerExplanation>;
   loadingQuizSubmissions: boolean;
 }
 
@@ -89,13 +82,11 @@ export function useCourseLearnPlayer({
   persistedInVideoSubmitted,
   persistedInVideoCorrectness,
   persistedInVideoCorrectAnswers,
-  persistedInVideoExplanations,
   persistedAfterLessonAnswers,
   persistedAfterLessonSubmitted,
   persistedAfterLessonScore,
   persistedAfterLessonPassed,
   persistedAfterLessonCorrectAnswers,
-  persistedAfterLessonExplanations,
   loadingQuizSubmissions,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -119,9 +110,6 @@ export function useCourseLearnPlayer({
   const [inVideoCorrectAnswers, setInVideoCorrectAnswers] = useState<
     Record<string, number>
   >(persistedInVideoCorrectAnswers);
-  const [inVideoExplanations, setInVideoExplanations] = useState<
-    Record<string, QuizAnswerExplanation>
-  >(persistedInVideoExplanations);
   const [afterLessonAnswers, setAfterLessonAnswers] = useState<
     Record<string, number>
   >({});
@@ -129,9 +117,6 @@ export function useCourseLearnPlayer({
   const [afterLessonCorrectAnswers, setAfterLessonCorrectAnswers] = useState<
     Record<string, number>
   >(persistedAfterLessonCorrectAnswers);
-  const [afterLessonExplanations, setAfterLessonExplanations] = useState<
-    Record<string, QuizAnswerExplanation>
-  >(persistedAfterLessonExplanations);
   const [localAfterLessonScore, setLocalAfterLessonScore] = useState<{
     correct: number;
     total: number;
@@ -186,11 +171,6 @@ export function useCourseLearnPlayer({
     [inVideoCorrectAnswers, persistedInVideoCorrectAnswers],
   );
 
-  const effectiveInVideoExplanations = useMemo(
-    () => ({ ...persistedInVideoExplanations, ...inVideoExplanations }),
-    [inVideoExplanations, persistedInVideoExplanations],
-  );
-
   const effectiveAfterLessonAnswers = useMemo(
     () => ({ ...persistedAfterLessonAnswers, ...afterLessonAnswers }),
     [afterLessonAnswers, persistedAfterLessonAnswers],
@@ -202,11 +182,6 @@ export function useCourseLearnPlayer({
   const effectiveAfterLessonCorrectAnswers = useMemo(
     () => ({ ...persistedAfterLessonCorrectAnswers, ...afterLessonCorrectAnswers }),
     [afterLessonCorrectAnswers, persistedAfterLessonCorrectAnswers],
-  );
-
-  const effectiveAfterLessonExplanations = useMemo(
-    () => ({ ...persistedAfterLessonExplanations, ...afterLessonExplanations }),
-    [afterLessonExplanations, persistedAfterLessonExplanations],
   );
 
   const effectiveDuration =
@@ -691,13 +666,6 @@ export function useCourseLearnPlayer({
           [activeQuizPoint.id]: correctOptionIndex,
         }));
       }
-      setInVideoExplanations((prev) => ({
-        ...prev,
-        [activeQuizPoint.id]: {
-          explanation: savedAnswer?.explanation ?? null,
-          evidenceTimestamp: savedAnswer?.evidenceTimestamp ?? null,
-        },
-      }));
     } catch {
       setInVideoSubmitted((prev) => ({ ...prev, [activeQuizPoint.id]: false }));
       toast.error("Không thể ghi nhận câu trả lời. Vui lòng thử lại.");
@@ -794,11 +762,9 @@ export function useCourseLearnPlayer({
       setInVideoSubmitted({});
       setInVideoCorrectness({});
       setInVideoCorrectAnswers({});
-      setInVideoExplanations({});
       setAfterLessonAnswers({});
       setAfterLessonSubmitted(false);
       setAfterLessonCorrectAnswers({});
-      setAfterLessonExplanations({});
       setLocalAfterLessonScore(null);
       setLocalAfterLessonPassed(false);
       setIsRetaking(false);
@@ -1167,7 +1133,6 @@ export function useCourseLearnPlayer({
       });
 
       const correctAnswers: Record<string, number> = {};
-      const explanations: Record<string, QuizAnswerExplanation> = {};
       for (const question of afterLessonQuiz) {
         const savedAnswer = submission.answers.find(
           (answer) => answer.questionId === question.questionId,
@@ -1178,10 +1143,6 @@ export function useCourseLearnPlayer({
         if (correctOptionIndex >= 0) {
           correctAnswers[question.id] = correctOptionIndex;
         }
-        explanations[question.id] = {
-          explanation: savedAnswer?.explanation ?? null,
-          evidenceTimestamp: savedAnswer?.evidenceTimestamp ?? null,
-        };
       }
 
       const correctCount = submission.answers.filter((answer) => answer.isCorrect).length;
@@ -1191,7 +1152,6 @@ export function useCourseLearnPlayer({
         (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0);
 
       setAfterLessonCorrectAnswers(correctAnswers);
-      setAfterLessonExplanations(explanations);
       setLocalAfterLessonScore({
         correct: correctCount,
         total: totalQuestions,
@@ -1214,7 +1174,6 @@ export function useCourseLearnPlayer({
     setAfterLessonAnswers({});
     setAfterLessonSubmitted(false);
     setAfterLessonCorrectAnswers({});
-    setAfterLessonExplanations({});
     setLocalAfterLessonScore(null);
     setLocalAfterLessonPassed(false);
     setIsRetaking(true);
@@ -1235,13 +1194,11 @@ export function useCourseLearnPlayer({
     inVideoSubmitted: effectiveInVideoSubmitted,
     inVideoScore,
     inVideoCorrectAnswers: effectiveInVideoCorrectAnswers,
-    inVideoExplanations: effectiveInVideoExplanations,
     afterLessonAnswers: effectiveAfterLessonAnswers,
     afterLessonSubmitted: effectiveAfterLessonSubmitted,
     afterLessonScore,
     afterLessonPassed,
     afterLessonCorrectAnswers: effectiveAfterLessonCorrectAnswers,
-    afterLessonExplanations: effectiveAfterLessonExplanations,
     isQuizSolved,
     handleSelectLesson,
     handleTogglePlayback,
@@ -1281,6 +1238,5 @@ export function useCourseLearnPlayer({
     setCurrentTime,
     setLastVideoTime,
     setIsFullscreen,
-    seekVideoTo,
   };
 }

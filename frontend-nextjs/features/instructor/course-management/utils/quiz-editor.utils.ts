@@ -28,7 +28,6 @@ export function createBlankQuizState(
         prompt: "",
         explanation: "",
         videoTimestamp: "",
-        evidenceTimestamp: "",
         options: [
           { id: "a", label: "", isCorrect: true },
           { id: "b", label: "", isCorrect: false },
@@ -55,9 +54,9 @@ export function mapQuizToEditorState(
     questions: [...quiz.questions].sort(byOrderIndexAsc).map((question) => ({
       id: question.id ?? Date.now(),
       prompt: question.quesText,
-      explanation: question.explanation ?? "",
+      // Do not map correct answer text into explanation.
+      explanation: "",
       videoTimestamp: question.videoTimestamp ?? "",
-      evidenceTimestamp: question.evidenceTimestamp ?? "",
       options: [...(question.options ?? [])]
         .sort(byOrderIndexAsc)
         .map((option, index) => ({

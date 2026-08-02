@@ -60,7 +60,7 @@ export class QuizzesController {
     const plainQuiz = typeof quiz.get === 'function' ? quiz.get({ plain: true }) : quiz;
     if (plainQuiz.questions) {
       for (const question of plainQuiz.questions) {
-        delete question.explanation;
+        delete question.correctAns;
         if (question.options) {
           for (const option of question.options) {
             delete option.isCorrect;

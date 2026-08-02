@@ -298,7 +298,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
 
                 <div className="grid gap-1.5 pt-2 border-t border-border/40">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    Giải thích đáp án
+                    Giải thích đáp án (Tùy chọn)
                   </Label>
                   <Textarea
                     className="min-h-16 resize-y border-border focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl"
