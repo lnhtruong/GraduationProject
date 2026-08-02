@@ -1,11 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, CircleHelp, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InVideoQuizPoint, AfterLessonQuizQuestion } from "../../utils";
-import type { QuizAnswerExplanation } from "../../hooks/useCourseLearnPlayer";
-import { parseVideoTimestampToSeconds } from "../../utils/quiz-utils";
-import { EvidencePreviewPlayer } from "./EvidencePreviewPlayer";
 
 interface LessonVideoQuizOverlayProps {
   activeQuizPoint: InVideoQuizPoint | null;
@@ -17,7 +14,6 @@ interface LessonVideoQuizOverlayProps {
   inVideoSubmitted: Record<string, boolean>;
   inVideoScore: boolean | null;
   inVideoCorrectAnswers: Record<string, number>;
-  inVideoExplanations: Record<string, QuizAnswerExplanation>;
   onSelectInVideoAnswer: (quizPointId: string, optionIndex: number) => void;
   onSubmitInVideoQuiz: () => void;
   onContinueAfterInVideoQuiz: () => void;
@@ -34,8 +30,6 @@ interface LessonVideoQuizOverlayProps {
   } | null;
   afterLessonPassed: boolean;
   afterLessonCorrectAnswers: Record<string, number>;
-  afterLessonExplanations: Record<string, QuizAnswerExplanation>;
-  videoUrl?: string;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   nextLessonTitle?: string;
@@ -94,7 +88,6 @@ export function LessonVideoQuizOverlay({
   inVideoSubmitted,
   inVideoScore,
   inVideoCorrectAnswers,
-  inVideoExplanations,
   onSelectInVideoAnswer,
   onSubmitInVideoQuiz,
   onContinueAfterInVideoQuiz,
@@ -106,8 +99,6 @@ export function LessonVideoQuizOverlay({
   afterLessonScore,
   afterLessonPassed,
   afterLessonCorrectAnswers,
-  afterLessonExplanations,
-  videoUrl,
   hasNextLesson,
   nextLessonCountdown,
   nextLessonTitle,
@@ -125,9 +116,6 @@ export function LessonVideoQuizOverlay({
   const inVideoCorrectAnswerIndex = activeQuizPoint
     ? (inVideoCorrectAnswers[activeQuizPoint.id] ?? activeQuizPoint.answerIndex)
     : null;
-  const inVideoExplanationEntry = activeQuizPoint
-    ? inVideoExplanations[activeQuizPoint.id]
-    : undefined;
 
   return (
     <>
@@ -246,35 +234,6 @@ export function LessonVideoQuizOverlay({
                         : "chưa có đáp án đúng"}
                     </p>
                   )}
-                  {inVideoExplanationEntry?.explanation ? (
-                    <p className="mt-2 text-xs text-white/80 whitespace-pre-wrap break-words">
-                      {inVideoExplanationEntry.explanation}
-                    </p>
-                  ) : null}
-                  {inVideoExplanationEntry?.evidenceTimestamp ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPreviewingKey((prev) =>
-                          prev === "in_video" ? null : "in_video",
-                        )
-                      }
-                      className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
-                    >
-                       {previewingKey === "in_video" ? "Đóng lại" : "Xem lại đoạn video"}
-                    </button>
-                  ) : null}
-                  {previewingKey === "in_video" && inVideoExplanationEntry?.evidenceTimestamp ? (
-                    <EvidencePreviewPlayer
-                      videoUrl={videoUrl}
-                      startSeconds={
-                        parseVideoTimestampToSeconds(
-                          inVideoExplanationEntry.evidenceTimestamp,
-                        ) ?? 0
-                      }
-                      onClose={() => setPreviewingKey(null)}
-                    />
-                  ) : null}
                 </div>
               ) : null}
 
@@ -547,44 +506,6 @@ export function LessonVideoQuizOverlay({
                             );
                           })}
                         </div>
-
-                        {afterLessonSubmitted && afterLessonExplanations[question.id]?.explanation ? (
-                          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                            <p className="text-xs text-white/80 whitespace-pre-wrap break-words">
-                              {afterLessonExplanations[question.id]?.explanation}
-                            </p>
-                            {afterLessonExplanations[question.id]?.evidenceTimestamp ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPreviewingKey((prev) =>
-                                    prev === `after_lesson_${question.id}`
-                                      ? null
-                                      : `after_lesson_${question.id}`,
-                                  )
-                                }
-                                className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
-                              >
-                                {" "}
-                                {previewingKey === `after_lesson_${question.id}`
-                                  ? "Đóng lại"
-                                  : "Xem lại đoạn video"}
-                              </button>
-                            ) : null}
-                            {previewingKey === `after_lesson_${question.id}` ? (
-                              <EvidencePreviewPlayer
-                                videoUrl={videoUrl}
-                                startSeconds={
-                                  parseVideoTimestampToSeconds(
-                                    afterLessonExplanations[question.id]!
-                                      .evidenceTimestamp,
-                                  ) ?? 0
-                                }
-                                onClose={() => setPreviewingKey(null)}
-                              />
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     ))}
 
