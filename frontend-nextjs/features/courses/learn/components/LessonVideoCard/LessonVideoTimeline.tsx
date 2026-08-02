@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { InVideoQuizPoint, formatTime } from "../../utils";
+import {
+  InVideoQuizPoint,
+  formatTime,
+  groupInVideoQuizPointsByTimestamp,
+} from "../../utils";
 
 interface LessonVideoTimelineProps {
   currentTime: number;
@@ -10,6 +14,7 @@ interface LessonVideoTimelineProps {
   isQuizSolved: (point: InVideoQuizPoint) => boolean;
   onSeekChange: (nextTime: number) => void;
   onJumpToQuizPoint: (point: InVideoQuizPoint) => void;
+  onReviewQuizGroup: (points: InVideoQuizPoint[]) => void;
   onOverlayScrubClick: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
@@ -21,10 +26,12 @@ export function LessonVideoTimeline({
   isQuizSolved,
   onSeekChange,
   onJumpToQuizPoint,
+  onReviewQuizGroup,
   onOverlayScrubClick,
 }: LessonVideoTimelineProps) {
   const [hoverPreviewTime, setHoverPreviewTime] = useState<number | null>(null);
   const [hoverPreviewPercent, setHoverPreviewPercent] = useState<number>(0);
+  const quizPointGroups = groupInVideoQuizPointsByTimestamp(inVideoQuizPoints);
 
   return (
     <div
@@ -60,28 +67,42 @@ export function LessonVideoTimeline({
         className="relative z-10 h-4 w-full cursor-pointer appearance-none bg-transparent opacity-0"
       />
 
-      {inVideoQuizPoints.map((point) => {
-        const left = `${(point.timestamp / Math.max(1, selectedLessonDuration)) * 100}%`;
-        const solved = isQuizSolved(point);
+      {quizPointGroups.map((group) => {
+        const left = `${(group.timestamp / Math.max(1, selectedLessonDuration)) * 100}%`;
+        const allSolved = group.points.every((point) => isQuizSolved(point));
+        const isMultiQuestion = group.points.length > 1;
 
         return (
-          <Tooltip key={`overlay-${point.id}`}>
+          <Tooltip key={`overlay-${group.timestamp}`}>
             <TooltipTrigger asChild>
               <button
                 type="button"
                 className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-black/80 transition-transform hover:scale-150 ${
-                  solved ? "bg-success" : "bg-primary"
+                  allSolved ? "bg-success" : "bg-primary"
                 }`}
                 style={{ left }}
                 onClick={(clickEvent) => {
                   clickEvent.stopPropagation();
-                  onJumpToQuizPoint(point);
+                  if (allSolved) {
+                    onReviewQuizGroup(group.points);
+                    return;
+                  }
+                  const firstUnsolved =
+                    group.points.find((point) => !isQuizSolved(point)) ??
+                    group.points[0];
+                  onJumpToQuizPoint(firstUnsolved);
                 }}
-                aria-label={`Đi tới quiz tại ${formatTime(point.timestamp)}`}
+                aria-label={`Đi tới quiz tại ${formatTime(group.timestamp)}`}
               />
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
-              {solved ? "Đã trả lời" : "Câu hỏi tương tác"}
+              {allSolved
+                ? isMultiQuestion
+                  ? `Đã trả lời ${group.points.length} câu`
+                  : "Đã trả lời"
+                : isMultiQuestion
+                  ? `${group.points.length} câu hỏi tương tác`
+                  : "Câu hỏi tương tác"}
             </TooltipContent>
           </Tooltip>
         );

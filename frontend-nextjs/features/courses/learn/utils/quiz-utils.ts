@@ -121,6 +121,35 @@ export function buildInVideoQuizPoints(
   return points.sort((left, right) => left.timestamp - right.timestamp);
 }
 
+export interface InVideoQuizPointGroup {
+  timestamp: number;
+  points: InVideoQuizPoint[];
+}
+
+/**
+ * Gom các câu hỏi cùng chung 1 mốc video (AI-quiz dùng chung 1 timestamp cho
+ * cả quiz) thành từng nhóm, để timeline chỉ hiển thị 1 marker/nhóm thay vì
+ * chồng nhiều marker lên đúng 1 vị trí.
+ */
+export function groupInVideoQuizPointsByTimestamp(
+  points: InVideoQuizPoint[],
+): InVideoQuizPointGroup[] {
+  const groups = new Map<number, InVideoQuizPoint[]>();
+
+  for (const point of points) {
+    const existing = groups.get(point.timestamp);
+    if (existing) {
+      existing.push(point);
+    } else {
+      groups.set(point.timestamp, [point]);
+    }
+  }
+
+  return Array.from(groups.entries())
+    .map(([timestamp, groupPoints]) => ({ timestamp, points: groupPoints }))
+    .sort((left, right) => left.timestamp - right.timestamp);
+}
+
 export function buildAfterLessonQuiz(
   quizzes: InstructorQuiz[] | undefined,
 ): AfterLessonQuizQuestion[] {

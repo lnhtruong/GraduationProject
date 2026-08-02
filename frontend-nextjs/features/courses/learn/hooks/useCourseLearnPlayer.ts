@@ -107,6 +107,10 @@ export function useCourseLearnPlayer({
   const [activeQuizPointId, setActiveQuizPointId] = useState<string | null>(
     null,
   );
+  const [isQuizOverlayDismissed, setIsQuizOverlayDismissed] = useState(false);
+  const [reviewingQuizPointIds, setReviewingQuizPointIds] = useState<
+    string[] | null
+  >(null);
   const [inVideoAnswers, setInVideoAnswers] = useState<Record<string, number>>(
     {},
   );
@@ -165,6 +169,19 @@ export function useCourseLearnPlayer({
       inVideoQuizPoints.find((item) => item.id === activeQuizPointId) ?? null,
     [activeQuizPointId, inVideoQuizPoints],
   );
+
+  const activateQuizPoint = useCallback((pointId: string) => {
+    setActiveQuizPointId(pointId);
+    setIsQuizOverlayDismissed(false);
+  }, []);
+
+  const reviewingQuizPoints = useMemo(() => {
+    if (!reviewingQuizPointIds) {
+      return null;
+    }
+    const idSet = new Set(reviewingQuizPointIds);
+    return inVideoQuizPoints.filter((point) => idSet.has(point.id));
+  }, [reviewingQuizPointIds, inVideoQuizPoints]);
 
   const effectiveInVideoAnswers = useMemo(
     () => ({ ...persistedInVideoAnswers, ...inVideoAnswers }),
@@ -229,6 +246,25 @@ export function useCourseLearnPlayer({
     },
     [effectiveDuration],
   );
+
+  const handleReviewQuizGroup = useCallback(
+    (points: InVideoQuizPoint[]) => {
+      if (!points.length) {
+        return;
+      }
+      videoRef.current?.pause();
+      seekVideoTo(points[0].timestamp, true);
+      setReviewingQuizPointIds(points.map((point) => point.id));
+    },
+    [seekVideoTo],
+  );
+
+  const handleCloseQuizGroupReview = useCallback(() => {
+    setReviewingQuizPointIds(null);
+    window.requestAnimationFrame(() => {
+      void videoRef.current?.play();
+    });
+  }, []);
 
   const isQuizSolved = useCallback(
     (point: InVideoQuizPoint) => {
@@ -300,17 +336,22 @@ export function useCourseLearnPlayer({
 
   const handleJumpToQuizPoint = useCallback(
     (point: InVideoQuizPoint) => {
-      const solved = isQuizSolved(point);
-      seekVideoTo(point.timestamp, solved ? false : true);
-      if (!solved) {
-        setActiveQuizPointId(point.id);
-      }
+      seekVideoTo(point.timestamp, true);
+      activateQuizPoint(point.id);
     },
-    [seekVideoTo, isQuizSolved],
+    [seekVideoTo, activateQuizPoint],
   );
 
   const handleTogglePlayback = useCallback(() => {
-    if (activeQuizPoint || showAfterLessonOverlay) {
+    if (activeQuizPoint) {
+      videoRef.current?.pause();
+      if (isQuizOverlayDismissed) {
+        setIsQuizOverlayDismissed(false);
+      }
+      return;
+    }
+
+    if (reviewingQuizPointIds || showAfterLessonOverlay) {
       videoRef.current?.pause();
       return;
     }
@@ -326,7 +367,12 @@ export function useCourseLearnPlayer({
     }
 
     element.pause();
-  }, [activeQuizPoint, showAfterLessonOverlay]);
+  }, [
+    activeQuizPoint,
+    reviewingQuizPointIds,
+    showAfterLessonOverlay,
+    isQuizOverlayDismissed,
+  ]);
 
   const handleSetPlaybackRate = useCallback((nextRate: number) => {
     setPlaybackRate(nextRate);
@@ -413,12 +459,30 @@ export function useCourseLearnPlayer({
   }, []);
 
   const handleSeekBackward = useCallback(() => {
+    if (activeQuizPoint || reviewingQuizPointIds || showAfterLessonOverlay) {
+      return;
+    }
     seekVideoTo(currentTime - 10);
-  }, [currentTime, seekVideoTo]);
+  }, [
+    activeQuizPoint,
+    reviewingQuizPointIds,
+    showAfterLessonOverlay,
+    currentTime,
+    seekVideoTo,
+  ]);
 
   const handleSeekForward = useCallback(() => {
+    if (activeQuizPoint || reviewingQuizPointIds || showAfterLessonOverlay) {
+      return;
+    }
     seekVideoTo(currentTime + 10);
-  }, [currentTime, seekVideoTo]);
+  }, [
+    activeQuizPoint,
+    reviewingQuizPointIds,
+    showAfterLessonOverlay,
+    currentTime,
+    seekVideoTo,
+  ]);
 
   const handleTogglePictureInPicture = useCallback(async () => {
     const video = videoRef.current;
@@ -712,11 +776,16 @@ export function useCourseLearnPlayer({
     }
 
     setActiveQuizPointId(null);
+    setIsQuizOverlayDismissed(false);
     setLastVideoTime(activeQuizPoint.timestamp);
     window.requestAnimationFrame(() => {
       void videoRef.current?.play();
     });
   }, [activeQuizPoint, effectiveInVideoSubmitted]);
+
+  const handleDismissQuizOverlay = useCallback(() => {
+    setIsQuizOverlayDismissed(true);
+  }, []);
 
   const handleAdvanceToNextLesson = useCallback(() => {
     if (nextLesson) {
@@ -790,6 +859,8 @@ export function useCourseLearnPlayer({
       setLastVideoTime(0);
       setVideoDuration(selectedLessonDuration);
       setActiveQuizPointId(null);
+      setIsQuizOverlayDismissed(false);
+      setReviewingQuizPointIds(null);
       setInVideoAnswers({});
       setInVideoSubmitted({});
       setInVideoCorrectness({});
@@ -853,7 +924,7 @@ export function useCourseLearnPlayer({
   }, [isPlaying, onHeartbeat, selectedLesson, selectedLessonProgressId]);
 
   useEffect(() => {
-    if (activeQuizPointId || loadingQuizSubmissions) {
+    if (activeQuizPointId || reviewingQuizPointIds || loadingQuizSubmissions) {
       return;
     }
 
@@ -865,12 +936,20 @@ export function useCourseLearnPlayer({
     }
 
     const frame = window.requestAnimationFrame(() => {
-      setActiveQuizPointId(pendingPoint.id);
+      activateQuizPoint(pendingPoint.id);
       videoRef.current?.pause();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeQuizPointId, currentTime, inVideoQuizPoints, isQuizSolved, loadingQuizSubmissions]);
+  }, [
+    activeQuizPointId,
+    reviewingQuizPointIds,
+    currentTime,
+    inVideoQuizPoints,
+    isQuizSolved,
+    loadingQuizSubmissions,
+    activateQuizPoint,
+  ]);
 
   const handleTimeUpdate = useCallback(
     (event: SyntheticEvent<HTMLVideoElement>) => {
@@ -893,7 +972,7 @@ export function useCourseLearnPlayer({
         event.currentTarget.pause();
         setCurrentTime(skippedQuiz.timestamp);
         setLastVideoTime(skippedQuiz.timestamp);
-        setActiveQuizPointId(skippedQuiz.id);
+        activateQuizPoint(skippedQuiz.id);
         return;
       }
 
@@ -905,7 +984,7 @@ export function useCourseLearnPlayer({
 
       if (activeQuiz) {
         event.currentTarget.pause();
-        setActiveQuizPointId(activeQuiz.id);
+        activateQuizPoint(activeQuiz.id);
         setCurrentTime(activeQuiz.timestamp);
         setLastVideoTime(activeQuiz.timestamp);
         return;
@@ -925,6 +1004,7 @@ export function useCourseLearnPlayer({
       isQuizSolved,
       lastVideoTime,
       loadingQuizSubmissions,
+      activateQuizPoint,
     ],
   );
 
@@ -953,7 +1033,7 @@ export function useCourseLearnPlayer({
 
       if (skippedQuiz) {
         seekVideoTo(skippedQuiz.timestamp, true);
-        setActiveQuizPointId(skippedQuiz.id);
+        activateQuizPoint(skippedQuiz.id);
         return;
       }
 
@@ -971,6 +1051,7 @@ export function useCourseLearnPlayer({
       isQuizSolved,
       seekVideoTo,
       loadingQuizSubmissions,
+      activateQuizPoint,
     ],
   );
 
@@ -993,13 +1074,20 @@ export function useCourseLearnPlayer({
 
       if (skippedQuiz) {
         seekVideoTo(skippedQuiz.timestamp, true);
-        setActiveQuizPointId(skippedQuiz.id);
+        activateQuizPoint(skippedQuiz.id);
         return;
       }
 
       seekVideoTo(nextTime);
     },
-    [currentTime, inVideoQuizPoints, isQuizSolved, seekVideoTo, loadingQuizSubmissions],
+    [
+      currentTime,
+      inVideoQuizPoints,
+      isQuizSolved,
+      seekVideoTo,
+      loadingQuizSubmissions,
+      activateQuizPoint,
+    ],
   );
 
   useEffect(() => {
@@ -1231,6 +1319,8 @@ export function useCourseLearnPlayer({
     progressPercent,
     playbackDuration: effectiveDuration,
     activeQuizPoint,
+    isQuizOverlayDismissed,
+    reviewingQuizPoints,
     inVideoAnswers: effectiveInVideoAnswers,
     inVideoSubmitted: effectiveInVideoSubmitted,
     inVideoScore,
@@ -1251,6 +1341,9 @@ export function useCourseLearnPlayer({
     handleTimeUpdate,
     handleSubmitInVideoQuiz,
     handleContinueAfterInVideoQuiz,
+    handleDismissQuizOverlay,
+    handleReviewQuizGroup,
+    handleCloseQuizGroupReview,
     handleJumpToQuizPoint,
     handleOverlayScrubClick,
     handleSeekChange,

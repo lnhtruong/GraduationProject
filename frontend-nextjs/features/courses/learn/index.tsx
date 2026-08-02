@@ -118,6 +118,8 @@ export default function CourseLearnPage({ courseId }: Props) {
               progressPercent={state.progressPercent}
               isPlaying={state.isPlaying}
               activeQuizPoint={state.activeQuizPoint}
+              isQuizOverlayDismissed={state.isQuizOverlayDismissed}
+              reviewingQuizPoints={state.reviewingQuizPoints}
               inVideoQuizPoints={state.inVideoQuizPoints}
               inVideoAnswers={state.inVideoAnswers}
               inVideoSubmitted={state.inVideoSubmitted}
@@ -163,6 +165,9 @@ export default function CourseLearnPage({ courseId }: Props) {
               onSelectAfterLessonAnswer={state.onSelectAfterLessonAnswer}
               onSubmitAfterLessonQuiz={state.onSubmitAfterLessonQuiz}
               onContinueAfterInVideoQuiz={state.handleContinueAfterInVideoQuiz}
+              onDismissQuizOverlay={state.handleDismissQuizOverlay}
+              onReviewQuizGroup={state.handleReviewQuizGroup}
+              onCloseQuizGroupReview={state.handleCloseQuizGroupReview}
               onAdvanceToNextLesson={state.handleAdvanceToNextLesson}
               onRetryAfterLessonQuiz={state.handleRetryAfterLessonQuiz}
               onSubmitInVideoQuiz={state.handleSubmitInVideoQuiz}
