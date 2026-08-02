@@ -1,6 +1,7 @@
 "use client";
 
 import { BrandLogo } from "@/components/BrandLogo";
+import { RoleBadge } from "@/components/RoleBadge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ export function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             <p className="truncate text-[11px] text-muted-foreground">
               {user?.email}
             </p>
+            <RoleBadge role={user?.role} className="mt-1" />
           </div>
         </div>
         <Link
