@@ -708,7 +708,7 @@ export class AuthService {
     };
   }
 
-  /** A provider name is usable only when it contains both name fields. */
+  /** Keep every non-empty provider name field; providers may only return one. */
   private resolveOAuthProfile(input: {
     firstName?: string | null;
     lastName?: string | null;
@@ -716,18 +716,17 @@ export class AuthService {
   }) {
     const firstName = this.readProfileText(input.firstName);
     const lastName = this.readProfileText(input.lastName);
-    const hasCompleteName = Boolean(firstName && lastName);
 
     return {
-      firstName: hasCompleteName ? firstName : null,
-      lastName: hasCompleteName ? lastName : null,
+      firstName,
+      lastName,
       avatarUrl: this.readProfileText(input.avatarUrl),
     };
   }
 
   /**
-   * Name is an atomic pair: only a complete provider name may fill a profile
-   * whose first and last name are both blank. User-edited values are preserved.
+   * A provider may fill any name fields only when the local profile has neither
+   * field yet. Once either local field exists, preserve user-entered data.
    */
   private getOAuthProfileBackfill(
     user: User,
@@ -738,14 +737,14 @@ export class AuthService {
     },
   ): Record<string, string> {
     const updates: Record<string, string> = {};
-    const userHasName = Boolean(
+    const userHasAnyName = Boolean(
       this.readProfileText(user.firstName) ||
         this.readProfileText(user.lastName),
     );
 
-    if (!userHasName && profile.firstName && profile.lastName) {
-      updates.firstName = profile.firstName;
-      updates.lastName = profile.lastName;
+    if (!userHasAnyName) {
+      if (profile.firstName) updates.firstName = profile.firstName;
+      if (profile.lastName) updates.lastName = profile.lastName;
     }
     if (!this.readProfileText(user.avatarUrl) && profile.avatarUrl) {
       updates.avatarUrl = profile.avatarUrl;
