@@ -34,13 +34,13 @@ export class MascotImage extends Model {
         type: DataType.INTEGER,
         allowNull: false,
     })
-    user_id: number;
+    declare user_id: number;
 
     @Column({
         type: DataType.STRING(255),
         allowNull: false,
     })
-    url: string;
+    declare url: string;
 
     @Column({ type: DataType.STRING(255), allowNull: true })
     declare name: string | null;
@@ -56,5 +56,5 @@ export class MascotImage extends Model {
     declare type: MascotImageType;
 
     @HasMany(() => Video)
-    videos: Video[];
+    declare videos: Video[];
 }
