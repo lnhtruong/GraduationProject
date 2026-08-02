@@ -1383,7 +1383,7 @@ export class CoursesService {
                       'quesType',
                       'quesText',
                       'point',
-                      'correctAns',
+                      'explanation',
                       'orderIndex',
                       'videoTimestamp',
                     ],

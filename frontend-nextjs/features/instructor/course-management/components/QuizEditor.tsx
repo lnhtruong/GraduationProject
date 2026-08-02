@@ -16,6 +16,8 @@ interface Props {
   onSave?: (state: QuizEditorState) => Promise<void> | void;
   showSaveButton?: boolean;
   onStateChange?: (state: QuizEditorState) => void;
+  videoUrl?: string | null;
+  videoDurationSeconds?: number;
 }
 
 export function QuizEditor({
@@ -23,6 +25,8 @@ export function QuizEditor({
   onSave,
   showSaveButton = true,
   onStateChange,
+  videoUrl,
+  videoDurationSeconds,
 }: Props) {
   const {
     state,
@@ -91,6 +95,8 @@ export function QuizEditor({
         onUpdateQuestion={updateQuestion}
         onAddOption={addOption}
         onRemoveOption={removeOption}
+        videoUrl={videoUrl}
+        videoDurationSeconds={videoDurationSeconds}
       />
     </div>
   );

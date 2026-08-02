@@ -123,12 +123,14 @@ export default function CourseLearnPage({ courseId }: Props) {
               inVideoSubmitted={state.inVideoSubmitted}
               inVideoScore={state.inVideoScore}
               inVideoCorrectAnswers={state.inVideoCorrectAnswers}
+              inVideoExplanations={state.inVideoExplanations}
               afterLessonQuiz={state.afterLessonQuiz}
               afterLessonAnswers={state.afterLessonAnswers}
               afterLessonSubmitted={state.afterLessonSubmitted}
               afterLessonScore={state.afterLessonScore}
               afterLessonPassed={state.afterLessonPassed}
               afterLessonCorrectAnswers={state.afterLessonCorrectAnswers}
+              afterLessonExplanations={state.afterLessonExplanations}
               hasNextLesson={state.hasNextLesson}
               nextLessonCountdown={state.nextLessonCountdown}
               isTransitioningNext={state.isTransitioningNext}

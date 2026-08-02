@@ -28,7 +28,7 @@ export function resolveInitialLessonId(
   return lessons.some((lesson) => lesson.id === parsed) ? parsed : fallback;
 }
 
-function parseVideoTimestampToSeconds(value?: string | null): number | null {
+export function parseVideoTimestampToSeconds(value?: string | null): number | null {
   if (!value) {
     return null;
   }
@@ -53,7 +53,7 @@ function resolveQuestionAnswerIndex(quizQuestion: {
     isCorrect?: boolean | null;
     optionText?: string | null;
   }>;
-  correctAns?: string | null;
+  explanation?: string | null;
 }): number | null {
   const options = quizQuestion.options ?? [];
   const byFlag = options.findIndex((option: { isCorrect?: boolean | null }) =>
@@ -63,14 +63,14 @@ function resolveQuestionAnswerIndex(quizQuestion: {
     return byFlag;
   }
 
-  const correctAns = quizQuestion.correctAns?.trim().toLowerCase();
-  if (!correctAns) {
+  const explanation = quizQuestion.explanation?.trim().toLowerCase();
+  if (!explanation) {
     return null;
   }
 
   const byLabel = options.findIndex(
     (option: { optionText?: string | null }) =>
-      option.optionText?.trim().toLowerCase() === correctAns,
+      option.optionText?.trim().toLowerCase() === explanation,
   );
 
   return byLabel >= 0 ? byLabel : null;
@@ -135,7 +135,7 @@ export function buildAfterLessonQuiz(
         id?: number | string | null;
         quesText: string;
         options?: Array<{ id?: number; optionText?: string | null }>;
-        correctAns?: string | null;
+        explanation?: string | null;
       },
       index: number,
     ) => ({

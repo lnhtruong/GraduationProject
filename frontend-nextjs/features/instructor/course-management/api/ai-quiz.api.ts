@@ -59,9 +59,10 @@ export interface QuizQuestionData {
   quesType: "mcq" | "true/false";
   quesText: string;
   point: number;
-  correctAns: string | null;
+  explanation: string | null;
   orderIndex: number;
   videoTimestamp: string | null;
+  evidenceTimestamp: string | null;
   options: QuizOptionData[];
 }
 

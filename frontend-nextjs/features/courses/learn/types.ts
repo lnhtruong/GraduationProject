@@ -10,6 +10,8 @@ export interface QuizSubmissionAnswerSnapshot {
   isCorrect: boolean;
   point: number;
   maxPoint: number;
+  explanation: string | null;
+  evidenceTimestamp: string | null;
 }
 
 export interface QuizSubmissionRecord {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { InVideoQuizPoint, type AfterLessonQuizQuestion } from "../utils";
+import type { QuizAnswerExplanation } from "../hooks/useCourseLearnPlayer";
 
 import { LessonVideoPlayer } from "./LessonVideoCard/LessonVideoPlayer";
 import { LessonVideoTimeline } from "./LessonVideoCard/LessonVideoTimeline";
@@ -21,6 +22,7 @@ interface Props {
   inVideoSubmitted: Record<string, boolean>;
   inVideoScore: boolean | null;
   inVideoCorrectAnswers: Record<string, number>;
+  inVideoExplanations: Record<string, QuizAnswerExplanation>;
   afterLessonQuiz: AfterLessonQuizQuestion[];
   afterLessonAnswers: Record<string, number>;
   afterLessonSubmitted: boolean;
@@ -31,6 +33,7 @@ interface Props {
   } | null;
   afterLessonPassed: boolean;
   afterLessonCorrectAnswers: Record<string, number>;
+  afterLessonExplanations: Record<string, QuizAnswerExplanation>;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   isTransitioningNext: boolean;
@@ -87,12 +90,14 @@ export function LessonVideoCard({
   inVideoSubmitted,
   inVideoScore,
   inVideoCorrectAnswers,
+  inVideoExplanations,
   afterLessonQuiz,
   afterLessonAnswers,
   afterLessonSubmitted,
   afterLessonScore,
   afterLessonPassed,
   afterLessonCorrectAnswers,
+  afterLessonExplanations,
   hasNextLesson,
   nextLessonCountdown,
   isTransitioningNext,
@@ -222,6 +227,7 @@ export function LessonVideoCard({
         inVideoSubmitted={inVideoSubmitted}
         inVideoScore={inVideoScore}
         inVideoCorrectAnswers={inVideoCorrectAnswers}
+        inVideoExplanations={inVideoExplanations}
         onSelectInVideoAnswer={onSelectInVideoAnswer}
         onSubmitInVideoQuiz={onSubmitInVideoQuiz}
         onContinueAfterInVideoQuiz={onContinueAfterInVideoQuiz}
@@ -232,6 +238,8 @@ export function LessonVideoCard({
         afterLessonScore={afterLessonScore}
         afterLessonPassed={afterLessonPassed}
         afterLessonCorrectAnswers={afterLessonCorrectAnswers}
+        afterLessonExplanations={afterLessonExplanations}
+        videoUrl={selectedLessonVideoUrl}
         hasNextLesson={hasNextLesson}
         nextLessonCountdown={nextLessonCountdown}
         nextLessonTitle={nextLessonTitle}

@@ -14,6 +14,7 @@ type QuizSubmissionAnswerApiResponse = Partial<QuizSubmissionAnswerSnapshot> & {
   correct_option_text?: string | null;
   is_correct?: boolean;
   max_point?: number;
+  evidence_timestamp?: string | null;
 };
 
 type QuizSubmissionApiResponse = Partial<QuizSubmissionRecord> & {
@@ -43,6 +44,8 @@ function mapQuizSubmissionAnswer(
     isCorrect: Boolean(raw.isCorrect ?? raw.is_correct ?? false),
     point: Number(raw.point ?? 0),
     maxPoint: Number(raw.maxPoint ?? raw.max_point ?? 0),
+    explanation: raw.explanation ?? null,
+    evidenceTimestamp: raw.evidenceTimestamp ?? raw.evidence_timestamp ?? null,
   };
 }
 

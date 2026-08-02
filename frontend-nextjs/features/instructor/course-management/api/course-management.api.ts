@@ -102,7 +102,9 @@ function toCoursePayload(payload: CourseFormValues) {
 }
 
 function toQuizPayload(payload: QuizEditorState) {
-  const fallbackTimestamp = payload.questions.find((q) => q.videoTimestamp?.trim())?.videoTimestamp?.trim() || "00:00:00.000";
+  const sharedVideoTimestamp = payload.questions.find((q) =>
+    q.videoTimestamp?.trim(),
+  )?.videoTimestamp?.trim();
 
   return {
     lessonActivityId: payload.lessonActivityId as number,
@@ -116,12 +118,10 @@ function toQuizPayload(payload: QuizEditorState) {
       quesType: "mcq" as QuizQuestionType,
       quesText: question.prompt,
       point: 1,
-      correctAns:
-        question.options.find((option) => option.isCorrect)?.label ?? "",
+      explanation: question.explanation ?? "",
       orderIndex: index + 1,
-      videoTimestamp: payload.isInVideo
-        ? question.videoTimestamp?.trim() || fallbackTimestamp
-        : undefined,
+      videoTimestamp: payload.isInVideo ? sharedVideoTimestamp : undefined,
+      evidenceTimestamp: question.evidenceTimestamp?.trim() || undefined,
       options: question.options.map((option, optionIndex) => ({
         optionText: option.label,
         isCorrect: option.isCorrect,
