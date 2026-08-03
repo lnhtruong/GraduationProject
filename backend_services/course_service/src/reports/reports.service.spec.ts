@@ -8,7 +8,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Course, CourseStatus } from '../models/course.model';
 import { Lesson, LessonStatus } from '../models/lesson.model';
-import { Report, ReportStatus, ReportTargetType } from '../models/report.model';
+import { Report, ReportCategory, ReportStatus, ReportTargetType } from '../models/report.model';
 import { User } from '../users/user.model';
 import { MascotImage } from '../models/images.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
@@ -92,6 +92,7 @@ describe('ReportsService', () => {
       const r = await service.create(reporterId, {
         targetType: ReportTargetType.COURSE,
         targetId: 5,
+        reportCategory: ReportCategory.SPAM,
         reason: 'spam content',
       });
 
@@ -100,6 +101,7 @@ describe('ReportsService', () => {
         expect.objectContaining({
           targetType: ReportTargetType.COURSE,
           targetId: 5,
+          reportCategory: ReportCategory.SPAM,
           reporterId,
           status: ReportStatus.PENDING,
         }),

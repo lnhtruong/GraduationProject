@@ -44,6 +44,11 @@ export function LecturerRequestHistory() {
                   {formatDate(req.created_at)}
                 </span>
               </div>
+              {req.teachingTopics && (
+                <p className="line-clamp-1 text-sm font-medium text-foreground">
+                  {req.teachingTopics}
+                </p>
+              )}
               {req.confirm && (
                 <p className="line-clamp-2 text-sm text-muted-foreground">
                   {req.confirm}
@@ -54,7 +59,7 @@ export function LecturerRequestHistory() {
                   <p className="mb-1.5 text-xs text-muted-foreground">
                     Ảnh minh chứng ({req.evidenceImages.length})
                   </p>
-                  <EvidenceImageGallery images={req.evidenceImages} />
+                  <EvidenceImageGallery images={req.evidenceImages} className="grid grid-cols-3 gap-2 sm:grid-cols-5" />
                 </div>
               )}
               {req.reviewNote && (

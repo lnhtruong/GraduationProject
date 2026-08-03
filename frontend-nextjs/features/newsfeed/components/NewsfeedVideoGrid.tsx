@@ -44,7 +44,7 @@ function formatDateLabel(value?: string) {
 }
 
 function getAuthorName(video: NewsfeedItem) {
-	return [video.lecturer?.firstName, video.lecturer?.lastName].filter(Boolean).join(" ").trim() || video.course.name;
+	return [video.lecturer?.lastName, video.lecturer?.firstName].filter(Boolean).join(" ").trim() || video.course.name;
 }
 
 function getAuthorInitials(name: string) {

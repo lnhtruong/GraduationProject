@@ -13,6 +13,7 @@ export interface LecturerRequest {
   id: number;
   userId: number;
   confirm: string | null;
+  teachingTopics: string | null;
   status: LecturerRequestStatus;
   reviewNote: string | null;
   reviewedAt: string | null;
@@ -33,6 +34,7 @@ export interface LecturerRequest {
 
 export interface CreateLecturerRequestDto {
   confirm?: string;
+  teachingTopics: string;
   evidenceImageIds: number[];
 }
 

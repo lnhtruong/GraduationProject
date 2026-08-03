@@ -46,6 +46,13 @@ export class LecturerUpgradeRequest extends Model {
   declare confirm: string | null;
 
   @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    field: 'teaching_topics',
+  })
+  declare teachingTopics: string | null;
+
+  @Column({
     type: DataType.JSON,
     allowNull: true,
     field: 'evidence_image_ids',

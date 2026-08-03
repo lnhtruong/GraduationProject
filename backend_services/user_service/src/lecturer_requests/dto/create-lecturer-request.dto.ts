@@ -4,6 +4,7 @@ import {
   ArrayUnique,
   IsArray,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -11,6 +12,11 @@ import {
 } from 'class-validator';
 
 export class CreateLecturerRequestDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  teachingTopics: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(5000)

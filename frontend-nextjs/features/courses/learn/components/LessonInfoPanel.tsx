@@ -32,11 +32,11 @@ export function LessonInfoPanel({
   const [reportOpen, setReportOpen] = useState(false);
 
   const fullName = instructor
-    ? `${instructor.firstName} ${instructor.lastName}`.trim()
+    ? `${instructor.lastName} ${instructor.firstName}`.trim()
     : "Giảng viên";
 
   const initials = instructor
-    ? `${instructor.firstName?.[0] ?? ""}${instructor.lastName?.[0] ?? ""}`.trim().toUpperCase() || "GI"
+    ? `${instructor.lastName?.[0] ?? ""}${instructor.firstName?.[0] ?? ""}`.trim().toUpperCase() || "GI"
     : "GI";
 
   const safeLessonDescription = useMemo(
@@ -54,7 +54,7 @@ export function LessonInfoPanel({
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-4">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 {lessonTitle}
               </h1>
               {isAuthenticated && (
@@ -63,6 +63,7 @@ export function LessonInfoPanel({
                   size="icon"
                   className="h-9 w-9 shrink-0 rounded-full border border-border/60 text-muted-foreground/60 hover:bg-destructive/5 hover:text-destructive animate-in fade-in zoom-in-95 duration-200"
                   title="Báo cáo bài học"
+                  aria-label="Báo cáo bài học"
                   onClick={() => setReportOpen(true)}
                 >
                   <Flag className="h-3.5 w-3.5" />
@@ -87,7 +88,7 @@ export function LessonInfoPanel({
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground">
                 {fullName}
               </p>

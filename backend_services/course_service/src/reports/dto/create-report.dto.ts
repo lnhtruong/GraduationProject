@@ -10,7 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { ReportTargetType } from 'src/models/report.model';
+import { ReportCategory, ReportTargetType } from 'src/models/report.model';
 
 export class CreateReportDto {
   @IsEnum(ReportTargetType)
@@ -19,6 +19,9 @@ export class CreateReportDto {
   @IsInt()
   @Min(1)
   targetId: number;
+
+  @IsEnum(ReportCategory)
+  reportCategory: ReportCategory;
 
   @IsString()
   @MinLength(5)

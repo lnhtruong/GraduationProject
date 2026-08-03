@@ -11,6 +11,7 @@ import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   Report,
+  ReportCategory,
   ReportStatus,
   ReportTargetType,
 } from 'src/models/report.model';
@@ -58,6 +59,7 @@ export class ReportsService {
     return await this.reportModel.create({
       targetType: payload.targetType,
       targetId: payload.targetId,
+      reportCategory: payload.reportCategory,
       reason: payload.reason,
       reporterId,
       status: ReportStatus.PENDING,
@@ -70,6 +72,7 @@ export class ReportsService {
     limit?: number;
     status?: ReportStatus;
     targetType?: ReportTargetType;
+    reportCategory?: ReportCategory;
     sortOrder?: string;
     search?: string;
   }) {
@@ -86,6 +89,7 @@ export class ReportsService {
     const where: Record<string | symbol, unknown> = {};
     if (params.status) where.status = params.status;
     if (params.targetType) where.targetType = params.targetType;
+    if (params.reportCategory) where.reportCategory = params.reportCategory;
     if (params.search && params.search.trim().length > 0) {
       where.reason = { [Op.like]: `%${params.search.trim()}%` };
     }

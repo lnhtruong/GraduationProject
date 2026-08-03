@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Report, ReportStatus, ReportTargetType } from "../../types/report.types";
+import type { Report, ReportCategory, ReportStatus, ReportTargetType } from "../../types/report.types";
 
 const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactNode; className: string }> = {
   course: {
@@ -33,6 +33,14 @@ const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactN
   },
 };
 
+const REPORT_CATEGORY_LABELS: Record<ReportCategory, string> = {
+  misleading: "Thông tin sai lệch",
+  copyright: "Vi phạm bản quyền",
+  inappropriate: "Nội dung không phù hợp",
+  spam: "Spam hoặc lừa đảo",
+  harassment: "Quấy rối hoặc xúc phạm",
+  other: "Vấn đề khác",
+};
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
   pending: {
     label: "Chờ xử lý",
@@ -60,7 +68,7 @@ function formatDate(iso?: string) {
 function reporterName(report: Report): string {
   if (!report.reporter) return `ID #${report.reporterId}`;
   const { firstName, lastName, email } = report.reporter;
-  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const name = [lastName, firstName].filter(Boolean).join(" ").trim();
   return name || email;
 }
 
@@ -160,6 +168,11 @@ export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
                       {typeConfig.icon}
                       {typeConfig.label}
                     </Badge>
+                    {report.reportCategory && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {REPORT_CATEGORY_LABELS[report.reportCategory] ?? report.reportCategory}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-xs">
                     <span className="line-clamp-2 text-sm text-foreground/80">
@@ -224,6 +237,11 @@ export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
                     {typeConfig.icon}
                     {typeConfig.label}
                   </Badge>
+                  {report.reportCategory && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {REPORT_CATEGORY_LABELS[report.reportCategory] ?? report.reportCategory}
+                    </span>
+                  )}
                 </div>
                 <Badge variant="outline" className={`shrink-0 text-[11px] font-medium ${statusConfig.className}`}>
                   {statusConfig.label}
@@ -235,7 +253,7 @@ export function AdminReportTable({ reports, isLoading, onViewDetail }: Props) {
               </p>
 
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{reporterName(report)}</span>
+                <span className="min-w-0 truncate">{reporterName(report)}</span>
                 <span>{formatDate(report.created_at)}</span>
               </div>
             </div>

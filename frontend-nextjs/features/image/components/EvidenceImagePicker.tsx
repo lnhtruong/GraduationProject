@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ImagePlus, Loader2, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { imageApi } from "../api/image.api";
 import { useEvidenceImageUpload, type EvidenceImageType } from "../hooks/useEvidenceImageUpload";
 import type { Image } from "../types";
 
@@ -13,7 +12,10 @@ interface EvidenceImagePickerProps {
   onChange: (imageIds: number[]) => void;
   disabled?: boolean;
   label?: string;
+  helperText?: string;
+  uploadButtonLabel?: string;
   required?: boolean;
+  variant?: "panel" | "inline";
 }
 
 const MAX_IMAGES = 5;
@@ -24,54 +26,38 @@ export function EvidenceImagePicker({
   onChange,
   disabled = false,
   label = "Ảnh minh chứng",
+  helperText,
+  uploadButtonLabel = "Thêm ảnh minh chứng",
   required = false,
+  variant = "panel",
 }: EvidenceImagePickerProps) {
   const [images, setImages] = useState<Image[]>([]);
-  const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const localPreviewUrlsRef = useRef<Set<string>>(new Set());
   const upload = useEvidenceImageUpload(type);
 
-  const loadImages = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      setImages(await imageApi.getAllByUser({ type }));
-    } catch {
-      toast.error("Không thể tải kho ảnh minh chứng.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [type]);
-
   useEffect(() => {
-    void loadImages();
-  }, [loadImages]);
+    const localPreviewUrls = localPreviewUrlsRef.current;
+    return () => {
+      localPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+      localPreviewUrls.clear();
+    };
+  }, []);
 
-  const filteredImages = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return images;
-    return images.filter((image) =>
-      `${image.name ?? ""} ${image.url}`.toLowerCase().includes(keyword),
-    );
-  }, [images, search]);
-
+  const selectedImages = images.filter((image) => value.includes(image.id));
   const isSelectionFull = value.length >= MAX_IMAGES;
   const isUploadDisabled = disabled || upload.isUploading || isSelectionFull;
-  const showSearch = images.length > 4;
-  const hasSearchKeyword = search.trim().length > 0;
-  const helperText = images.length > 0
-    ? `Chọn từ kho ảnh đã tải hoặc thêm ảnh mới. Tối đa ${MAX_IMAGES} ảnh.`
-    : `Thêm ảnh nếu cần bổ sung minh chứng. Tối đa ${MAX_IMAGES} ảnh.`;
+  const resolvedHelperText = helperText ?? `Tải ảnh mới cho yêu cầu này. Tối đa ${MAX_IMAGES} ảnh.`;
 
-  const toggleImage = (imageId: number) => {
-    if (value.includes(imageId)) {
-      onChange(value.filter((id) => id !== imageId));
-      return;
-    }
-    if (value.length >= MAX_IMAGES) {
-      toast.error(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-      return;
-    }
-    onChange([...value, imageId]);
+  const removeImage = (imageId: number) => {
+    onChange(value.filter((id) => id !== imageId));
+    setImages((currentImages) => {
+      const removedImage = currentImages.find((image) => image.id === imageId);
+      if (removedImage?.url && localPreviewUrlsRef.current.has(removedImage.url)) {
+        URL.revokeObjectURL(removedImage.url);
+        localPreviewUrlsRef.current.delete(removedImage.url);
+      }
+      return currentImages.filter((image) => image.id !== imageId);
+    });
   };
 
   const uploadFiles = async (files: File[]) => {
@@ -90,108 +76,105 @@ export function EvidenceImagePicker({
 
     try {
       const imageIds = await upload.upload(selectedFiles);
-      onChange([...value, ...imageIds].slice(0, MAX_IMAGES));
-      await loadImages();
+      const nextValue = [...value, ...imageIds].slice(0, MAX_IMAGES);
+      onChange(nextValue);
+
+      const uploadedPreviews = imageIds.map((imageId, index) => {
+        const file = selectedFiles[index];
+        const previewUrl = URL.createObjectURL(file);
+        localPreviewUrlsRef.current.add(previewUrl);
+        return {
+          id: imageId,
+          url: previewUrl,
+          thumbnail: null,
+          type,
+          name: file.name,
+          format: file.type,
+        } satisfies Image;
+      });
+
+      setImages((currentImages) => [...currentImages, ...uploadedPreviews]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể tải ảnh lên.");
     }
   };
+  const containerClassName =
+    variant === "inline"
+      ? "space-y-3"
+      : "rounded-xl border border-primary/20 bg-primary/[0.035] p-3 shadow-sm ring-1 ring-primary/10 sm:p-4";
 
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-sm font-medium">
-          {label} {required && <span className="text-destructive">*</span>}
-        </p>
-        <p className="text-xs text-muted-foreground">{helperText}</p>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <label
-          aria-disabled={isUploadDisabled}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm transition-colors ${
-            showSearch ? "sm:w-auto" : ""
-          } ${isUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
-        >
-          {upload.isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          {upload.isUploading ? `Đang tải ${upload.progress}%` : "Thêm ảnh minh chứng"}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="sr-only"
-            disabled={isUploadDisabled}
-            onChange={(event) => {
-              void uploadFiles(Array.from(event.target.files ?? []));
-              event.target.value = "";
-            }}
-          />
-        </label>
-
-        {showSearch && (
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm theo tên ảnh..."
-              className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              disabled={disabled}
-            />
-            {search && (
-              <button
-                type="button"
-                className="absolute right-2 top-2.5 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => setSearch("")}
-                disabled={disabled}
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
+    <div className={containerClassName}>
+      <div className={variant === "inline" ? "flex items-start justify-between gap-3" : "mb-3 flex items-start justify-between gap-3"}>
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-sm font-semibold leading-snug text-foreground">
+              {label}
+              {required && <span className="ml-1 text-destructive">*</span>}
+            </p>
           </div>
-        )}
+          <p className="text-xs leading-relaxed text-muted-foreground">{resolvedHelperText}</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm ring-1 ring-primary/15">
+          {value.length}/{MAX_IMAGES}
+        </span>
       </div>
 
-      {isLoading ? (
-        <div className="flex h-16 items-center justify-center text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang tải kho ảnh...
-        </div>
-      ) : filteredImages.length === 0 && hasSearchKeyword ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-5 text-center text-xs text-muted-foreground">
-          Không tìm thấy ảnh phù hợp.
-        </p>
-      ) : filteredImages.length > 0 ? (
-        <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
-          {filteredImages.map((image) => {
-            const selected = value.includes(image.id);
-            return (
+      <label
+        aria-disabled={isUploadDisabled}
+        className={`group relative flex min-h-[58px] w-full items-center justify-center gap-3 overflow-hidden rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
+          isUploadDisabled
+            ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground opacity-70"
+            : "cursor-pointer border-primary/35 bg-background text-primary hover:border-primary/70 hover:bg-primary/[0.06]"
+        }`}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          {upload.isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+        </span>
+        <span className="min-w-0 truncate">{upload.isUploading ? `Đang tải ${upload.progress}%` : uploadButtonLabel}</span>
+        {upload.isUploading && (
+          <span
+            className="absolute inset-x-0 bottom-0 h-0.5 bg-primary/50"
+            style={{ transform: `scaleX(${upload.progress / 100})`, transformOrigin: "left" }}
+          />
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="sr-only"
+          disabled={isUploadDisabled}
+          onChange={(event) => {
+            void uploadFiles(Array.from(event.target.files ?? []));
+            event.target.value = "";
+          }}
+        />
+      </label>
+
+      {selectedImages.length > 0 && (
+        <div className="mt-3 grid max-h-60 grid-cols-2 gap-2 overflow-y-auto pr-1 min-[420px]:grid-cols-3 sm:grid-cols-4">
+          {selectedImages.map((image) => (
+            <div key={image.id} className="group relative overflow-hidden rounded-lg border bg-background shadow-sm">
+              <div className="aspect-square overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image.url} alt={image.name ?? `Ảnh ${image.id}`} className="h-full w-full object-cover" />
+              </div>
               <button
-                key={image.id}
                 type="button"
                 disabled={disabled || upload.isUploading}
-                onClick={() => toggleImage(image.id)}
-                className={`group relative overflow-hidden rounded-md border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 ${
-                  selected ? "border-primary ring-2 ring-primary" : "border-border"
-                }`}
+                onClick={() => removeImage(image.id)}
+                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/95 text-foreground shadow-sm ring-1 ring-border transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Gỡ ảnh"
+                title="Gỡ ảnh"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt={image.name ?? `Ảnh ${image.id}`} className="h-20 w-full object-cover" />
-                {selected && (
-                  <span className="absolute right-1 top-1 rounded-full bg-primary p-0.5 text-primary-foreground">
-                    <Check className="h-3 w-3" />
-                  </span>
-                )}
-                <span className="block truncate px-1.5 py-1 text-[10px] text-muted-foreground">
-                  {image.name ?? `Ảnh #${image.id}`}
-                </span>
+                <X className="h-3.5 w-3.5" />
               </button>
-            );
-          })}
+              <span className="block truncate px-2 py-1.5 text-[11px] text-muted-foreground">
+                {image.name ?? `Ảnh #${image.id}`}
+              </span>
+            </div>
+          ))}
         </div>
-      ) : null}
-
-      {value.length > 0 && (
-        <p className="text-xs text-muted-foreground">Đã chọn {value.length}/{MAX_IMAGES} ảnh.</p>
       )}
     </div>
   );
