@@ -6,7 +6,7 @@ const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 const rateLimitJson = {
   success: false,
-  message: 'Too many requests from this IP, please try again later.',
+  message: 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau ít phút.',
 };
 
 function isMutating(req: Request): boolean {
