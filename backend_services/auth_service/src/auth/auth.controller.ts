@@ -38,7 +38,6 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
-    console.log('check2');
     return this.authService.register(registerDto);
   }
 
@@ -164,9 +163,9 @@ export class AuthController {
     @Query('session') nonce: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!nonce) throw new UnauthorizedException('Missing session');
+    if (!nonce) throw new UnauthorizedException('Phiên đăng nhập không hợp lệ. Vui lòng thử lại');
     const session = await this.authService.consumeOAuthSession(nonce);
-    if (!session) throw new UnauthorizedException('Session expired or invalid');
+    if (!session) throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng thử lại');
     return session;
   }
 
@@ -179,7 +178,7 @@ export class AuthController {
     const refreshToken = req.cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token not found');
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại');
     }
 
     const result = await this.authService.refreshToken(refreshToken);
@@ -190,7 +189,7 @@ export class AuthController {
       COOKIE_CONFIG.REFRESH_TOKEN_OPTIONS,
     );
 
-    return { accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken };
   }
 
   @Post('logout')

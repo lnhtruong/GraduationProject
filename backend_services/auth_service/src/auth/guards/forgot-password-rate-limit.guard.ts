@@ -40,7 +40,7 @@ export class ForgotPasswordRateLimitGuard implements CanActivate {
       throw new HttpException(
         {
           success: false,
-          message: 'Too many requests',
+          message: 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau ít phút',
           retryAfter,
         },
         HttpStatus.TOO_MANY_REQUESTS,

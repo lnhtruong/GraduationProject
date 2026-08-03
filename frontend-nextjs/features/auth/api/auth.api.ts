@@ -38,7 +38,10 @@ function normalizeAuthUser(raw: unknown): User {
       readNullableString(source.last_name),
     avatarUrl:
       readNullableString(source.avatarUrl) ??
-      readNullableString(source.avatar_url),
+      readNullableString(source.avatar_url) ??
+      readNullableString(source.picture) ??
+      readNullableString(source.photoURL) ??
+      readNullableString(source.photoUrl),
   };
 }
 
@@ -111,8 +114,10 @@ export const authApi = createApi({
       "/refresh",
       undefined,
     );
-
-    syncAuthSession({ accessToken: response.accessToken });
+    syncAuthSession({
+      accessToken: response.accessToken,
+      user: response.user ? normalizeAuthUser(response.user) : undefined,
+    });
 
     return response;
   },

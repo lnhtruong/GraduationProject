@@ -25,13 +25,7 @@ import {
   useForgotPasswordCooldown,
   formatCountdown,
 } from "../hooks/useForgotPasswordCooldown";
-
-function parseApiMessage(err: unknown, fallback: string): string {
-  if (isAxiosError(err)) {
-    return err.response?.data?.message || fallback;
-  }
-  return fallback;
-}
+import { getAuthErrorMessage } from "../utils/auth-error-message";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -86,7 +80,7 @@ export function ResetPasswordForm() {
         const mins = Math.ceil(retryAfter / 60);
         setError(`Bạn đã gửi OTP quá nhiều lần. Vui lòng thử lại sau ${mins} phút.`);
       } else {
-        setError(parseApiMessage(err, "Không thể gửi lại mã OTP. Vui lòng thử lại."));
+        setError(getAuthErrorMessage(err, "Không thể gửi lại mã OTP. Vui lòng thử lại."));
       }
     },
   });
@@ -105,7 +99,7 @@ export function ResetPasswordForm() {
         setError(null);
       } else {
         setIsAccountLocked(false);
-        setError(parseApiMessage(err, "Không thể đặt lại mật khẩu. Vui lòng thử lại."));
+        setError(getAuthErrorMessage(err, "Không thể đặt lại mật khẩu. Vui lòng thử lại."));
       }
       setSuccess(false);
     },

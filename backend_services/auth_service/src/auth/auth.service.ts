@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -69,7 +70,7 @@ export class AuthService {
         await existingUser.update(updates);
         return { user: this.toAuthUserResponse(existingUser) };
       }
-      throw new BadRequestException('User with this email already exists');
+      throw new BadRequestException('Email này đã được sử dụng');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -96,12 +97,12 @@ export class AuthService {
     });
 
     if (!user?.password) {
-      throw new UnauthorizedException('Invalid account or password!');
+      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid account or password!');
+      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     return this.issueAuthTokens(user);
@@ -115,18 +116,31 @@ export class AuthService {
     const email = googlePayload.email?.trim().toLowerCase();
 
     if (!googleId || !email) {
-      throw new UnauthorizedException('Invalid Google account');
+      throw new UnauthorizedException('Tài khoản Google không hợp lệ');
     }
 
     if (!googlePayload.email_verified) {
-      throw new UnauthorizedException('Google email is not verified');
+      throw new UnauthorizedException('Email Google của bạn chưa được xác minh');
     }
 
     let user = await this.userModel.findOne({ where: { email } });
+    const profile = this.resolveOAuthProfile({
+      firstName: googlePayload.given_name,
+      lastName: googlePayload.family_name,
+      avatarUrl: googlePayload.picture,
+    });
 
     if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        profile,
+      );
       if (!user.googleId) {
-        await user.update({ googleId, emailVerified: true });
+        updates.googleId = googleId;
+        updates.emailVerified = true;
+      }
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
       return this.issueAuthTokens(user);
     }
@@ -134,12 +148,12 @@ export class AuthService {
     user = await this.userModel.create({
       email,
       password: null,
-      firstName: googlePayload.given_name || null,
-      lastName: googlePayload.family_name || null,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
       role: DEFAULT_USER_ROLE,
       googleId,
       emailVerified: true,
-      avatarUrl: googlePayload.picture || null,
+      avatarUrl: profile.avatarUrl,
     });
 
     return this.issueAuthTokens(user);
@@ -150,36 +164,45 @@ export class AuthService {
     try {
       payload = await this.jwtTokenService.verifyRefreshToken(refreshToken);
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại');
     }
 
     if (!payload?.jti) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại');
     }
 
     const redisKey = this.getRefreshTokenKey(payload.userId);
     const storedJti = await this.redisService.get(redisKey);
 
     if (!storedJti) {
-      throw new UnauthorizedException('Refresh token not found or expired');
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại');
     }
 
     if (storedJti !== payload.jti) {
       // Reuse detected — wipe the session so the legitimate user is also forced
       // to re-login (defensive: assume the token has leaked).
       await this.redisService.del(redisKey);
-      throw new UnauthorizedException('Refresh token reuse detected');
+      throw new UnauthorizedException('Phiên đăng nhập không an toàn. Vui lòng đăng nhập lại');
     }
 
+    const user = await this.userModel.findByPk(payload.userId);
+    if (!user) {
+      await this.redisService.del(redisKey);
+      throw new UnauthorizedException('Không tìm thấy tài khoản');
+    }
+
+    this.assertUserCanAuthenticate(user);
+
     const tokenPair = await this.jwtTokenService.generateTokenPair({
-      userId: payload.userId,
-      email: payload.email,
-      role: payload.role,
+      userId: user.id,
+      email: user.email,
+      role: user.role ?? DEFAULT_USER_ROLE,
     });
 
-    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
+    await this.storeRefreshToken(user.id, tokenPair.refreshJti);
 
     return {
+      user: this.toAuthUserResponse(user),
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
     };
@@ -189,13 +212,23 @@ export class AuthService {
     await this.redisService.del(this.getRefreshTokenKey(userId));
 
     return {
-      message: 'Logged out successfully',
+      message: 'Đăng xuất thành công',
     };
   }
 
   async issueToken(payload: TokenPayload) {
-    const tokenPair = await this.jwtTokenService.generateTokenPair(payload);
-    await this.storeRefreshToken(payload.userId, tokenPair.refreshJti);
+    const user = await this.userModel.findByPk(payload.userId);
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy tài khoản');
+    }
+    this.assertUserCanAuthenticate(user);
+
+    const tokenPair = await this.jwtTokenService.generateTokenPair({
+      userId: user.id,
+      email: user.email,
+      role: user.role ?? DEFAULT_USER_ROLE,
+    });
+    await this.storeRefreshToken(user.id, tokenPair.refreshJti);
 
     return {
       accessToken: tokenPair.accessToken,
@@ -214,7 +247,14 @@ export class AuthService {
       if (!user) {
         return {
           valid: false,
-          reason: 'User not found',
+          reason: 'Không tìm thấy tài khoản',
+        };
+      }
+
+      if (user.isBanned) {
+        return {
+          valid: false,
+          reason: 'Tài khoản của bạn đã bị khóa',
         };
       }
 
@@ -229,7 +269,7 @@ export class AuthService {
     } catch (error) {
       return {
         valid: false,
-        reason: error.message || 'Invalid token',
+        reason: error.message || 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại',
       };
     }
   }
@@ -245,7 +285,7 @@ export class AuthService {
       throw new HttpException(
         {
           success: false,
-          message: 'Account temporarily locked',
+          message: 'Tài khoản tạm thời bị khóa',
           retryAfter,
         },
         HttpStatus.TOO_MANY_REQUESTS,
@@ -270,7 +310,7 @@ export class AuthService {
       });
 
       return {
-        message: 'OTP sent to email',
+        message: 'Mã OTP đã được gửi đến email',
       };
     } catch (err: any) {
       // Forward mail_service's per-email 429 so the client gets a real
@@ -281,7 +321,7 @@ export class AuthService {
         throw new HttpException(
           {
             success: false,
-            message: 'Too many requests',
+            message: 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau ít phút',
             retryAfter,
           },
           HttpStatus.TOO_MANY_REQUESTS,
@@ -290,7 +330,7 @@ export class AuthService {
       this.logger.warn(
         `Mail OTP send failed for ${normalizedEmail}: ${err?.message ?? err}`,
       );
-      throw new BadRequestException('Failed to send OTP email');
+      throw new BadRequestException('Không thể gửi mã OTP. Vui lòng thử lại');
     }
   }
 
@@ -304,7 +344,7 @@ export class AuthService {
       throw new HttpException(
         {
           success: false,
-          message: 'Account locked. Try again after 30 minutes.',
+          message: 'Tài khoản tạm thời bị khóa. Vui lòng thử lại sau 30 phút',
         },
         HttpStatus.LOCKED,
       );
@@ -337,13 +377,13 @@ export class AuthService {
         throw new HttpException(
           {
             success: false,
-            message: 'Account locked. Try again after 30 minutes.',
+            message: 'Tài khoản tạm thời bị khóa. Vui lòng thử lại sau 30 phút',
           },
           HttpStatus.LOCKED,
         );
       }
 
-      throw new BadRequestException('Invalid or expired OTP');
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
 
     const user = await this.userModel.findOne({
@@ -361,7 +401,7 @@ export class AuthService {
     await this.redisService.del(otpFailKey(normalizedEmail));
 
     return {
-      message: 'Password has been reset successfully',
+      message: 'Đặt lại mật khẩu thành công',
     };
   }
 
@@ -432,7 +472,7 @@ export class AuthService {
     const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
 
     if (!clientId || !redirectUri) {
-      throw new BadRequestException('GitHub OAuth is not configured');
+      throw new BadRequestException('Đăng nhập GitHub chưa được cấu hình');
     }
 
     const state = await this.generateOAuthState();
@@ -451,14 +491,14 @@ export class AuthService {
     if (!isFirstCallback) {
       const cached = await this.waitForOAuthResult(state);
       if (cached) return cached;
-      throw new UnauthorizedException('Invalid OAuth state');
+      throw new UnauthorizedException('Phiên đăng nhập bên thứ ba đã hết hạn. Vui lòng thử lại');
     }
     const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
     const clientSecret = this.configService.get<string>('GITHUB_CLIENT_SECRET');
     const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
 
     if (!clientId || !clientSecret || !redirectUri) {
-      throw new BadRequestException('GitHub OAuth is not configured');
+      throw new BadRequestException('Đăng nhập GitHub chưa được cấu hình');
     }
 
     const tokenRes = await this.httpService.axiosRef.post(
@@ -474,7 +514,7 @@ export class AuthService {
 
     const accessToken: string = tokenRes.data?.access_token;
     if (!accessToken) {
-      throw new UnauthorizedException('Failed to get GitHub access token');
+      throw new UnauthorizedException('Không thể đăng nhập bằng GitHub. Vui lòng thử lại');
     }
 
     const profileRes = await this.httpService.axiosRef.get(
@@ -516,26 +556,43 @@ export class AuthService {
       }
     }
 
+    const accountEmail = email ?? `github_${githubId}@noemail.local`;
+    const [githubFirstName, githubLastName] = this.splitOAuthFullName(
+      profile.name,
+    );
+    const oauthProfile = this.resolveOAuthProfile({
+      firstName: githubFirstName,
+      lastName: githubLastName,
+      avatarUrl: profile.avatar_url,
+    });
+
     let user = await this.userModel.findOne({ where: { githubId } });
 
     if (!user && email) {
       user = await this.userModel.findOne({ where: { email } });
-      if (user) {
-        await user.update({ githubId });
+    }
+
+    if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        oauthProfile,
+      );
+      if (!user.githubId) updates.githubId = githubId;
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
     }
 
     if (!user) {
-      const nameParts = (profile.name || '').split(' ');
       user = await this.userModel.create({
-        email: email ?? `github_${githubId}@noemail.local`,
+        email: accountEmail,
         password: null,
-        firstName: nameParts[0] || null,
-        lastName: nameParts.slice(1).join(' ') || null,
+        firstName: oauthProfile.firstName,
+        lastName: oauthProfile.lastName,
         role: DEFAULT_USER_ROLE,
         githubId,
         emailVerified: !!email,
-        avatarUrl: profile.avatar_url || null,
+        avatarUrl: oauthProfile.avatarUrl,
       });
     }
 
@@ -549,7 +606,7 @@ export class AuthService {
     const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
 
     if (!appId || !redirectUri) {
-      throw new BadRequestException('Facebook OAuth is not configured');
+      throw new BadRequestException('Đăng nhập Facebook chưa được cấu hình');
     }
 
     const state = await this.generateOAuthState();
@@ -569,14 +626,14 @@ export class AuthService {
     if (!isFirstCallback) {
       const cached = await this.waitForOAuthResult(state);
       if (cached) return cached;
-      throw new UnauthorizedException('Invalid OAuth state');
+      throw new UnauthorizedException('Phiên đăng nhập bên thứ ba đã hết hạn. Vui lòng thử lại');
     }
     const appId = this.configService.get<string>('FACEBOOK_APP_ID');
     const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
     const redirectUri = this.configService.get<string>('FACEBOOK_REDIRECT_URI');
 
     if (!appId || !appSecret || !redirectUri) {
-      throw new BadRequestException('Facebook OAuth is not configured');
+      throw new BadRequestException('Đăng nhập Facebook chưa được cấu hình');
     }
 
     const tokenRes = await this.httpService.axiosRef.post(
@@ -592,7 +649,7 @@ export class AuthService {
 
     const accessToken: string = tokenRes.data?.access_token;
     if (!accessToken) {
-      throw new UnauthorizedException('Failed to get Facebook access token');
+      throw new UnauthorizedException('Không thể đăng nhập bằng Facebook. Vui lòng thử lại');
     }
 
     const profileRes = await this.httpService.axiosRef.get(
@@ -609,26 +666,40 @@ export class AuthService {
     const facebookId = String(profile.id);
     const email: string | null = profile.email?.trim().toLowerCase() || null;
     const avatarUrl: string | null = profile.picture?.data?.url || null;
+    const accountEmail = email ?? `facebook_${facebookId}@noemail.local`;
+    const oauthProfile = this.resolveOAuthProfile({
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      avatarUrl,
+    });
 
     let user = await this.userModel.findOne({ where: { facebookId } });
 
     if (!user && email) {
       user = await this.userModel.findOne({ where: { email } });
-      if (user) {
-        await user.update({ facebookId });
+    }
+
+    if (user) {
+      const updates: Record<string, unknown> = this.getOAuthProfileBackfill(
+        user,
+        oauthProfile,
+      );
+      if (!user.facebookId) updates.facebookId = facebookId;
+      if (Object.keys(updates).length > 0) {
+        await user.update(updates);
       }
     }
 
     if (!user) {
       user = await this.userModel.create({
-        email: email ?? `facebook_${facebookId}@noemail.local`,
+        email: accountEmail,
         password: null,
-        firstName: profile.first_name || null,
-        lastName: profile.last_name || null,
+        firstName: oauthProfile.firstName,
+        lastName: oauthProfile.lastName,
         role: DEFAULT_USER_ROLE,
         facebookId,
         emailVerified: !!email,
-        avatarUrl,
+        avatarUrl: oauthProfile.avatarUrl,
       });
     }
 
@@ -638,6 +709,8 @@ export class AuthService {
   }
 
   private async issueAuthTokens(user: User) {
+    this.assertUserCanAuthenticate(user);
+
     const tokenPair = await this.jwtTokenService.generateTokenPair({
       userId: user.id,
       email: user.email,
@@ -653,6 +726,12 @@ export class AuthService {
     };
   }
 
+  private assertUserCanAuthenticate(user: User) {
+    if (user.isBanned) {
+      throw new ForbiddenException('Tài khoản của bạn đã bị khóa');
+    }
+  }
+
   private toAuthUserResponse(user: User) {
     return {
       id: user.id,
@@ -662,6 +741,65 @@ export class AuthService {
       role: user.role,
       avatarUrl: user.avatarUrl,
     };
+  }
+
+  /** Keep every non-empty provider name field; providers may only return one. */
+  private resolveOAuthProfile(input: {
+    firstName?: string | null;
+    lastName?: string | null;
+    avatarUrl?: string | null;
+  }) {
+    const firstName = this.readProfileText(input.firstName);
+    const lastName = this.readProfileText(input.lastName);
+
+    return {
+      firstName,
+      lastName,
+      avatarUrl: this.readProfileText(input.avatarUrl),
+    };
+  }
+
+  /**
+   * A provider may fill any name fields only when the local profile has neither
+   * field yet. Once either local field exists, preserve user-entered data.
+   */
+  private getOAuthProfileBackfill(
+    user: User,
+    profile: {
+      firstName: string | null;
+      lastName: string | null;
+      avatarUrl: string | null;
+    },
+  ): Record<string, string> {
+    const updates: Record<string, string> = {};
+    const userHasAnyName = Boolean(
+      this.readProfileText(user.firstName) ||
+        this.readProfileText(user.lastName),
+    );
+
+    if (!userHasAnyName) {
+      if (profile.firstName) updates.firstName = profile.firstName;
+      if (profile.lastName) updates.lastName = profile.lastName;
+    }
+    if (!this.readProfileText(user.avatarUrl) && profile.avatarUrl) {
+      updates.avatarUrl = profile.avatarUrl;
+    }
+
+    return updates;
+  }
+
+  private splitOAuthFullName(value: unknown): [string | null, string | null] {
+    const fullName = this.readProfileText(value);
+    if (!fullName) return [null, null];
+
+    const [firstName, ...lastNameParts] = fullName.split(/\s+/);
+    return [firstName ?? null, lastNameParts.join(' ') || null];
+  }
+
+  private readProfileText(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim();
+    return normalized || null;
   }
 
   private async verifyGoogleIdToken(
@@ -682,7 +820,7 @@ export class AuthService {
       const payload = ticket.getPayload();
 
       if (!payload) {
-        throw new UnauthorizedException('Invalid Google token');
+        throw new UnauthorizedException('Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại');
       }
 
       return payload;
@@ -693,7 +831,7 @@ export class AuthService {
       ) {
         throw error;
       }
-      throw new UnauthorizedException('Invalid Google token');
+      throw new UnauthorizedException('Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại');
     }
   }
 

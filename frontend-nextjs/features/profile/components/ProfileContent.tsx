@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AvatarUploader from "@/features/auth/components/AvatarUploader";
 import { useAuth, useAuthActions } from "@/features/auth/hooks/useAuth";
 import { BecomeInstructorSection } from "@/features/lecturer-requests/components/student/BecomeInstructorSection";
@@ -22,6 +22,7 @@ import { getRoleName, ROLES } from "@/lib/roles";
 import { Loader2, Mail, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { profileApi } from "@/features/profile/api/profile.api";
+import { getUserDisplayName } from "@/lib/user-display";
 
 function getErrorMessage(error: unknown) {
   if (
@@ -71,10 +72,7 @@ export function ProfileContent() {
     };
   }, [setUser, user?.id]);
 
-  const displayName = useMemo(() => {
-    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
-    return fullName || user?.email?.split("@")[0] || "Người dùng";
-  }, [user]);
+  const displayName = getUserDisplayName(user);
 
   const handleUpdateProfile = async () => {
     if (!user?.id) return;

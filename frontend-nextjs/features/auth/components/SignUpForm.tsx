@@ -21,6 +21,7 @@ import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signUpSchema, type SignUpFormData } from "../schemas";
 import { SocialAuthRow } from "./SocialAuthRow";
+import { getAuthErrorMessage } from "../utils/auth-error-message";
 
 function getSafeReturnUrl(value: string | null): string | null {
   if (!value) return null;
@@ -71,19 +72,7 @@ export default function SignUpForm() {
         router.push(returnUrl ? `/signin?registered=true&returnUrl=${encodeURIComponent(returnUrl)}` : "/signin?registered=true");
       }, 2000);
     } catch (err: unknown) {
-      // Parse error message from backend
-      let errorMessage = "Đăng ký thất bại. Vui lòng thử lại.";
-
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosError = err as {
-          response?: { data?: { message?: string } };
-        };
-        errorMessage = axiosError.response?.data?.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(getAuthErrorMessage(err, "Đăng ký thất bại. Vui lòng thử lại."));
     }
   };
 
@@ -96,18 +85,9 @@ export default function SignUpForm() {
 
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
-      let errorMessage = "Đăng nhập Google thất bại. Vui lòng thử lại.";
-
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosError = err as {
-          response?: { data?: { message?: string } };
-        };
-        errorMessage = axiosError.response?.data?.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(
+        getAuthErrorMessage(err, "Đăng nhập Google thất bại. Vui lòng thử lại."),
+      );
     }
   };
 
