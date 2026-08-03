@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitReport } from "../api/report.hooks";
 import type { ReportTargetType } from "../types";
+import { EvidenceImagePicker } from "@/features/image/components/EvidenceImagePicker";
 
 interface Props {
   open: boolean;
@@ -43,19 +44,31 @@ function getErrorMessage(error: unknown): string {
 export function ReportDialog({ open, onClose, targetType, targetId, targetLabel }: Props) {
   const [reason, setReason] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [evidenceImageIds, setEvidenceImageIds] = useState<number[]>([]);
   const submit = useSubmitReport();
 
   const handleClose = () => {
     setReason("");
     setErrorMsg(null);
+    setEvidenceImageIds([]);
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (reason.trim().length < MIN_REASON) return;
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < MIN_REASON) {
+      setErrorMsg(`Lý do báo cáo cần ít nhất ${MIN_REASON} ký tự.`);
+      return;
+    }
+
     setErrorMsg(null);
     try {
-      await submit.mutateAsync({ targetType, targetId, reason: reason.trim() });
+      await submit.mutateAsync({
+        targetType,
+        targetId,
+        reason: trimmedReason,
+        ...(evidenceImageIds.length > 0 ? { evidenceImageIds } : {}),
+      });
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.");
       handleClose();
     } catch (err) {
@@ -64,11 +77,11 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
   };
 
   const charCount = reason.length;
-  const isValid = charCount >= MIN_REASON;
+  const isValid = reason.trim().length >= MIN_REASON;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="h-4 w-4 text-destructive" />
@@ -101,6 +114,13 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
             </span>
           </div>
 
+          <EvidenceImagePicker
+            type="report"
+            value={evidenceImageIds}
+            onChange={setEvidenceImageIds}
+            disabled={submit.isPending}
+          />
+
           {errorMsg && (
             <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs text-destructive">
               {errorMsg}
@@ -108,14 +128,14 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={handleClose} disabled={submit.isPending}>
+        <DialogFooter className="gap-2 sm:gap-3">
+          <Button variant="outline" onClick={handleClose} disabled={submit.isPending} className="w-full sm:w-auto">
             Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!isValid || submit.isPending}
-            className="gap-2"
+            className="w-full gap-2 sm:w-auto"
           >
             {submit.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Gửi báo cáo

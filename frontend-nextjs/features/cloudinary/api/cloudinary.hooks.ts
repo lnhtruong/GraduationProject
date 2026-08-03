@@ -16,7 +16,9 @@ type CloudinaryUploadVariables = {
     | "mascot"
     | "thumbnail_video"
     | "thumbnail_course"
-    | "avt";
+    | "avt"
+    | "report"
+    | "role_upgrade";
 };
 
 export function useCloudinaryDirectUpload(

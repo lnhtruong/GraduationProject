@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Image API
  * CRUD endpoints for user mascot images
  */
@@ -15,6 +15,7 @@ import type {
   DeleteImageResponse,
   Image,
   UpdateImageRequest,
+  ImageType,
 } from "../types";
 
 const IMAGE_ENDPOINT = "/media/mascot_images";
@@ -25,6 +26,10 @@ type ImageApiResponse = {
   user_id?: number;
   url?: string;
   thumbnail?: string | null;
+  type?: string;
+  job_id?: string | null;
+  name?: string | null;
+  format?: string | null;
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
@@ -34,6 +39,11 @@ type ImageApiResponse = {
 export type ImageLibraryPageParams = {
   page: number;
   limit: number;
+  type?: ImageType;
+};
+
+export type ImageListParams = {
+  type?: ImageType;
 };
 
 function mapImage(raw: ImageApiResponse): Image {
@@ -42,6 +52,10 @@ function mapImage(raw: ImageApiResponse): Image {
     user_id: raw.user_id,
     url: raw.url ?? "",
     thumbnail: raw.thumbnail ?? null,
+    type: raw.type as ImageType | undefined,
+    job_id: raw.job_id ?? null,
+    name: raw.name ?? null,
+    format: raw.format ?? null,
     created_at: raw.created_at ?? raw.createdAt,
     updated_at: raw.updated_at ?? raw.updatedAt,
   };
@@ -53,21 +67,28 @@ const imageCrudApi = createResourceApi<
   CreateImageRequest,
   UpdateImageRequest,
   number,
-  unknown,
+  ImageListParams,
   DeleteImageResponse
 >({
   basePath: IMAGE_ENDPOINT,
   mapItem: mapImage,
-  getListPath: () => `${IMAGE_ENDPOINT}/user`,
+  getListPath: (params) => withQueryPath(`${IMAGE_ENDPOINT}/user`, params),
 });
 
 export const imageApi = {
   ...imageCrudApi,
   findById: imageCrudApi.getOne,
-  getAllByUser: () => imageCrudApi.list?.() ?? Promise.resolve([]),
+  getAllByUser: async (params?: ImageListParams): Promise<Image[]> => {
+    const { data } = await apiClient.get<ImageApiResponse[]>(
+      `${IMAGE_ENDPOINT}/user`,
+      { params },
+    );
+    return data.map(mapImage);
+  },
   getAllByUserPaginated: async ({
     page,
     limit,
+    type,
   }: ImageLibraryPageParams): Promise<PaginatedResponse<Image>> => {
     const { data } = await apiClient.get<
       | {
@@ -80,7 +101,7 @@ export const imageApi = {
           };
         }
       | ImageApiResponse[]
-    >(withQueryPath(`${IMAGE_ENDPOINT}/user`, { page, limit }));
+    >(withQueryPath(`${IMAGE_ENDPOINT}/user`, { page, limit, type }));
 
     if (Array.isArray(data)) {
       return normalizePaginatedResponse(data.map(mapImage), { page, limit });

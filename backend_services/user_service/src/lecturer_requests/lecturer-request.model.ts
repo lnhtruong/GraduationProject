@@ -46,6 +46,13 @@ export class LecturerUpgradeRequest extends Model {
   declare confirm: string | null;
 
   @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    field: 'evidence_image_ids',
+  })
+  declare evidenceImageIds: number[] | null;
+
+  @Column({
     type: DataType.ENUM(...Object.values(LecturerRequestStatus)),
     allowNull: false,
     defaultValue: LecturerRequestStatus.PENDING,

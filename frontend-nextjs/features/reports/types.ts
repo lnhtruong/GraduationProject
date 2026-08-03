@@ -32,6 +32,14 @@ export interface ReportTargetTeacher {
 	isBanned: boolean;
 }
 
+export interface EvidenceImage {
+	imageId: number;
+	url: string;
+	name?: string | null;
+	format?: string | null;
+	type: "report" | "role_upgrade";
+}
+
 export type ReportTarget =
 	| ReportTargetCourse
 	| ReportTargetLesson
@@ -50,6 +58,8 @@ export interface Report {
 	reviewedAt: string | null;
 	created_at: string;
 	updated_at: string;
+	evidenceImageIds?: number[] | null;
+	evidenceImages?: EvidenceImage[];
 	reporter?: ReportUser;
 	approver?: ReportUser;
 	target?: ReportTarget;
@@ -69,6 +79,7 @@ export interface CreateReportDto {
 	targetType: ReportTargetType;
 	targetId: number;
 	reason: string;
+	evidenceImageIds?: number[];
 }
 
 export interface ReviewReportDto {

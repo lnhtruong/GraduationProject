@@ -15,7 +15,7 @@ export function useImage(initialImageId?: number | null) {
 		initialImageId ?? null,
 	);
 
-	const imagesQuery = useImagesByUser(true);
+	const imagesQuery = useImagesByUser(undefined, true);
 	const selectedImageQuery = useImageById(
 		selectedImageId ?? 0,
 		selectedImageId !== null,

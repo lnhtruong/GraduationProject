@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { User } from '../users/user.model';
 import { UserRole } from '../users/users.service';
 import { CreateLecturerRequestDto } from './dto/create-lecturer-request.dto';
@@ -14,6 +15,7 @@ import {
   LecturerRequestStatus,
   LecturerUpgradeRequest,
 } from './lecturer-request.model';
+import { MascotImage, MascotImageType } from '../models/mascot-image.model';
 
 @Injectable()
 export class LecturerRequestsService {
@@ -24,6 +26,8 @@ export class LecturerRequestsService {
     private readonly lecturerRequestModel: typeof LecturerUpgradeRequest,
     @InjectModel(User)
     private readonly userModel: typeof User,
+    @InjectModel(MascotImage)
+    private readonly mascotImageModel: typeof MascotImage,
   ) {}
 
   async create(userId: number, payload: CreateLecturerRequestDto) {
@@ -46,9 +50,15 @@ export class LecturerRequestsService {
       );
     }
 
+    const evidenceImageIds = await this.validateEvidenceImages(
+      userId,
+      payload.evidenceImageIds,
+    );
+
     return await this.lecturerRequestModel.create({
       userId,
       confirm: payload.confirm ?? null,
+      evidenceImageIds,
       status: LecturerRequestStatus.PENDING,
     });
   }
@@ -126,7 +136,7 @@ export class LecturerRequestsService {
     if (!request) {
       throw new NotFoundException(`Lecturer upgrade request ${id} not found`);
     }
-    return request;
+    return this.withEvidenceImages(request);
   }
 
   async review(
@@ -218,6 +228,52 @@ export class LecturerRequestsService {
     }
   }
 
+  private async validateEvidenceImages(userId: number, imageIds: number[]): Promise<number[]> {
+    const images = await this.mascotImageModel.findAll({
+      where: {
+        image_id: { [Op.in]: imageIds },
+        user_id: userId,
+        type: MascotImageType.ROLE_UPGRADE,
+      },
+      attributes: ['image_id'],
+    });
+    if (images.length !== imageIds.length) {
+      throw new ForbiddenException(
+        'Ảnh minh chứng không tồn tại, không thuộc về bạn hoặc không đúng loại role_upgrade',
+      );
+    }
+    return imageIds;
+  }
+
+  private async withEvidenceImages(request: LecturerUpgradeRequest) {
+    const plain = request.get({ plain: true }) as LecturerUpgradeRequest & {
+      evidenceImageIds?: number[] | null;
+    };
+    const imageIds = plain.evidenceImageIds ?? [];
+    if (imageIds.length === 0) return { ...plain, evidenceImages: [] };
+
+    const images = await this.mascotImageModel.findAll({
+      where: { image_id: { [Op.in]: imageIds } },
+      attributes: ['image_id', 'url', 'name', 'format', 'type'],
+    });
+    const byId = new Map(
+      images.map((image) => [
+        image.image_id,
+        {
+          imageId: image.image_id,
+          url: image.url,
+          name: image.name,
+          format: image.format,
+          type: image.type,
+        },
+      ]),
+    );
+    return {
+      ...plain,
+      evidenceImages: imageIds.map((imageId) => byId.get(imageId)).filter(Boolean),
+    };
+  }
+
   private paginate(page?: number, limit?: number) {
     const safePage =
       Number.isInteger(page) && (page as number) > 0 ? (page as number) : 1;
@@ -232,14 +288,14 @@ export class LecturerRequestsService {
     };
   }
 
-  private buildPage(
+  private async buildPage(
     rows: LecturerUpgradeRequest[],
     count: number,
     page: number,
     limit: number,
   ) {
     return {
-      items: rows.map((r) => r.get({ plain: true })),
+      items: await Promise.all(rows.map((r) => this.withEvidenceImages(r))),
       pagination: {
         page,
         limit,

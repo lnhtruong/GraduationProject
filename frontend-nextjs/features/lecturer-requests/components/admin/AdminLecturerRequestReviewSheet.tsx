@@ -15,6 +15,7 @@ import { CheckCircle, XCircle, User, Calendar } from "lucide-react";
 import { LecturerRequestStatusBadge } from "../LecturerRequestStatusBadge";
 import { useReviewLecturerRequest } from "../../api/lecturer-requests.hooks";
 import type { LecturerRequest } from "../../types/lecturer-request.types";
+import { EvidenceImageGallery } from "@/features/image/components/EvidenceImageGallery";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("vi-VN", {
@@ -119,6 +120,17 @@ export function AdminLecturerRequestReviewSheet({
               <p className="text-sm text-muted-foreground italic">
                 Người dùng không cung cấp lý do.
               </p>
+            )}
+
+            {request.evidenceImages && request.evidenceImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Ảnh minh chứng ({request.evidenceImages.length})</p>
+                <EvidenceImageGallery
+                  images={request.evidenceImages}
+                  className="grid grid-cols-2 gap-2"
+                  imageClassName="h-28 w-full object-cover"
+                />
+              </div>
             )}
 
             {/* Review note (existing, if rejected) */}

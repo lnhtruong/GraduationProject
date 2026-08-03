@@ -7,6 +7,7 @@ import { AuditLog } from '../audit_logs/audit-log.model';
 import { LecturerUpgradeRequest } from '../lecturer_requests/lecturer-request.model';
 import { InstructorFollow } from '../models/instructor-follow.model';
 import { Notification } from '../models/notification.model';
+import { MascotImage } from '../models/mascot-image.model';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { Notification } from '../models/notification.model';
         const dbConfig = configService.get('database');
         return {
           ...dbConfig,
-          models: [User, AuditLog, LecturerUpgradeRequest, InstructorFollow, Notification],
+          models: [User, AuditLog, LecturerUpgradeRequest, InstructorFollow, Notification, MascotImage],
           autoLoadModels: true,
           synchronize: false, // Set to true only for development
         };

@@ -19,12 +19,21 @@ export interface LecturerRequest {
   reviewerId: number | null;
   created_at: string;
   updated_at: string;
+  evidenceImageIds: number[] | null;
+  evidenceImages?: Array<{
+    imageId: number;
+    url: string;
+    name?: string | null;
+    format?: string | null;
+    type: "role_upgrade" | "report";
+  }>;
   requester?: LecturerRequestUser;
   reviewer?: LecturerRequestUser;
 }
 
 export interface CreateLecturerRequestDto {
   confirm?: string;
+  evidenceImageIds: number[];
 }
 
 export interface ReviewLecturerRequestDto {

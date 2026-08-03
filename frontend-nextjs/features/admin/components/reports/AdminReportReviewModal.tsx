@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewReport } from "../../api/admin-reports.hooks";
+import { EvidenceImageGallery } from "@/features/image/components/EvidenceImageGallery";
 import type {
   Report,
   ReportStatus,
@@ -294,6 +295,20 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                     {report.reason}
                   </p>
                 </div>
+
+                {report.evidenceImages && report.evidenceImages.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      Ảnh minh chứng ({report.evidenceImages.length})
+                    </p>
+                    <EvidenceImageGallery
+                      images={report.evidenceImages}
+                      className="grid grid-cols-2 gap-2"
+                      imageClassName="h-28 w-full object-cover"
+                    />
+                  </div>
+                )}
 
                 {/* Kết quả xử lý (nếu đã review) */}
                 {report.status !== "pending" && (

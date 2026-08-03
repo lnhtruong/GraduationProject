@@ -57,6 +57,13 @@ export class Report extends Model {
   declare reason: string;
 
   @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    field: 'evidence_image_ids',
+  })
+  declare evidenceImageIds: number[] | null;
+
+  @Column({
     type: DataType.ENUM(...Object.values(ReportStatus)),
     allowNull: false,
     defaultValue: ReportStatus.PENDING,
