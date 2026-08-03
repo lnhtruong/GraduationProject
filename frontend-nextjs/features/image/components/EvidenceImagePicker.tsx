@@ -56,6 +56,11 @@ export function EvidenceImagePicker({
 
   const isSelectionFull = value.length >= MAX_IMAGES;
   const isUploadDisabled = disabled || upload.isUploading || isSelectionFull;
+  const showSearch = images.length > 4;
+  const hasSearchKeyword = search.trim().length > 0;
+  const helperText = images.length > 0
+    ? `Chọn từ kho ảnh đã tải hoặc thêm ảnh mới. Tối đa ${MAX_IMAGES} ảnh.`
+    : `Thêm ảnh nếu cần bổ sung minh chứng. Tối đa ${MAX_IMAGES} ảnh.`;
 
   const toggleImage = (imageId: number) => {
     if (value.includes(imageId)) {
@@ -98,20 +103,18 @@ export function EvidenceImagePicker({
         <p className="text-sm font-medium">
           {label} {required && <span className="text-destructive">*</span>}
         </p>
-        <p className="text-xs text-muted-foreground">
-          Chọn từ kho ảnh đã tải hoặc thêm ảnh mới. Tối đa {MAX_IMAGES} ảnh.
-        </p>
+        <p className="text-xs text-muted-foreground">{helperText}</p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <label
           aria-disabled={isUploadDisabled}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm transition-colors sm:w-auto ${
-            isUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/40"
-          }`}
+          className={`inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm transition-colors ${
+            showSearch ? "sm:w-auto" : ""
+          } ${isUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
         >
           {upload.isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          {upload.isUploading ? `Đang tải ${upload.progress}%` : "Tải ảnh mới"}
+          {upload.isUploading ? `Đang tải ${upload.progress}%` : "Thêm ảnh minh chứng"}
           <input
             type="file"
             accept="image/*"
@@ -124,37 +127,40 @@ export function EvidenceImagePicker({
             }}
           />
         </label>
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm theo tên ảnh..."
-            className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            disabled={disabled}
-          />
-          {search && (
-            <button
-              type="button"
-              className="absolute right-2 top-2.5 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => setSearch("")}
+
+        {showSearch && (
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo tên ảnh..."
+              className="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={disabled}
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
-        </div>
+            />
+            {search && (
+              <button
+                type="button"
+                className="absolute right-2 top-2.5 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setSearch("")}
+                disabled={disabled}
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {isLoading ? (
-        <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+        <div className="flex h-16 items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang tải kho ảnh...
         </div>
-      ) : filteredImages.length === 0 ? (
+      ) : filteredImages.length === 0 && hasSearchKeyword ? (
         <p className="rounded-md border border-dashed border-border px-3 py-5 text-center text-xs text-muted-foreground">
-          Chưa có ảnh {type === "report" ? "báo cáo" : "xác minh giảng viên"} nào.
+          Không tìm thấy ảnh phù hợp.
         </p>
-      ) : (
+      ) : filteredImages.length > 0 ? (
         <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
           {filteredImages.map((image) => {
             const selected = value.includes(image.id);
@@ -182,7 +188,7 @@ export function EvidenceImagePicker({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {value.length > 0 && (
         <p className="text-xs text-muted-foreground">Đã chọn {value.length}/{MAX_IMAGES} ảnh.</p>

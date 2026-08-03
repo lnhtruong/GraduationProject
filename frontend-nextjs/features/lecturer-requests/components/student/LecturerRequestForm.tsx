@@ -121,7 +121,7 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
               required
             />
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-3">
               <Button
                 type="button"
                 variant="outline"

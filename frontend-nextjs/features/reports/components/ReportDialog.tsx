@@ -128,8 +128,8 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={handleClose} disabled={submit.isPending} className="w-full sm:w-auto">
+        <DialogFooter className="gap-2 sm:gap-3">
+          <Button variant="outline" onClick={handleClose} disabled={submit.isPending} className="w-full sm:w-auto">
             Huỷ
           </Button>
           <Button
