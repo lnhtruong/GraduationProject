@@ -27,7 +27,7 @@ export function QuizRow({ quiz, onDelete }: Props) {
           <span>{quiz.completions} lượt hoàn thành</span>
           <span className="text-border">·</span>
           <span className="font-medium text-emerald-600 dark:text-emerald-400">
-            Điểm TB: {quiz.avgScore}%
+            Điểm trung bình: {quiz.avgScore}%
           </span>
         </div>
       </div>

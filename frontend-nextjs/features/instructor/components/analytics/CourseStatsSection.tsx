@@ -116,11 +116,11 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
                 tone="green"
               />
               <StatPill
-                label="Tỉ lệ HT"
+                label="Tỉ lệ hoàn thành"
                 value={`${course.enrollment.completionRate}%`}
               />
               <StatPill
-                label="Tiến độ TB"
+                label="Tiến độ trung bình"
                 value={`${course.enrollment.averageProgress}%`}
               />
             </div>
@@ -132,13 +132,13 @@ export function CourseStatsSection({ courses, isLoading }: Props) {
       <TableHeader>
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableHead className="pl-5 font-medium text-muted-foreground">Khóa học</TableHead>
-          <TableHead className="font-medium text-muted-foreground">Tổng HV</TableHead>
+          <TableHead className="font-medium text-muted-foreground">Tổng học viên</TableHead>
           <TableHead className="font-medium text-muted-foreground">Đang học</TableHead>
           <TableHead className="font-medium text-muted-foreground">Hoàn thành</TableHead>
-          <TableHead className="font-medium text-muted-foreground">Tỉ lệ HT</TableHead>
-          <TableHead className="font-medium text-muted-foreground">Tiến độ TB</TableHead>
+          <TableHead className="font-medium text-muted-foreground">Tỉ lệ hoàn thành</TableHead>
+          <TableHead className="font-medium text-muted-foreground">Tiến độ trung bình</TableHead>
           <TableHead className="font-medium text-muted-foreground">Đánh giá</TableHead>
-          <TableHead className="pr-5 font-medium text-muted-foreground">Điểm TB</TableHead>
+          <TableHead className="pr-5 font-medium text-muted-foreground">Điểm trung bình</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
