@@ -18,8 +18,8 @@ export enum MascotImageType {
     AVT = 'avt',
     REPORT = 'report',
     ROLE_UPGRADE = 'role_upgrade',
+    MASCOT = 'mascot',
 }
-
 @Table({
     tableName: 'mascot_images',
     timestamps: true,

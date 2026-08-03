@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -41,16 +41,25 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
     defaultValues: { confirm: "" },
   });
 
-  const confirmValue = form.watch("confirm") ?? "";
+  const confirmValue = useWatch({ control: form.control, name: "confirm" }) ?? "";
+
+  const handleClose = () => {
+    if (createMutation.isPending) return;
+    form.reset();
+    setEvidenceImageIds([]);
+    onClose();
+  };
 
   const handleSubmit = async (values: LecturerRequestFormData) => {
     if (evidenceImageIds.length === 0) {
       toast.error("Vui lòng tải lên ít nhất một ảnh chứng minh năng lực.");
       return;
     }
+
+    const confirm = values.confirm?.trim();
     try {
       await createMutation.mutateAsync({
-        confirm: values.confirm || undefined,
+        confirm: confirm || undefined,
         evidenceImageIds,
       });
       toast.success("Yêu cầu đã được gửi! Chúng tôi sẽ xem xét sớm nhất.");
@@ -63,8 +72,8 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !createMutation.isPending) onClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Đăng ký trở thành Giảng viên</DialogTitle>
         </DialogHeader>
@@ -91,9 +100,10 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
                       placeholder="Chia sẻ kinh nghiệm, lĩnh vực chuyên môn và lý do bạn muốn trở thành giảng viên..."
                       className="min-h-32 resize-none"
                       maxLength={5000}
+                      disabled={createMutation.isPending}
                     />
                   </FormControl>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <FormMessage />
                     <p className="ml-auto text-right text-xs text-muted-foreground">
                       {confirmValue.length}/5000
@@ -111,16 +121,17 @@ export function LecturerRequestForm({ open, onClose }: LecturerRequestFormProps)
               required
             />
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={createMutation.isPending}
+                className="w-full sm:w-auto"
               >
                 Huỷ
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="w-full sm:w-auto">
                 {createMutation.isPending ? "Đang gửi..." : "Gửi yêu cầu"}
               </Button>
             </DialogFooter>

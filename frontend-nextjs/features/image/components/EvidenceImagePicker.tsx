@@ -54,6 +54,9 @@ export function EvidenceImagePicker({
     );
   }, [images, search]);
 
+  const isSelectionFull = value.length >= MAX_IMAGES;
+  const isUploadDisabled = disabled || upload.isUploading || isSelectionFull;
+
   const toggleImage = (imageId: number) => {
     if (value.includes(imageId)) {
       onChange(value.filter((id) => id !== imageId));
@@ -68,8 +71,18 @@ export function EvidenceImagePicker({
 
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
+
     const available = MAX_IMAGES - value.length;
+    if (available <= 0) {
+      toast.error(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
+      return;
+    }
+
     const selectedFiles = files.slice(0, available);
+    if (files.length > available) {
+      toast.warning(`Chỉ tải thêm ${available} ảnh để đủ tối đa ${MAX_IMAGES} ảnh.`);
+    }
+
     try {
       const imageIds = await upload.upload(selectedFiles);
       onChange([...value, ...imageIds].slice(0, MAX_IMAGES));
@@ -90,8 +103,13 @@ export function EvidenceImagePicker({
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm hover:bg-muted/40">
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <label
+          aria-disabled={isUploadDisabled}
+          className={`inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm transition-colors sm:w-auto ${
+            isUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/40"
+          }`}
+        >
           {upload.isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
           {upload.isUploading ? `Đang tải ${upload.progress}%` : "Tải ảnh mới"}
           <input
@@ -99,7 +117,7 @@ export function EvidenceImagePicker({
             accept="image/*"
             multiple
             className="sr-only"
-            disabled={disabled || upload.isUploading || value.length >= MAX_IMAGES}
+            disabled={isUploadDisabled}
             onChange={(event) => {
               void uploadFiles(Array.from(event.target.files ?? []));
               event.target.value = "";
@@ -116,7 +134,12 @@ export function EvidenceImagePicker({
             disabled={disabled}
           />
           {search && (
-            <button type="button" className="absolute right-2 top-2.5" onClick={() => setSearch("")}>
+            <button
+              type="button"
+              className="absolute right-2 top-2.5 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setSearch("")}
+              disabled={disabled}
+            >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
           )}
@@ -141,7 +164,9 @@ export function EvidenceImagePicker({
                 type="button"
                 disabled={disabled || upload.isUploading}
                 onClick={() => toggleImage(image.id)}
-                className={`group relative overflow-hidden rounded-md border text-left ${selected ? "border-primary ring-2 ring-primary" : "border-border"}`}
+                className={`group relative overflow-hidden rounded-md border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 ${
+                  selected ? "border-primary ring-2 ring-primary" : "border-border"
+                }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={image.url} alt={image.name ?? `Ảnh ${image.id}`} className="h-20 w-full object-cover" />

@@ -7,7 +7,7 @@ export interface Image {
 	user_id?: number;
 	url: string;
   thumbnail?: string | null;
-  type?: string;
+  type?: ImageType;
   job_id?: string | null;
   name?: string | null;
   format?: string | null;
@@ -15,9 +15,18 @@ export interface Image {
 	updated_at?: string;
 }
 
+export type ImageType =
+  | "thumbnail_video"
+  | "thumbnail_course"
+  | "avt"
+  | "report"
+  | "role_upgrade"
+  | "mascot";
+
 export interface CreateImageRequest {
 	url: string;
 	user_id?: number;
+  type?: ImageType;
 }
 
 export interface UpdateImageRequest {

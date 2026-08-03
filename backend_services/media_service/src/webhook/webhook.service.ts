@@ -401,6 +401,9 @@ export class WebhookService {
         if (rawType === MascotImageType.ROLE_UPGRADE) {
             return MascotImageType.ROLE_UPGRADE;
         }
+        if (rawType === MascotImageType.MASCOT) {
+            return MascotImageType.MASCOT;
+        }
         return MascotImageType.THUMBNAIL_VIDEO;
     }
 

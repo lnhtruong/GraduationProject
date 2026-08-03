@@ -182,6 +182,7 @@ export function CourseForm({ course, onSave }: Props) {
         file,
         folderName: "course-thumbnails",
         resourceType: "image",
+        type: "thumbnail_course",
       });
       if (result?.secure_url) {
         setValue("thumbnailUrl", result.secure_url);

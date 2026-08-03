@@ -55,13 +55,18 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
   };
 
   const handleSubmit = async () => {
-    if (reason.trim().length < MIN_REASON) return;
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < MIN_REASON) {
+      setErrorMsg(`Lý do báo cáo cần ít nhất ${MIN_REASON} ký tự.`);
+      return;
+    }
+
     setErrorMsg(null);
     try {
       await submit.mutateAsync({
         targetType,
         targetId,
-        reason: reason.trim(),
+        reason: trimmedReason,
         ...(evidenceImageIds.length > 0 ? { evidenceImageIds } : {}),
       });
       toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.");
@@ -72,11 +77,11 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
   };
 
   const charCount = reason.length;
-  const isValid = charCount >= MIN_REASON;
+  const isValid = reason.trim().length >= MIN_REASON;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="h-4 w-4 text-destructive" />
@@ -124,13 +129,13 @@ export function ReportDialog({ open, onClose, targetType, targetId, targetLabel 
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="ghost" onClick={handleClose} disabled={submit.isPending}>
+          <Button variant="ghost" onClick={handleClose} disabled={submit.isPending} className="w-full sm:w-auto">
             Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!isValid || submit.isPending}
-            className="gap-2"
+            className="w-full gap-2 sm:w-auto"
           >
             {submit.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Gửi báo cáo

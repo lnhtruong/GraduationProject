@@ -19,7 +19,10 @@ export function useAvatarUpload() {
     const userId = user.id;
 
     // Get signature for avatar folder
-    const signature = await cloudinaryApi.getSignature(`avatars/${userId}`);
+    const signature = await cloudinaryApi.getSignature({
+      folderName: `avatars/${userId}`,
+      type: "avt",
+    });
     const secureUrl = await cloudinaryApi.uploadDirectToCloudinary(
       file,
       signature,

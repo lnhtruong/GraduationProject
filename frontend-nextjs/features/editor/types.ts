@@ -275,6 +275,7 @@ export interface MascotParams {
   videoOrUrl: File | string;
   mascotImageUrl: string;
   origin_file_name?: string;
+  type?: "mascot";
   position:
     | "top-left"
     | "top-right"

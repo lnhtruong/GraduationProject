@@ -44,15 +44,12 @@ function buildSignedUploadContext(userId: number, body: { job_id?: unknown; type
   if (typeof body?.job_id === 'string' && body.job_id.trim().length > 0) {
     parts.push(`job_id=${body.job_id.trim()}`);
   }
-  console.log('type: ', body.type);
   if (typeof body?.type === 'string') {
     const type = body.type.trim().toLowerCase() as SignedUploadContextType;
-    console.log('check2: ', type);
     if (SIGNED_UPLOAD_CONTEXT_TYPES.has(type)) {
       parts.push(`type=${type}`);
     }
   }
-  console.log('check3: ', parts);
   return parts.join('|');
 }
 

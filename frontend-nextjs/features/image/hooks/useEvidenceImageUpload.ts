@@ -21,17 +21,17 @@ function normalizeAssetUrl(value?: string): string {
   }
 }
 
-async function waitForImageRecord(url: string, jobId: string): Promise<number> {
+async function waitForImageRecord(url: string, jobId: string, type: EvidenceImageType): Promise<number> {
   const user = authStorageHelper.getUser() as { id?: number; user_id?: number } | null;
   const userId = user?.id ?? user?.user_id;
-  if (!userId) throw new Error("KhÃ´ng tÃ¬m tháº¥y tÃ i khoáº£n Ä‘ang Ä‘Äƒng nháº­p.");
+  if (!userId) throw new Error("Không tìm thấy tài khoản đang đăng nhập.");
 
   const targetUrl = normalizeAssetUrl(url);
   return new Promise<number>((resolve, reject) => {
     let settled = false;
     let polling = false;
-    let pollTimer: number | undefined;
-    let timeout: number | undefined;
+    let pollTimer = 0;
+    let timeout = 0;
 
     const finish = (imageId?: number, error?: Error) => {
       if (settled) return;
@@ -40,14 +40,14 @@ async function waitForImageRecord(url: string, jobId: string): Promise<number> {
       if (pollTimer) window.clearInterval(pollTimer);
       if (timeout) window.clearTimeout(timeout);
       if (imageId) resolve(imageId);
-      else reject(error ?? new Error("áº¢nh chÆ°a Ä‘Æ°á»£c lÆ°u hoÃ n táº¥t."));
+      else reject(error ?? new Error("Ảnh chưa được lưu hoàn tất."));
     };
 
     const poll = async () => {
       if (polling || settled) return;
       polling = true;
       try {
-        const images = await imageApi.getAllByUser();
+        const images = await imageApi.getAllByUser({ type });
         const matched = images.find((image) => normalizeAssetUrl(image.url) === targetUrl);
         if (matched?.id) finish(matched.id);
       } finally {
@@ -72,7 +72,7 @@ async function waitForImageRecord(url: string, jobId: string): Promise<number> {
 
     pollTimer = window.setInterval(() => void poll(), 2000);
     timeout = window.setTimeout(
-      () => finish(undefined, new Error("Máy chá»§ chÆ°a xÃ¡c nháº­n lÆ°u áº£nh. Vui lÃ²ng thá»­ láº¡i.")),
+      () => finish(undefined, new Error("Máy chủ chưa xác nhận lưu ảnh. Vui lòng thử lại.")),
       30000,
     );
     void poll();
@@ -105,7 +105,7 @@ export function useEvidenceImageUpload(type: EvidenceImageType) {
                 setProgress(Math.round((index * 100 + fileProgress) / files.length));
               },
             );
-            return waitForImageRecord(url, jobId);
+            return waitForImageRecord(url, jobId, type);
           }),
         );
         setProgress(100);
