@@ -8,12 +8,7 @@ export interface JobIdResponse {
 }
 
 export type UploadStatus =
-  | "idle"
-  | "uploading"
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+  "idle" | "uploading" | "pending" | "processing" | "completed" | "failed";
 
 export type HighlightSource = "file" | "existing-video";
 
@@ -56,8 +51,16 @@ export interface HighlightParams {
 
 export interface UploadHookReturn extends UploadState {
   setFile: (file: File | null) => void;
-  startUpload: (file: File, params: HighlightParams) => Promise<void>;
-  startFromExistingVideo: (videoUrl: string, params: HighlightParams) => Promise<void>;
+  startUpload: (
+    file: File,
+    params: HighlightParams,
+    durationSec?: number,
+  ) => Promise<void>;
+  startFromExistingVideo: (
+    videoUrl: string,
+    params: HighlightParams,
+    durationSec?: number,
+  ) => Promise<void>;
   ensureProjectForClip: (clip: Clip) => Promise<{
     projectId: number;
     videoId?: number;
@@ -76,4 +79,6 @@ export interface HighlightReelLinkParams {
   excludeKeywords?: string;
   isMultiOutput?: boolean;
   isOpenAI?: boolean;
+  /** Thời lượng video nguồn, giây. Dùng để backend tính credit quota. */
+  durationSec?: number | null;
 }

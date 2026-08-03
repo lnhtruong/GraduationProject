@@ -236,6 +236,11 @@ export default function Editor() {
           canCreateVideo={canCreateMascotVideo}
           isCreatingVideo={effectivePanelBindings.isCreatingMascotVideo}
           mascotProgress={effectivePanelBindings.mascotProgress}
+          videoDurationSec={
+            effectivePanelBindings.videoDurationMs !== undefined
+              ? effectivePanelBindings.videoDurationMs / 1000
+              : undefined
+          }
         />
       ) : null}
     </>

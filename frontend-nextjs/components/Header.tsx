@@ -16,6 +16,7 @@ import {
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderUserMenu } from "@/components/HeaderUserMenu";
+import { QuotaBadge } from "@/components/QuotaBadge";
 import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -231,13 +232,16 @@ export function Header() {
           ) : null}
 
           {isAuthenticated ? (
-            <HeaderUserMenu
-              user={user}
-              isTeacherMode={isTeacherMode}
-              canUseTeacherMode={canUseTeacherMode}
-              onSwitchMode={switchMode}
-              onLogout={() => void logout()}
-            />
+            <>
+              <QuotaBadge />
+              <HeaderUserMenu
+                user={user}
+                isTeacherMode={isTeacherMode}
+                canUseTeacherMode={canUseTeacherMode}
+                onSwitchMode={switchMode}
+                onLogout={() => void logout()}
+              />
+            </>
           ) : (
             <Button
               asChild

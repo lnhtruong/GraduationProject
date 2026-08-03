@@ -38,8 +38,13 @@ import HighlightParamsForm from "@/features/upload/components/HighlightParamsFor
 import ResultsSection from "@/features/upload/components/ResultsSection";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import { useVideosByUser } from "@/features/video/api/video.hooks";
+import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
+import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import { cn } from "@/lib/utils";
-import type { HighlightParams, UploadHookReturn } from "@/features/upload/types";
+import type {
+  HighlightParams,
+  UploadHookReturn,
+} from "@/features/upload/types";
 import type { Video as StudyLoopVideo } from "@/features/video/types";
 
 type SourceMode = "file" | "existing-video";
@@ -96,8 +101,14 @@ export function HighlightUploadDialog({
   } = upload;
 
   const [sourceMode, setSourceMode] = React.useState<SourceMode>("file");
-  const [selectedExistingVideoId, setSelectedExistingVideoId] =
-    React.useState<number | null>(null);
+  // Thời lượng nguồn để báo giá credit. Video đã có sẵn duration trong DB;
+  // file mới thì phải tự đọc ở client.
+  const [fileDurationSec, setFileDurationSec] = React.useState<
+    number | undefined
+  >(undefined);
+  const [selectedExistingVideoId, setSelectedExistingVideoId] = React.useState<
+    number | null
+  >(null);
   const [existingVideoQuery, setExistingVideoQuery] = React.useState("");
   const [videoPage, setVideoPage] = React.useState(1);
   const [showForm, setShowForm] = React.useState(false);
@@ -147,21 +158,53 @@ export function HighlightUploadDialog({
     setVideoPage((currentPage) => Math.min(currentPage, videoTotalPages));
   }, [videoTotalPages]);
 
+  React.useEffect(() => {
+    if (!file) {
+      setFileDurationSec(undefined);
+      return;
+    }
+    let cancelled = false;
+    void getVideoDurationFromFile(file).then((seconds) => {
+      if (!cancelled) setFileDurationSec(seconds ?? undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+
+  const sourceDurationSec =
+    sourceMode === "file"
+      ? fileDurationSec
+      : (selectedExistingVideo?.duration ?? undefined);
+
+  const { blocked: quotaBlocked } = useQuotaCost(
+    "highlight",
+    sourceDurationSec,
+  );
+
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
     setShowForm(false);
   };
 
   const handleFormSubmit = (params: HighlightParams) => {
+    if (quotaBlocked) {
+      toast.error("Bạn không còn đủ credit AI.");
+      return;
+    }
     if (sourceMode === "file") {
       if (!file) return;
-      void startUpload(file, params);
+      void startUpload(file, params, sourceDurationSec);
     } else {
       if (!selectedExistingVideo?.url) {
         toast.error("Vui lòng chọn một video bài học để tạo highlight.");
         return;
       }
-      void startFromExistingVideo(selectedExistingVideo.url, params);
+      void startFromExistingVideo(
+        selectedExistingVideo.url,
+        params,
+        sourceDurationSec,
+      );
     }
     setShowForm(false);
   };
@@ -264,9 +307,7 @@ export function HighlightUploadDialog({
             </DialogClose>
           </DialogHeader>
 
-          <div
-            className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5"
-          >
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
             {showSourceSwitcher && (
               <Tabs
                 value={sourceMode}
@@ -328,8 +369,7 @@ export function HighlightUploadDialog({
                     ) : filteredLessonVideos.length > 0 ? (
                       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {paginatedLessonVideos.map((video) => {
-                          const selected =
-                            video.id === selectedExistingVideoId;
+                          const selected = video.id === selectedExistingVideoId;
 
                           return (
                             <button
@@ -379,8 +419,8 @@ export function HighlightUploadDialog({
                           Chưa có video bài học phù hợp
                         </p>
                         <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
-                          Hãy upload video long trong bài học trước, rồi quay lại
-                          tạo highlight cho feed.
+                          Hãy upload video long trong bài học trước, rồi quay
+                          lại tạo highlight cho feed.
                         </p>
                       </div>
                     )}
@@ -404,9 +444,7 @@ export function HighlightUploadDialog({
                                 )}
                                 onClick={(event) => {
                                   event.preventDefault();
-                                  setVideoPage((page) =>
-                                    Math.max(1, page - 1),
-                                  );
+                                  setVideoPage((page) => Math.max(1, page - 1));
                                 }}
                               />
                             </PaginationItem>
@@ -470,6 +508,14 @@ export function HighlightUploadDialog({
               )}
 
             {showForm && !isProcessing && !isCompleted && (
+              <QuotaNotice
+                feature="highlight"
+                durationSec={sourceDurationSec}
+                className="mb-3"
+              />
+            )}
+
+            {showForm && !isProcessing && !isCompleted && (
               <HighlightParamsForm
                 formId={HIGHLIGHT_PARAMS_FORM_ID}
                 onSubmit={handleFormSubmit}
@@ -509,41 +555,42 @@ export function HighlightUploadDialog({
           </div>
 
           {showFooter ? (
-          <div className="sticky bottom-0 flex w-full shrink-0 items-center justify-end gap-3 border-t border-border/70 bg-background px-4 py-3 sm:px-5">
-            {showForm && !isProcessing && !isCompleted ? (
-              <div className="flex w-full flex-col-reverse gap-3 sm:w-auto sm:min-w-[420px] sm:flex-row">
+            <div className="sticky bottom-0 flex w-full shrink-0 items-center justify-end gap-3 border-t border-border/70 bg-background px-4 py-3 sm:px-5">
+              {showForm && !isProcessing && !isCompleted ? (
+                <div className="flex w-full flex-col-reverse gap-3 sm:w-auto sm:min-w-[420px] sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowForm(false)}
+                    className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
+                  >
+                    Quay lại
+                  </Button>
+                  <Button
+                    type="submit"
+                    form={HIGHLIGHT_PARAMS_FORM_ID}
+                    disabled={quotaBlocked}
+                    className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
+                  >
+                    Tạo highlight
+                  </Button>
+                </div>
+              ) : isVideoPickerMode ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => setShowForm(false)}
-                  className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
+                  onClick={() => setShowForm(true)}
+                  disabled={!selectedExistingVideo?.url}
+                  className={cn(
+                    "h-10 w-full gap-2 px-5 text-xs font-semibold shadow-sm sm:w-auto sm:min-w-[260px]",
+                    !selectedExistingVideo?.url &&
+                      "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted",
+                  )}
                 >
-                  Quay lại
+                  Chọn cách cắt highlight
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
-                <Button
-                  type="submit"
-                  form={HIGHLIGHT_PARAMS_FORM_ID}
-                  className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
-                >
-                  Tạo highlight
-                </Button>
-              </div>
-            ) : isVideoPickerMode ? (
-              <Button
-                type="button"
-                onClick={() => setShowForm(true)}
-                disabled={!selectedExistingVideo?.url}
-                className={cn(
-                  "h-10 w-full gap-2 px-5 text-xs font-semibold shadow-sm sm:w-auto sm:min-w-[260px]",
-                  !selectedExistingVideo?.url &&
-                    "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted",
-                )}
-              >
-                Chọn cách cắt highlight
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </DialogContent>

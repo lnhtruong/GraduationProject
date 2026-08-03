@@ -16,6 +16,7 @@ import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
 import { imageApi } from "@/features/image/api/image.api";
 import type { MascotImage, MascotOption } from "@/features/editor/types";
 import { Button } from "@/components/ui/button";
+import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import {
   Collapsible,
   CollapsibleContent,
@@ -264,7 +265,8 @@ export default function MascotOptions({
     const existing = await imageApi.getAllByUser({ type: "mascot" });
     const matched = existing.find(
       (image) =>
-        normalizeComparableUrl(image.url) === normalizeComparableUrl(absoluteUrl),
+        normalizeComparableUrl(image.url) ===
+        normalizeComparableUrl(absoluteUrl),
     );
     if (matched?.id) return matched.id;
 
@@ -297,7 +299,10 @@ export default function MascotOptions({
         onMascotImageIdChange?.(imageId);
       })
       .catch((error) => {
-        console.error("[MascotOptions] Failed to persist preset mascot:", error);
+        console.error(
+          "[MascotOptions] Failed to persist preset mascot:",
+          error,
+        );
       });
   };
 
@@ -313,7 +318,8 @@ export default function MascotOptions({
         presetUrl: image.url,
         presetId: undefined,
         animationMode: "animal",
-        position: value.position === "replace" ? "bottom-right" : value.position,
+        position:
+          value.position === "replace" ? "bottom-right" : value.position,
         margin_x: value.margin_x || 40,
         margin_y: value.margin_y || 40,
         scale: value.scale || 1,
@@ -411,7 +417,9 @@ export default function MascotOptions({
                 Giữ nguyên video gốc.
               </p>
             </div>
-            {value.type === "none" ? <Check className="h-4 w-4 text-primary" /> : null}
+            {value.type === "none" ? (
+              <Check className="h-4 w-4 text-primary" />
+            ) : null}
           </div>
         </button>
 
@@ -459,7 +467,9 @@ export default function MascotOptions({
             <div className="mt-3 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-1.5 rounded-full bg-primary transition-all"
-                style={{ width: `${Math.max(0, Math.min(uploadProgress, 100))}%` }}
+                style={{
+                  width: `${Math.max(0, Math.min(uploadProgress, 100))}%`,
+                }}
               />
             </div>
           ) : null}
@@ -544,33 +554,31 @@ export default function MascotOptions({
 
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Mascot mẫu</Label>
-        <div className="grid grid-cols-5 gap-1.5">
-          {presetMascots.map((mascot) => {
-            const selected =
-              value.type === "preset" && value.presetId === mascot.id;
-            return (
-              <button
-                key={mascot.id}
-                type="button"
-                onClick={() => setPresetMascot(mascot)}
-                className={cn(
-                   "min-w-0 cursor-pointer rounded-lg border bg-background p-1 transition hover:border-primary/60",
-                  selected && "border-primary bg-primary/10 ring-2 ring-primary/20",
-                )}
-              >
-                <div className="relative mb-1 aspect-square overflow-hidden rounded-md bg-muted">
-                  <PresetMascotImage
-                    key={mascot.thumbnail}
-                    mascot={mascot}
-                  />
-                </div>
-                <p className="truncate text-center text-[10px] font-medium">
-                  {mascot.name}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {presetMascots.map((mascot) => {
+              const selected =
+                value.type === "preset" && value.presetId === mascot.id;
+              return (
+                <button
+                  key={mascot.id}
+                  type="button"
+                  onClick={() => setPresetMascot(mascot)}
+                  className={cn(
+                    "min-w-0 cursor-pointer rounded-lg border bg-background p-1 transition hover:border-primary/60",
+                    selected &&
+                      "border-primary bg-primary/10 ring-2 ring-primary/20",
+                  )}
+                >
+                  <div className="relative mb-1 aspect-square overflow-hidden rounded-md bg-muted">
+                    <PresetMascotImage key={mascot.thumbnail} mascot={mascot} />
+                  </div>
+                  <p className="truncate text-center text-[10px] font-medium">
+                    {mascot.name}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -632,11 +640,7 @@ export default function MascotOptions({
             onOpenChange={setIsBackgroundOpen}
           >
             <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="hidden"
-              >
+              <Button type="button" variant="outline" className="hidden">
                 <span className="inline-flex items-center gap-2">
                   <Eraser className="h-4 w-4" />
                   Tách nền
@@ -682,17 +686,14 @@ export default function MascotOptions({
                   />
                 </div>
               ) : null}
-
             </CollapsibleContent>
           </Collapsible>
-
 
           {mascotProgress ? (
             <section className="rounded-xl border bg-muted/50 p-2.5 text-xs leading-relaxed text-muted-foreground">
               {mascotProgress}
             </section>
           ) : null}
-
         </>
       ) : null}
     </div>
@@ -708,6 +709,8 @@ interface MascotRenderDialogProps {
   canCreateVideo: boolean;
   isCreatingVideo?: boolean;
   mascotProgress?: string;
+  /** Thời lượng video đang mở, giây. Dùng để hiển thị chi phí credit. */
+  videoDurationSec?: number;
 }
 
 export function MascotRenderDialog({
@@ -719,7 +722,10 @@ export function MascotRenderDialog({
   canCreateVideo,
   isCreatingVideo = false,
   mascotProgress = "",
+  videoDurationSec,
 }: MascotRenderDialogProps) {
+  const { blocked: quotaBlocked } = useQuotaCost("mascot", videoDurationSec);
+
   const updateMascot = (patch: Partial<MascotOption>) => {
     onChange(withMascotDefaults({ ...value, ...patch }));
   };
@@ -804,8 +810,7 @@ export function MascotRenderDialog({
                   value={value.bgQualityMode ?? "fast"}
                   onChange={(nextValue) =>
                     updateMascot({
-                      bgQualityMode:
-                        nextValue as MascotOption["bgQualityMode"],
+                      bgQualityMode: nextValue as MascotOption["bgQualityMode"],
                     })
                   }
                   options={backgroundQualityOptions}
@@ -827,8 +832,13 @@ export function MascotRenderDialog({
               </div>
             </section>
           ) : null}
-
         </div>
+
+        <QuotaNotice
+          feature="mascot"
+          durationSec={videoDurationSec}
+          className="mb-3"
+        />
 
         <DialogFooter className="gap-2 sm:gap-2">
           <Button
@@ -844,7 +854,7 @@ export function MascotRenderDialog({
             onClick={() => {
               void onCreateVideo?.();
             }}
-            disabled={!canCreateVideo || isCreatingVideo}
+            disabled={!canCreateVideo || isCreatingVideo || quotaBlocked}
             className="gap-2"
           >
             {isCreatingVideo ? (
@@ -887,5 +897,3 @@ function SelectField({
     </div>
   );
 }
-
-

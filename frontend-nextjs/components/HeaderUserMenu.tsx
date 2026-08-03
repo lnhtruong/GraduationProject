@@ -22,6 +22,7 @@ import {
   User,
 } from "lucide-react";
 
+import { RoleBadge } from "@/components/RoleBadge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BRAND } from "@/lib/brand";
-import { getRoleName, ROLES } from "@/lib/roles";
+import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { getUserDisplayName } from "@/lib/user-display";
 import { useTheme } from "@/hooks/useTheme";
@@ -72,14 +73,15 @@ export function HeaderUserMenu({
         <Button
           variant="ghost"
           className={cn(
-            "h-9 shrink-0 gap-2 rounded-full border border-border/70 px-1 pr-1.5 sm:h-10 sm:px-1.5 sm:pr-3",
+            "h-9 shrink-0 gap-2 rounded-full border border-border/70 px-1 pr-1.5 sm:h-10 sm:px-1.5 sm:pr-3 xl:h-auto xl:py-1",
             className,
           )}
         >
           <UserAvatar user={user} className="h-7 w-7 sm:h-8 sm:w-8" />
-          <span className="hidden max-w-28 truncate text-sm font-semibold xl:inline">
-            {displayName}
-          </span>
+          <div className="hidden max-w-28 flex-col items-start gap-0.5 xl:flex">
+            <span className="w-full truncate text-sm font-semibold">{displayName}</span>
+            <RoleBadge role={user?.role} className="h-4 px-1 py-0 text-[9px]" />
+          </div>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
@@ -89,9 +91,7 @@ export function HeaderUserMenu({
               <div className="space-y-1">
                 <p className="truncate text-sm font-semibold">{displayName}</p>
                 <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {getRoleName(user?.role ?? 0)}
-                </p>
+                <RoleBadge role={user?.role} />
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
