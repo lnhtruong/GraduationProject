@@ -31,12 +31,12 @@ export function InstructorSection({ instructor, courseId }: Props) {
   // Ẩn nút report nếu người xem chính là instructor của khoá này
   const isOwnContent = isAuthenticated && user?.id === instructor.id;
 
-  const initials = getInitials(instructor.firstName, instructor.lastName);
-  const fullName = `${instructor.firstName} ${instructor.lastName}`;
+  const initials = getInitials(instructor.lastName, instructor.firstName);
+  const fullName = `${instructor.lastName} ${instructor.firstName}`.trim();
 
   return (
-    <section id="instructor" className="rounded-xl border border-border/60 bg-card p-6">
-      <div className="mb-5 flex items-center justify-between">
+    <section id="instructor" className="rounded-xl border border-border/60 bg-card p-4 sm:p-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold">Giảng viên</h2>
         {isAuthenticated && !isOwnContent && (
           <DropdownMenu>
@@ -69,7 +69,7 @@ export function InstructorSection({ instructor, courseId }: Props) {
         )}
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 min-[420px]:flex-row">
         {/* Avatar */}
         <Avatar className="h-20 w-20 shrink-0 border-2 border-primary/30">
           {instructor.avatarUrl && <AvatarImage src={instructor.avatarUrl} alt={fullName} />}
@@ -80,7 +80,7 @@ export function InstructorSection({ instructor, courseId }: Props) {
 
         {/* Info */}
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="text-lg font-bold text-primary">{fullName}</h3>
+          <h3 className="break-words text-lg font-bold text-primary">{fullName}</h3>
           {instructor.title && (
             <p className="text-sm text-muted-foreground">{instructor.title}</p>
           )}
@@ -91,7 +91,7 @@ export function InstructorSection({ instructor, courseId }: Props) {
           </div>
 
           {/* Stats row */}
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-sm">
             {instructor.avgRating !== undefined && (
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Star className="h-4 w-4 fill-primary text-primary" />

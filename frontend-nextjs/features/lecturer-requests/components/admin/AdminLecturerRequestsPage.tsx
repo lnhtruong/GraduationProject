@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  GraduationCap,
-  Search,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle,
+  GraduationCap,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,13 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AdminLecturerRequestTable } from "./AdminLecturerRequestTable";
-import { AdminLecturerRequestReviewSheet } from "./AdminLecturerRequestReviewSheet";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAdminLecturerRequests,
   useReviewLecturerRequest,
 } from "../../api/lecturer-requests.hooks";
 import type { LecturerRequest } from "../../types/lecturer-request.types";
+import { AdminLecturerRequestReviewSheet } from "./AdminLecturerRequestReviewSheet";
+import { AdminLecturerRequestTable } from "./AdminLecturerRequestTable";
 
 const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -61,34 +61,21 @@ export default function AdminLecturerRequestsPage() {
 
   const serverFilters = { search: search || undefined };
 
-  const {
-    data: pendingData,
-    isLoading: isPendingLoading,
-    isError: isPendingError,
-    refetch: refetchPending,
-  } = useAdminLecturerRequests({
+  const pendingRequests = useAdminLecturerRequests({
     status: "pending",
     page: pendingPage,
     limit: PAGE_SIZE,
     ...serverFilters,
   });
 
-  const {
-    data: allData,
-    isLoading: isAllLoading,
-    isError: isAllError,
-    refetch: refetchAll,
-  } = useAdminLecturerRequests({
+  const allRequests = useAdminLecturerRequests({
     page: allPage,
     limit: PAGE_SIZE,
     ...serverFilters,
   });
 
-  const pendingTotalPages = pendingData?.pagination.totalPages ?? 1;
-  const allTotalPages = allData?.pagination.totalPages ?? 1;
-  const isFiltering = search.trim() !== "";
-
   const reviewMutation = useReviewLecturerRequest();
+  const isFiltering = search.trim() !== "";
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -104,7 +91,7 @@ export default function AdminLecturerRequestsPage() {
         dto: { approve: isApprove },
       });
       const name =
-        [request.requester?.firstName, request.requester?.lastName].filter(Boolean).join(" ") ||
+        [request.requester?.lastName, request.requester?.firstName].filter(Boolean).join(" ") ||
         request.requester?.email ||
         `#${request.id}`;
       toast.success(
@@ -121,191 +108,114 @@ export default function AdminLecturerRequestsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-end justify-between gap-4 border-b border-border/50 pb-5">
-        <div>
+      <div className="flex flex-col gap-3 border-b border-border/50 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">Yêu cầu Giảng viên</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Xem xét và phê duyệt yêu cầu nâng role từ Student lên Lecturer
+          <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Xem xét và phê duyệt yêu cầu nâng role từ Student lên Lecturer.
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="pending" className="space-y-4">
-        {/* Toolbar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="h-9 rounded-lg bg-muted/50 p-0.5">
-            <TabsTrigger value="pending" className="h-8 gap-2 rounded-md px-4 text-sm">
-              <GraduationCap className="h-3.5 w-3.5" />
-              Chờ duyệt
-            </TabsTrigger>
-            <TabsTrigger value="all" className="h-8 rounded-md px-4 text-sm">
-              Tất cả
-            </TabsTrigger>
-          </TabsList>
+        <div className="rounded-xl border bg-background p-3 shadow-sm sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <TabsList className="grid h-9 w-full grid-cols-2 rounded-lg bg-muted/50 p-0.5 sm:w-fit">
+              <TabsTrigger value="pending" className="h-8 gap-2 rounded-md px-4 text-sm">
+                <GraduationCap className="h-3.5 w-3.5" />
+                Chờ duyệt
+              </TabsTrigger>
+              <TabsTrigger value="all" className="h-8 rounded-md px-4 text-sm">
+                Tất cả
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm theo tên, email..."
-              className="h-9 w-full pl-8 text-sm"
-            />
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Tìm theo tên, email..."
+                className="h-9 w-full pl-8 text-sm"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Tab: pending */}
         <TabsContent value="pending" className="mt-0">
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
-              <span className="text-sm font-semibold">Đang chờ duyệt</span>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  {pendingData?.pagination.totalItems ?? 0} yêu cầu
-                </span>
-                <Button
-                  variant="ghost" size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  onClick={() => refetchPending()}
-                  disabled={isPendingLoading}
-                  title="Làm mới"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isPendingLoading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-            </div>
-            {isPendingError ? (
-              <ErrorRetry onRetry={() => refetchPending()} />
-            ) : (
-              <>
-                <AdminLecturerRequestTable
-                  requests={pendingData?.items ?? []}
-                  isLoading={isPendingLoading}
-                  isFiltering={isFiltering}
-                  showActions
-                  approvingId={approvingId}
-                  rejectingId={rejectingId}
-                  onApprove={(req) => setConfirmAction({ type: "approve", request: req })}
-                  onReject={(req) => setConfirmAction({ type: "reject", request: req })}
-                  onViewDetail={setSelectedRequest}
-                />
-                <PaginationRow
-                  page={pendingPage}
-                  totalPages={pendingTotalPages}
-                  totalItems={pendingData?.pagination.totalItems ?? 0}
-                  pageSize={PAGE_SIZE}
-                  onPageChange={setPendingPage}
-                />
-              </>
-            )}
-          </div>
+          <LecturerRequestPanel
+            title="Đang chờ duyệt"
+            count={pendingRequests.data?.pagination.totalItems ?? 0}
+            isLoading={pendingRequests.isLoading}
+            isError={pendingRequests.isError}
+            onRefresh={() => pendingRequests.refetch()}
+            requests={pendingRequests.data?.items ?? []}
+            isFiltering={isFiltering}
+            approvingId={approvingId}
+            rejectingId={rejectingId}
+            onApprove={(request) => setConfirmAction({ type: "approve", request })}
+            onReject={(request) => setConfirmAction({ type: "reject", request })}
+            onViewDetail={setSelectedRequest}
+            page={pendingPage}
+            totalPages={pendingRequests.data?.pagination.totalPages ?? 1}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPendingPage}
+          />
         </TabsContent>
 
-        {/* Tab: all */}
         <TabsContent value="all" className="mt-0">
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-5 py-3">
-              <span className="text-sm font-semibold">Tất cả yêu cầu</span>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  {allData?.pagination.totalItems ?? 0} yêu cầu
-                </span>
-                <Button
-                  variant="ghost" size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  onClick={() => refetchAll()}
-                  disabled={isAllLoading}
-                  title="Làm mới"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isAllLoading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-            </div>
-            {isAllError ? (
-              <ErrorRetry onRetry={() => refetchAll()} />
-            ) : (
-              <>
-                <AdminLecturerRequestTable
-                  requests={allData?.items ?? []}
-                  isLoading={isAllLoading}
-                  isFiltering={isFiltering}
-                  showActions
-                  approvingId={approvingId}
-                  rejectingId={rejectingId}
-                  onApprove={(req) => setConfirmAction({ type: "approve", request: req })}
-                  onReject={(req) => setConfirmAction({ type: "reject", request: req })}
-                  onViewDetail={setSelectedRequest}
-                />
-                <PaginationRow
-                  page={allPage}
-                  totalPages={allTotalPages}
-                  totalItems={allData?.pagination.totalItems ?? 0}
-                  pageSize={PAGE_SIZE}
-                  onPageChange={setAllPage}
-                />
-              </>
-            )}
-          </div>
+          <LecturerRequestPanel
+            title="Tất cả yêu cầu"
+            count={allRequests.data?.pagination.totalItems ?? 0}
+            isLoading={allRequests.isLoading}
+            isError={allRequests.isError}
+            onRefresh={() => allRequests.refetch()}
+            requests={allRequests.data?.items ?? []}
+            isFiltering={isFiltering}
+            approvingId={approvingId}
+            rejectingId={rejectingId}
+            onApprove={(request) => setConfirmAction({ type: "approve", request })}
+            onReject={(request) => setConfirmAction({ type: "reject", request })}
+            onViewDetail={setSelectedRequest}
+            page={allPage}
+            totalPages={allRequests.data?.pagination.totalPages ?? 1}
+            pageSize={PAGE_SIZE}
+            onPageChange={setAllPage}
+          />
         </TabsContent>
       </Tabs>
 
-      {/* Review sheet */}
       <AdminLecturerRequestReviewSheet
         request={selectedRequest}
         open={selectedRequest !== null}
         onClose={() => setSelectedRequest(null)}
       />
 
-      {/* Confirm dialog */}
-      <Dialog
-        open={!!confirmAction}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
-      >
-        <DialogContent className="max-w-sm">
+      <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              {confirmAction?.type === "approve"
-                ? "Duyệt yêu cầu Giảng viên"
-                : "Từ chối yêu cầu Giảng viên"}
+              {confirmAction?.type === "approve" ? "Duyệt yêu cầu Giảng viên" : "Từ chối yêu cầu Giảng viên"}
             </DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogDescription className="text-sm leading-relaxed">
               {confirmAction?.type === "approve" ? (
                 <>
-                  Người dùng{" "}
-                  <strong>
-                    {[
-                      confirmAction.request.requester?.firstName,
-                      confirmAction.request.requester?.lastName,
-                    ]
-                      .filter(Boolean)
-                      .join(" ") || confirmAction.request.requester?.email}
-                  </strong>{" "}
-                  sẽ được nâng lên role <strong>Giảng viên</strong> ngay lập tức.
+                  Người dùng <strong>{getRequesterName(confirmAction.request)}</strong> sẽ được nâng lên role <strong>Giảng viên</strong> ngay lập tức.
                 </>
               ) : (
                 <>
-                  Yêu cầu của{" "}
-                  <strong>
-                    {[
-                      confirmAction?.request.requester?.firstName,
-                      confirmAction?.request.requester?.lastName,
-                    ]
-                      .filter(Boolean)
-                      .join(" ") || confirmAction?.request.requester?.email}
-                  </strong>{" "}
-                  sẽ bị từ chối. Họ có thể gửi lại yêu cầu mới.
+                  Yêu cầu của <strong>{confirmAction ? getRequesterName(confirmAction.request) : "người dùng"}</strong> sẽ bị từ chối. Họ có thể gửi lại yêu cầu mới.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={() => setConfirmAction(null)}
               disabled={reviewMutation.isPending}
+              className="w-full sm:w-auto"
             >
               Huỷ
             </Button>
@@ -313,12 +223,102 @@ export default function AdminLecturerRequestsPage() {
               variant={confirmAction?.type === "reject" ? "destructive" : "default"}
               onClick={handleConfirm}
               disabled={reviewMutation.isPending}
+              className="w-full sm:w-auto"
             >
               {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function getRequesterName(request: LecturerRequest) {
+  return (
+    [request.requester?.lastName, request.requester?.firstName].filter(Boolean).join(" ") ||
+    request.requester?.email ||
+    `#${request.id}`
+  );
+}
+
+function LecturerRequestPanel({
+  title,
+  count,
+  isLoading,
+  isError,
+  onRefresh,
+  requests,
+  isFiltering,
+  approvingId,
+  rejectingId,
+  onApprove,
+  onReject,
+  onViewDetail,
+  page,
+  totalPages,
+  pageSize,
+  onPageChange,
+}: {
+  title: string;
+  count: number;
+  isLoading: boolean;
+  isError: boolean;
+  onRefresh: () => void;
+  requests: LecturerRequest[];
+  isFiltering: boolean;
+  approvingId: number | null;
+  rejectingId: number | null;
+  onApprove: (request: LecturerRequest) => void;
+  onReject: (request: LecturerRequest) => void;
+  onViewDetail: (request: LecturerRequest) => void;
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-4 py-3 sm:px-5">
+        <span className="text-sm font-semibold">{title}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">{count} yêu cầu</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={onRefresh}
+            disabled={isLoading}
+            title="Làm mới"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+      {isError ? (
+        <ErrorRetry onRetry={onRefresh} />
+      ) : (
+        <>
+          <AdminLecturerRequestTable
+            requests={requests}
+            isLoading={isLoading}
+            isFiltering={isFiltering}
+            showActions
+            approvingId={approvingId}
+            rejectingId={rejectingId}
+            onApprove={onApprove}
+            onReject={onReject}
+            onViewDetail={onViewDetail}
+          />
+          <PaginationRow
+            page={page}
+            totalPages={totalPages}
+            totalItems={count}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -347,36 +347,26 @@ function PaginationRow({
   totalPages: number;
   totalItems: number;
   pageSize: number;
-  onPageChange: (p: number) => void;
+  onPageChange: (page: number) => void;
 }) {
   if (totalPages <= 1) return null;
+
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, totalItems);
+
   return (
-    <div className="flex items-center justify-between border-t border-border/50 px-5 py-3">
+    <div className="flex flex-col gap-2 border-t border-border/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <span className="text-xs text-muted-foreground">
-        {from}–{to} / {totalItems}
+        {from}-{to} / {totalItems}
       </span>
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
+        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="min-w-15 text-center text-xs text-muted-foreground">
           {page} / {totalPages}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
+        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

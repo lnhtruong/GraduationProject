@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  ReportCategory,
   ReportStatus,
   ReportTargetType,
 } from 'src/models/report.model';
@@ -71,6 +72,7 @@ export class ReportsController {
     @Query('limit') limit?: string,
     @Query('status') status?: ReportStatus,
     @Query('targetType') targetType?: ReportTargetType,
+    @Query('reportCategory') reportCategory?: ReportCategory,
     @Query('sortOrder') sortOrder?: string,
     @Query('search') search?: string,
   ) {
@@ -80,6 +82,7 @@ export class ReportsController {
       limit: limit ? Number(limit) : undefined,
       status,
       targetType,
+      reportCategory,
       sortOrder,
       search,
     });

@@ -50,7 +50,7 @@ export function mapCourseRaw(raw: CourseRaw): CourseCardData {
 
   const inst = raw.instructor;
   const instructorName = inst
-    ? `${inst.first_name ?? inst.firstName ?? ""} ${inst.last_name ?? inst.lastName ?? ""}`.trim() ||
+    ? `${inst.last_name ?? inst.lastName ?? ""} ${inst.first_name ?? inst.firstName ?? ""}`.trim() ||
       null
     : null;
   const instructorAvatar = inst?.avatar_url ?? inst?.avatarUrl ?? null;

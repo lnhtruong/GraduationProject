@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -50,6 +51,11 @@ export class LecturerRequestsService {
       );
     }
 
+    const teachingTopics = payload.teachingTopics.trim();
+    if (!teachingTopics) {
+      throw new BadRequestException('Vui lòng nhập lĩnh vực muốn giảng dạy');
+    }
+
     const evidenceImageIds = await this.validateEvidenceImages(
       userId,
       payload.evidenceImageIds,
@@ -58,6 +64,7 @@ export class LecturerRequestsService {
     return await this.lecturerRequestModel.create({
       userId,
       confirm: payload.confirm ?? null,
+      teachingTopics,
       evidenceImageIds,
       status: LecturerRequestStatus.PENDING,
     });

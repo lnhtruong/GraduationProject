@@ -1,5 +1,6 @@
 export type ReportTargetType = "teacher" | "course" | "lesson";
 export type ReportStatus = "pending" | "approved" | "rejected";
+export type ReportCategory = "misleading" | "copyright" | "inappropriate" | "spam" | "harassment" | "other";
 export type ReviewDecision = Exclude<ReportStatus, "pending">;
 
 export interface ReportUser {
@@ -50,6 +51,7 @@ export interface Report {
 	id: number;
 	targetType: ReportTargetType;
 	targetId: number;
+	reportCategory: ReportCategory | null;
 	reason: string;
 	status: ReportStatus;
 	reporterId: number;
@@ -78,6 +80,7 @@ export interface ReportListResponse {
 export interface CreateReportDto {
 	targetType: ReportTargetType;
 	targetId: number;
+	reportCategory: ReportCategory;
 	reason: string;
 	evidenceImageIds?: number[];
 }
@@ -93,6 +96,7 @@ export interface ReportListParams {
 	limit?: number;
 	status?: ReportStatus;
 	targetType?: ReportTargetType;
+	reportCategory?: ReportCategory;
 	sortOrder?: "asc" | "desc";
 	search?: string;
 }

@@ -45,7 +45,7 @@ export function useCreateDiscussionMutation(lessonId: number) {
       const author = userSnapshot
          ? {
              id: userSnapshot.id,
-             name: `${userSnapshot.firstName ?? ""} ${userSnapshot.lastName ?? ""}`.trim() || userSnapshot.email,
+             name: `${userSnapshot.lastName ?? ""} ${userSnapshot.firstName ?? ""}`.trim() || userSnapshot.email,
              avatarUrl: userSnapshot.avatarUrl ?? null,
            }
          : { id: 0, name: "Bạn", avatarUrl: null };

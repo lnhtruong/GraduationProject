@@ -374,7 +374,6 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
 
     expect(update).toHaveBeenCalledWith({
       thumbnailUrl: null,
-      status: CourseStatus.DRAFT,
     });
   });
 

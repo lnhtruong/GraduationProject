@@ -93,7 +93,7 @@ function getUserInitials(user: AdminUser): string {
 }
 
 function getFullName(user: AdminUser): string {
-  const parts = [user.firstName, user.lastName].filter(Boolean);
+  const parts = [user.lastName, user.firstName].filter(Boolean);
   return parts.length ? parts.join(" ") : "";
 }
 

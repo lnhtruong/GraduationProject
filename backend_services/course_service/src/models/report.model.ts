@@ -14,6 +14,15 @@ export enum ReportTargetType {
   LESSON = 'lesson',
 }
 
+export enum ReportCategory {
+  MISLEADING = 'misleading',
+  COPYRIGHT = 'copyright',
+  INAPPROPRIATE = 'inappropriate',
+  SPAM = 'spam',
+  HARASSMENT = 'harassment',
+  OTHER = 'other',
+}
+
 export enum ReportStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
@@ -49,6 +58,13 @@ export class Report extends Model {
     field: 'target_id',
   })
   declare targetId: number;
+
+  @Column({
+    type: DataType.STRING(64),
+    allowNull: true,
+    field: 'report_category',
+  })
+  declare reportCategory: ReportCategory | null;
 
   @Column({
     type: DataType.TEXT,

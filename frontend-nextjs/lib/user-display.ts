@@ -14,8 +14,10 @@ function getEmailLocalPart(email: unknown) {
 }
 
 export function getUserDisplayName(user: DisplayUser, fallback = "Người dùng") {
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
-  return fullName || readText(user?.firstName) || getEmailLocalPart(user?.email) || fallback;
+  const firstName = readText(user?.firstName);
+  const lastName = readText(user?.lastName);
+  const fullName = [lastName, firstName].filter(Boolean).join(" ").trim();
+  return fullName || firstName || getEmailLocalPart(user?.email) || fallback;
 }
 
 export function getUserInitials(user: DisplayUser, fallback = "U") {
@@ -23,10 +25,10 @@ export function getUserInitials(user: DisplayUser, fallback = "U") {
   const lastName = readText(user?.lastName);
 
   if (firstName && lastName) {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    return `${lastName[0]}${firstName[0]}`.toUpperCase();
   }
 
-  const displaySource = firstName ?? getEmailLocalPart(user?.email) ?? fallback;
+  const displaySource = lastName ?? firstName ?? getEmailLocalPart(user?.email) ?? fallback;
   return displaySource.slice(0, 2).toUpperCase();
 }
 

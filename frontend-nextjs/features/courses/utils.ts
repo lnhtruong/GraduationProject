@@ -35,7 +35,7 @@ export function totalLessonsDuration(lessons: { duration: number }[]): number {
 
 /** Get initials from first+last name */
 export function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.trim()[0] ?? ""}${lastName.trim()[0] ?? ""}`.toUpperCase();
+  return `${lastName.trim()[0] ?? ""}${firstName.trim()[0] ?? ""}`.toUpperCase();
 }
 
 /** Parse "HH:MM:SS.mmm" or "HH:MM:SS" duration string from backend into seconds */

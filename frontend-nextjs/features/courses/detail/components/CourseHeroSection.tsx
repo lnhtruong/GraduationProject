@@ -106,7 +106,7 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
               href="#instructor"
               className="text-primary underline transition-colors hover:text-primary/80"
             >
-              {course.instructor.firstName} {course.instructor.lastName}
+              {course.instructor.lastName} {course.instructor.firstName}
             </a>
           </p>
 
