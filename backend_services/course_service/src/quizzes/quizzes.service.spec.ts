@@ -81,24 +81,24 @@ describe('QuizzesService — quiz change-request gating', () => {
   describe('createOneWithReview', () => {
     const payload = { lessonActivityId: 3, name: 'Q1' } as any;
 
-    it('khóa đã publish + owner (non-admin) → tạo change request quiz.create', async () => {
+    it('khóa đã publish + owner (non-admin) → tạo trực tiếp + notify', async () => {
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );
-      const createOneSpy = jest.spyOn(service, 'createOne');
+      jest
+        .spyOn(service, 'createOne')
+        .mockResolvedValue({ id: 1 } as unknown as Quiz);
 
       const result = await service.createOneWithReview(payload, OWNER);
 
-      expect(coursesService.createQuizChangeRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          kind: CourseChangeRequestKind.QUIZ_CREATE,
-          courseId: PUBLISHED_COURSE.id,
-          targetId: null,
-          requestedBy: OWNER.userId,
-        }),
+      expect(service.createOne).toHaveBeenCalledWith(payload);
+      expect(coursesService.createQuizChangeRequest).not.toHaveBeenCalled();
+      expect(coursesService.notifyQuizChangeDirect).toHaveBeenCalledWith(
+        PUBLISHED_COURSE.id,
+        CourseChangeRequestKind.QUIZ_CREATE,
+        OWNER.userId,
       );
-      expect(createOneSpy).not.toHaveBeenCalled();
-      expect(result).toEqual({ id: 555 });
+      expect(result).toEqual({ id: 1 });
     });
 
     it('khóa chưa publish → tạo trực tiếp + notify', async () => {
@@ -157,46 +157,45 @@ describe('QuizzesService — quiz change-request gating', () => {
       },
     };
 
-    it('khóa đã publish + owner → change request quiz.update với targetId = quizId', async () => {
+    it('khóa đã publish + owner → update trực tiếp + notify', async () => {
       quizModel.findByPk.mockResolvedValue(fakeQuiz);
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );
-      const updateSpy = jest.spyOn(service, 'update');
+      jest.spyOn(service, 'update').mockResolvedValue({ id: 42 } as unknown as Quiz);
 
       await service.updateWithReview(42, { name: 'new' } as any, OWNER);
 
-      expect(coursesService.createQuizChangeRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          kind: CourseChangeRequestKind.QUIZ_UPDATE,
-          targetId: 42,
-          courseId: PUBLISHED_COURSE.id,
-        }),
+      expect(service.update).toHaveBeenCalledWith(42, { name: 'new' });
+      expect(coursesService.createQuizChangeRequest).not.toHaveBeenCalled();
+      expect(coursesService.notifyQuizChangeDirect).toHaveBeenCalledWith(
+        PUBLISHED_COURSE.id,
+        CourseChangeRequestKind.QUIZ_UPDATE,
+        OWNER.userId,
       );
-      expect(updateSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('removeWithReview', () => {
     const fakeQuiz = { id: 42, lessonActivityId: 3, name: 'Q', questions: [] };
 
-    it('khóa đã publish + owner → change request quiz.delete', async () => {
+    it('khóa đã publish + owner → xoá trực tiếp + notify', async () => {
       quizModel.findByPk.mockResolvedValue(fakeQuiz);
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );
-      const removeSpy = jest.spyOn(service, 'remove');
+      jest.spyOn(service, 'remove').mockResolvedValue(undefined);
 
       const result = await service.removeWithReview(42, OWNER);
 
-      expect(coursesService.createQuizChangeRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          kind: CourseChangeRequestKind.QUIZ_DELETE,
-          targetId: 42,
-        }),
+      expect(service.remove).toHaveBeenCalledWith(42);
+      expect(coursesService.createQuizChangeRequest).not.toHaveBeenCalled();
+      expect(coursesService.notifyQuizChangeDirect).toHaveBeenCalledWith(
+        PUBLISHED_COURSE.id,
+        CourseChangeRequestKind.QUIZ_DELETE,
+        OWNER.userId,
       );
-      expect(removeSpy).not.toHaveBeenCalled();
-      expect(result).toEqual({ id: 555 });
+      expect(result).toBeUndefined();
     });
 
     it('khóa chưa publish → xoá trực tiếp + notify, không trả change request', async () => {
