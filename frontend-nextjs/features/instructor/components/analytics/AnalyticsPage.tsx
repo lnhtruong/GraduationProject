@@ -408,7 +408,7 @@ export default function AnalyticsPage() {
                 valueClass: "text-emerald-600 dark:text-emerald-400",
               },
               {
-                label: "Điểm đánh giá TB",
+                label: "Điểm đánh giá trung bình",
                 value: `${courseSummary?.averageRating ?? 0} ★`,
                 icon: Star,
                 iconBg: "bg-amber-50 dark:bg-amber-950/30",
