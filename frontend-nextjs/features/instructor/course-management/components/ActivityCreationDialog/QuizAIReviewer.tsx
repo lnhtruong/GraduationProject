@@ -417,7 +417,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                   onClick={() => handleSeek(q.evidenceTimestamp ?? null)}
                   className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-500 hover:text-sky-600 transition-colors"
                 >
-                   Xem bằng chứng ({q.evidenceTimestamp.split(".")[0].slice(3)})
+                   Xem bằng chứng ({q.evidenceTimestamp.replace(",", ".").split(".")[0]})
                 </button>
               )}
             </div>
