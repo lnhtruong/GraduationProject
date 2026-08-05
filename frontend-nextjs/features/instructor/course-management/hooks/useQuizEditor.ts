@@ -36,6 +36,7 @@ const createEmptyQuestion = (seed: number): QuizEditorQuestion => ({
   prompt: "",
   explanation: "",
   videoTimestamp: "",
+  evidenceTimestamp: "",
   options: [
     { id: `${seed}-a`, label: "", isCorrect: true },
     { id: `${seed}-b`, label: "", isCorrect: false },
@@ -98,10 +99,20 @@ export function useQuizEditor(
 
   const addQuestion = () => {
     const nextQuestion = createEmptyQuestion(Date.now());
-    setState((prev) => ({
-      ...prev,
-      questions: [...prev.questions, nextQuestion],
-    }));
+    setState((prev) => {
+      const sharedVideoTimestamp = prev.questions.find((question) =>
+        question.videoTimestamp?.trim(),
+      )?.videoTimestamp;
+      return {
+        ...prev,
+        questions: [
+          ...prev.questions,
+          sharedVideoTimestamp
+            ? { ...nextQuestion, videoTimestamp: sharedVideoTimestamp }
+            : nextQuestion,
+        ],
+      };
+    });
     setSelectedQuestionId(nextQuestion.id);
   };
 

@@ -32,7 +32,8 @@ type ReviewQuestion = {
   id: number;
   quesText: string;
   point: number;
-  videoTimestamp?: string | null;
+  evidenceTimestamp?: string | null;
+  explanation?: string | null;
   options: ReviewQuestionOption[];
 };
 
@@ -172,7 +173,10 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         hlsDesktopRef.current = null;
       }
     };
-  }, [lessonVideoUrl]);
+    // isLoading is included because the <video> element only mounts once
+    // loading finishes (see the early `if (isLoading) return` below) — the
+    // ref is null on the first run of this effect otherwise.
+  }, [lessonVideoUrl, isLoading]);
 
   useEffect(() => {
     const videoElement = videoRefMobile.current;
@@ -193,7 +197,7 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
         hlsMobileRef.current = null;
       }
     };
-  }, [lessonVideoUrl, showVideoMobile]);
+  }, [lessonVideoUrl, showVideoMobile, isLoading]);
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
@@ -267,16 +271,20 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
     const [base = "00:00:00", decimal = "0"] = timestamp.replace(",", ".").split(".");
     const [h = "0", m = "0", s = "0"] = base.split(":");
     const seconds = Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(decimal) / 1000;
-    
-    // Seek and play desktop video if it exists and is defined
-    if (videoRefDesktop.current) {
-      videoRefDesktop.current.currentTime = seconds;
-      videoRefDesktop.current.play().catch(() => {});
-    }
-    // Seek and play mobile video if it exists and is defined
-    if (videoRefMobile.current) {
-      videoRefMobile.current.currentTime = seconds;
-      videoRefMobile.current.play().catch(() => {});
+
+    // Desktop and mobile layouts both keep a <video> mounted (hidden via CSS,
+    // not unmounted), so only the one actually visible at this viewport
+    // should play — otherwise both play and their audio overlaps.
+    const isDesktopViewport = window.matchMedia("(min-width: 1024px)").matches;
+    const [activeRef, inactiveRef] = isDesktopViewport
+      ? [videoRefDesktop, videoRefMobile]
+      : [videoRefMobile, videoRefDesktop];
+
+    inactiveRef.current?.pause();
+
+    if (activeRef.current) {
+      activeRef.current.currentTime = seconds;
+      activeRef.current.play().catch(() => {});
     }
   };
 
@@ -356,15 +364,6 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                 >
                   {q.point >= 2 ? "Khó" : q.point >= 1.5 ? "Vừa" : "Dễ"} ({q.point}đ)
                 </Badge>
-                {q.videoTimestamp && (
-                  <button
-                    type="button"
-                    onClick={() => handleSeek(q.videoTimestamp ?? null)}
-                    className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-500 border border-sky-500/20 hover:bg-sky-500/20 transition-colors"
-                  >
-                    📍 {q.videoTimestamp.split(".")[0].slice(3)}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -403,6 +402,26 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
               </div>
             ))}
           </div>
+
+          {q.explanation && (
+            <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Giải thích (AI)
+              </p>
+              <p className="text-xs text-foreground leading-relaxed">
+                {q.explanation}
+              </p>
+              {q.evidenceTimestamp && (
+                <button
+                  type="button"
+                  onClick={() => handleSeek(q.evidenceTimestamp ?? null)}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-500 hover:text-sky-600 transition-colors"
+                >
+                   Xem bằng chứng ({q.evidenceTimestamp.replace(",", ".").split(".")[0]})
+                </button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     );

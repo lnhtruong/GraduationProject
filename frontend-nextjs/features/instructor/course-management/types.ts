@@ -73,9 +73,10 @@ interface InstructorQuizQuestion {
   quesType: QuizQuestionType;
   quesText: string;
   point?: number;
-  correctAns?: string;
+  explanation?: string;
   orderIndex?: number;
   videoTimestamp?: string | null;
+  evidenceTimestamp?: string | null;
   options?: InstructorQuizOption[];
 }
 
@@ -126,6 +127,7 @@ export interface QuizEditorQuestion {
   prompt: string;
   explanation: string;
   videoTimestamp?: string;
+  evidenceTimestamp?: string;
   options: QuizEditorOption[];
 }
 

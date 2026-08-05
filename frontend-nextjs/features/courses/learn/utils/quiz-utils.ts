@@ -28,7 +28,7 @@ export function resolveInitialLessonId(
   return lessons.some((lesson) => lesson.id === parsed) ? parsed : fallback;
 }
 
-function parseVideoTimestampToSeconds(value?: string | null): number | null {
+export function parseVideoTimestampToSeconds(value?: string | null): number | null {
   if (!value) {
     return null;
   }
@@ -45,35 +45,6 @@ function parseVideoTimestampToSeconds(value?: string | null): number | null {
   const millis = Number((match[4] ?? "0").padEnd(3, "0"));
 
   return hours * 3600 + minutes * 60 + seconds + millis / 1000;
-}
-
-function resolveQuestionAnswerIndex(quizQuestion: {
-  options?: Array<{
-    id?: number;
-    isCorrect?: boolean | null;
-    optionText?: string | null;
-  }>;
-  correctAns?: string | null;
-}): number | null {
-  const options = quizQuestion.options ?? [];
-  const byFlag = options.findIndex((option: { isCorrect?: boolean | null }) =>
-    Boolean(option.isCorrect),
-  );
-  if (byFlag >= 0) {
-    return byFlag;
-  }
-
-  const correctAns = quizQuestion.correctAns?.trim().toLowerCase();
-  if (!correctAns) {
-    return null;
-  }
-
-  const byLabel = options.findIndex(
-    (option: { optionText?: string | null }) =>
-      option.optionText?.trim().toLowerCase() === correctAns,
-  );
-
-  return byLabel >= 0 ? byLabel : null;
 }
 
 export function buildInVideoQuizPoints(
@@ -113,12 +84,41 @@ export function buildInVideoQuizPoints(
         question: question.quesText,
         options,
         optionIds,
-        answerIndex: resolveQuestionAnswerIndex(question),
+        answerIndex: null,
       });
     }
   }
 
   return points.sort((left, right) => left.timestamp - right.timestamp);
+}
+
+export interface InVideoQuizPointGroup {
+  timestamp: number;
+  points: InVideoQuizPoint[];
+}
+
+/**
+ * Gom các câu hỏi cùng chung 1 mốc video (AI-quiz dùng chung 1 timestamp cho
+ * cả quiz) thành từng nhóm, để timeline chỉ hiển thị 1 marker/nhóm thay vì
+ * chồng nhiều marker lên đúng 1 vị trí.
+ */
+export function groupInVideoQuizPointsByTimestamp(
+  points: InVideoQuizPoint[],
+): InVideoQuizPointGroup[] {
+  const groups = new Map<number, InVideoQuizPoint[]>();
+
+  for (const point of points) {
+    const existing = groups.get(point.timestamp);
+    if (existing) {
+      existing.push(point);
+    } else {
+      groups.set(point.timestamp, [point]);
+    }
+  }
+
+  return Array.from(groups.entries())
+    .map(([timestamp, groupPoints]) => ({ timestamp, points: groupPoints }))
+    .sort((left, right) => left.timestamp - right.timestamp);
 }
 
 export function buildAfterLessonQuiz(
@@ -135,7 +135,6 @@ export function buildAfterLessonQuiz(
         id?: number | string | null;
         quesText: string;
         options?: Array<{ id?: number; optionText?: string | null }>;
-        correctAns?: string | null;
       },
       index: number,
     ) => ({
@@ -149,7 +148,7 @@ export function buildAfterLessonQuiz(
       optionIds: (question.options ?? [])
         .map((option: { id?: number }) => option.id)
         .filter((optionId): optionId is number => typeof optionId === "number"),
-      answerIndex: resolveQuestionAnswerIndex(question),
+      answerIndex: null,
       passingScore: firstQuiz.passingScore ?? 70,
     }),
   );

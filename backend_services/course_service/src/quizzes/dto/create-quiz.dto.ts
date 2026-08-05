@@ -39,7 +39,7 @@ export class CreateQuizQuestionDto {
 
   @IsString()
   @IsOptional()
-  correctAns?: string;
+  explanation?: string;
 
   @IsInt()
   @IsOptional()
@@ -49,6 +49,11 @@ export class CreateQuizQuestionDto {
   @Matches(/^\d{2}:\d{2}:\d{2}[,.]\d{3}$/)
   @IsOptional()
   videoTimestamp?: string;
+
+  @IsString()
+  @Matches(/^\d{2}:\d{2}:\d{2}[,.]\d{3}$/)
+  @IsOptional()
+  evidenceTimestamp?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

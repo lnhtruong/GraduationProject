@@ -73,14 +73,20 @@ export function HeaderUserMenu({
         <Button
           variant="ghost"
           className={cn(
-            "h-9 shrink-0 gap-2 rounded-full border border-border/70 px-1 pr-1.5 sm:h-10 sm:px-1.5 sm:pr-3 xl:h-auto xl:py-1",
+            "h-9 shrink-0 gap-2 rounded-full border border-border/70 bg-background px-1.5 pr-2 shadow-sm transition hover:border-primary/40 hover:bg-muted/50 sm:h-10 2xl:h-12 2xl:px-2 2xl:pr-3",
             className,
           )}
         >
-          <UserAvatar user={user} className="h-7 w-7 sm:h-8 sm:w-8" />
-          <div className="hidden max-w-28 flex-col items-start gap-0.5 xl:flex">
-            <span className="w-full truncate text-sm font-semibold">{displayName}</span>
-            <RoleBadge role={user?.role} className="h-4 px-1 py-0 text-[9px]" />
+          <UserAvatar user={user} className="h-7 w-7 ring-1 ring-border/80 sm:h-8 sm:w-8" />
+
+          <div className="hidden min-w-0 max-w-36 flex-col items-start gap-1 leading-none lg:flex">
+            <span className="max-w-full truncate text-sm font-semibold text-foreground">
+              {displayName}
+            </span>
+            <RoleBadge
+              role={user?.role}
+              className="h-5 max-w-full px-1.5 py-0 text-[10px] leading-none [&_svg]:h-3 [&_svg]:w-3"
+            />
           </div>
         </Button>
       </DropdownMenuTrigger>

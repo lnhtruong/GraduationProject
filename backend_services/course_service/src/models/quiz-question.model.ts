@@ -69,9 +69,8 @@ export class QuizQuestion extends Model {
   @Column({
     type: DataType.TEXT,
     allowNull: true,
-    field: 'correct_ans',
   })
-  declare correctAns: string;
+  declare explanation: string | null;
 
   @Column({
     type: DataType.INTEGER,
@@ -86,6 +85,13 @@ export class QuizQuestion extends Model {
     field: 'video_timestamp',
   })
   declare videoTimestamp: string | null;
+
+  @Column({
+    type: 'TIME(3)' as any,
+    allowNull: true,
+    field: 'evidence_timestamp',
+  })
+  declare evidenceTimestamp: string | null;
 
   @Column({
     type: DataType.DATE,

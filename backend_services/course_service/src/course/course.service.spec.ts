@@ -239,7 +239,6 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
         'id',
         'questionId',
         'optionText',
-        'isCorrect',
         'orderIndex',
       ]),
     );
@@ -294,14 +293,12 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
                           id: 1,
                           questionId: 60000,
                           optionText: 'a',
-                          isCorrect: false,
                           orderIndex: 1,
                         },
                         {
                           id: 2,
                           questionId: 60000,
                           optionText: 'b',
-                          isCorrect: true,
                           orderIndex: 2,
                         },
                       ],
@@ -329,10 +326,12 @@ describe('CoursesService.findOne (eager-load include tree)', () => {
     expect(
       result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options,
     ).toHaveLength(2);
-    expect(
-      result.lessons[0].lessonActivities[0].quizzes[0].questions[0].options[1]
-        .isCorrect,
-    ).toBe(true);
+    const question =
+      result.lessons[0].lessonActivities[0].quizzes[0].questions[0];
+    expect(question.options[1].optionText).toBe('b');
+    expect(question).not.toHaveProperty('explanation');
+    expect(question.options[0]).not.toHaveProperty('isCorrect');
+    expect(question.options[1]).not.toHaveProperty('isCorrect');
   });
 
   it('create maps thumbnail_url to thumbnailUrl model field', async () => {

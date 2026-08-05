@@ -40,7 +40,7 @@ const OWNER = { userId: 99, role: 3 };
 const STRANGER = { userId: 7, role: 3 };
 const ADMIN = { userId: 1, role: 1 };
 
-describe('QuizzesService — quiz change-request gating', () => {
+describe('QuizzesService - direct quiz write review guards', () => {
   let service: QuizzesService;
   let quizModel: ReturnType<typeof makeModelMock>;
   let coursesService: {
@@ -81,7 +81,7 @@ describe('QuizzesService — quiz change-request gating', () => {
   describe('createOneWithReview', () => {
     const payload = { lessonActivityId: 3, name: 'Q1' } as any;
 
-    it('khóa đã publish + owner (non-admin) → tạo trực tiếp + notify', async () => {
+    it('published course + owner (non-admin) -> create directly and notify', async () => {
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );
@@ -157,14 +157,16 @@ describe('QuizzesService — quiz change-request gating', () => {
       },
     };
 
-    it('khóa đã publish + owner → update trực tiếp + notify', async () => {
-      quizModel.findByPk.mockResolvedValue(fakeQuiz);
+    it('published course + owner -> update directly and notify', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(fakeQuiz as unknown as Quiz);
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );
-      jest.spyOn(service, 'update').mockResolvedValue({ id: 42 } as unknown as Quiz);
+      jest
+        .spyOn(service, 'update')
+        .mockResolvedValue({ ...fakeQuiz, name: 'new' } as unknown as Quiz);
 
-      await service.updateWithReview(42, { name: 'new' } as any, OWNER);
+      const result = await service.updateWithReview(42, { name: 'new' } as any, OWNER);
 
       expect(service.update).toHaveBeenCalledWith(42, { name: 'new' });
       expect(coursesService.createQuizChangeRequest).not.toHaveBeenCalled();
@@ -173,14 +175,15 @@ describe('QuizzesService — quiz change-request gating', () => {
         CourseChangeRequestKind.QUIZ_UPDATE,
         OWNER.userId,
       );
+      expect(result).toEqual({ ...fakeQuiz, name: 'new' });
     });
   });
 
   describe('removeWithReview', () => {
     const fakeQuiz = { id: 42, lessonActivityId: 3, name: 'Q', questions: [] };
 
-    it('khóa đã publish + owner → xoá trực tiếp + notify', async () => {
-      quizModel.findByPk.mockResolvedValue(fakeQuiz);
+    it('published course + owner -> remove directly and notify', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(fakeQuiz as unknown as Quiz);
       coursesService.findCourseByLessonActivityId.mockResolvedValue(
         PUBLISHED_COURSE,
       );

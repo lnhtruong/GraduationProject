@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { InVideoQuizPoint, type AfterLessonQuizQuestion } from "../utils";
+import type { QuizAnswerExplanation } from "../hooks/useCourseLearnPlayer";
 
 import { LessonVideoPlayer } from "./LessonVideoCard/LessonVideoPlayer";
 import { LessonVideoTimeline } from "./LessonVideoCard/LessonVideoTimeline";
@@ -16,11 +17,14 @@ interface Props {
   progressPercent: number;
   isPlaying: boolean;
   activeQuizPoint: InVideoQuizPoint | null;
+  isQuizOverlayDismissed: boolean;
+  reviewingQuizPoints: InVideoQuizPoint[] | null;
   inVideoQuizPoints: InVideoQuizPoint[];
   inVideoAnswers: Record<string, number>;
   inVideoSubmitted: Record<string, boolean>;
   inVideoScore: boolean | null;
   inVideoCorrectAnswers: Record<string, number>;
+  inVideoExplanations: Record<string, QuizAnswerExplanation>;
   afterLessonQuiz: AfterLessonQuizQuestion[];
   afterLessonAnswers: Record<string, number>;
   afterLessonSubmitted: boolean;
@@ -31,6 +35,7 @@ interface Props {
   } | null;
   afterLessonPassed: boolean;
   afterLessonCorrectAnswers: Record<string, number>;
+  afterLessonExplanations: Record<string, QuizAnswerExplanation>;
   hasNextLesson: boolean;
   nextLessonCountdown: number | null;
   isTransitioningNext: boolean;
@@ -63,6 +68,9 @@ interface Props {
   onSelectAfterLessonAnswer: (questionId: string, optionIndex: number) => void;
   onSubmitAfterLessonQuiz: () => void;
   onContinueAfterInVideoQuiz: () => void;
+  onDismissQuizOverlay: () => void;
+  onReviewQuizGroup: (points: InVideoQuizPoint[]) => void;
+  onCloseQuizGroupReview: () => void;
   onAdvanceToNextLesson: () => void;
   onRetryAfterLessonQuiz: () => void;
   onSubmitInVideoQuiz: () => void;
@@ -82,17 +90,21 @@ export function LessonVideoCard({
   progressPercent,
   isPlaying,
   activeQuizPoint,
+  isQuizOverlayDismissed,
+  reviewingQuizPoints,
   inVideoQuizPoints,
   inVideoAnswers,
   inVideoSubmitted,
   inVideoScore,
   inVideoCorrectAnswers,
+  inVideoExplanations,
   afterLessonQuiz,
   afterLessonAnswers,
   afterLessonSubmitted,
   afterLessonScore,
   afterLessonPassed,
   afterLessonCorrectAnswers,
+  afterLessonExplanations,
   hasNextLesson,
   nextLessonCountdown,
   isTransitioningNext,
@@ -124,6 +136,9 @@ export function LessonVideoCard({
   onSelectAfterLessonAnswer,
   onSubmitAfterLessonQuiz,
   onContinueAfterInVideoQuiz,
+  onDismissQuizOverlay,
+  onReviewQuizGroup,
+  onCloseQuizGroupReview,
   onAdvanceToNextLesson,
   onRetryAfterLessonQuiz,
   onSubmitInVideoQuiz,
@@ -135,7 +150,10 @@ export function LessonVideoCard({
   setLastVideoTime,
   videoAspectRatio,
 }: Props) {
-  const playerBlocked = Boolean(activeQuizPoint) || showAfterLessonOverlay;
+  const playerBlocked =
+    Boolean(activeQuizPoint) ||
+    Boolean(reviewingQuizPoints) ||
+    showAfterLessonOverlay;
   const [controlsVisible, setControlsVisible] = useState(true);
   const [dismissedUpNextKey, setDismissedUpNextKey] = useState<string | null>(
     null,
@@ -218,13 +236,19 @@ export function LessonVideoCard({
       {/* Quiz overlays (in-video and after-lesson) */}
       <LessonVideoQuizOverlay
         activeQuizPoint={activeQuizPoint}
+        isQuizOverlayDismissed={isQuizOverlayDismissed}
+        isQuizSolved={isQuizSolved}
+        reviewingQuizPoints={reviewingQuizPoints}
+        onCloseQuizGroupReview={onCloseQuizGroupReview}
         inVideoAnswers={inVideoAnswers}
         inVideoSubmitted={inVideoSubmitted}
         inVideoScore={inVideoScore}
         inVideoCorrectAnswers={inVideoCorrectAnswers}
+        inVideoExplanations={inVideoExplanations}
         onSelectInVideoAnswer={onSelectInVideoAnswer}
         onSubmitInVideoQuiz={onSubmitInVideoQuiz}
         onContinueAfterInVideoQuiz={onContinueAfterInVideoQuiz}
+        onDismissQuizOverlay={onDismissQuizOverlay}
         showAfterLessonOverlay={showAfterLessonOverlay}
         afterLessonQuiz={afterLessonQuiz}
         afterLessonAnswers={afterLessonAnswers}
@@ -232,6 +256,8 @@ export function LessonVideoCard({
         afterLessonScore={afterLessonScore}
         afterLessonPassed={afterLessonPassed}
         afterLessonCorrectAnswers={afterLessonCorrectAnswers}
+        afterLessonExplanations={afterLessonExplanations}
+        videoUrl={selectedLessonVideoUrl}
         hasNextLesson={hasNextLesson}
         nextLessonCountdown={nextLessonCountdown}
         nextLessonTitle={nextLessonTitle}
@@ -270,6 +296,7 @@ export function LessonVideoCard({
           isQuizSolved={isQuizSolved}
           onSeekChange={onSeekChange}
           onJumpToQuizPoint={onJumpToQuizPoint}
+          onReviewQuizGroup={onReviewQuizGroup}
           onOverlayScrubClick={onOverlayScrubClick}
         />
 
