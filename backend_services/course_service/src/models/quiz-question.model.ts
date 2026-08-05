@@ -69,9 +69,8 @@ export class QuizQuestion extends Model {
   @Column({
     type: DataType.TEXT,
     allowNull: true,
-    field: 'correct_ans',
   })
-  declare explanation: string;
+  declare explanation: string | null;
 
   @Column({
     type: DataType.INTEGER,

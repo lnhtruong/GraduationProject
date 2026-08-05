@@ -44,13 +44,12 @@ export function EvidencePreviewPlayer({ videoUrl, startSeconds, onClose }: Props
       videoElement.removeAttribute("src");
       try {
         videoElement.load();
-      } catch (_) {}
+      } catch {}
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoUrl, startSeconds]);
 
   if (!videoUrl) {

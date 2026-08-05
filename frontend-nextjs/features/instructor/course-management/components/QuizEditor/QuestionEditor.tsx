@@ -108,7 +108,7 @@ export function QuestionEditor({
             {question.options.map((option) => (
               <div
                 key={option.id}
-                className={`flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-200 bg-background/60 focus-within:bg-background ${
+                className={`flex flex-col gap-2 rounded-xl border p-2.5 transition-all duration-200 bg-background/60 focus-within:bg-background sm:flex-row sm:items-start sm:gap-3 ${
                   option.isCorrect
                     ? "border-green-500/30 bg-green-500/[0.02] focus-within:border-green-500/50"
                     : "border-border/60 focus-within:border-primary/50"
@@ -139,7 +139,7 @@ export function QuestionEditor({
                       })),
                     }))
                   }
-                  className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 mt-0.5 ${
+                  className={`flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 sm:mt-0.5 ${
                     option.isCorrect
                       ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-sm"
                       : "bg-background border-border hover:bg-muted/40 text-muted-foreground"
@@ -160,7 +160,7 @@ export function QuestionEditor({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-lg mt-0.5"
+                  className="h-8 w-full shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-lg sm:mt-0.5 sm:w-8"
                   onClick={() => onRemoveOption(question.id, option.id)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -199,7 +199,7 @@ export function QuestionEditor({
               evidenceVideoRef.current = element;
             }}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={question.evidenceTimestamp ?? ""}
               onChange={(event) =>
@@ -230,7 +230,7 @@ export function QuestionEditor({
                     ),
                   }))
                 }
-                className="h-10 shrink-0 px-2.5 rounded-lg border-border/80 bg-background hover:bg-muted/40"
+                className="h-10 w-full shrink-0 cursor-pointer px-2.5 rounded-lg border-border/80 bg-background hover:bg-muted/40 sm:w-auto"
               >
                 <Crosshair className="h-3.5 w-3.5" />
               </Button>

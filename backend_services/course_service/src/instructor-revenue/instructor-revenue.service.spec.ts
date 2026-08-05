@@ -293,6 +293,7 @@ describe('InstructorRevenueService', () => {
       where: {
         id: 10,
         userId: 7,
+        status: 'publish',
       },
     });
 

@@ -34,13 +34,18 @@ export function EvidenceVideoPlayer({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const onVideoRefChangeRef = useRef(onVideoRefChange);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const safeDuration = Math.max(0, Number(videoDurationSeconds ?? 0));
 
   useEffect(() => {
+    onVideoRefChangeRef.current = onVideoRefChange;
+  }, [onVideoRefChange]);
+
+  useEffect(() => {
     const videoElement = videoRef.current;
-    onVideoRefChange(videoElement);
+    onVideoRefChangeRef.current(videoElement);
     if (!videoElement) return;
 
     if (!videoUrl) {
@@ -99,19 +104,17 @@ export function EvidenceVideoPlayer({
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoUrl]);
 
   useEffect(() => {
-    return () => onVideoRefChange(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => onVideoRefChangeRef.current(null);
   }, []);
 
   useEffect(() => {
@@ -129,7 +132,6 @@ export function EvidenceVideoPlayer({
       videoElement.addEventListener("loadedmetadata", applySeek, { once: true });
       return () => videoElement.removeEventListener("loadedmetadata", applySeek);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seekToSeconds]);
 
   const togglePlay = () => {

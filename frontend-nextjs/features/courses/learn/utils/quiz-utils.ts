@@ -47,35 +47,6 @@ export function parseVideoTimestampToSeconds(value?: string | null): number | nu
   return hours * 3600 + minutes * 60 + seconds + millis / 1000;
 }
 
-function resolveQuestionAnswerIndex(quizQuestion: {
-  options?: Array<{
-    id?: number;
-    isCorrect?: boolean | null;
-    optionText?: string | null;
-  }>;
-  explanation?: string | null;
-}): number | null {
-  const options = quizQuestion.options ?? [];
-  const byFlag = options.findIndex((option: { isCorrect?: boolean | null }) =>
-    Boolean(option.isCorrect),
-  );
-  if (byFlag >= 0) {
-    return byFlag;
-  }
-
-  const explanation = quizQuestion.explanation?.trim().toLowerCase();
-  if (!explanation) {
-    return null;
-  }
-
-  const byLabel = options.findIndex(
-    (option: { optionText?: string | null }) =>
-      option.optionText?.trim().toLowerCase() === explanation,
-  );
-
-  return byLabel >= 0 ? byLabel : null;
-}
-
 export function buildInVideoQuizPoints(
   quizzes: InstructorQuiz[] | undefined,
 ): InVideoQuizPoint[] {
@@ -113,7 +84,7 @@ export function buildInVideoQuizPoints(
         question: question.quesText,
         options,
         optionIds,
-        answerIndex: resolveQuestionAnswerIndex(question),
+        answerIndex: null,
       });
     }
   }
@@ -164,7 +135,6 @@ export function buildAfterLessonQuiz(
         id?: number | string | null;
         quesText: string;
         options?: Array<{ id?: number; optionText?: string | null }>;
-        explanation?: string | null;
       },
       index: number,
     ) => ({
@@ -178,7 +148,7 @@ export function buildAfterLessonQuiz(
       optionIds: (question.options ?? [])
         .map((option: { id?: number }) => option.id)
         .filter((optionId): optionId is number => typeof optionId === "number"),
-      answerIndex: resolveQuestionAnswerIndex(question),
+      answerIndex: null,
       passingScore: firstQuiz.passingScore ?? 70,
     }),
   );
