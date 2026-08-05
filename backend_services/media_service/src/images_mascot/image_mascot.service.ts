@@ -36,14 +36,21 @@ export class MascotImageService {
 
     async findAll(
         user_id: number | undefined,
-        pagination: { page?: number; limit?: number } = {},
+        pagination: { page?: number; limit?: number; type?: MascotImageType } = {},
     ) {
         if (user_id === undefined) {
             throw new BadRequestException('Missing user_id');
         }
 
+        if (pagination.type && !Object.values(MascotImageType).includes(pagination.type)) {
+            throw new BadRequestException('Invalid mascot image type');
+        }
+
         const baseQuery: FindOptions = {
-            where: { user_id },
+            where: {
+                user_id,
+                ...(pagination.type ? { type: pagination.type } : {}),
+            },
             order: [['createdAt', 'DESC']],
         };
 

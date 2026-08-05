@@ -32,6 +32,7 @@ import {
   useForgotPasswordCooldown,
   formatCountdown,
 } from "../hooks/useForgotPasswordCooldown";
+import { getAuthErrorMessage } from "../utils/auth-error-message";
 
 /** Extract wait seconds from a 429 AxiosError.
  * express-rate-limit with standardHeaders sends `ratelimit-reset` (epoch s)
@@ -91,8 +92,7 @@ export function ForgotPasswordForm() {
         );
       } else {
         toast.error(
-          axiosErr?.response?.data?.message ||
-            "Không thể gửi mã OTP. Vui lòng thử lại.",
+          getAuthErrorMessage(err, "Không thể gửi mã OTP. Vui lòng thử lại."),
         );
       }
     },

@@ -252,11 +252,11 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
   const statusCfg = request ? (STATUS_LABEL[request.status] ?? { label: request.status, colorClass: "bg-muted text-muted-foreground border-border" }) : null;
 
   const instructorName = request?.requester
-    ? `${request.requester.firstName} ${request.requester.lastName}`.trim()
+    ? `${request.requester.lastName} ${request.requester.firstName}`.trim()
     : "Giảng viên";
   const instructorEmail = request?.requester?.email ?? null;
   const reviewerName = request?.reviewer
-    ? `${request.reviewer.firstName} ${request.reviewer.lastName}`.trim()
+    ? `${request.reviewer.lastName} ${request.reviewer.firstName}`.trim()
     : request?.reviewedBy ? "Quản trị viên" : null;
 
   const handleDecision = async (decision: "approved" | "rejected") => {

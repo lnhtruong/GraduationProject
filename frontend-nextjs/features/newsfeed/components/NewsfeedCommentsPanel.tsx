@@ -31,7 +31,7 @@ function getCommentAuthorName(
 ) {
   const firstName = comment.commenter?.firstName?.trim();
   const lastName = comment.commenter?.lastName?.trim();
-  const fullName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+  const fullName = `${lastName ?? ""} ${firstName ?? ""}`.trim();
   return fullName || fallbackName;
 }
 

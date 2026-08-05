@@ -12,6 +12,14 @@ import { Video } from './video.model';
 // import { Video } from 'src/videos/video.model';
 // import { MascotVideo } from '../images_mascot/images.model';
 
+export enum MascotImageType {
+    THUMBNAIL_VIDEO = 'thumbnail_video',
+    THUMBNAIL_COURSE = 'thumbnail_course',
+    AVT = 'avt',
+    REPORT = 'report',
+    ROLE_UPGRADE = 'role_upgrade',
+    MASCOT = 'mascot',
+}
 @Table({
     tableName: 'mascot_images',
     timestamps: true,
@@ -26,14 +34,27 @@ export class MascotImage extends Model {
         type: DataType.INTEGER,
         allowNull: false,
     })
-    user_id: number;
+    declare user_id: number;
 
     @Column({
         type: DataType.STRING(255),
         allowNull: false,
     })
-    url: string;
+    declare url: string;
+
+    @Column({ type: DataType.STRING(255), allowNull: true })
+    declare name: string | null;
+
+    @Column({ type: DataType.STRING(32), allowNull: true })
+    declare format: string | null;
+
+    @Column({
+        type: DataType.ENUM(...Object.values(MascotImageType)),
+        allowNull: false,
+        defaultValue: MascotImageType.THUMBNAIL_VIDEO,
+    })
+    declare type: MascotImageType;
 
     @HasMany(() => Video)
-    videos: Video[];
+    declare videos: Video[];
 }

@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Op } from 'sequelize';
+import { CourseStatus } from '../models/course.model';
 import { InstructorRevenueService } from './instructor-revenue.service';
 
 describe('InstructorRevenueService', () => {
@@ -293,7 +294,7 @@ describe('InstructorRevenueService', () => {
       where: {
         id: 10,
         userId: 7,
-        status: 'publish',
+        status: CourseStatus.PUBLISH,
       },
     });
 

@@ -182,6 +182,7 @@ export function CourseForm({ course, onSave }: Props) {
         file,
         folderName: "course-thumbnails",
         resourceType: "image",
+        type: "thumbnail_course",
       });
       if (result?.secure_url) {
         setValue("thumbnailUrl", result.secure_url);
@@ -217,7 +218,7 @@ export function CourseForm({ course, onSave }: Props) {
   const languageValue = useWatch({ control, name: "language" });
   const priceValue = useWatch({ control, name: "price" });
   const instructorName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+    [user?.lastName, user?.firstName].filter(Boolean).join(" ").trim() ||
     "Giảng viên của bạn";
   const previewUpdatedAt = course?.updated_at ?? filledAt ?? formOpenedAt;
   const previewDescriptionHtml = (() => {

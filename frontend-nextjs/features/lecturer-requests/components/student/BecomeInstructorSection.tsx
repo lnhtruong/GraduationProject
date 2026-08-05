@@ -10,6 +10,7 @@ import { LecturerRequestForm } from "./LecturerRequestForm";
 import { LecturerRequestHistory } from "./LecturerRequestHistory";
 import { useMyLecturerRequests } from "../../api/lecturer-requests.hooks";
 import type { LecturerRequest } from "../../types/lecturer-request.types";
+import { EvidenceImageGallery } from "@/features/image/components/EvidenceImageGallery";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("vi-VN", {
@@ -100,11 +101,13 @@ function PendingState({ request }: { request: LecturerRequest }) {
           hệ thống thông báo.
         </AlertDescription>
       </Alert>
+      <TeachingTopics request={request} />
       {request.confirm && (
         <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           <p className="line-clamp-3">{request.confirm}</p>
         </div>
       )}
+      <EvidenceImages request={request} />
     </div>
   );
 }
@@ -134,10 +137,36 @@ function RejectedState({
           </AlertDescription>
         </Alert>
       )}
+      <TeachingTopics request={request} />
+      <EvidenceImages request={request} />
       <Button onClick={onResubmit} variant="outline" className="gap-2">
         <GraduationCap className="h-4 w-4" />
         Gửi lại yêu cầu
       </Button>
+    </div>
+  );
+}
+
+function TeachingTopics({ request }: { request: LecturerRequest }) {
+  if (!request.teachingTopics) return null;
+
+  return (
+    <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <p className="mb-1 text-xs font-medium text-foreground">Lĩnh vực muốn giảng dạy</p>
+      <p>{request.teachingTopics}</p>
+    </div>
+  );
+}
+
+function EvidenceImages({ request }: { request: LecturerRequest }) {
+  if (!request.evidenceImages?.length) return null;
+
+  return (
+    <div>
+      <p className="mb-1.5 text-xs text-muted-foreground">
+        Ảnh minh chứng ({request.evidenceImages.length})
+      </p>
+      <EvidenceImageGallery images={request.evidenceImages} className="grid grid-cols-3 gap-2 sm:grid-cols-5" />
     </div>
   );
 }

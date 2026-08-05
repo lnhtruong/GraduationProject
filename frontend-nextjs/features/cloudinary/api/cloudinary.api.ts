@@ -21,7 +21,9 @@ export const cloudinaryApi = createApi({
             | "mascot"
             | "thumbnail_video"
             | "thumbnail_course"
-            | "avt";
+            | "avt"
+            | "report"
+            | "role_upgrade";
         } = "editor-uploads",
   ) => {
     const payload =

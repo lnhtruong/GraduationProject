@@ -72,7 +72,7 @@ export function AdminLecturerRequestTable({
       {requests.map((req) => {
         const user = req.requester;
         const fullName =
-          [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+          [user?.lastName, user?.firstName].filter(Boolean).join(" ") ||
           user?.email ||
           `User #${req.userId}`;
         const initials = fullName.slice(0, 2).toUpperCase();
@@ -98,6 +98,11 @@ export function AdminLecturerRequestTable({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{fullName}</p>
                 <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                {req.teachingTopics && (
+                  <p className="truncate text-xs text-muted-foreground/80">
+                    {req.teachingTopics}
+                  </p>
+                )}
               </div>
 
               {/* Status */}
@@ -110,11 +115,11 @@ export function AdminLecturerRequestTable({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:flex-nowrap">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 px-2 text-xs"
+                className="h-8 gap-1 px-2 text-xs sm:h-7"
                 onClick={() => onViewDetail(req)}
               >
                 <Eye className="h-3.5 w-3.5" />
@@ -126,7 +131,7 @@ export function AdminLecturerRequestTable({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 gap-1 px-2 text-xs text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30"
+                    className="h-8 gap-1 px-2 text-xs text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 sm:h-7 dark:hover:bg-emerald-950/30"
                     disabled={isActing}
                     onClick={() => onApprove(req)}
                   >
@@ -140,7 +145,7 @@ export function AdminLecturerRequestTable({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10"
+                    className="h-8 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10 sm:h-7"
                     disabled={isActing}
                     onClick={() => onReject(req)}
                   >

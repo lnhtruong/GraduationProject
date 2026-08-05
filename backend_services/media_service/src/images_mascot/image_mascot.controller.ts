@@ -12,6 +12,7 @@ import {
 import { CreateMascotImageDto } from 'src/dto/create-mascot-image.dto';
 import { UpdateMascotImageDto } from 'src/dto/update-mascot-image.dto';
 import { MascotImageService } from './image_mascot.service';
+import { MascotImageType } from './images.model';
 
 @Controller('mascot_images')
 export class MascotImageController {
@@ -31,6 +32,7 @@ export class MascotImageController {
         @Headers('x-user-id') userIdHeader?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
+        @Query('type') type?: MascotImageType,
     ) {
         const userId =
             typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
@@ -39,6 +41,7 @@ export class MascotImageController {
         return this.mascotImageService.findAll(userId, {
             page: page !== undefined ? Number(page) : undefined,
             limit: limit !== undefined ? Number(limit) : undefined,
+            type,
         });
     }
 

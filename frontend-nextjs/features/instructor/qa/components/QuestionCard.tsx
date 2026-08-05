@@ -84,7 +84,7 @@ export function QuestionCard({ question, courseId }: Props) {
   };
 
   const userInitials = user
-    ? `${user.firstName?.charAt(0) || ""}${user.lastName?.charAt(0) || ""}`.toUpperCase() || "GV"
+    ? `${user.lastName?.charAt(0) || ""}${user.firstName?.charAt(0) || ""}`.toUpperCase() || "GV"
     : "GV";
 
   return (

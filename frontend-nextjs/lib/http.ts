@@ -5,7 +5,8 @@ import axios, {
 } from "axios";
 import { API_URL } from "@/lib/env";
 import { isPublicAuthRoute } from "@/lib/auth-routes";
-import { authStorageHelper } from "@/store/auth";
+import { syncAuthSession } from "@/lib/auth-session";
+import { authStorageHelper, type User } from "@/store/auth";
 
 function createBaseClient(baseURL: string) {
   const isNgrokTarget = /ngrok/i.test(baseURL);
@@ -69,13 +70,16 @@ async function refreshAccessToken() {
       "ngrok-skip-browser-warning": "true",
     },
   });
-
-  const newAccessToken = (response.data as { accessToken?: string }).accessToken;
+  const refreshData = response.data as { accessToken?: string; user?: User };
+  const newAccessToken = refreshData.accessToken;
   if (!newAccessToken) {
     throw new Error("Missing access token from refresh response");
   }
 
-  authStorageHelper.setAccessToken(newAccessToken);
+  syncAuthSession({
+    accessToken: newAccessToken,
+    user: refreshData.user,
+  });
   onTokenRefreshed(newAccessToken);
   return newAccessToken;
 }

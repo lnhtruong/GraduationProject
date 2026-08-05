@@ -262,7 +262,7 @@ export default function MascotOptions({
       }
     };
 
-    const existing = await imageApi.getAllByUser();
+    const existing = await imageApi.getAllByUser({ type: "mascot" });
     const matched = existing.find(
       (image) =>
         normalizeComparableUrl(image.url) ===
@@ -270,7 +270,7 @@ export default function MascotOptions({
     );
     if (matched?.id) return matched.id;
 
-    const created = await imageApi.create({ url: absoluteUrl });
+    const created = await imageApi.create({ url: absoluteUrl, type: "mascot" });
     void queryClient.invalidateQueries({ queryKey: ["image"] });
     return created.id;
   };

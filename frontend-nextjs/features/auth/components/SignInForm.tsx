@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -20,6 +20,10 @@ import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signInSchema, type SignInFormData } from "../schemas";
 import { SocialAuthRow } from "./SocialAuthRow";
+import {
+  getAuthErrorMessage,
+  getAuthQueryErrorMessage,
+} from "../utils/auth-error-message";
 
 function getSafeReturnUrl(value: string | null): string | null {
   if (!value) return null;
@@ -39,6 +43,10 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setError(getAuthQueryErrorMessage(searchParams.get("error")));
+  }, [searchParams]);
+
   const form = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -55,19 +63,7 @@ export default function SignInForm() {
 
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
-      // Parse error message from backend
-      let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";
-
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosError = err as {
-          response?: { data?: { message?: string } };
-        };
-        errorMessage = axiosError.response?.data?.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(getAuthErrorMessage(err, "Đăng nhập thất bại. Vui lòng thử lại."));
     }
   };
 
@@ -79,18 +75,9 @@ export default function SignInForm() {
 
       router.push(returnUrl ?? "/");
     } catch (err: unknown) {
-      let errorMessage = "Đăng nhập Google thất bại. Vui lòng thử lại.";
-
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosError = err as {
-          response?: { data?: { message?: string } };
-        };
-        errorMessage = axiosError.response?.data?.message || errorMessage;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(
+        getAuthErrorMessage(err, "Đăng nhập Google thất bại. Vui lòng thử lại."),
+      );
     }
   };
 

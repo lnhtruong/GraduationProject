@@ -30,9 +30,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewReport } from "../../api/admin-reports.hooks";
+import { EvidenceImageGallery } from "@/features/image/components/EvidenceImageGallery";
 import type {
   Report,
   ReportStatus,
+  ReportCategory,
   ReportTargetType,
   ReportTargetCourse,
   ReportTargetLesson,
@@ -57,6 +59,14 @@ const TARGET_TYPE_CONFIG: Record<ReportTargetType, { label: string; icon: ReactN
   },
 };
 
+const REPORT_CATEGORY_LABELS: Record<ReportCategory, string> = {
+  misleading: "Thông tin sai lệch",
+  copyright: "Vi phạm bản quyền",
+  inappropriate: "Nội dung không phù hợp",
+  spam: "Spam hoặc lừa đảo",
+  harassment: "Quấy rối hoặc xúc phạm",
+  other: "Vấn đề khác",
+};
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
   pending: {
     label: "Chờ xử lý",
@@ -111,7 +121,7 @@ function TargetDetail({ report }: { report: Report }) {
 
   if (targetType === "teacher") {
     const t = target as ReportTargetTeacher;
-    const name = [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || "—";
+    const name = [t.lastName, t.firstName].filter(Boolean).join(" ").trim() || "—";
     return (
       <div className="space-y-1.5 text-sm">
         <div className="flex items-center gap-2">
@@ -172,7 +182,7 @@ function userDisplayName(
   fallbackId: number,
 ) {
   if (!user) return `ID #${fallbackId}`;
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  const name = [user.lastName, user.firstName].filter(Boolean).join(" ").trim();
   return name || user.email;
 }
 
@@ -284,6 +294,17 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                   </div>
                 </div>
 
+                {report.reportCategory && (
+                  <div className="mb-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <ShieldAlert className="h-3 w-3" />
+                      Loại vi phạm
+                    </p>
+                    <Badge variant="outline" className="text-xs font-medium">
+                      {REPORT_CATEGORY_LABELS[report.reportCategory] ?? report.reportCategory}
+                    </Badge>
+                  </div>
+                )}
                 {/* Lý do */}
                 <div className="mb-4">
                   <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -294,6 +315,16 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                     {report.reason}
                   </p>
                 </div>
+
+                {report.evidenceImages && report.evidenceImages.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      Ảnh minh chứng ({report.evidenceImages.length})
+                    </p>
+                    <EvidenceImageGallery images={report.evidenceImages} />
+                  </div>
+                )}
 
                 {/* Kết quả xử lý (nếu đã review) */}
                 {report.status !== "pending" && (
@@ -354,10 +385,10 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
         {report && (
           <div className="shrink-0 border-t border-border/60 bg-background p-4">
             {isPending ? (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   variant="outline"
-                  className="flex-1 gap-2"
+                  className="w-full gap-2 sm:flex-1"
                   onClick={() => handleReview("rejected", false)}
                   disabled={isBusy}
                 >
@@ -365,7 +396,7 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
                   Huỷ báo cáo
                 </Button>
                 <Button
-                  className="flex-1 gap-2 bg-destructive text-white hover:bg-destructive/90"
+                  className="w-full gap-2 bg-destructive text-white hover:bg-destructive/90 sm:flex-1"
                   onClick={() => handleReview("approved", true)}
                   disabled={isBusy}
                 >

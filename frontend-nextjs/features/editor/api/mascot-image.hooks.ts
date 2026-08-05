@@ -53,7 +53,7 @@ async function waitForMascotImageRecord(params: {
       if (polling || settled) return;
       polling = true;
       try {
-        const images = await imageApi.getAllByUser();
+        const images = await imageApi.getAllByUser({ type: "mascot" });
         const matched = images.find(
           (image) => normalizeAssetUrl(image.url) === targetUrl,
         );
@@ -113,7 +113,7 @@ const useMascotImageUploadBase = createMutationHooks<
     const signature = await cloudinaryApi.getSignature({
       folderName: payload.folderName ?? "mascot-uploads",
       jobId,
-      type: "thumbnail_video",
+      type: "mascot",
     });
     const url = await cloudinaryApi.uploadDirectToCloudinary(
       payload.file,

@@ -188,7 +188,7 @@ interface ReviewCardProps {
 function ReviewCard({ item, isOwn, currentUserId, courseId }: ReviewCardProps) {
   const firstName = item.user?.firstName ?? "";
   const lastName = item.user?.lastName ?? "";
-  const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Học viên";
+  const fullName = [lastName, firstName].filter(Boolean).join(" ") || "Học viên";
   const initials = item.user
     ? getInitials(item.user.firstName, item.user.lastName)
     : "HV";
