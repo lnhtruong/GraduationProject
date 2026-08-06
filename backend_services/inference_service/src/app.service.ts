@@ -22,6 +22,7 @@ import {
   type QuotaContext,
   type QuotaSnapshot,
 } from './quota/quota.service';
+import { MediaClientService } from './media/media-client.service';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -98,6 +99,7 @@ export class AppService {
     @Inject(MASCOT_COLAB_POOL) private readonly mascotPool: ColabPoolService,
     private readonly jobs: JobRegistryService,
     private readonly quota: QuotaService,
+    private readonly mediaClient: MediaClientService,
   ) {
     this.requestTimeoutMs =
       this.configService.get<ColabConfig>('colab')?.requestTimeoutMs ?? 600000;
@@ -235,6 +237,32 @@ export class AppService {
     role?: number,
     durationSec?: number,
   ): Promise<unknown> {
+    const payloadBody = isRecord(body) ? body : {};
+    const usesSegmentSelection =
+      Array.isArray(payloadBody['keep_ranges']) ||
+      Array.isArray(payloadBody['remove_ranges']);
+
+    if (usesSegmentSelection && typeof payloadBody['video_id'] !== 'number') {
+      throw new HttpException(
+        'video_id is required when keep_ranges or remove_ranges are provided',
+        400,
+      );
+    }
+
+    let resolvedSrtUrl: string | undefined;
+    if (usesSegmentSelection) {
+      const video = await this.mediaClient.getVideoById(
+        payloadBody['video_id'] as number,
+      );
+      if (!video?.srt_raw_url) {
+        throw new HttpException(
+          'video has no saved subtitle file (srt_raw_url)',
+          400,
+        );
+      }
+      resolvedSrtUrl = video.srt_raw_url;
+    }
+
     const quota: QuotaContext = {
       userId: userIdFromHeader,
       role,
@@ -250,6 +278,7 @@ export class AppService {
           payload[k] = v;
         }
       }
+      if (resolvedSrtUrl) payload.srt_url = resolvedSrtUrl;
       return this.forwardJson(colabUrl, '/highlight-reel-link', payload);
     });
   }

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { RedisModule } from './redis/redis.module';
 import { ColabModule } from './colab/colab.module';
 import { QuotaModule } from './quota/quota.module';
+import { MediaClientService } from './media/media-client.service';
 import colabConfig from './config/colab.config';
 import redisConfig from './config/redis.config';
 import quotaConfig from './quota/quota.config';
@@ -24,6 +25,6 @@ import quotaConfig from './quota/quota.config';
     QuotaModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, MediaClientService],
 })
 export class AppModule {}
