@@ -94,8 +94,7 @@ INSERT INTO
         createdAt,
         updatedAt
     )
-VALUES
-    (
+VALUES (
         1,
         'admin@graduation.local',
         '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
@@ -394,8 +393,7 @@ VALUES
         0,
         '2025-12-26 16:00:00',
         '2026-04-04 20:10:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- MASCOT IMAGES (one stock mascot per teacher who uses the video editor)
@@ -414,8 +412,7 @@ INSERT INTO
         createdAt,
         updatedAt
     )
-VALUES
-    (
+VALUES (
         1,
         2,
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953276/png_bddk0a.png',
@@ -529,8 +526,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         2,
         1,
@@ -994,8 +990,7 @@ VALUES
         'job-vid-sleep-english-phrases',
         '2026-06-20 10:30:00',
         '2026-06-20 10:30:00'
-    )
-;
+    );
 
 -- Generated from courses_data uploads; linked to long videos & courses below.
 -- ============================================================================
@@ -1015,8 +1010,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         32,
         2,
         NULL,
@@ -5274,8 +5268,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         2,
         3,
@@ -5347,8 +5340,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         1,
@@ -5473,8 +5465,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         'TOEIC Grammar Mastery 2026',
         'Khóa học ngữ pháp TOEIC toàn diện cho người mới bắt đầu.',
@@ -5937,9 +5928,7 @@ VALUES
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950146/pexels-photo-17483868_p8cpd0.jpg',
         '2026-07-25 15:00:00',
         '2026-07-25 15:00:00'
-    )
-;
-
+    );
 
 -- ============================================================================
 -- LESSONS  (36 lessons - mostly 1 video per lesson + a few text & quiz lessons)
@@ -5958,8 +5947,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         'Welcome - Roadmap & cách học hiệu quả',
@@ -6426,8 +6414,7 @@ VALUES
         23,
         '2026-06-26 13:05:00',
         '2026-06-26 13:05:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- LESSON_ACTIVITIES  (quiz containers - standalone + 1 in-video quiz)
@@ -6446,8 +6433,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         5,
         'quiz',
@@ -6529,8 +6515,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         'TOEIC Grammar Comprehensive Quiz',
@@ -6660,117 +6645,117 @@ VALUES
 
 -- Quiz 2 (JavaScript fundamentals)
 (
-        6,
-        2,
-        'mcq',
-        'Toán tử nào kiểm tra giá trị VÀ kiểu dữ liệu trong JavaScript?',
-        1.00,
-        '===',
-        1,
-        NULL,
-        '2026-06-21 12:48:00',
-        '2026-06-21 12:48:00'
-    ),
+    6,
+    2,
+    'mcq',
+    'Toán tử nào kiểm tra giá trị VÀ kiểu dữ liệu trong JavaScript?',
+    1.00,
+    '===',
+    1,
+    NULL,
+    '2026-06-21 12:48:00',
+    '2026-06-21 12:48:00'
+),
 (
-        7,
-        2,
-        'mcq',
-        'Kết quả của `typeof null` là gì?',
-        1.00,
-        'object',
-        2,
-        NULL,
-        '2026-06-21 12:48:10',
-        '2026-06-21 12:48:10'
-    ),
+    7,
+    2,
+    'mcq',
+    'Kết quả của `typeof null` là gì?',
+    1.00,
+    'object',
+    2,
+    NULL,
+    '2026-06-21 12:48:10',
+    '2026-06-21 12:48:10'
+),
 (
-        8,
-        2,
-        'true/false',
-        '`let` cho phép re-declare trong cùng một scope.',
-        1.00,
-        'false',
-        3,
-        NULL,
-        '2026-06-21 12:48:20',
-        '2026-06-21 12:48:20'
-    ),
+    8,
+    2,
+    'true/false',
+    '`let` cho phép re-declare trong cùng một scope.',
+    1.00,
+    'false',
+    3,
+    NULL,
+    '2026-06-21 12:48:20',
+    '2026-06-21 12:48:20'
+),
 (
-        9,
-        2,
-        'short_text',
-        'Method nào của Array dùng để biến đổi từng phần tử và trả về array mới?',
-        2.00,
-        'map',
-        4,
-        NULL,
-        '2026-06-21 12:48:30',
-        '2026-06-21 12:48:30'
-    ),
+    9,
+    2,
+    'short_text',
+    'Method nào của Array dùng để biến đổi từng phần tử và trả về array mới?',
+    2.00,
+    'map',
+    4,
+    NULL,
+    '2026-06-21 12:48:30',
+    '2026-06-21 12:48:30'
+),
 
 -- Quiz 3 (Python list)
 (
-        10,
-        3,
-        'mcq',
-        'Kết quả của `[1, 2, 3][::-1]` là gì?',
-        1.00,
-        '[3, 2, 1]',
-        1,
-        NULL,
-        '2026-06-23 12:13:00',
-        '2026-06-23 12:13:00'
-    ),
+    10,
+    3,
+    'mcq',
+    'Kết quả của `[1, 2, 3][::-1]` là gì?',
+    1.00,
+    '[3, 2, 1]',
+    1,
+    NULL,
+    '2026-06-23 12:13:00',
+    '2026-06-23 12:13:00'
+),
 (
-        11,
-        3,
-        'mcq',
-        'Method nào thêm phần tử vào CUỐI list?',
-        1.00,
-        'append',
-        2,
-        NULL,
-        '2026-06-23 12:13:10',
-        '2026-06-23 12:13:10'
-    ),
+    11,
+    3,
+    'mcq',
+    'Method nào thêm phần tử vào CUỐI list?',
+    1.00,
+    'append',
+    2,
+    NULL,
+    '2026-06-23 12:13:10',
+    '2026-06-23 12:13:10'
+),
 (
-        12,
-        3,
-        'true/false',
-        'List trong Python là immutable.',
-        1.00,
-        'false',
-        3,
-        NULL,
-        '2026-06-23 12:13:20',
-        '2026-06-23 12:13:20'
-    ),
+    12,
+    3,
+    'true/false',
+    'List trong Python là immutable.',
+    1.00,
+    'false',
+    3,
+    NULL,
+    '2026-06-23 12:13:20',
+    '2026-06-23 12:13:20'
+),
 
 -- Quiz 4 (In-video TOEIC Tenses spot-check)
 (
-        13,
-        4,
-        'mcq',
-        'Theo bài: chọn thì đúng cho "By next year, she ___ here for 10 years."',
-        2.00,
-        'will have lived',
-        1,
-        '00:10:00.000',
-        '2026-06-20 12:13:00',
-        '2026-06-20 12:13:00'
-    ),
+    13,
+    4,
+    'mcq',
+    'Theo bài: chọn thì đúng cho "By next year, she ___ here for 10 years."',
+    2.00,
+    'will have lived',
+    1,
+    '00:10:00.000',
+    '2026-06-20 12:13:00',
+    '2026-06-20 12:13:00'
+),
 (
-        14,
-        4,
-        'true/false',
-        'Present Perfect dùng cho hành động có mốc thời gian cụ thể trong quá khứ.',
-        1.00,
-        'false',
-        2,
-        '00:18:30.000',
-        '2026-06-20 12:13:10',
-        '2026-06-20 12:13:10'
-    );
+    14,
+    4,
+    'true/false',
+    'Present Perfect dùng cho hành động có mốc thời gian cụ thể trong quá khứ.',
+    1.00,
+    'false',
+    2,
+    '00:18:30.000',
+    '2026-06-20 12:13:10',
+    '2026-06-20 12:13:10'
+);
 
 -- ============================================================================
 -- QUIZ_OPTIONS  (only for MCQ / TF questions; short_text has no options)
@@ -7171,8 +7156,7 @@ INSERT INTO
         enrolled_at,
         completed_at
     )
-VALUES
-    (
+VALUES (
         11,
         1,
         100,
@@ -8045,78 +8029,550 @@ VALUES
         NULL
     ),
     -- Additional paid enrollments backing the admin revenue demo history.
-+    (13, 4, 0, 'active', '2025-12-31 18:44:00', NULL),
-    (19, 2, 0, 'active', '2026-01-09 09:21:00', NULL),
-    (25, 4, 0, 'active', '2026-01-17 20:10:00', NULL),
-    (25, 16, 0, 'active', '2026-01-17 20:10:00', NULL),
-    (15, 12, 0, 'active', '2026-01-24 10:39:00', NULL),
-    (22, 2, 0, 'active', '2026-01-30 14:29:00', NULL),
-    (12, 4, 0, 'active', '2026-02-02 08:55:00', NULL),
-    (12, 5, 0, 'active', '2026-02-02 08:55:00', NULL),
-    (17, 12, 0, 'active', '2026-02-07 19:20:00', NULL),
-    (24, 2, 0, 'active', '2026-02-14 10:13:00', NULL),
-    (24, 4, 0, 'active', '2026-02-14 10:13:00', NULL),
-    (14, 18, 0, 'active', '2026-02-20 13:46:00', NULL),
-    (20, 5, 0, 'active', '2026-02-27 21:06:00', NULL),
-    (11, 8, 0, 'active', '2026-03-01 09:45:00', NULL),
-    (16, 2, 0, 'active', '2026-03-07 16:30:00', NULL),
-    (23, 4, 0, 'active', '2026-03-15 11:14:00', NULL),
-    (23, 18, 0, 'active', '2026-03-15 11:14:00', NULL),
-    (13, 5, 0, 'active', '2026-03-22 20:34:00', NULL),
-    (19, 8, 0, 'active', '2026-03-29 14:10:00', NULL),
-    (19, 23, 0, 'active', '2026-03-29 14:10:00', NULL),
-    (25, 22, 0, 'active', '2026-04-05 10:22:00', NULL),
-    (15, 18, 0, 'active', '2026-04-12 19:40:00', NULL),
-    (22, 5, 0, 'active', '2026-04-16 08:49:00', NULL),
-    (22, 8, 0, 'active', '2026-04-16 08:49:00', NULL),
-    (12, 21, 0, 'active', '2026-04-22 15:33:00', NULL),
-    (17, 20, 0, 'active', '2026-04-29 20:19:00', NULL),
-    (24, 22, 0, 'active', '2026-05-02 09:25:00', NULL),
-    (14, 13, 0, 'active', '2026-05-09 18:54:00', NULL),
-    (20, 13, 0, 'active', '2026-05-12 12:11:00', NULL),
-    (20, 21, 0, 'active', '2026-05-12 12:11:00', NULL),
-    (11, 20, 0, 'active', '2026-05-18 20:41:00', NULL),
-    (11, 3, 0, 'active', '2026-05-18 20:41:00', NULL),
-    (16, 7, 0, 'active', '2026-05-24 10:44:00', NULL),
-    (23, 5, 0, 'active', '2026-05-30 16:21:00', NULL),
-    (13, 8, 0, 'active', '2026-06-01 08:43:00', NULL),
-    (19, 17, 0, 'active', '2026-06-06 19:32:00', NULL),
-    (19, 4, 0, 'active', '2026-06-06 19:32:00', NULL),
-    (25, 7, 0, 'active', '2026-06-08 11:18:00', NULL),
-    (15, 6, 0, 'active', '2026-06-13 20:07:00', NULL),
-    (22, 19, 0, 'active', '2026-06-16 09:36:00', NULL),
-    (12, 15, 0, 'active', '2026-06-22 14:53:00', NULL),
-    (17, 14, 0, 'active', '2026-06-28 18:13:00', NULL),
-    (17, 22, 0, 'active', '2026-06-28 18:13:00', NULL),
-    (24, 6, 0, 'active', '2026-06-30 21:10:00', NULL),
-    (14, 16, 0, 'active', '2026-07-04 09:30:00', NULL),
-    (20, 12, 0, 'active', '2026-07-06 20:18:00', NULL),
-    (11, 2, 0, 'active', '2026-07-09 08:56:00', NULL),
-    (16, 14, 0, 'active', '2026-07-10 14:25:00', NULL),
-    (16, 3, 0, 'active', '2026-07-10 14:25:00', NULL),
-    (23, 10, 0, 'active', '2026-07-11 19:51:00', NULL),
-    (13, 1, 0, 'active', '2026-07-13 10:36:00', NULL),
-    (19, 3, 0, 'active', '2026-07-15 15:20:00', NULL),
-    (25, 18, 0, 'active', '2026-07-16 09:46:00', NULL),
-    (25, 5, 0, 'active', '2026-07-16 09:46:00', NULL),
-    (15, 19, 0, 'active', '2026-07-17 20:30:00', NULL),
-    (15, 21, 0, 'active', '2026-07-17 20:30:00', NULL),
-    (22, 4, 0, 'active', '2026-07-18 11:44:00', NULL),
-    (12, 24, 0, 'active', '2026-07-20 18:54:00', NULL),
-    (17, 10, 0, 'active', '2026-07-22 10:17:00', NULL),
-    (24, 13, 0, 'active', '2026-07-23 16:41:00', NULL),
-    (14, 12, 0, 'active', '2026-07-28 09:26:00', NULL),
-    (14, 2, 0, 'active', '2026-07-28 09:26:00', NULL),
-    (20, 14, 0, 'active', '2026-07-29 19:10:00', NULL),
-    (11, 22, 0, 'active', '2026-07-30 13:49:00', NULL),
-    (16, 18, 0, 'active', '2026-08-02 10:16:00', NULL),
-    (16, 16, 0, 'active', '2026-08-02 10:16:00', NULL),
-    (23, 1, 0, 'active', '2026-08-03 15:39:00', NULL),
-    (13, 21, 0, 'active', '2026-08-04 09:49:00', NULL),
-    (13, 20, 0, 'active', '2026-08-04 09:49:00', NULL),
-    (19, 22, 0, 'active', '2026-08-05 20:19:00', NULL),
-    (25, 10, 0, 'active', '2026-08-06 11:32:00', NULL)
-;
+    (
+        13,
+        4,
+        0,
+        'active',
+        '2025-12-31 18:44:00',
+        NULL
+    ),
+    (
+        19,
+        2,
+        0,
+        'active',
+        '2026-01-09 09:21:00',
+        NULL
+    ),
+    (
+        25,
+        4,
+        0,
+        'active',
+        '2026-01-17 20:10:00',
+        NULL
+    ),
+    (
+        25,
+        16,
+        0,
+        'active',
+        '2026-01-17 20:10:00',
+        NULL
+    ),
+    (
+        15,
+        12,
+        0,
+        'active',
+        '2026-01-24 10:39:00',
+        NULL
+    ),
+    (
+        22,
+        2,
+        0,
+        'active',
+        '2026-01-30 14:29:00',
+        NULL
+    ),
+    (
+        12,
+        4,
+        0,
+        'active',
+        '2026-02-02 08:55:00',
+        NULL
+    ),
+    (
+        12,
+        5,
+        0,
+        'active',
+        '2026-02-02 08:55:00',
+        NULL
+    ),
+    (
+        17,
+        12,
+        0,
+        'active',
+        '2026-02-07 19:20:00',
+        NULL
+    ),
+    (
+        24,
+        2,
+        0,
+        'active',
+        '2026-02-14 10:13:00',
+        NULL
+    ),
+    (
+        24,
+        4,
+        0,
+        'active',
+        '2026-02-14 10:13:00',
+        NULL
+    ),
+    (
+        14,
+        18,
+        0,
+        'active',
+        '2026-02-20 13:46:00',
+        NULL
+    ),
+    (
+        20,
+        5,
+        0,
+        'active',
+        '2026-02-27 21:06:00',
+        NULL
+    ),
+    (
+        11,
+        8,
+        0,
+        'active',
+        '2026-03-01 09:45:00',
+        NULL
+    ),
+    (
+        16,
+        2,
+        0,
+        'active',
+        '2026-03-07 16:30:00',
+        NULL
+    ),
+    (
+        23,
+        4,
+        0,
+        'active',
+        '2026-03-15 11:14:00',
+        NULL
+    ),
+    (
+        23,
+        18,
+        0,
+        'active',
+        '2026-03-15 11:14:00',
+        NULL
+    ),
+    (
+        13,
+        5,
+        0,
+        'active',
+        '2026-03-22 20:34:00',
+        NULL
+    ),
+    (
+        19,
+        8,
+        0,
+        'active',
+        '2026-03-29 14:10:00',
+        NULL
+    ),
+    (
+        19,
+        23,
+        0,
+        'active',
+        '2026-03-29 14:10:00',
+        NULL
+    ),
+    (
+        25,
+        22,
+        0,
+        'active',
+        '2026-04-05 10:22:00',
+        NULL
+    ),
+    (
+        15,
+        18,
+        0,
+        'active',
+        '2026-04-12 19:40:00',
+        NULL
+    ),
+    (
+        22,
+        5,
+        0,
+        'active',
+        '2026-04-16 08:49:00',
+        NULL
+    ),
+    (
+        22,
+        8,
+        0,
+        'active',
+        '2026-04-16 08:49:00',
+        NULL
+    ),
+    (
+        12,
+        21,
+        0,
+        'active',
+        '2026-04-22 15:33:00',
+        NULL
+    ),
+    (
+        17,
+        20,
+        0,
+        'active',
+        '2026-04-29 20:19:00',
+        NULL
+    ),
+    (
+        24,
+        22,
+        0,
+        'active',
+        '2026-05-02 09:25:00',
+        NULL
+    ),
+    (
+        14,
+        13,
+        0,
+        'active',
+        '2026-05-09 18:54:00',
+        NULL
+    ),
+    (
+        20,
+        13,
+        0,
+        'active',
+        '2026-05-12 12:11:00',
+        NULL
+    ),
+    (
+        20,
+        21,
+        0,
+        'active',
+        '2026-05-12 12:11:00',
+        NULL
+    ),
+    (
+        11,
+        20,
+        0,
+        'active',
+        '2026-05-18 20:41:00',
+        NULL
+    ),
+    (
+        11,
+        3,
+        0,
+        'active',
+        '2026-05-18 20:41:00',
+        NULL
+    ),
+    (
+        16,
+        7,
+        0,
+        'active',
+        '2026-05-24 10:44:00',
+        NULL
+    ),
+    (
+        23,
+        5,
+        0,
+        'active',
+        '2026-05-30 16:21:00',
+        NULL
+    ),
+    (
+        13,
+        8,
+        0,
+        'active',
+        '2026-06-01 08:43:00',
+        NULL
+    ),
+    (
+        19,
+        17,
+        0,
+        'active',
+        '2026-06-06 19:32:00',
+        NULL
+    ),
+    (
+        19,
+        4,
+        0,
+        'active',
+        '2026-06-06 19:32:00',
+        NULL
+    ),
+    (
+        25,
+        7,
+        0,
+        'active',
+        '2026-06-08 11:18:00',
+        NULL
+    ),
+    (
+        15,
+        6,
+        0,
+        'active',
+        '2026-06-13 20:07:00',
+        NULL
+    ),
+    (
+        22,
+        19,
+        0,
+        'active',
+        '2026-06-16 09:36:00',
+        NULL
+    ),
+    (
+        12,
+        15,
+        0,
+        'active',
+        '2026-06-22 14:53:00',
+        NULL
+    ),
+    (
+        17,
+        14,
+        0,
+        'active',
+        '2026-06-28 18:13:00',
+        NULL
+    ),
+    (
+        17,
+        22,
+        0,
+        'active',
+        '2026-06-28 18:13:00',
+        NULL
+    ),
+    (
+        24,
+        6,
+        0,
+        'active',
+        '2026-06-30 21:10:00',
+        NULL
+    ),
+    (
+        14,
+        16,
+        0,
+        'active',
+        '2026-07-04 09:30:00',
+        NULL
+    ),
+    (
+        20,
+        12,
+        0,
+        'active',
+        '2026-07-06 20:18:00',
+        NULL
+    ),
+    (
+        11,
+        2,
+        0,
+        'active',
+        '2026-07-09 08:56:00',
+        NULL
+    ),
+    (
+        16,
+        14,
+        0,
+        'active',
+        '2026-07-10 14:25:00',
+        NULL
+    ),
+    (
+        16,
+        3,
+        0,
+        'active',
+        '2026-07-10 14:25:00',
+        NULL
+    ),
+    (
+        23,
+        10,
+        0,
+        'active',
+        '2026-07-11 19:51:00',
+        NULL
+    ),
+    (
+        13,
+        1,
+        0,
+        'active',
+        '2026-07-13 10:36:00',
+        NULL
+    ),
+    (
+        19,
+        3,
+        0,
+        'active',
+        '2026-07-15 15:20:00',
+        NULL
+    ),
+    (
+        25,
+        18,
+        0,
+        'active',
+        '2026-07-16 09:46:00',
+        NULL
+    ),
+    (
+        25,
+        5,
+        0,
+        'active',
+        '2026-07-16 09:46:00',
+        NULL
+    ),
+    (
+        15,
+        19,
+        0,
+        'active',
+        '2026-07-17 20:30:00',
+        NULL
+    ),
+    (
+        15,
+        21,
+        0,
+        'active',
+        '2026-07-17 20:30:00',
+        NULL
+    ),
+    (
+        22,
+        4,
+        0,
+        'active',
+        '2026-07-18 11:44:00',
+        NULL
+    ),
+    (
+        12,
+        24,
+        0,
+        'active',
+        '2026-07-20 18:54:00',
+        NULL
+    ),
+    (
+        17,
+        10,
+        0,
+        'active',
+        '2026-07-22 10:17:00',
+        NULL
+    ),
+    (
+        24,
+        13,
+        0,
+        'active',
+        '2026-07-23 16:41:00',
+        NULL
+    ),
+    (
+        14,
+        12,
+        0,
+        'active',
+        '2026-07-28 09:26:00',
+        NULL
+    ),
+    (
+        14,
+        2,
+        0,
+        'active',
+        '2026-07-28 09:26:00',
+        NULL
+    ),
+    (
+        20,
+        14,
+        0,
+        'active',
+        '2026-07-29 19:10:00',
+        NULL
+    ),
+    (
+        11,
+        22,
+        0,
+        'active',
+        '2026-07-30 13:49:00',
+        NULL
+    ),
+    (
+        16,
+        18,
+        0,
+        'active',
+        '2026-08-02 10:16:00',
+        NULL
+    ),
+    (
+        16,
+        16,
+        0,
+        'active',
+        '2026-08-02 10:16:00',
+        NULL
+    ),
+    (
+        19,
+        22,
+        0,
+        'active',
+        '2026-08-05 20:19:00',
+        NULL
+    ),
+    (
+        25,
+        10,
+        0,
+        'active',
+        '2026-08-06 11:32:00',
+        NULL
+    );
 
 -- ============================================================================
 -- DISCUSSION POSTS
@@ -8137,8 +8593,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         11,
         11,
@@ -8181,8 +8636,7 @@ VALUES
         0,
         '2026-08-05 21:03:00',
         '2026-08-05 21:03:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- LESSON_PROGRESS  (for each enroll, sample lesson completions)
@@ -8196,604 +8650,129 @@ INSERT INTO
     )
 VALUES
     -- student 11
-    (
-        11,
-        1,
-        1,
-        'completed'
-    ),
-    (
-        11,
-        1,
-        2,
-        'completed'
-    ),
-    (
-        11,
-        1,
-        3,
-        'completed'
-    ),
-    (
-        11,
-        1,
-        4,
-        'completed'
-    ),
-    (
-        11,
-        1,
-        5,
-        'completed'
-    ),
-    (
-        11,
-        4,
-        9,
-        'completed'
-    ),
-    (
-        11,
-        4,
-        10,
-        'completed'
-    ),
-    (
-        11,
-        5,
-        11,
-        'completed'
-    ),
-    (
-        11,
-        5,
-        12,
-        'in_progress'
-    ),
-    (
-        11,
-        5,
-        13,
-        'not_started'
-    ),
-    (
-        11,
-        6,
-        14,
-        'in_progress'
-    ),
-    (
-        11,
-        6,
-        15,
-        'not_started'
-    ),
-    (
-        11,
-        9,
-        19,
-        'completed'
-    ),
-    (
-        11,
-        9,
-        20,
-        'completed'
-    ),
+    (11, 1, 1, 'completed'),
+    (11, 1, 2, 'completed'),
+    (11, 1, 3, 'completed'),
+    (11, 1, 4, 'completed'),
+    (11, 1, 5, 'completed'),
+    (11, 4, 9, 'completed'),
+    (11, 4, 10, 'completed'),
+    (11, 5, 11, 'completed'),
+    (11, 5, 12, 'in_progress'),
+    (11, 5, 13, 'not_started'),
+    (11, 6, 14, 'in_progress'),
+    (11, 6, 15, 'not_started'),
+    (11, 9, 19, 'completed'),
+    (11, 9, 20, 'completed'),
 
 -- student 12
-    (
-        12,
-        1,
-        1,
-        'completed'
-    ),
-    (
-        12,
-        1,
-        2,
-        'completed'
-    ),
-    (
-        12,
-        1,
-        3,
-        'completed'
-    ),
-    (
-        12,
-        1,
-        4,
-        'completed'
-    ),
-    (
-        12,
-        1,
-        5,
-        'completed'
-    ),
-    (
-        12,
-        2,
-        6,
-        'completed'
-    ),
-    (
-        12,
-        2,
-        7,
-        'in_progress'
-    ),
-    (
-        12,
-        3,
-        8,
-        'in_progress'
-    ),
-    (
-        12,
-        22,
-        34,
-        'in_progress'
-    ),
+(12, 1, 1, 'completed'),
+(12, 1, 2, 'completed'),
+(12, 1, 3, 'completed'),
+(12, 1, 4, 'completed'),
+(12, 1, 5, 'completed'),
+(12, 2, 6, 'completed'),
+(12, 2, 7, 'in_progress'),
+(12, 3, 8, 'in_progress'),
+(12, 22, 34, 'in_progress'),
 
 -- student 13
-    (
-        13,
-        12,
-        23,
-        'completed'
-    ),
-    (
-        13,
-        13,
-        24,
-        'in_progress'
-    ),
-    (
-        13,
-        14,
-        25,
-        'completed'
-    ),
-    (
-        13,
-        15,
-        26,
-        'in_progress'
-    ),
-    (
-        13,
-        16,
-        27,
-        'in_progress'
-    ),
-    (
-        13,
-        16,
-        28,
-        'not_started'
-    ),
+(13, 12, 23, 'completed'),
+(13, 13, 24, 'in_progress'),
+(13, 14, 25, 'completed'),
+(13, 15, 26, 'in_progress'),
+(13, 16, 27, 'in_progress'),
+(13, 16, 28, 'not_started'),
 
 -- student 14
-    (
-        14,
-        4,
-        9,
-        'completed'
-    ),
-    (
-        14,
-        4,
-        10,
-        'completed'
-    ),
-    (
-        14,
-        5,
-        11,
-        'completed'
-    ),
-    (
-        14,
-        5,
-        12,
-        'completed'
-    ),
-    (
-        14,
-        5,
-        13,
-        'in_progress'
-    ),
-    (
-        14,
-        7,
-        16,
-        'completed'
-    ),
-    (
-        14,
-        7,
-        17,
-        'in_progress'
-    ),
-    (
-        14,
-        8,
-        18,
-        'in_progress'
-    ),
-    (
-        14,
-        9,
-        19,
-        'completed'
-    ),
-    (
-        14,
-        9,
-        20,
-        'completed'
-    ),
+(14, 4, 9, 'completed'),
+(14, 4, 10, 'completed'),
+(14, 5, 11, 'completed'),
+(14, 5, 12, 'completed'),
+(14, 5, 13, 'in_progress'),
+(14, 7, 16, 'completed'),
+(14, 7, 17, 'in_progress'),
+(14, 8, 18, 'in_progress'),
+(14, 9, 19, 'completed'),
+(14, 9, 20, 'completed'),
 
 -- student 15
-    (
-        15,
-        1,
-        1,
-        'completed'
-    ),
-    (
-        15,
-        1,
-        2,
-        'completed'
-    ),
-    (
-        15,
-        1,
-        3,
-        'completed'
-    ),
-    (
-        15,
-        1,
-        4,
-        'completed'
-    ),
-    (
-        15,
-        1,
-        5,
-        'completed'
-    ),
-    (
-        15,
-        2,
-        6,
-        'completed'
-    ),
-    (
-        15,
-        2,
-        7,
-        'completed'
-    ),
-    (
-        15,
-        14,
-        25,
-        'completed'
-    ),
-    (
-        15,
-        15,
-        26,
-        'in_progress'
-    ),
+(15, 1, 1, 'completed'),
+(15, 1, 2, 'completed'),
+(15, 1, 3, 'completed'),
+(15, 1, 4, 'completed'),
+(15, 1, 5, 'completed'),
+(15, 2, 6, 'completed'),
+(15, 2, 7, 'completed'),
+(15, 14, 25, 'completed'),
+(15, 15, 26, 'in_progress'),
 
 -- student 16
-    (
-        16,
-        4,
-        9,
-        'completed'
-    ),
-    (
-        16,
-        4,
-        10,
-        'in_progress'
-    ),
-    (
-        16,
-        5,
-        11,
-        'in_progress'
-    ),
-    (
-        16,
-        9,
-        19,
-        'completed'
-    ),
-    (
-        16,
-        9,
-        20,
-        'completed'
-    ),
-    (
-        16,
-        10,
-        21,
-        'in_progress'
-    ),
-    (
-        16,
-        11,
-        22,
-        'video-completed'
-    ),
+(16, 4, 9, 'completed'),
+(16, 4, 10, 'in_progress'),
+(16, 5, 11, 'in_progress'),
+(16, 9, 19, 'completed'),
+(16, 9, 20, 'completed'),
+(16, 10, 21, 'in_progress'),
+(16, 11, 22, 'video-completed'),
 
 -- student 17
-    (
-        17,
-        16,
-        27,
-        'completed'
-    ),
-    (
-        17,
-        16,
-        28,
-        'completed'
-    ),
-    (
-        17,
-        17,
-        29,
-        'in_progress'
-    ),
-    (
-        17,
-        18,
-        30,
-        'in_progress'
-    ),
-    (
-        17,
-        23,
-        35,
-        'in_progress'
-    ),
+(17, 16, 27, 'completed'),
+(17, 16, 28, 'completed'),
+(17, 17, 29, 'in_progress'),
+(17, 18, 30, 'in_progress'),
+(17, 23, 35, 'in_progress'),
 
 -- student 18
-    (
-        18,
-        20,
-        32,
-        'completed'
-    ),
-    (
-        18,
-        21,
-        33,
-        'in_progress'
-    ),
-    (
-        18,
-        13,
-        24,
-        'in_progress'
-    ),
+(18, 20, 32, 'completed'),
+(18, 21, 33, 'in_progress'),
+(18, 13, 24, 'in_progress'),
 
 -- student 19
-    (
-        19,
-        10,
-        21,
-        'completed'
-    ),
-    (
-        19,
-        12,
-        23,
-        'completed'
-    ),
-    (
-        19,
-        15,
-        26,
-        'completed'
-    ),
+(19, 10, 21, 'completed'),
+(19, 12, 23, 'completed'),
+(19, 15, 26, 'completed'),
 
 -- student 20
-    (
-        20,
-        1,
-        1,
-        'completed'
-    ),
-    (
-        20,
-        1,
-        2,
-        'completed'
-    ),
-    (
-        20,
-        1,
-        3,
-        'completed'
-    ),
-    (
-        20,
-        1,
-        4,
-        'completed'
-    ),
-    (
-        20,
-        1,
-        5,
-        'completed'
-    ),
-    (
-        20,
-        2,
-        6,
-        'completed'
-    ),
-    (
-        20,
-        2,
-        7,
-        'completed'
-    ),
-    (
-        20,
-        7,
-        16,
-        'completed'
-    ),
-    (
-        20,
-        7,
-        17,
-        'video-completed'
-    ),
+(20, 1, 1, 'completed'),
+(20, 1, 2, 'completed'),
+(20, 1, 3, 'completed'),
+(20, 1, 4, 'completed'),
+(20, 1, 5, 'completed'),
+(20, 2, 6, 'completed'),
+(20, 2, 7, 'completed'),
+(20, 7, 16, 'completed'),
+(20, 7, 17, 'video-completed'),
 
 -- student 21
-    (
-        21,
-        9,
-        19,
-        'completed'
-    ),
-    (
-        21,
-        9,
-        20,
-        'completed'
-    ),
-    (
-        21,
-        10,
-        21,
-        'completed'
-    ),
-    (
-        21,
-        11,
-        22,
-        'in_progress'
-    ),
+(21, 9, 19, 'completed'),
+(21, 9, 20, 'completed'),
+(21, 10, 21, 'completed'),
+(21, 11, 22, 'in_progress'),
 
 -- student 22
-    (
-        22,
-        12,
-        23,
-        'in_progress'
-    ),
-    (
-        22,
-        14,
-        25,
-        'completed'
-    ),
-    (
-        22,
-        22,
-        34,
-        'in_progress'
-    ),
+(22, 12, 23, 'in_progress'),
+(22, 14, 25, 'completed'),
+(22, 22, 34, 'in_progress'),
 
 -- student 23
-    (
-        23,
-        22,
-        34,
-        'completed'
-    ),
-    (
-        23,
-        23,
-        35,
-        'in_progress'
-    ),
-    (
-        23,
-        24,
-        36,
-        'in_progress'
-    ),
+(23, 22, 34, 'completed'),
+(23, 23, 35, 'in_progress'),
+(23, 24, 36, 'in_progress'),
 
 -- student 24
-    (
-        24,
-        3,
-        8,
-        'completed'
-    ),
-    (
-        24,
-        16,
-        27,
-        'completed'
-    ),
-    (
-        24,
-        16,
-        28,
-        'completed'
-    ),
-    (
-        24,
-        17,
-        29,
-        'completed'
-    ),
-    (
-        24,
-        18,
-        30,
-        'completed'
-    ),
+(24, 3, 8, 'completed'),
+(24, 16, 27, 'completed'),
+(24, 16, 28, 'completed'),
+(24, 17, 29, 'completed'),
+(24, 18, 30, 'completed'),
 
 -- student 25
-    (
-        25,
-        3,
-        8,
-        'completed'
-    ),
-    (
-        25,
-        9,
-        19,
-        'completed'
-    ),
-    (
-        25,
-        9,
-        20,
-        'completed'
-    ),
-    (
-        25,
-        20,
-        32,
-        'in_progress'
-    ),
-    (
-        25,
-        24,
-        36,
-        'in_progress'
-    );
+(25, 3, 8, 'completed'),
+(25, 9, 19, 'completed'),
+(25, 9, 20, 'completed'),
+(25, 20, 32, 'in_progress'),
+(25, 24, 36, 'in_progress');
 
 -- ============================================================================
 -- ROADMAPS  (5 curated paths grouping multiple courses)
@@ -8807,8 +8786,7 @@ INSERT INTO
         total_courses,
         progress
     )
-VALUES
-    (
+VALUES (
         1,
         4,
         'Roadmap full-stack web cho beginner - HTML/CSS → JavaScript → Node.js + setup môi trường.',
@@ -8847,8 +8825,7 @@ VALUES
         'AI & Data Foundations',
         3,
         33.33
-    )
-;
+    );
 
 -- ============================================================================
 -- ROADMAP_COURSE  (M:N between roadmaps and courses)
@@ -8863,115 +8840,25 @@ INSERT INTO
     )
 VALUES
     -- Roadmap 1 (Web Developer Path)
-    (
-        1,
-        4,
-        1,
-        1,
-        'finish'
-    ),
-    (
-        2,
-        6,
-        1,
-        2,
-        'learning'
-    ),
-    (
-        3,
-        5,
-        1,
-        3,
-        'null'
-    ),
+    (1, 4, 1, 1, 'finish'),
+    (2, 6, 1, 2, 'learning'),
+    (3, 5, 1, 3, 'null'),
     -- Roadmap 2 (Digital Marketing Path)
-    (
-        4,
-        16,
-        2,
-        1,
-        'finish'
-    ),
-    (
-        5,
-        17,
-        2,
-        2,
-        'learning'
-    ),
-    (
-        6,
-        18,
-        2,
-        3,
-        'null'
-    ),
+    (4, 16, 2, 1, 'finish'),
+    (5, 17, 2, 2, 'learning'),
+    (6, 18, 2, 3, 'null'),
     -- Roadmap 3 (English Mastery Path)
-    (
-        7,
-        1,
-        3,
-        1,
-        'finish'
-    ),
-    (
-        8,
-        2,
-        3,
-        2,
-        'learning'
-    ),
+    (7, 1, 3, 1, 'finish'),
+    (8, 2, 3, 2, 'learning'),
     -- Roadmap 4 (Designer Path)
-    (
-        9,
-        14,
-        4,
-        1,
-        'finish'
-    ),
-    (
-        10,
-        15,
-        4,
-        2,
-        'learning'
-    ),
-    (
-        11,
-        12,
-        4,
-        3,
-        'null'
-    ),
-    (
-        12,
-        13,
-        4,
-        4,
-        'null'
-    ),
+    (9, 14, 4, 1, 'finish'),
+    (10, 15, 4, 2, 'learning'),
+    (11, 12, 4, 3, 'null'),
+    (12, 13, 4, 4, 'null'),
     -- Roadmap 5 (AI & Data Foundations)
-    (
-        13,
-        9,
-        5,
-        1,
-        'finish'
-    ),
-    (
-        14,
-        10,
-        5,
-        2,
-        'learning'
-    ),
-    (
-        15,
-        11,
-        5,
-        3,
-        'null'
-    );
+    (13, 9, 5, 1, 'finish'),
+    (14, 10, 5, 2, 'learning'),
+    (15, 11, 5, 3, 'null');
 
 -- ============================================================================
 -- FEEDBACKS  (course reviews - unique per (course_id, user_id))
@@ -8988,8 +8875,7 @@ INSERT INTO
         updated_at,
         deleted_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         11,
@@ -9395,137 +9281,32 @@ INSERT INTO
         user_id,
         reaction_type
     )
-VALUES
-    (
-        1,
-        13,
-        'help_ful'
-    ),
-    (
-        1,
-        14,
-        'help_ful'
-    ),
-    (
-        1,
-        15,
-        'help_ful'
-    ),
-    (
-        2,
-        20,
-        'help_ful'
-    ),
-    (
-        3,
-        11,
-        'help_ful'
-    ),
-    (
-        3,
-        12,
-        'help_ful'
-    ),
-    (
-        4,
-        13,
-        'help_ful'
-    ),
-    (
-        5,
-        11,
-        'help_ful'
-    ),
-    (
-        6,
-        20,
-        'help_ful'
-    ),
-    (
-        9,
-        14,
-        'help_ful'
-    ),
-    (
-        10,
-        16,
-        'help_ful'
-    ),
-    (
-        11,
-        14,
-        'help_ful'
-    ),
-    (
-        11,
-        16,
-        'dislike'
-    ),
-    (
-        13,
-        11,
-        'help_ful'
-    ),
-    (
-        13,
-        20,
-        'help_ful'
-    ),
-    (
-        13,
-        21,
-        'help_ful'
-    ),
-    (
-        16,
-        12,
-        'help_ful'
-    ),
-    (
-        16,
-        21,
-        'help_ful'
-    ),
-    (
-        20,
-        21,
-        'help_ful'
-    ),
-    (
-        22,
-        15,
-        'help_ful'
-    ),
-    (
-        22,
-        19,
-        'help_ful'
-    ),
-    (
-        25,
-        19,
-        'help_ful'
-    ),
-    (
-        29,
-        18,
-        'help_ful'
-    ),
-    (
-        29,
-        24,
-        'help_ful'
-    ),
-    (
-        32,
-        17,
-        'help_ful'
-    ),
-    (
-        34,
-        22,
-        'help_ful'
-    );
+VALUES (1, 13, 'help_ful'),
+    (1, 14, 'help_ful'),
+    (1, 15, 'help_ful'),
+    (2, 20, 'help_ful'),
+    (3, 11, 'help_ful'),
+    (3, 12, 'help_ful'),
+    (4, 13, 'help_ful'),
+    (5, 11, 'help_ful'),
+    (6, 20, 'help_ful'),
+    (9, 14, 'help_ful'),
+    (10, 16, 'help_ful'),
+    (11, 14, 'help_ful'),
+    (11, 16, 'dislike'),
+    (13, 11, 'help_ful'),
+    (13, 20, 'help_ful'),
+    (13, 21, 'help_ful'),
+    (16, 12, 'help_ful'),
+    (16, 21, 'help_ful'),
+    (20, 21, 'help_ful'),
+    (22, 15, 'help_ful'),
+    (22, 19, 'help_ful'),
+    (25, 19, 'help_ful'),
+    (29, 18, 'help_ful'),
+    (29, 24, 'help_ful'),
+    (32, 17, 'help_ful'),
+    (34, 22, 'help_ful');
 
 -- ============================================================================
 -- CARTS (1 cart per student - we will only create for students with cart items)
@@ -9539,8 +9320,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         11,
         2,
@@ -9609,8 +9389,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         10,
@@ -9710,8 +9489,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         'course.publish.new_from_instructor',
@@ -10100,8 +9878,7 @@ VALUES
         7,
         '2026-08-01 14:00:00',
         '2026-08-01 14:00:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- REPORTS (Content & User Reports queue for Admin)
@@ -10120,8 +9897,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         'course',
         11,
@@ -10205,8 +9981,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         1,
         2,
@@ -10289,8 +10064,7 @@ VALUES
         NULL,
         '2026-08-01 10:10:00',
         '2026-08-01 10:10:00'
-    )
-;
+    );
 
 -- LECTURER UPGRADE REQUESTS (admin review queue)
 -- ============================================================================
@@ -10306,8 +10080,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         18,
         'Tôi có ba năm kinh nghiệm trợ giảng tiếng Anh và đã chuẩn bị đề cương phát âm cho người mới bắt đầu.',
@@ -10377,8 +10150,7 @@ INSERT INTO
         created_at,
         paid_at
     )
-VALUES
-    (
+VALUES (
         1,
         11,
         199000,
@@ -10765,7 +10537,7 @@ VALUES
         'failed',
         'payos',
         'PAYOS-2026-1039',
-        '2026-08-01 17:05:00',
+        '2026-07-20 17:05:00',
         NULL
     ),
     (
@@ -10775,66 +10547,560 @@ VALUES
         'failed',
         'payos',
         'PAYOS-2026-1040',
-        '2026-08-01 18:25:00',
+        '2026-07-21 18:25:00',
         NULL
     ),
     -- Backfilled successful orders: realistic monthly growth and dense recent daily data.
-+    (41, 13, 199000, 'paid', 'payos', 'PAYOS-2026-1041', '2025-12-31 18:42:00', '2025-12-31 18:44:00'),
-    (42, 19, 199000, 'paid', 'payos', 'PAYOS-2026-1042', '2026-01-09 09:18:00', '2026-01-09 09:21:00'),
-    (43, 25, 498000, 'paid', 'payos', 'PAYOS-2026-1043', '2026-01-17 20:06:00', '2026-01-17 20:10:00'),
-    (44, 15, 299000, 'paid', 'payos', 'PAYOS-2026-1044', '2026-01-24 10:34:00', '2026-01-24 10:39:00'),
-    (45, 22, 199000, 'paid', 'payos', 'PAYOS-2026-1045', '2026-01-30 14:27:00', '2026-01-30 14:29:00'),
-    (46, 12, 698000, 'paid', 'payos', 'PAYOS-2026-1046', '2026-02-02 08:52:00', '2026-02-02 08:55:00'),
-    (47, 17, 299000, 'paid', 'payos', 'PAYOS-2026-1047', '2026-02-07 19:16:00', '2026-02-07 19:20:00'),
-    (48, 24, 398000, 'paid', 'payos', 'PAYOS-2026-1048', '2026-02-14 10:08:00', '2026-02-14 10:13:00'),
-    (49, 14, 499000, 'paid', 'payos', 'PAYOS-2026-1049', '2026-02-20 13:44:00', '2026-02-20 13:46:00'),
-    (50, 20, 499000, 'paid', 'payos', 'PAYOS-2026-1050', '2026-02-27 21:03:00', '2026-02-27 21:06:00'),
-    (51, 11, 299000, 'paid', 'payos', 'PAYOS-2026-1051', '2026-03-01 09:41:00', '2026-03-01 09:45:00'),
-    (52, 16, 199000, 'paid', 'payos', 'PAYOS-2026-1052', '2026-03-07 16:25:00', '2026-03-07 16:30:00'),
-    (53, 23, 698000, 'paid', 'payos', 'PAYOS-2026-1053', '2026-03-15 11:12:00', '2026-03-15 11:14:00'),
-    (54, 13, 499000, 'paid', 'payos', 'PAYOS-2026-1054', '2026-03-22 20:31:00', '2026-03-22 20:34:00'),
-    (55, 19, 498000, 'paid', 'payos', 'PAYOS-2026-1055', '2026-03-29 14:06:00', '2026-03-29 14:10:00'),
-    (56, 25, 149000, 'paid', 'payos', 'PAYOS-2026-1056', '2026-04-05 10:17:00', '2026-04-05 10:22:00'),
-    (57, 15, 499000, 'paid', 'payos', 'PAYOS-2026-1057', '2026-04-12 19:38:00', '2026-04-12 19:40:00'),
-    (58, 22, 798000, 'paid', 'payos', 'PAYOS-2026-1058', '2026-04-16 08:46:00', '2026-04-16 08:49:00'),
-    (59, 12, 249000, 'paid', 'payos', 'PAYOS-2026-1059', '2026-04-22 15:29:00', '2026-04-22 15:33:00'),
-    (60, 17, 199000, 'paid', 'payos', 'PAYOS-2026-1060', '2026-04-29 20:14:00', '2026-04-29 20:19:00'),
-    (61, 24, 149000, 'paid', 'payos', 'PAYOS-2026-1061', '2026-05-02 09:23:00', '2026-05-02 09:25:00'),
-    (62, 14, 349000, 'paid', 'payos', 'PAYOS-2026-1062', '2026-05-09 18:51:00', '2026-05-09 18:54:00'),
-    (63, 20, 598000, 'paid', 'payos', 'PAYOS-2026-1063', '2026-05-12 12:07:00', '2026-05-12 12:11:00'),
-    (64, 11, 348000, 'paid', 'payos', 'PAYOS-2026-1064', '2026-05-18 20:36:00', '2026-05-18 20:41:00'),
-    (65, 16, 699000, 'paid', 'payos', 'PAYOS-2026-1065', '2026-05-24 10:42:00', '2026-05-24 10:44:00'),
-    (66, 23, 499000, 'paid', 'payos', 'PAYOS-2026-1066', '2026-05-30 16:18:00', '2026-05-30 16:21:00'),
-    (67, 13, 299000, 'paid', 'payos', 'PAYOS-2026-1067', '2026-06-01 08:39:00', '2026-06-01 08:43:00'),
-    (68, 19, 398000, 'paid', 'payos', 'PAYOS-2026-1068', '2026-06-06 19:27:00', '2026-06-06 19:32:00'),
-    (69, 25, 699000, 'paid', 'payos', 'PAYOS-2026-1069', '2026-06-08 11:16:00', '2026-06-08 11:18:00'),
-    (70, 15, 499000, 'paid', 'payos', 'PAYOS-2026-1070', '2026-06-13 20:04:00', '2026-06-13 20:07:00'),
-    (71, 22, 349000, 'paid', 'payos', 'PAYOS-2026-1071', '2026-06-16 09:32:00', '2026-06-16 09:36:00'),
-    (72, 12, 249000, 'paid', 'payos', 'PAYOS-2026-1072', '2026-06-22 14:48:00', '2026-06-22 14:53:00'),
-    (73, 17, 348000, 'paid', 'payos', 'PAYOS-2026-1073', '2026-06-28 18:11:00', '2026-06-28 18:13:00'),
-    (74, 24, 499000, 'paid', 'payos', 'PAYOS-2026-1074', '2026-06-30 21:07:00', '2026-06-30 21:10:00'),
-    (75, 14, 299000, 'paid', 'payos', 'PAYOS-2026-1075', '2026-07-04 09:26:00', '2026-07-04 09:30:00'),
-    (76, 20, 299000, 'paid', 'payos', 'PAYOS-2026-1076', '2026-07-06 20:13:00', '2026-07-06 20:18:00'),
-    (77, 11, 199000, 'paid', 'payos', 'PAYOS-2026-1077', '2026-07-09 08:54:00', '2026-07-09 08:56:00'),
-    (78, 16, 348000, 'paid', 'payos', 'PAYOS-2026-1078', '2026-07-10 14:22:00', '2026-07-10 14:25:00'),
-    (79, 23, 399000, 'paid', 'payos', 'PAYOS-2026-1079', '2026-07-11 19:47:00', '2026-07-11 19:51:00'),
-    (80, 13, 399000, 'paid', 'payos', 'PAYOS-2026-1080', '2026-07-13 10:31:00', '2026-07-13 10:36:00'),
-    (81, 19, 149000, 'paid', 'payos', 'PAYOS-2026-1081', '2026-07-15 15:18:00', '2026-07-15 15:20:00'),
-    (82, 25, 998000, 'paid', 'payos', 'PAYOS-2026-1082', '2026-07-16 09:43:00', '2026-07-16 09:46:00'),
-    (83, 15, 598000, 'paid', 'payos', 'PAYOS-2026-1083', '2026-07-17 20:26:00', '2026-07-17 20:30:00'),
-    (84, 22, 199000, 'paid', 'payos', 'PAYOS-2026-1084', '2026-07-18 11:39:00', '2026-07-18 11:44:00'),
-    (85, 12, 179000, 'paid', 'payos', 'PAYOS-2026-1085', '2026-07-20 18:52:00', '2026-07-20 18:54:00'),
-    (86, 17, 399000, 'paid', 'payos', 'PAYOS-2026-1086', '2026-07-22 10:14:00', '2026-07-22 10:17:00'),
-    (87, 24, 349000, 'paid', 'payos', 'PAYOS-2026-1087', '2026-07-23 16:37:00', '2026-07-23 16:41:00'),
-    (88, 14, 498000, 'paid', 'payos', 'PAYOS-2026-1088', '2026-07-28 09:21:00', '2026-07-28 09:26:00'),
-    (89, 20, 199000, 'paid', 'payos', 'PAYOS-2026-1089', '2026-07-29 19:08:00', '2026-07-29 19:10:00'),
-    (90, 11, 149000, 'paid', 'payos', 'PAYOS-2026-1090', '2026-07-30 13:46:00', '2026-07-30 13:49:00'),
-    (91, 16, 798000, 'paid', 'payos', 'PAYOS-2026-1091', '2026-08-02 10:12:00', '2026-08-02 10:16:00'),
-    (92, 23, 399000, 'paid', 'payos', 'PAYOS-2026-1092', '2026-08-03 15:34:00', '2026-08-03 15:39:00'),
-    (93, 13, 448000, 'paid', 'payos', 'PAYOS-2026-1093', '2026-08-04 09:47:00', '2026-08-04 09:49:00'),
-    (94, 19, 149000, 'paid', 'payos', 'PAYOS-2026-1094', '2026-08-05 20:16:00', '2026-08-05 20:19:00'),
-    (95, 25, 399000, 'paid', 'payos', 'PAYOS-2026-1095', '2026-08-06 11:28:00', '2026-08-06 11:32:00')
-;
+    (
+        41,
+        13,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1041',
+        '2025-12-31 18:42:00',
+        '2025-12-31 18:44:00'
+    ),
+    (
+        42,
+        19,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1042',
+        '2026-01-09 09:18:00',
+        '2026-01-09 09:21:00'
+    ),
+    (
+        43,
+        25,
+        498000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1043',
+        '2026-01-17 20:06:00',
+        '2026-01-17 20:10:00'
+    ),
+    (
+        44,
+        15,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1044',
+        '2026-01-24 10:34:00',
+        '2026-01-24 10:39:00'
+    ),
+    (
+        45,
+        22,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1045',
+        '2026-01-30 14:27:00',
+        '2026-01-30 14:29:00'
+    ),
+    (
+        46,
+        12,
+        698000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1046',
+        '2026-02-02 08:52:00',
+        '2026-02-02 08:55:00'
+    ),
+    (
+        47,
+        17,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1047',
+        '2026-02-07 19:16:00',
+        '2026-02-07 19:20:00'
+    ),
+    (
+        48,
+        24,
+        398000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1048',
+        '2026-02-14 10:08:00',
+        '2026-02-14 10:13:00'
+    ),
+    (
+        49,
+        14,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1049',
+        '2026-02-20 13:44:00',
+        '2026-02-20 13:46:00'
+    ),
+    (
+        50,
+        20,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1050',
+        '2026-02-27 21:03:00',
+        '2026-02-27 21:06:00'
+    ),
+    (
+        51,
+        11,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1051',
+        '2026-03-01 09:41:00',
+        '2026-03-01 09:45:00'
+    ),
+    (
+        52,
+        16,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1052',
+        '2026-03-07 16:25:00',
+        '2026-03-07 16:30:00'
+    ),
+    (
+        53,
+        23,
+        698000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1053',
+        '2026-03-15 11:12:00',
+        '2026-03-15 11:14:00'
+    ),
+    (
+        54,
+        13,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1054',
+        '2026-03-22 20:31:00',
+        '2026-03-22 20:34:00'
+    ),
+    (
+        55,
+        19,
+        498000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1055',
+        '2026-03-29 14:06:00',
+        '2026-03-29 14:10:00'
+    ),
+    (
+        56,
+        25,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1056',
+        '2026-04-05 10:17:00',
+        '2026-04-05 10:22:00'
+    ),
+    (
+        57,
+        15,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1057',
+        '2026-04-12 19:38:00',
+        '2026-04-12 19:40:00'
+    ),
+    (
+        58,
+        22,
+        798000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1058',
+        '2026-04-16 08:46:00',
+        '2026-04-16 08:49:00'
+    ),
+    (
+        59,
+        12,
+        249000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1059',
+        '2026-04-22 15:29:00',
+        '2026-04-22 15:33:00'
+    ),
+    (
+        60,
+        17,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1060',
+        '2026-04-29 20:14:00',
+        '2026-04-29 20:19:00'
+    ),
+    (
+        61,
+        24,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1061',
+        '2026-05-02 09:23:00',
+        '2026-05-02 09:25:00'
+    ),
+    (
+        62,
+        14,
+        349000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1062',
+        '2026-05-09 18:51:00',
+        '2026-05-09 18:54:00'
+    ),
+    (
+        63,
+        20,
+        598000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1063',
+        '2026-05-12 12:07:00',
+        '2026-05-12 12:11:00'
+    ),
+    (
+        64,
+        11,
+        348000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1064',
+        '2026-05-18 20:36:00',
+        '2026-05-18 20:41:00'
+    ),
+    (
+        65,
+        16,
+        699000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1065',
+        '2026-05-24 10:42:00',
+        '2026-05-24 10:44:00'
+    ),
+    (
+        66,
+        23,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1066',
+        '2026-05-30 16:18:00',
+        '2026-05-30 16:21:00'
+    ),
+    (
+        67,
+        13,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1067',
+        '2026-06-01 08:39:00',
+        '2026-06-01 08:43:00'
+    ),
+    (
+        68,
+        19,
+        398000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1068',
+        '2026-06-06 19:27:00',
+        '2026-06-06 19:32:00'
+    ),
+    (
+        69,
+        25,
+        699000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1069',
+        '2026-06-08 11:16:00',
+        '2026-06-08 11:18:00'
+    ),
+    (
+        70,
+        15,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1070',
+        '2026-06-13 20:04:00',
+        '2026-06-13 20:07:00'
+    ),
+    (
+        71,
+        22,
+        349000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1071',
+        '2026-06-16 09:32:00',
+        '2026-06-16 09:36:00'
+    ),
+    (
+        72,
+        12,
+        249000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1072',
+        '2026-06-22 14:48:00',
+        '2026-06-22 14:53:00'
+    ),
+    (
+        73,
+        17,
+        348000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1073',
+        '2026-06-28 18:11:00',
+        '2026-06-28 18:13:00'
+    ),
+    (
+        74,
+        24,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1074',
+        '2026-06-30 21:07:00',
+        '2026-06-30 21:10:00'
+    ),
+    (
+        75,
+        14,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1075',
+        '2026-07-04 09:26:00',
+        '2026-07-04 09:30:00'
+    ),
+    (
+        76,
+        20,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1076',
+        '2026-07-06 20:13:00',
+        '2026-07-06 20:18:00'
+    ),
+    (
+        77,
+        11,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1077',
+        '2026-07-09 08:54:00',
+        '2026-07-09 08:56:00'
+    ),
+    (
+        78,
+        16,
+        348000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1078',
+        '2026-07-10 14:22:00',
+        '2026-07-10 14:25:00'
+    ),
+    (
+        79,
+        23,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1079',
+        '2026-07-11 19:47:00',
+        '2026-07-11 19:51:00'
+    ),
+    (
+        80,
+        13,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1080',
+        '2026-07-13 10:31:00',
+        '2026-07-13 10:36:00'
+    ),
+    (
+        81,
+        19,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1081',
+        '2026-07-15 15:18:00',
+        '2026-07-15 15:20:00'
+    ),
+    (
+        82,
+        25,
+        998000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1082',
+        '2026-07-16 09:43:00',
+        '2026-07-16 09:46:00'
+    ),
+    (
+        83,
+        15,
+        598000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1083',
+        '2026-07-17 20:26:00',
+        '2026-07-17 20:30:00'
+    ),
+    (
+        84,
+        22,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1084',
+        '2026-07-18 11:39:00',
+        '2026-07-18 11:44:00'
+    ),
+    (
+        85,
+        12,
+        179000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1085',
+        '2026-07-20 18:52:00',
+        '2026-07-20 18:54:00'
+    ),
+    (
+        86,
+        17,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1086',
+        '2026-07-22 10:14:00',
+        '2026-07-22 10:17:00'
+    ),
+    (
+        87,
+        24,
+        349000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1087',
+        '2026-07-23 16:37:00',
+        '2026-07-23 16:41:00'
+    ),
+    (
+        88,
+        14,
+        498000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1088',
+        '2026-07-28 09:21:00',
+        '2026-07-28 09:26:00'
+    ),
+    (
+        89,
+        20,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1089',
+        '2026-07-29 19:08:00',
+        '2026-07-29 19:10:00'
+    ),
+    (
+        90,
+        11,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1090',
+        '2026-07-30 13:46:00',
+        '2026-07-30 13:49:00'
+    ),
+    (
+        91,
+        16,
+        798000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1091',
+        '2026-08-02 10:12:00',
+        '2026-08-02 10:16:00'
+    ),
+    (
+        92,
+        23,
+        399000,
+        'failed',
+        'payos',
+        'PAYOS-2026-1092',
+        '2026-08-03 15:34:00',
+        NULL
+    ),
+    (
+        93,
+        13,
+        448000,
+        'failed',
+        'payos',
+        'PAYOS-2026-1093',
+        '2026-08-04 09:47:00',
+        NULL
+    ),
+    (
+        94,
+        19,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1094',
+        '2026-08-05 20:16:00',
+        '2026-08-05 20:19:00'
+    ),
+    (
+        95,
+        25,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1095',
+        '2026-08-06 11:28:00',
+        '2026-08-06 11:32:00'
+    );
 
 -- ============================================================================
 -- TRANSACTION_ITEMS (snapshot of price at purchase time)
@@ -10846,381 +11112,70 @@ INSERT INTO
         course_id,
         price
     )
-VALUES
-    (
-        1,
-        1,
-        4,
-        199000
-    ),
-    (
-        2,
-        2,
-        2,
-        199000
-    ),
-    (
-        3,
-        2,
-        22,
-        149000
-    ),
-    (
-        4,
-        3,
-        12,
-        299000
-    ),
-    (
-        5,
-        3,
-        16,
-        299000
-    ),
-    (
-        6,
-        4,
-        5,
-        499000
-    ),
-    (
-        7,
-        5,
-        5,
-        499000
-    ),
-    (
-        8,
-        6,
-        13,
-        349000
-    ),
-    (
-        9,
-        6,
-        8,
-        299000
-    ),
-    (
-        10,
-        7,
-        3,
-        149000
-    ),
-    (
-        11,
-        8,
-        18,
-        499000
-    ),
-    (
-        12,
-        9,
-        20,
-        199000
-    ),
-    (
-        13,
-        9,
-        21,
-        249000
-    ),
-    (
-        14,
-        10,
-        10,
-        399000
-    ),
-    (
-        15,
-        10,
-        22,
-        149000
-    ),
-    (
-        16,
-        11,
-        7,
-        699000
-    ),
-    (
-        17,
-        12,
-        16,
-        299000
-    ),
-    (
-        18,
-        12,
-        23,
-        199000
-    ),
-    (
-        19,
-        13,
-        16,
-        299000
-    ),
-    (
-        20,
-        13,
-        22,
-        149000
-    ),
-    (
-        21,
-        14,
-        7,
-        699000
-    ),
-    (
-        22,
-        14,
-        24,
-        179000
-    ),
-    (
-        23,
-        15,
-        21,
-        249000
-    ),
-    (
-        24,
-        16,
-        18,
-        499000
-    ),
-    (
-        25,
-        17,
-        18,
-        499000
-    ),
-    (
-        26,
-        18,
-        13,
-        349000
-    ),
-    (
-        27,
-        18,
-        17,
-        199000
-    ),
-    (
-        28,
-        19,
-        10,
-        399000
-    ),
-    (
-        29,
-        19,
-        19,
-        349000
-    ),
-    (
-        30,
-        20,
-        7,
-        699000
-    ),
-    (
-        31,
-        21,
-        5,
-        499000
-    ),
-    (
-        32,
-        22,
-        13,
-        349000
-    ),
-    (
-        33,
-        22,
-        8,
-        299000
-    ),
-    (
-        34,
-        23,
-        7,
-        699000
-    ),
-    (
-        35,
-        23,
-        10,
-        399000
-    ),
-    (
-        36,
-        24,
-        14,
-        199000
-    ),
-    (
-        37,
-        24,
-        15,
-        249000
-    ),
-    (
-        38,
-        25,
-        18,
-        499000
-    ),
-    (
-        39,
-        25,
-        15,
-        249000
-    ),
-    (
-        40,
-        26,
-        6,
-        499000
-    ),
-    (
-        41,
-        26,
-        17,
-        199000
-    ),
-    (
-        42,
-        27,
-        7,
-        699000
-    ),
-    (
-        43,
-        27,
-        17,
-        199000
-    ),
-    (
-        44,
-        27,
-        20,
-        199000
-    ),
-    (
-        45,
-        28,
-        8,
-        299000
-    ),
-    (
-        46,
-        28,
-        7,
-        699000
-    ),
-    (
-        47,
-        29,
-        10,
-        399000
-    ),
-    (
-        48,
-        30,
-        19,
-        349000
-    ),
-    (
-        49,
-        30,
-        14,
-        199000
-    ),
-    (
-        50,
-        31,
-        6,
-        499000
-    ),
-    (
-        51,
-        31,
-        21,
-        249000
-    ),
-    (
-        52,
-        32,
-        12,
-        299000
-    ),
-    (
-        53,
-        33,
-        19,
-        349000
-    ),
-    (
-        54,
-        33,
-        18,
-        499000
-    ),
-    (
-        55,
-        34,
-        1,
-        399000
-    ),
-    (
-        56,
-        35,
-        10,
-        399000
-    ),
-    (
-        57,
-        36,
-        21,
-        249000
-    ),
-    (
-        58,
-        37,
-        19,
-        349000
-    ),
-    (
-        59,
-        38,
-        6,
-        499000
-    ),
-    (
-        60,
-        38,
-        15,
-        249000
-    ),
-    (
-        61,
-        39,
-        6,
-        499000
-    ),
-    (
-        62,
-        40,
-        8,
-        299000
-    ),
+VALUES (1, 1, 4, 199000),
+    (2, 2, 2, 199000),
+    (3, 2, 22, 149000),
+    (4, 3, 12, 299000),
+    (5, 3, 16, 299000),
+    (6, 4, 5, 499000),
+    (7, 5, 5, 499000),
+    (8, 6, 13, 349000),
+    (9, 6, 8, 299000),
+    (10, 7, 3, 149000),
+    (11, 8, 18, 499000),
+    (12, 9, 20, 199000),
+    (13, 9, 21, 249000),
+    (14, 10, 10, 399000),
+    (15, 10, 22, 149000),
+    (16, 11, 7, 699000),
+    (17, 12, 16, 299000),
+    (18, 12, 23, 199000),
+    (19, 13, 16, 299000),
+    (20, 13, 22, 149000),
+    (21, 14, 7, 699000),
+    (22, 14, 24, 179000),
+    (23, 15, 21, 249000),
+    (24, 16, 18, 499000),
+    (25, 17, 18, 499000),
+    (26, 18, 13, 349000),
+    (27, 18, 17, 199000),
+    (28, 19, 10, 399000),
+    (29, 19, 19, 349000),
+    (30, 20, 7, 699000),
+    (31, 21, 5, 499000),
+    (32, 22, 13, 349000),
+    (33, 22, 8, 299000),
+    (34, 23, 7, 699000),
+    (35, 23, 10, 399000),
+    (36, 24, 14, 199000),
+    (37, 24, 15, 249000),
+    (38, 25, 18, 499000),
+    (39, 25, 15, 249000),
+    (40, 26, 6, 499000),
+    (41, 26, 17, 199000),
+    (42, 27, 7, 699000),
+    (43, 27, 17, 199000),
+    (44, 27, 20, 199000),
+    (45, 28, 8, 299000),
+    (46, 28, 7, 699000),
+    (47, 29, 10, 399000),
+    (48, 30, 19, 349000),
+    (49, 30, 14, 199000),
+    (50, 31, 6, 499000),
+    (51, 31, 21, 249000),
+    (52, 32, 12, 299000),
+    (53, 33, 19, 349000),
+    (54, 33, 18, 499000),
+    (55, 34, 1, 399000),
+    (56, 35, 10, 399000),
+    (57, 36, 21, 249000),
+    (58, 37, 19, 349000),
+    (59, 38, 6, 499000),
+    (60, 38, 15, 249000),
+    (61, 39, 6, 499000),
+    (62, 40, 8, 299000),
     -- Line items for the additional successful demo orders above.
-+    (63, 41, 4, 199000),
+    (63, 41, 4, 199000),
     (64, 42, 2, 199000),
     (65, 43, 4, 199000),
     (66, 43, 16, 299000),
@@ -11290,8 +11245,7 @@ VALUES
     (130, 93, 21, 249000),
     (131, 93, 20, 199000),
     (132, 94, 22, 149000),
-    (133, 95, 10, 399000)
-;
+    (133, 95, 10, 399000);
 
 -- ============================================================================
 -- HIGHLIGHT_FEED (newsfeed entries; one per highlight video)
@@ -11308,8 +11262,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         32,
         1,
@@ -14421,8 +14374,7 @@ VALUES
         'active',
         '2026-07-13 03:00:00',
         '2026-07-13 03:00:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- FEED INTERACTIONS (180 Unique Likes, Saves, Shares across students)
@@ -14435,8 +14387,7 @@ INSERT INTO
         type,
         created_at
     )
-VALUES
-    (
+VALUES (
         1,
         11,
         188,
@@ -15710,8 +15661,7 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         10,
         12,
@@ -16475,8 +16425,7 @@ VALUES
         50,
         '2026-07-15 14:00:00',
         '2026-07-15 14:00:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- FEED VIEWS (140 Video Views - watch_duration strictly <= Highlight Video Duration)
@@ -16490,8 +16439,7 @@ INSERT INTO
         completed,
         viewed_at
     )
-VALUES
-    (
+VALUES (
         1,
         12,
         3,
@@ -17610,8 +17558,7 @@ VALUES
         58.5,
         0,
         '2026-07-01 18:15:00'
-    )
-;
+    );
 
 -- ============================================================================
 -- FINAL TIMELINE NORMALIZATION
@@ -17622,22 +17569,32 @@ UPDATE videos v
 JOIN highlight_feed hf ON hf.video_id = v.id
 SET
     v.created_at = LEAST(v.created_at, hf.created_at),
-    v.updated_at = GREATEST(v.updated_at, hf.created_at, hf.updated_at)
-WHERE v.type = 'highlight';
+    v.updated_at = GREATEST(
+        v.updated_at,
+        hf.created_at,
+        hf.updated_at
+    )
+WHERE
+    v.type = 'highlight';
 
 -- If a course/lesson is linked to a video created later, mark the parent record
 -- as updated at least at the video's creation time.
 UPDATE courses c
 JOIN videos v ON v.id = c.video_id
-SET c.updated_at = GREATEST(c.updated_at, v.created_at)
-WHERE c.video_id IS NOT NULL
-  AND c.updated_at < v.created_at;
+SET
+    c.updated_at = GREATEST(c.updated_at, v.created_at)
+WHERE
+    c.video_id IS NOT NULL
+    AND c.updated_at < v.created_at;
 
 UPDATE lessons l
 JOIN videos v ON v.id = l.video_id
-SET l.updated_at = GREATEST(l.updated_at, v.created_at)
-WHERE l.video_id IS NOT NULL
-  AND l.updated_at < v.created_at;
+SET
+    l.updated_at = GREATEST(l.updated_at, v.created_at)
+WHERE
+    l.video_id IS NOT NULL
+    AND l.updated_at < v.created_at;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
