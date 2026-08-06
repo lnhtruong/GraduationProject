@@ -15,6 +15,10 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Truncate in reverse-dependency order so re-running the seed leaves no orphans
+TRUNCATE TABLE discussion_upvotes;
+
+TRUNCATE TABLE discussion_posts;
+
 TRUNCATE TABLE feed_views;
 
 TRUNCATE TABLE feed_interactions;
@@ -8112,6 +8116,72 @@ VALUES
     (13, 20, 0, 'active', '2026-08-04 09:49:00', NULL),
     (19, 22, 0, 'active', '2026-08-05 20:19:00', NULL),
     (25, 10, 0, 'active', '2026-08-06 11:32:00', NULL)
+;
+
+-- ============================================================================
+-- DISCUSSION POSTS
+-- Three realistic student questions for lecturer 4 (Trần Đăng Khoa).
+-- Every student below has role=2 and is enrolled in the course containing the
+-- referenced lesson. One lecturer reply keeps the instructor Q&A dashboard
+-- useful for demo: 3 total, 2 unanswered, 1 answered.
+-- ============================================================================
+INSERT INTO
+    discussion_posts (
+        id,
+        lesson_id,
+        user_id,
+        parent_id,
+        content,
+        is_best_answer,
+        upvotes,
+        created_at,
+        updated_at
+    )
+VALUES
+    (
+        1,
+        11,
+        11,
+        NULL,
+        'Ở phần Event Loop, em thử chạy setTimeout với thời gian 0 ms cùng Promise.resolve().then() thì callback của Promise luôn chạy trước. Có phải microtask queue luôn được xử lý hết trước khi sang macrotask không ạ, và có trường hợp nào thứ tự này thay đổi không thầy?',
+        0,
+        0,
+        '2026-08-06 08:35:00',
+        '2026-08-06 08:35:00'
+    ),
+    (
+        2,
+        10,
+        14,
+        NULL,
+        'Em đã cấu hình Access-Control-Allow-Origin nhưng request đăng nhập kèm cookie vẫn bị trình duyệt chặn CORS. Nếu frontend và API khác domain thì có phải backend phải bật credentials, phía fetch dùng credentials: include và origin không được để dấu * không thầy?',
+        0,
+        0,
+        '2026-08-05 20:18:00',
+        '2026-08-05 20:18:00'
+    ),
+    (
+        3,
+        9,
+        12,
+        NULL,
+        'Sau khi cài Node.js trên Windows, terminal PowerShell mở mới đã chạy được npm nhưng terminal đang mở trong VS Code vẫn báo npm is not recognized. Trường hợp này em chỉ cần reload VS Code hay phải cấu hình lại biến môi trường PATH ạ?',
+        0,
+        0,
+        '2026-08-05 15:42:00',
+        '2026-08-05 15:42:00'
+    ),
+    (
+        4,
+        10,
+        4,
+        2,
+        'Đúng rồi em. Với request có cookie, backend phải trả về đúng origin cụ thể và bật credentials; frontend cũng cần gửi credentials: include. Sau khi sửa, em kiểm tra thêm preflight OPTIONS và thuộc tính SameSite, Secure của cookie nhé.',
+        0,
+        0,
+        '2026-08-05 21:03:00',
+        '2026-08-05 21:03:00'
+    )
 ;
 
 -- ============================================================================
