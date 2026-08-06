@@ -21,7 +21,7 @@ export function authorizationMiddleware(
   const rule = getAccessRule(req);
 
   if (!rule) {
-    return deny(res, 'Endpoint access is not configured');
+    return deny(res, 'Endpoint chưa được cấu hình quyền truy cập');
   }
 
   if (rule.access === 'public') {
@@ -41,13 +41,13 @@ export function authorizationMiddleware(
       const currentUser = authReq.user;
 
       if (!Number.isInteger(targetId) || !currentUser) {
-        return deny(res, 'Invalid update target');
+        return deny(res, 'Thông tin cập nhật không hợp lệ');
       }
 
       const isAdmin = currentUser.role === UserRole.ADMIN;
       const isSelfUpdate = currentUser.userId === targetId;
       if (!isAdmin && !isSelfUpdate) {
-        return deny(res, 'You can only update your own profile');
+        return deny(res, 'Bạn chỉ có thể cập nhật hồ sơ của chính mình');
       }
     }
 
@@ -58,7 +58,7 @@ export function authorizationMiddleware(
     const currentRole = authReq.user?.role as UserRole | undefined;
 
     if (!currentRole || !rule.roles?.includes(currentRole)) {
-      return deny(res, 'Insufficient role permission');
+      return deny(res, 'Bạn không có quyền thực hiện thao tác này');
     }
 
     return next();

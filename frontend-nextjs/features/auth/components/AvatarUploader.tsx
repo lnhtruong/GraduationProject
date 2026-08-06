@@ -23,6 +23,7 @@ import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
 import { useAvatarUpload } from "@/features/auth/hooks/useAvatarUpload";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { getUserDisplayName, getUserInitials } from "@/lib/user-display";
 import { toast } from "sonner";
 
 function createImage(src: string) {
@@ -94,10 +95,8 @@ export default function AvatarUploader() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const fullName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-    user?.email ||
-    "Người dùng";
+  const fullName = getUserDisplayName(user);
+  const initials = getUserInitials(user);
 
   const openFilePicker = useCallback(() => {
     inputRef.current?.click();
@@ -182,18 +181,13 @@ export default function AvatarUploader() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="group relative mx-auto block h-28 w-28 overflow-hidden rounded-full border-2 border-border/80 shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-md"
+            className="group relative mx-auto block h-28 w-28 cursor-pointer overflow-hidden rounded-full border-2 border-border/80 shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-md"
             aria-label="Thay đổi ảnh đại diện"
           >
             <Avatar className="h-full w-full">
               <AvatarImage src={user?.avatarUrl ?? undefined} alt={fullName} />
               <AvatarFallback className="bg-muted text-xl font-bold">
-                {fullName
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((part) => part[0]?.toUpperCase())
-                  .join("") || "U"}
+                {initials}
               </AvatarFallback>
             </Avatar>
 
@@ -317,12 +311,7 @@ export default function AvatarUploader() {
                   alt={fullName}
                 />
                 <AvatarFallback className="h-full w-full rounded-none bg-muted text-3xl font-bold">
-                  {fullName
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0]?.toUpperCase())
-                    .join("") || "U"}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
             </div>

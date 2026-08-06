@@ -40,17 +40,6 @@ function timestampToSeconds(timestamp: string): number {
   return Number(h) * 3600 + Number(m) * 60 + Number(s) + millis / 1000;
 }
 
-function formatClock(totalSeconds: number): string {
-  const safe = Math.max(0, totalSeconds);
-  const totalMillis = Math.round(safe * 1000);
-  const wholeSeconds = Math.floor(totalMillis / 1000);
-  const hours = Math.floor(wholeSeconds / 3600);
-  const minutes = Math.floor((wholeSeconds % 3600) / 60);
-  const seconds = wholeSeconds % 60;
-  const millis = totalMillis % 1000;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
-}
-
 function formatClockNormal(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safe / 3600);
@@ -132,7 +121,7 @@ export function QuizModeSection({
         videoElement.removeAttribute("src");
         try {
           videoElement.load();
-        } catch (_) {}
+        } catch {}
       }
       if (hlsRef.current) {
         hlsRef.current.destroy();

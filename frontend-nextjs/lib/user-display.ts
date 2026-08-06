@@ -8,9 +8,16 @@ function readText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function getEmailLocalPart(email: unknown) {
+  const normalizedEmail = readText(email);
+  return normalizedEmail?.split("@", 1)[0] || null;
+}
+
 export function getUserDisplayName(user: DisplayUser, fallback = "Người dùng") {
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
-  return fullName || readText(user?.firstName) || readText(user?.email) || fallback;
+  const firstName = readText(user?.firstName);
+  const lastName = readText(user?.lastName);
+  const fullName = [lastName, firstName].filter(Boolean).join(" ").trim();
+  return fullName || firstName || getEmailLocalPart(user?.email) || fallback;
 }
 
 export function getUserInitials(user: DisplayUser, fallback = "U") {
@@ -18,10 +25,10 @@ export function getUserInitials(user: DisplayUser, fallback = "U") {
   const lastName = readText(user?.lastName);
 
   if (firstName && lastName) {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    return `${lastName[0]}${firstName[0]}`.toUpperCase();
   }
 
-  const displaySource = firstName ?? readText(user?.email) ?? fallback;
+  const displaySource = lastName ?? firstName ?? getEmailLocalPart(user?.email) ?? fallback;
   return displaySource.slice(0, 2).toUpperCase();
 }
 

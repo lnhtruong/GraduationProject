@@ -11,10 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, User, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, User, Calendar, GraduationCap } from "lucide-react";
 import { LecturerRequestStatusBadge } from "../LecturerRequestStatusBadge";
 import { useReviewLecturerRequest } from "../../api/lecturer-requests.hooks";
 import type { LecturerRequest } from "../../types/lecturer-request.types";
+import { EvidenceImageGallery } from "@/features/image/components/EvidenceImageGallery";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("vi-VN", {
@@ -65,7 +66,7 @@ export function AdminLecturerRequestReviewSheet({
 
   const user = request.requester;
   const fullName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    [user?.lastName, user?.firstName].filter(Boolean).join(" ") ||
     user?.email ||
     `User #${request.userId}`;
   const initials = fullName.slice(0, 2).toUpperCase();
@@ -104,6 +105,18 @@ export function AdminLecturerRequestReviewSheet({
               <span>Gửi lúc {formatDate(request.created_at)}</span>
             </div>
 
+            {request.teachingTopics && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  Lĩnh vực muốn giảng dạy
+                </div>
+                <div className="rounded-xl bg-muted/30 px-4 py-3 text-sm text-foreground/80 leading-relaxed">
+                  {request.teachingTopics}
+                </div>
+              </div>
+            )}
+
             {/* Confirm message */}
             {request.confirm ? (
               <div className="space-y-2">
@@ -119,6 +132,13 @@ export function AdminLecturerRequestReviewSheet({
               <p className="text-sm text-muted-foreground italic">
                 Người dùng không cung cấp lý do.
               </p>
+            )}
+
+            {request.evidenceImages && request.evidenceImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Ảnh minh chứng ({request.evidenceImages.length})</p>
+                <EvidenceImageGallery images={request.evidenceImages} />
+              </div>
             )}
 
             {/* Review note (existing, if rejected) */}
@@ -157,10 +177,10 @@ export function AdminLecturerRequestReviewSheet({
 
         {/* Footer actions */}
         {request.status === "pending" && (
-          <div className="flex items-center justify-end gap-2 border-t border-border/50 px-6 py-4">
+          <div className="flex flex-col gap-2 border-t border-border/50 bg-background px-4 py-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4">
             <Button
               variant="outline"
-              className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="w-full gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
               disabled={reviewMutation.isPending}
               onClick={() => handleReview(false)}
             >
@@ -172,7 +192,7 @@ export function AdminLecturerRequestReviewSheet({
               Từ chối
             </Button>
             <Button
-              className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+              className="w-full gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
               disabled={reviewMutation.isPending}
               onClick={() => handleReview(true)}
             >

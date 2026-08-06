@@ -22,6 +22,7 @@ import type {
   QuizSubmissionRecord,
   SubmitQuizPayload,
 } from "../types";
+import type { QuizAnswerExplanation } from "./useCourseLearnPlayer";
 import {
   buildAfterLessonQuiz,
   buildInVideoQuizPoints,
@@ -310,6 +311,7 @@ export function useCourseLearnData(courseId: number) {
     const submitted: Record<string, boolean> = {};
     const correctness: Record<string, boolean> = {};
     const correctAnswers: Record<string, number> = {};
+    const explanations: Record<string, QuizAnswerExplanation> = {};
 
     for (const point of inVideoQuizPoints) {
       const submissions = quizSubmissionsByQuizId.get(point.quizId) ?? [];
@@ -339,27 +341,32 @@ export function useCourseLearnData(courseId: number) {
         if (correctOptionIndex >= 0) {
           correctAnswers[point.id] = correctOptionIndex;
         }
+        explanations[point.id] = {
+          explanation: matchedAnswer.explanation ?? null,
+          evidenceTimestamp: matchedAnswer.evidenceTimestamp ?? null,
+        };
         break;
       }
     }
 
-    return { answers, submitted, correctness, correctAnswers };
+    return { answers, submitted, correctness, correctAnswers, explanations };
   }, [inVideoQuizPoints, quizSubmissionsByQuizId]);
 
   const persistedAfterLessonState = useMemo(() => {
     const firstQuiz = afterLessonQuiz[0];
     if (!firstQuiz) {
-      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {} };
+      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {}, explanations: {} };
     }
 
     const submissions = quizSubmissionsByQuizId.get(firstQuiz.quizId) ?? [];
     const latestSubmission = submissions[0];
     if (!latestSubmission) {
-      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {} };
+      return { answers: {}, submitted: false, score: null, passed: false, correctAnswers: {}, explanations: {} };
     }
 
     const answers: Record<string, number> = {};
     const correctAnswers: Record<string, number> = {};
+    const explanations: Record<string, QuizAnswerExplanation> = {};
     for (const question of afterLessonQuiz) {
       const matchedAnswer = latestSubmission.answers?.find(
         (answer) => answer.questionId === question.questionId,
@@ -381,6 +388,10 @@ export function useCourseLearnData(courseId: number) {
       if (correctOptionIndex >= 0) {
         correctAnswers[question.id] = correctOptionIndex;
       }
+      explanations[question.id] = {
+        explanation: matchedAnswer.explanation ?? null,
+        evidenceTimestamp: matchedAnswer.evidenceTimestamp ?? null,
+      };
     }
 
     const correctCount = latestSubmission.answers?.filter((a) => a.isCorrect).length ?? 0;
@@ -397,6 +408,7 @@ export function useCourseLearnData(courseId: number) {
       },
       passed: latestSubmission.passed === true,
       correctAnswers,
+      explanations,
     };
   }, [afterLessonQuiz, quizSubmissionsByQuizId]);
 

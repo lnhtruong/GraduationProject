@@ -217,7 +217,7 @@ export default function AdminRevenuePage() {
             emptyText="Chưa có giảng viên có doanh thu"
             rows={(summary?.topInstructors ?? []).map((i) => ({
               key: i.instructorId,
-              primary: i.instructorName || `GV #${i.instructorId}`,
+              primary: i.instructorName || `Giảng viên #${i.instructorId}`,
               secondary: `${i.courseCount} khóa học`,
               amount: i.revenue,
               count: i.enrollCount,
@@ -432,7 +432,7 @@ function RankTable({
             <p className="text-sm font-semibold tabular-nums">
               {Math.round(r.amount).toLocaleString("vi-VN")} ₫
             </p>
-            <p className="text-xs text-muted-foreground">{r.count} lượt</p>
+            <p className="text-xs text-muted-foreground">{r.count} lượt mua</p>
           </div>
         </div>
       ))}

@@ -64,6 +64,15 @@ export class User extends Model {
   })
   declare emailVerified: boolean;
 
+
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_banned',
+  })
+  declare isBanned: boolean;
+
   @Column({
     type: DataType.STRING(500),
     allowNull: true,

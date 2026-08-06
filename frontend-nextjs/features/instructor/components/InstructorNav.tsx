@@ -6,6 +6,7 @@ import { ChevronDown, GraduationCap, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { BrandLogo } from "@/components/BrandLogo";
+import { RoleBadge } from "@/components/RoleBadge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { getUserDisplayName } from "@/lib/user-display";
 import {
@@ -64,16 +65,17 @@ export function InstructorNav() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 gap-1.5 px-2">
+              <Button variant="ghost" className="h-auto gap-1.5 px-2 py-1">
                 <UserAvatar
                   user={user}
                   fallback="GV"
                   className="h-7 w-7"
                   fallbackClassName="text-[11px]"
                 />
-                <span className="hidden text-sm font-medium sm:inline">
-                  {displayName}
-                </span>
+                <div className="hidden flex-col items-start gap-0.5 sm:flex">
+                  <span className="text-sm font-medium">{displayName}</span>
+                  <RoleBadge role={user?.role} className="h-4 px-1 py-0 text-[9px]" />
+                </div>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
@@ -81,6 +83,9 @@ export function InstructorNav() {
               <DropdownMenuLabel>
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <div className="mt-1">
+                  <RoleBadge role={user?.role} />
+                </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import type { NewsfeedItem } from "@/features/newsfeed/types";
 function lecturerName(item: NewsfeedItem) {
-  const fullName = [item.lecturer?.firstName, item.lecturer?.lastName]
+  const fullName = [item.lecturer?.lastName, item.lecturer?.firstName]
     .filter(Boolean)
     .join(" ")
     .trim();

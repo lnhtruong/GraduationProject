@@ -132,6 +132,7 @@ export class QuizzesService {
       payload.questions?.map((q) => ({
         ...q,
         videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+        evidenceTimestamp: this.normalizeVideoTimestamp(q.evidenceTimestamp),
       })) ?? [];
 
     this.assertQuizVideoTimestampConsistency(isInVideo, normalizedQuestions);
@@ -158,9 +159,10 @@ export class QuizzesService {
               quesType: q.quesType,
               quesText: q.quesText,
               point: q.point,
-              correctAns: q.correctAns,
+              explanation: q.explanation,
               orderIndex: q.orderIndex,
               videoTimestamp: q.videoTimestamp,
+              evidenceTimestamp: q.evidenceTimestamp,
             },
             { transaction },
           );
@@ -513,7 +515,23 @@ export class QuizzesService {
     const rows = payload.questions.map((q, idx) =>
       this.toRowFromAI(q, idx + 1),
     );
-    this.assertQuizVideoTimestampConsistency(isInVideo, rows);
+    // AI-quiz hiển thị tại 1 mốc duy nhất cho cả quiz (không phải mỗi câu một
+    // mốc riêng) — dùng evidence muộn nhất để đảm bảo học viên đã xem hết đoạn
+    // video liên quan trước khi làm quiz.
+    const sharedVideoTimestamp = isInVideo
+      ? rows.reduce<string | null>(
+          (latest, row) =>
+            row.videoTimestamp && (!latest || row.videoTimestamp > latest)
+              ? row.videoTimestamp
+              : latest,
+          null,
+        )
+      : null;
+    const rowsWithSharedTimestamp = rows.map((row) => ({
+      ...row,
+      videoTimestamp: sharedVideoTimestamp,
+    }));
+    this.assertQuizVideoTimestampConsistency(isInVideo, rowsWithSharedTimestamp);
 
     const quiz = await this.sequelize.transaction(async (transaction) => {
       const quiz = await this.quizModel.create(
@@ -529,16 +547,17 @@ export class QuizzesService {
         { transaction },
       );
 
-      for (const row of rows) {
+      for (const row of rowsWithSharedTimestamp) {
         const question = await this.quizQuestionModel.create(
           {
             quizId: quiz.id,
             quesType: row.quesType,
             quesText: row.quesText,
             point: row.point,
-            correctAns: row.correctAns,
+            explanation: row.explanation,
             orderIndex: row.orderIndex,
             videoTimestamp: row.videoTimestamp,
+            evidenceTimestamp: row.evidenceTimestamp,
           },
           { transaction },
         );
@@ -645,9 +664,10 @@ export class QuizzesService {
       quesType,
       quesText: q.question,
       point: this.pointFromDifficulty(q.difficulty),
-      correctAns: q.explanation ?? null,
+      explanation: q.explanation ?? null,
       orderIndex,
       videoTimestamp: this.resolveEvidenceTimestamp(q),
+      evidenceTimestamp: this.resolveEvidenceTimestamp(q),
       options,
     };
   }
@@ -685,15 +705,16 @@ export class QuizzesService {
       quesType: QuestionType.MULTIPLE_CHOICE,
       quesText: q.question,
       point: this.pointFromDifficulty(q.difficulty),
-      correctAns: q.explanation ?? null,
+      explanation: q.explanation ?? null,
       orderIndex,
       videoTimestamp: this.resolveEvidenceTimestamp(q),
+      evidenceTimestamp: this.resolveEvidenceTimestamp(q),
       options,
     };
   }
 
   /**
-   * Convert 1 câu hỏi Colab → shape DB (`quesText`, `correctAns`, `options[].isCorrect`).
+   * Convert 1 câu hỏi Colab → shape DB (`quesText`, `explanation`, `options[].isCorrect`).
    * Hỗ trợ cả prompt mới (array options + evidence string) lẫn legacy map `{a,b,c,d}`.
    */
   private toRowFromAI(q: QuizQuestionFromAIDto, orderIndex: number) {
@@ -741,6 +762,7 @@ export class QuizzesService {
       payload.questions?.map((q) => ({
         ...q,
         videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+        evidenceTimestamp: this.normalizeVideoTimestamp(q.evidenceTimestamp),
       })) ?? [];
     this.assertQuizVideoTimestampConsistency(isInVideo, normalizedQuestions);
 
@@ -765,9 +787,10 @@ export class QuizzesService {
             quesType: q.quesType,
             quesText: q.quesText,
             point: q.point,
-            correctAns: q.correctAns,
+            explanation: q.explanation,
             orderIndex: q.orderIndex,
             videoTimestamp: q.videoTimestamp,
+            evidenceTimestamp: q.evidenceTimestamp,
           },
           { transaction },
         );
@@ -894,6 +917,7 @@ export class QuizzesService {
       const normalizedPayloadQuestions = payload.questions?.map((q) => ({
         ...q,
         videoTimestamp: this.normalizeVideoTimestamp(q.videoTimestamp),
+        evidenceTimestamp: this.normalizeVideoTimestamp(q.evidenceTimestamp),
       }));
 
       const consistencySource =
@@ -927,9 +951,10 @@ export class QuizzesService {
               quesType: q.quesType,
               quesText: q.quesText,
               point: q.point,
-              correctAns: q.correctAns,
+              explanation: q.explanation,
               orderIndex: q.orderIndex,
               videoTimestamp: q.videoTimestamp,
+              evidenceTimestamp: q.evidenceTimestamp,
             },
             { transaction },
           );

@@ -11,10 +11,12 @@ import { Course, CourseStatus } from 'src/models/course.model';
 import { Lesson, LessonStatus } from 'src/models/lesson.model';
 import {
   Report,
+  ReportCategory,
   ReportStatus,
   ReportTargetType,
 } from 'src/models/report.model';
 import { User } from 'src/users/user.model';
+import { MascotImage, MascotImageType } from 'src/models/images.model';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ReviewReportDto } from './dto/review-report.dto';
 import { AuditLogsService } from 'src/audit_logs/audit-logs.service';
@@ -29,11 +31,18 @@ export class ReportsService {
     @InjectModel(Course) private readonly courseModel: typeof Course,
     @InjectModel(Lesson) private readonly lessonModel: typeof Lesson,
     @InjectModel(User) private readonly userModel: typeof User,
+    @InjectModel(MascotImage)
+    private readonly mascotImageModel: typeof MascotImage,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async create(reporterId: number, payload: CreateReportDto): Promise<Report> {
     await this.validateReportTarget(reporterId, payload.targetType, payload.targetId);
+    const evidenceImageIds = await this.validateEvidenceImages(
+      reporterId,
+      payload.evidenceImageIds,
+      MascotImageType.REPORT,
+    );
 
     const existed = await this.reportModel.findOne({
       where: {
@@ -50,9 +59,11 @@ export class ReportsService {
     return await this.reportModel.create({
       targetType: payload.targetType,
       targetId: payload.targetId,
+      reportCategory: payload.reportCategory,
       reason: payload.reason,
       reporterId,
       status: ReportStatus.PENDING,
+      evidenceImageIds,
     });
   }
 
@@ -61,6 +72,7 @@ export class ReportsService {
     limit?: number;
     status?: ReportStatus;
     targetType?: ReportTargetType;
+    reportCategory?: ReportCategory;
     sortOrder?: string;
     search?: string;
   }) {
@@ -77,6 +89,7 @@ export class ReportsService {
     const where: Record<string | symbol, unknown> = {};
     if (params.status) where.status = params.status;
     if (params.targetType) where.targetType = params.targetType;
+    if (params.reportCategory) where.reportCategory = params.reportCategory;
     if (params.search && params.search.trim().length > 0) {
       where.reason = { [Op.like]: `%${params.search.trim()}%` };
     }
@@ -112,6 +125,7 @@ export class ReportsService {
       rows.map(async (r) => ({
         ...r.get({ plain: true }),
         target: await this.getTargetSnapshot(r.targetType, r.targetId),
+        evidenceImages: await this.getEvidenceImages(r.evidenceImageIds),
       })),
     );
 
@@ -148,6 +162,7 @@ export class ReportsService {
     return {
       ...report.get({ plain: true }),
       target: await this.getTargetSnapshot(report.targetType, report.targetId),
+      evidenceImages: await this.getEvidenceImages(report.evidenceImageIds),
       reportCount,
     };
   }
@@ -172,6 +187,7 @@ export class ReportsService {
       rows.map(async (r) => ({
         ...r.get({ plain: true }),
         target: await this.getTargetSnapshot(r.targetType, r.targetId),
+        evidenceImages: await this.getEvidenceImages(r.evidenceImageIds),
       })),
     );
 
@@ -327,6 +343,51 @@ export class ReportsService {
     await this.reportModel.destroy({
       where: { targetType, targetId },
     });
+  }
+
+  private async validateEvidenceImages(
+    reporterId: number,
+    imageIds: number[] | undefined,
+    expectedType: MascotImageType,
+  ): Promise<number[] | null> {
+    if (!imageIds || imageIds.length === 0) return null;
+
+    const images = await this.mascotImageModel.findAll({
+      where: {
+        image_id: { [Op.in]: imageIds },
+        user_id: reporterId,
+        type: expectedType,
+      },
+      attributes: ['image_id'],
+    });
+    if (images.length !== imageIds.length) {
+      throw new BadRequestException(
+        'Ảnh minh chứng không tồn tại, không thuộc về bạn hoặc không đúng loại report',
+      );
+    }
+
+    return imageIds;
+  }
+
+  private async getEvidenceImages(imageIds: number[] | null | undefined) {
+    if (!imageIds?.length) return [];
+    const images = await this.mascotImageModel.findAll({
+      where: { image_id: { [Op.in]: imageIds } },
+      attributes: ['image_id', 'url', 'name', 'format', 'type'],
+    });
+    const byId = new Map(
+      images.map((image) => [
+        image.image_id,
+        {
+          imageId: image.image_id,
+          url: image.url,
+          name: image.name,
+          format: image.format,
+          type: image.type,
+        },
+      ]),
+    );
+    return imageIds.map((imageId) => byId.get(imageId)).filter(Boolean);
   }
 
   private async getTargetSnapshot(

@@ -126,7 +126,9 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav
+          className="hidden min-w-0 items-center gap-0.5 lg:flex xl:gap-1"
+        >
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href);
 
@@ -135,7 +137,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-full px-3.5 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  "whitespace-nowrap rounded-full px-2 py-2 text-center text-[13px] font-semibold leading-5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground 2xl:px-3.5 2xl:text-sm",
                   active && "bg-primary/10 text-primary",
                 )}
               >
@@ -146,14 +148,26 @@ export function Header() {
         </nav>
 
         {!shouldHideHeaderSearch ? (
-          <div className="hidden min-w-[280px] flex-1 justify-center px-2 lg:flex">
+          <div
+            className={cn(
+              "hidden min-w-0 flex-1 justify-center px-1",
+              isTeacherMode
+                ? "max-w-xl 2xl:flex"
+                : "px-2 lg:flex",
+            )}
+          >
             <SearchBar
-              className="max-w-xl"
+              className={cn("min-w-0", isTeacherMode ? "max-w-lg" : "max-w-xl")}
               placeholder="Tìm khóa học, giảng viên, chủ đề..."
             />
           </div>
         ) : (
-          <div className="hidden flex-1 lg:block" />
+          <div
+            className={cn(
+              "hidden flex-1",
+              isTeacherMode ? "2xl:block" : "lg:block",
+            )}
+          />
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
@@ -161,7 +175,10 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full border border-border/70 sm:h-10 sm:w-10 lg:hidden"
+              className={cn(
+                "h-9 w-9 rounded-full border border-border/70 sm:h-10 sm:w-10",
+                isTeacherMode ? "2xl:hidden" : "lg:hidden",
+              )}
               onClick={() => setIsMobileSearchOpen((value) => !value)}
               aria-label={isMobileSearchOpen ? "Đóng tìm kiếm" : "Mở tìm kiếm"}
             >
@@ -261,7 +278,12 @@ export function Header() {
       </div>
 
       {isMobileSearchOpen && !shouldHideHeaderSearch ? (
-        <div className="border-t border-border/70 px-3 py-3 lg:hidden">
+        <div
+          className={cn(
+            "border-t border-border/70 px-3 py-3",
+            isTeacherMode ? "2xl:hidden" : "lg:hidden",
+          )}
+        >
           <SearchBar
             className="max-w-none"
             placeholder="Tìm khóa học, giảng viên, chủ đề..."

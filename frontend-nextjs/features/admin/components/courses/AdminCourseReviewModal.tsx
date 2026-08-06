@@ -433,7 +433,7 @@ function InstructorInfo({ userId }: { userId: number }) {
 
   const fullName =
     instructor
-      ? [instructor.firstName, instructor.lastName].filter(Boolean).join(" ").trim() ||
+      ? [instructor.lastName, instructor.firstName].filter(Boolean).join(" ").trim() ||
         instructor.email ||
         `ID #${userId}`
       : `ID #${userId}`;

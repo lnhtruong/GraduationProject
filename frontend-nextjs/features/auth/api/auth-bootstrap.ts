@@ -34,7 +34,10 @@ export async function initializeAuth() {
     );
 
     if (response.accessToken) {
-      syncAuthSession({ accessToken: response.accessToken });
+      syncAuthSession({
+        accessToken: response.accessToken,
+        user: response.user,
+      });
     }
   } catch {
     clearAuthSession();

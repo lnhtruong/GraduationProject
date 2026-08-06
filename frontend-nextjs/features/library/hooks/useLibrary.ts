@@ -20,7 +20,7 @@ interface UseLibraryParams {
 export function useLibrary({ activeTab, page, limit }: UseLibraryParams) {
 	const highlightVideosQuery = useVideosByUserPaginated("highlight", page, limit, true);
 	const mascotVideosQuery = useVideosByUserPaginated("mascot", page, limit, true);
-	const imagesQuery = useImagesByUserPaginated(page, limit, true);
+	const imagesQuery = useImagesByUserPaginated(page, limit, true, "mascot");
 	const followingQuery = useFollowingInstructorsPaginated(page, limit, true);
 
 	const deleteVideoMutation = useDeleteVideo();

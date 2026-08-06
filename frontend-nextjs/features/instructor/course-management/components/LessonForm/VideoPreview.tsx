@@ -85,6 +85,12 @@ export function VideoPreview({
     null,
   );
 
+  useEffect(() => {
+    if (editingMarker) {
+      videoRef.current?.pause();
+    }
+  }, [editingMarker]);
+
   const clearTooltipHideTimeout = () => {
     if (tooltipHideTimeoutRef.current) {
       clearTimeout(tooltipHideTimeoutRef.current);
@@ -705,7 +711,7 @@ export function VideoPreview({
           }
         }}
       >
-        <DialogContent 
+        <DialogContent
           showCloseButton={false}
           className="h-[92vh] w-[92vw] sm:max-w-2xl overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl flex flex-col transition-all duration-300"
         >
@@ -731,12 +737,14 @@ export function VideoPreview({
               </Button>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 space-y-4">
               {editingQuizState ? (
                 <QuizEditor
                   quiz={editingQuizState}
                   showSaveButton={false}
                   onStateChange={setDraftQuizState}
+                  videoUrl={videoUrl}
+                  videoDurationSeconds={safeDuration}
                 />
               ) : (
                 <div className="rounded-xl border border-dashed border-border/60 p-4 text-sm text-muted-foreground">

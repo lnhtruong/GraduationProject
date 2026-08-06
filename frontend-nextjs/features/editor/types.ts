@@ -276,6 +276,7 @@ export interface MascotParams {
   videoOrUrl: File | string;
   mascotImageUrl: string;
   origin_file_name?: string;
+  type?: "mascot";
   /** Thời lượng video, giây. Dùng để backend tính credit quota. */
   durationSec?: number;
   position:

@@ -8,8 +8,9 @@ import { getModelToken } from '@nestjs/sequelize';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Course, CourseStatus } from '../models/course.model';
 import { Lesson, LessonStatus } from '../models/lesson.model';
-import { Report, ReportStatus, ReportTargetType } from '../models/report.model';
+import { Report, ReportCategory, ReportStatus, ReportTargetType } from '../models/report.model';
 import { User } from '../users/user.model';
+import { MascotImage } from '../models/images.model';
 import { AuditLogsService } from '../audit_logs/audit-logs.service';
 import { ReportsService } from './reports.service';
 
@@ -19,6 +20,7 @@ interface ModelMock {
   findByPk: Mock;
   findOne: Mock;
   findAndCountAll: Mock;
+  findAll: Mock;
   count: Mock;
   create: Mock;
   destroy: Mock;
@@ -28,6 +30,7 @@ const makeModelMock = (): ModelMock => ({
   findByPk: jest.fn(),
   findOne: jest.fn(),
   findAndCountAll: jest.fn(),
+  findAll: jest.fn(),
   count: jest.fn(),
   create: jest.fn(),
   destroy: jest.fn(),
@@ -49,12 +52,14 @@ describe('ReportsService', () => {
   let courseModel: ModelMock;
   let lessonModel: ModelMock;
   let userModel: ModelMock;
+  let mascotImageModel: ModelMock;
 
   beforeEach(async () => {
     reportModel = makeModelMock();
     courseModel = makeModelMock();
     lessonModel = makeModelMock();
     userModel = makeModelMock();
+    mascotImageModel = makeModelMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +68,7 @@ describe('ReportsService', () => {
         { provide: getModelToken(Course), useValue: courseModel },
         { provide: getModelToken(Lesson), useValue: lessonModel },
         { provide: getModelToken(User), useValue: userModel },
+        { provide: getModelToken(MascotImage), useValue: mascotImageModel },
         { provide: AuditLogsService, useValue: { log: jest.fn() } },
       ],
     }).compile();
@@ -86,6 +92,7 @@ describe('ReportsService', () => {
       const r = await service.create(reporterId, {
         targetType: ReportTargetType.COURSE,
         targetId: 5,
+        reportCategory: ReportCategory.SPAM,
         reason: 'spam content',
       });
 
@@ -94,6 +101,7 @@ describe('ReportsService', () => {
         expect.objectContaining({
           targetType: ReportTargetType.COURSE,
           targetId: 5,
+          reportCategory: ReportCategory.SPAM,
           reporterId,
           status: ReportStatus.PENDING,
         }),

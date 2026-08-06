@@ -209,7 +209,7 @@ export function AdminChangeRequestTable({
                 <span className="flex items-center gap-1">
                   <User className="h-3 w-3" />
                   {req.requester
-                    ? `${req.requester.firstName} ${req.requester.lastName}`.trim()
+                    ? `${req.requester.lastName} ${req.requester.firstName}`.trim()
                     : "Giảng viên"}
                 </span>
                 <span className="flex items-center gap-1">

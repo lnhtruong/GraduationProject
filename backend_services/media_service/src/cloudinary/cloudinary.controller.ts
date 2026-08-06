@@ -24,7 +24,9 @@ type SignedUploadContextType =
   | UploadVideoType
   | 'thumbnail_video'
   | 'thumbnail_course'
-  | 'avt';
+  | 'avt'
+  | 'report'
+  | 'role_upgrade';
 
 const SIGNED_UPLOAD_CONTEXT_TYPES = new Set<SignedUploadContextType>([
   'highlight',
@@ -32,6 +34,8 @@ const SIGNED_UPLOAD_CONTEXT_TYPES = new Set<SignedUploadContextType>([
   'thumbnail_video',
   'thumbnail_course',
   'avt',
+  'report',
+  'role_upgrade',
 ]);
 
 /** Optional `job_id` is forwarded in signed context so the webhook can upsert by job. */
@@ -40,15 +44,12 @@ function buildSignedUploadContext(userId: number, body: { job_id?: unknown; type
   if (typeof body?.job_id === 'string' && body.job_id.trim().length > 0) {
     parts.push(`job_id=${body.job_id.trim()}`);
   }
-  console.log('type: ', body.type);
   if (typeof body?.type === 'string') {
     const type = body.type.trim().toLowerCase() as SignedUploadContextType;
-    console.log('check2: ', type);
     if (SIGNED_UPLOAD_CONTEXT_TYPES.has(type)) {
       parts.push(`type=${type}`);
     }
   }
-  console.log('check3: ', parts);
   return parts.join('|');
 }
 

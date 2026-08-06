@@ -61,6 +61,7 @@ export class QuizzesController {
     if (plainQuiz.questions) {
       for (const question of plainQuiz.questions) {
         delete question.correctAns;
+        delete question.explanation;
         if (question.options) {
           for (const option of question.options) {
             delete option.isCorrect;

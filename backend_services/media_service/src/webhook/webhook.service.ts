@@ -395,6 +395,15 @@ export class WebhookService {
         if (rawType === MascotImageType.AVT) {
             return MascotImageType.AVT;
         }
+        if (rawType === MascotImageType.REPORT) {
+            return MascotImageType.REPORT;
+        }
+        if (rawType === MascotImageType.ROLE_UPGRADE) {
+            return MascotImageType.ROLE_UPGRADE;
+        }
+        if (rawType === MascotImageType.MASCOT) {
+            return MascotImageType.MASCOT;
+        }
         return MascotImageType.THUMBNAIL_VIDEO;
     }
 

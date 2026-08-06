@@ -25,6 +25,7 @@ export function buildMascotFormData(params: MascotParams): FormData {
 
   formData.append("video_url", params.videoOrUrl);
   formData.append("mascot_image_url", params.mascotImageUrl);
+  formData.append("type", params.type ?? "mascot");
   if (params.origin_file_name?.trim()) {
     formData.append("origin_file_name", params.origin_file_name.trim());
   }

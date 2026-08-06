@@ -51,7 +51,7 @@ function buildCartItems(raw: CartItemRaw[]): CartItem[] {
     const c = item.course;
     const inst = c?.instructor;
     const instructorName = inst
-      ? `${inst.first_name ?? inst.firstName ?? ""} ${inst.last_name ?? inst.lastName ?? ""}`.trim() || "Giảng viên"
+      ? `${inst.last_name ?? inst.lastName ?? ""} ${inst.first_name ?? inst.firstName ?? ""}`.trim() || "Giảng viên"
       : "Giảng viên";
 
     return {

@@ -146,7 +146,7 @@ export function useStudioSession() {
     refetch: refetchMascotVideos,
   } = useVideosByUser("mascot", false);
   const { data: rawMascotImages = [], isLoading: mascotImagesLoading } =
-    useImagesByUser(true);
+    useImagesByUser({ type: "mascot" }, true);
   const { data: currentProject } = useProjectById(
     activeEditId ?? 0,
     activeEditId !== null,
@@ -207,7 +207,7 @@ export function useStudioSession() {
     );
     if (matched?.image_id) return matched.image_id;
 
-    const created = await imageApi.create({ url: absoluteUrl });
+    const created = await imageApi.create({ url: absoluteUrl, type: "mascot" });
     return created.id || undefined;
   };
   const projectVideo = useMemo(

@@ -11,6 +11,8 @@ export interface User {
   avatarUrl?: string | null;
   avatar_url?: string | null;
   picture?: string | null;
+  photoURL?: string | null;
+  photoUrl?: string | null;
 }
 
 export interface LoginRequest {
@@ -46,6 +48,7 @@ export interface RegisterResponse {
 }
 
 export interface RefreshTokenResponse {
+  user?: User;
   accessToken: string;
 }
 

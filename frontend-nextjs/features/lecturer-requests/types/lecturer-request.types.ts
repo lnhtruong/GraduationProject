@@ -13,18 +13,29 @@ export interface LecturerRequest {
   id: number;
   userId: number;
   confirm: string | null;
+  teachingTopics: string | null;
   status: LecturerRequestStatus;
   reviewNote: string | null;
   reviewedAt: string | null;
   reviewerId: number | null;
   created_at: string;
   updated_at: string;
+  evidenceImageIds: number[] | null;
+  evidenceImages?: Array<{
+    imageId: number;
+    url: string;
+    name?: string | null;
+    format?: string | null;
+    type: "role_upgrade" | "report";
+  }>;
   requester?: LecturerRequestUser;
   reviewer?: LecturerRequestUser;
 }
 
 export interface CreateLecturerRequestDto {
   confirm?: string;
+  teachingTopics: string;
+  evidenceImageIds: number[];
 }
 
 export interface ReviewLecturerRequestDto {

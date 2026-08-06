@@ -95,6 +95,7 @@ export function useMascot() {
   ): MascotParams => ({
     videoOrUrl: videoSrc,
     mascotImageUrl,
+    type: "mascot",
     origin_file_name:
       sourceVideoName?.trim() ||
       (() => {

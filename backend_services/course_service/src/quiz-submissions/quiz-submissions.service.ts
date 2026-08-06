@@ -194,9 +194,6 @@ export class QuizSubmissionsService {
   ): Promise<QuizSubmissionContext> {
     let quiz = await this.quizzesService.findOne(quizId, { transaction });
     quiz = quiz.toJSON();
-    // console.log('check quiz: ', quiz);
-    console.log('check quiz.lessonasfn: ', quiz.lessonActivityId);
-
     const activity = await this.lessonActivityModel.findByPk(
       quiz.lessonActivityId,
       { transaction, raw: true },
@@ -299,8 +296,6 @@ export class QuizSubmissionsService {
 
   private assertQuizActivitySubmittable(context: QuizSubmissionContext): void {
     const { activity } = context;
-    console.log('check activity: ', activity);
-
     if (activity.activityType !== ActivityType.QUIZ) {
       throw new BadRequestException(
         'This lesson activity is not a quiz.',
@@ -508,6 +503,8 @@ export class QuizSubmissionsService {
       isCorrect,
       point: isCorrect ? maxPoint : 0,
       maxPoint,
+      explanation: question.explanation ?? null,
+      evidenceTimestamp: question.evidenceTimestamp ?? null,
     };
   }
 

@@ -14,6 +14,15 @@ export enum ReportTargetType {
   LESSON = 'lesson',
 }
 
+export enum ReportCategory {
+  MISLEADING = 'misleading',
+  COPYRIGHT = 'copyright',
+  INAPPROPRIATE = 'inappropriate',
+  SPAM = 'spam',
+  HARASSMENT = 'harassment',
+  OTHER = 'other',
+}
+
 export enum ReportStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
@@ -51,10 +60,24 @@ export class Report extends Model {
   declare targetId: number;
 
   @Column({
+    type: DataType.STRING(64),
+    allowNull: true,
+    field: 'report_category',
+  })
+  declare reportCategory: ReportCategory | null;
+
+  @Column({
     type: DataType.TEXT,
     allowNull: false,
   })
   declare reason: string;
+
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    field: 'evidence_image_ids',
+  })
+  declare evidenceImageIds: number[] | null;
 
   @Column({
     type: DataType.ENUM(...Object.values(ReportStatus)),

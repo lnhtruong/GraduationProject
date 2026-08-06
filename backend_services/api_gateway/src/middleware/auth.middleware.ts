@@ -21,7 +21,7 @@ export const authMiddleware = (
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: 'No token provided',
+        message: 'Bạn cần đăng nhập để tiếp tục',
       });
     }
 
@@ -30,7 +30,7 @@ export const authMiddleware = (
     if (scheme !== 'Bearer' || !token) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid authorization header format',
+        message: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại',
       });
     }
 
@@ -51,13 +51,13 @@ export const authMiddleware = (
     } catch (error) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired token',
+        message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại',
       });
     }
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Authentication error',
+      message: 'Không thể xác thực phiên đăng nhập. Vui lòng thử lại',
     });
   }
 };
