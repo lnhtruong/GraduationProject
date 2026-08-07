@@ -25,8 +25,8 @@ import { BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
 import type { HighlightParams } from "@/features/upload/types";
 import {
   Check,
-  Copyright,
   FileVideo,
+  Info,
   Link2,
   Loader2,
   Target,
@@ -381,7 +381,7 @@ export default function Upload() {
               </div>
               {!isLecturerOrAdmin && (
                 <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-                  <Copyright className="text-amber-600 dark:text-amber-400" />
+                  <Info className="text-amber-600 dark:text-amber-400" />
                   <AlertDescription className="text-amber-800 dark:text-amber-300">
                     Highlight tạo ra chỉ dùng cho mục đích tự học. Vui lòng đảm
                     bảo bạn có quyền sử dụng nội dung video và không vi phạm
