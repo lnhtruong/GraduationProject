@@ -27,6 +27,8 @@ TRUNCATE TABLE feed_comments;
 
 TRUNCATE TABLE highlight_feed;
 
+TRUNCATE TABLE audit_logs;
+
 TRUNCATE TABLE reports;
 
 TRUNCATE TABLE course_change_requests;
@@ -54,6 +56,8 @@ TRUNCATE TABLE roadmaps;
 TRUNCATE TABLE lesson_progress;
 
 TRUNCATE TABLE enrolls;
+
+TRUNCATE TABLE quiz_submissions;
 
 TRUNCATE TABLE quiz_options;
 
@@ -5940,7 +5944,7 @@ VALUES (
         'Khóa học ngữ pháp TOEIC toàn diện cho người mới bắt đầu.',
         '["TOEIC","Grammar","English"]',
         'Beginner',
-        '03:04:45.875',
+        '02:51:45.875',
         'Vietnamese',
         399000,
         2,
@@ -6004,7 +6008,7 @@ VALUES (
         'Học JavaScript từ nền tảng đến nâng cao: ES2015+, Closure, Async/Await, Event Loop và DOM manipulation.',
         '["Programming","Web","JavaScript"]',
         'Intermediate',
-        '04:24:59.349',
+        '04:14:59.349',
         'English',
         499000,
         4,
@@ -6036,7 +6040,7 @@ VALUES (
         'Khóa học về APIs, Database, Caching, CDN, Load Balancing và Production Infrastructure.',
         '["Programming","System Design","DevOps"]',
         'Advanced',
-        '02:13:21.965',
+        '02:05:21.965',
         'English',
         699000,
         5,
@@ -6068,7 +6072,7 @@ VALUES (
         'Tất cả về list trong Python: slicing, list comprehension, các phương thức và mẹo tối ưu.',
         '["Programming","Python"]',
         'Beginner',
-        '00:48:15.805',
+        '00:43:15.805',
         'Vietnamese',
         0,
         6,
@@ -6400,7 +6404,7 @@ VALUES (
     );
 
 -- ============================================================================
--- LESSONS  (36 lessons - mostly 1 video per lesson + a few text & quiz lessons)
+-- LESSONS  (31 video lessons supported by the learner UI)
 -- ============================================================================
 INSERT INTO
     lessons (
@@ -6417,19 +6421,6 @@ INSERT INTO
         updated_at
     )
 VALUES (
-        1,
-        1,
-        'Welcome - Roadmap & cách học hiệu quả',
-        'text',
-        '{"body":"Xin chào! Bạn sẽ học 3 mảng ngữ pháp lớn nhất TOEIC: Tenses, To-V/V-ing, Participles. Hãy chuẩn bị giấy bút, học theo thứ tự bài và làm quiz sau mỗi phần."}',
-        '00:05:00.000',
-        'active',
-        'Giới thiệu lộ trình khóa học',
-        NULL,
-        '2026-06-20 12:05:00',
-        '2026-06-20 12:05:00'
-    ),
-    (
         2,
         1,
         'Các Thì Trong Tiếng Anh (Tenses)',
@@ -6467,19 +6458,6 @@ VALUES (
         1,
         '2026-06-20 12:20:00',
         '2026-06-20 12:20:00'
-    ),
-    (
-        5,
-        1,
-        'Quiz tổng kết Grammar',
-        'quiz',
-        '{"description":"Quiz tổng hợp 3 bài"}',
-        '00:08:00.000',
-        'active',
-        'Quiz tổng kết',
-        NULL,
-        '2026-06-20 12:25:00',
-        '2026-06-20 12:25:00'
     ),
     (
         6,
@@ -6573,19 +6551,6 @@ VALUES (
         '2026-06-21 12:40:00'
     ),
     (
-        13,
-        5,
-        'Quiz JavaScript Fundamentals',
-        'quiz',
-        '{"description":"Test kiến thức JS"}',
-        '00:10:00.000',
-        'active',
-        'Quiz cuối khóa',
-        NULL,
-        '2026-06-21 12:45:00',
-        '2026-06-21 12:45:00'
-    ),
-    (
         14,
         6,
         'HTML & CSS Full Course',
@@ -6610,19 +6575,6 @@ VALUES (
         10,
         '2026-06-21 13:10:00',
         '2026-06-21 13:10:00'
-    ),
-    (
-        16,
-        7,
-        'Big-Picture: Khi nào cần System Design?',
-        'text',
-        '{"body":"Trước khi vào kỹ thuật, ta cần định nghĩa khi nào cần scale: usage pattern, hot key, SLA. Bài học này giới thiệu mental model."}',
-        '00:08:00.000',
-        'active',
-        'Mindset trước khi học',
-        NULL,
-        '2026-06-22 12:05:00',
-        '2026-06-22 12:05:00'
     ),
     (
         17,
@@ -6662,19 +6614,6 @@ VALUES (
         8,
         '2026-06-23 12:05:00',
         '2026-06-23 12:05:00'
-    ),
-    (
-        20,
-        9,
-        'Quiz nhanh Python List',
-        'quiz',
-        '{"description":"Quiz củng cố"}',
-        '00:05:00.000',
-        'active',
-        'Quiz tổng kết',
-        NULL,
-        '2026-06-23 12:10:00',
-        '2026-06-23 12:10:00'
     ),
     (
         21,
@@ -6886,7 +6825,7 @@ VALUES (
     );
 
 -- ============================================================================
--- LESSON_ACTIVITIES  (quiz containers - standalone + 1 in-video quiz)
+-- LESSON_ACTIVITIES  (3 quiz containers on video lessons + 1 assignment)
 -- ============================================================================
 INSERT INTO
     lesson_activities (
@@ -6903,45 +6842,6 @@ INSERT INTO
         updated_at
     )
 VALUES (
-        1,
-        5,
-        'quiz',
-        'TOEIC Grammar Comprehensive Quiz',
-        'Quiz tổng kết 3 bài Tenses, Verb Patterns, Participles.',
-        1,
-        3,
-        'public',
-        2,
-        '2026-06-20 12:26:00',
-        '2026-06-20 12:26:00'
-    ),
-    (
-        2,
-        13,
-        'quiz',
-        'JavaScript Fundamentals Quiz',
-        'Kiểm tra kiến thức JavaScript căn bản.',
-        1,
-        5,
-        'public',
-        4,
-        '2026-06-21 12:46:00',
-        '2026-06-21 12:46:00'
-    ),
-    (
-        3,
-        20,
-        'quiz',
-        'Python List Quick Quiz',
-        'Quiz nhanh củng cố kiến thức list trong Python.',
-        1,
-        3,
-        'public',
-        6,
-        '2026-06-23 12:11:00',
-        '2026-06-23 12:11:00'
-    ),
-    (
         4,
         2,
         'quiz',
@@ -6995,7 +6895,7 @@ VALUES (
     );
 
 -- ============================================================================
--- QUIZZES
+-- QUIZZES (all attached to supported video lessons)
 -- ============================================================================
 INSERT INTO
     quizzes (
@@ -7011,42 +6911,6 @@ INSERT INTO
         updated_at
     )
 VALUES (
-        1,
-        1,
-        'TOEIC Grammar Comprehensive Quiz',
-        1,
-        1,
-        70,
-        15,
-        0,
-        '2026-06-20 12:27:00',
-        '2026-06-20 12:27:00'
-    ),
-    (
-        2,
-        2,
-        'JavaScript Fundamentals Quiz',
-        1,
-        1,
-        60,
-        12,
-        0,
-        '2026-06-21 12:47:00',
-        '2026-06-21 12:47:00'
-    ),
-    (
-        3,
-        3,
-        'Python List Quick Quiz',
-        0,
-        1,
-        70,
-        6,
-        0,
-        '2026-06-23 12:12:00',
-        '2026-06-23 12:12:00'
-    ),
-    (
         4,
         4,
         'Tenses Spot-Check',
@@ -7100,156 +6964,6 @@ INSERT INTO
         updated_at
     )
 VALUES
-    -- Quiz 1 (TOEIC Grammar comprehensive)
-    (
-        1,
-        1,
-        'mcq',
-        'Câu nào dưới đây dùng đúng thì Present Perfect?',
-        2.00,
-        'I have lived in Hanoi since 2018.',
-        1,
-        NULL,
-        '2026-06-20 12:28:00',
-        '2026-06-20 12:28:00'
-    ),
-    (
-        2,
-        1,
-        'mcq',
-        'Chọn dạng đúng: "She enjoys ___ to classical music."',
-        2.00,
-        'listening',
-        2,
-        NULL,
-        '2026-06-20 12:28:10',
-        '2026-06-20 12:28:10'
-    ),
-    (
-        3,
-        1,
-        'true/false',
-        '"To V1" thường đi sau các động từ như want, decide, plan.',
-        1.00,
-        'true',
-        3,
-        NULL,
-        '2026-06-20 12:28:20',
-        '2026-06-20 12:28:20'
-    ),
-    (
-        4,
-        1,
-        'mcq',
-        '"The man ___ over there is my manager." - chọn participle đúng.',
-        2.00,
-        'standing',
-        4,
-        NULL,
-        '2026-06-20 12:28:30',
-        '2026-06-20 12:28:30'
-    ),
-    (
-        5,
-        1,
-        'short_text',
-        'Viết lại: "It started raining at 8AM, and it is still raining now." (dùng PPC)',
-        3.00,
-        'It has been raining since 8AM.',
-        5,
-        NULL,
-        '2026-06-20 12:28:40',
-        '2026-06-20 12:28:40'
-    ),
-
--- Quiz 2 (JavaScript fundamentals)
-(
-    6,
-    2,
-    'mcq',
-    'Toán tử nào kiểm tra giá trị VÀ kiểu dữ liệu trong JavaScript?',
-    1.00,
-    '===',
-    1,
-    NULL,
-    '2026-06-21 12:48:00',
-    '2026-06-21 12:48:00'
-),
-(
-    7,
-    2,
-    'mcq',
-    'Kết quả của `typeof null` là gì?',
-    1.00,
-    'object',
-    2,
-    NULL,
-    '2026-06-21 12:48:10',
-    '2026-06-21 12:48:10'
-),
-(
-    8,
-    2,
-    'true/false',
-    '`let` cho phép re-declare trong cùng một scope.',
-    1.00,
-    'false',
-    3,
-    NULL,
-    '2026-06-21 12:48:20',
-    '2026-06-21 12:48:20'
-),
-(
-    9,
-    2,
-    'short_text',
-    'Method nào của Array dùng để biến đổi từng phần tử và trả về array mới?',
-    2.00,
-    'map',
-    4,
-    NULL,
-    '2026-06-21 12:48:30',
-    '2026-06-21 12:48:30'
-),
-
--- Quiz 3 (Python list)
-(
-    10,
-    3,
-    'mcq',
-    'Kết quả của `[1, 2, 3][::-1]` là gì?',
-    1.00,
-    '[3, 2, 1]',
-    1,
-    NULL,
-    '2026-06-23 12:13:00',
-    '2026-06-23 12:13:00'
-),
-(
-    11,
-    3,
-    'mcq',
-    'Method nào thêm phần tử vào CUỐI list?',
-    1.00,
-    'append',
-    2,
-    NULL,
-    '2026-06-23 12:13:10',
-    '2026-06-23 12:13:10'
-),
-(
-    12,
-    3,
-    'true/false',
-    'List trong Python là immutable.',
-    1.00,
-    'false',
-    3,
-    NULL,
-    '2026-06-23 12:13:20',
-    '2026-06-23 12:13:20'
-),
-
 -- Quiz 4 (In-video TOEIC Tenses spot-check)
 (
     13,
@@ -7534,322 +7248,6 @@ INSERT INTO
         updated_at
     )
 VALUES
-    -- Q1 (MCQ): Present Perfect
-    (
-        1,
-        1,
-        'I lived in Hanoi since 2018.',
-        0,
-        1,
-        '2026-06-20 12:29:00',
-        '2026-06-20 12:29:00'
-    ),
-    (
-        2,
-        1,
-        'I have lived in Hanoi since 2018.',
-        1,
-        2,
-        '2026-06-20 12:29:00',
-        '2026-06-20 12:29:00'
-    ),
-    (
-        3,
-        1,
-        'I am living in Hanoi since 2018.',
-        0,
-        3,
-        '2026-06-20 12:29:00',
-        '2026-06-20 12:29:00'
-    ),
-    (
-        4,
-        1,
-        'I have been lived in Hanoi since 2018.',
-        0,
-        4,
-        '2026-06-20 12:29:00',
-        '2026-06-20 12:29:00'
-    ),
-    -- Q2 (MCQ): enjoy + V-ing
-    (
-        5,
-        2,
-        'to listen',
-        0,
-        1,
-        '2026-06-20 12:29:10',
-        '2026-06-20 12:29:10'
-    ),
-    (
-        6,
-        2,
-        'listening',
-        1,
-        2,
-        '2026-06-20 12:29:10',
-        '2026-06-20 12:29:10'
-    ),
-    (
-        7,
-        2,
-        'listen',
-        0,
-        3,
-        '2026-06-20 12:29:10',
-        '2026-06-20 12:29:10'
-    ),
-    (
-        8,
-        2,
-        'listened',
-        0,
-        4,
-        '2026-06-20 12:29:10',
-        '2026-06-20 12:29:10'
-    ),
-    -- Q3 (TF): To V1 verbs
-    (
-        9,
-        3,
-        'true',
-        1,
-        1,
-        '2026-06-20 12:29:20',
-        '2026-06-20 12:29:20'
-    ),
-    (
-        10,
-        3,
-        'false',
-        0,
-        2,
-        '2026-06-20 12:29:20',
-        '2026-06-20 12:29:20'
-    ),
-    -- Q4 (MCQ): standing participle
-    (
-        11,
-        4,
-        'stood',
-        0,
-        1,
-        '2026-06-20 12:29:30',
-        '2026-06-20 12:29:30'
-    ),
-    (
-        12,
-        4,
-        'standing',
-        1,
-        2,
-        '2026-06-20 12:29:30',
-        '2026-06-20 12:29:30'
-    ),
-    (
-        13,
-        4,
-        'to stand',
-        0,
-        3,
-        '2026-06-20 12:29:30',
-        '2026-06-20 12:29:30'
-    ),
-    (
-        14,
-        4,
-        'stands',
-        0,
-        4,
-        '2026-06-20 12:29:30',
-        '2026-06-20 12:29:30'
-    ),
-    -- Q6 (MCQ): strict equals
-    (
-        15,
-        6,
-        '==',
-        0,
-        1,
-        '2026-06-21 12:49:00',
-        '2026-06-21 12:49:00'
-    ),
-    (
-        16,
-        6,
-        '===',
-        1,
-        2,
-        '2026-06-21 12:49:00',
-        '2026-06-21 12:49:00'
-    ),
-    (
-        17,
-        6,
-        '=',
-        0,
-        3,
-        '2026-06-21 12:49:00',
-        '2026-06-21 12:49:00'
-    ),
-    (
-        18,
-        6,
-        '!==',
-        0,
-        4,
-        '2026-06-21 12:49:00',
-        '2026-06-21 12:49:00'
-    ),
-    -- Q7 (MCQ): typeof null
-    (
-        19,
-        7,
-        'null',
-        0,
-        1,
-        '2026-06-21 12:49:10',
-        '2026-06-21 12:49:10'
-    ),
-    (
-        20,
-        7,
-        'undefined',
-        0,
-        2,
-        '2026-06-21 12:49:10',
-        '2026-06-21 12:49:10'
-    ),
-    (
-        21,
-        7,
-        'object',
-        1,
-        3,
-        '2026-06-21 12:49:10',
-        '2026-06-21 12:49:10'
-    ),
-    (
-        22,
-        7,
-        'number',
-        0,
-        4,
-        '2026-06-21 12:49:10',
-        '2026-06-21 12:49:10'
-    ),
-    -- Q8 (TF): let re-declare
-    (
-        23,
-        8,
-        'true',
-        0,
-        1,
-        '2026-06-21 12:49:20',
-        '2026-06-21 12:49:20'
-    ),
-    (
-        24,
-        8,
-        'false',
-        1,
-        2,
-        '2026-06-21 12:49:20',
-        '2026-06-21 12:49:20'
-    ),
-    -- Q10 (MCQ): list slicing reverse
-    (
-        25,
-        10,
-        '[1, 2, 3]',
-        0,
-        1,
-        '2026-06-23 12:14:00',
-        '2026-06-23 12:14:00'
-    ),
-    (
-        26,
-        10,
-        '[3, 2, 1]',
-        1,
-        2,
-        '2026-06-23 12:14:00',
-        '2026-06-23 12:14:00'
-    ),
-    (
-        27,
-        10,
-        '[3, 2]',
-        0,
-        3,
-        '2026-06-23 12:14:00',
-        '2026-06-23 12:14:00'
-    ),
-    (
-        28,
-        10,
-        'Error',
-        0,
-        4,
-        '2026-06-23 12:14:00',
-        '2026-06-23 12:14:00'
-    ),
-    -- Q11 (MCQ): append
-    (
-        29,
-        11,
-        'append',
-        1,
-        1,
-        '2026-06-23 12:14:10',
-        '2026-06-23 12:14:10'
-    ),
-    (
-        30,
-        11,
-        'push',
-        0,
-        2,
-        '2026-06-23 12:14:10',
-        '2026-06-23 12:14:10'
-    ),
-    (
-        31,
-        11,
-        'add',
-        0,
-        3,
-        '2026-06-23 12:14:10',
-        '2026-06-23 12:14:10'
-    ),
-    (
-        32,
-        11,
-        'insert',
-        0,
-        4,
-        '2026-06-23 12:14:10',
-        '2026-06-23 12:14:10'
-    ),
-    -- Q12 (TF): list immutable
-    (
-        33,
-        12,
-        'true',
-        0,
-        1,
-        '2026-06-23 12:14:20',
-        '2026-06-23 12:14:20'
-    ),
-    (
-        34,
-        12,
-        'false',
-        1,
-        2,
-        '2026-06-23 12:14:20',
-        '2026-06-23 12:14:20'
-    ),
     -- Q13 (MCQ): Future Perfect Continuous
     (
         35,
@@ -8606,7 +8004,7 @@ VALUES (
     (
         11,
         5,
-        45,
+        50,
         'active',
         '2026-06-08 10:00:00',
         NULL
@@ -8710,15 +8108,15 @@ VALUES (
     (
         14,
         5,
-        80,
-        'active',
+        100,
+        'completed',
         '2026-01-28 16:14:00',
-        NULL
+        '2026-06-22 20:30:00'
     ),
     (
         14,
         7,
-        35,
+        0,
         'active',
         '2026-06-15 14:00:00',
         NULL
@@ -8782,7 +8180,7 @@ VALUES (
     (
         16,
         5,
-        40,
+        0,
         'active',
         '2026-06-03 08:39:00',
         NULL
@@ -8918,7 +8316,7 @@ VALUES (
     (
         20,
         7,
-        40,
+        0,
         'active',
         '2026-06-22 09:00:00',
         NULL
@@ -10070,7 +9468,7 @@ VALUES (
     );
 
 -- ============================================================================
--- LESSON_PROGRESS  (for each enroll, sample lesson completions)
+-- LESSON_PROGRESS  (sample progress for supported video lessons only)
 -- ============================================================================
 INSERT INTO
     lesson_progress (
@@ -10081,27 +9479,21 @@ INSERT INTO
     )
 VALUES
     -- student 11
-    (11, 1, 1, 'completed'),
     (11, 1, 2, 'completed'),
     (11, 1, 3, 'completed'),
     (11, 1, 4, 'completed'),
-    (11, 1, 5, 'completed'),
     (11, 4, 9, 'completed'),
     (11, 4, 10, 'completed'),
     (11, 5, 11, 'completed'),
     (11, 5, 12, 'in_progress'),
-    (11, 5, 13, 'not_started'),
     (11, 6, 14, 'in_progress'),
     (11, 6, 15, 'not_started'),
     (11, 9, 19, 'completed'),
-    (11, 9, 20, 'completed'),
 
 -- student 12
-(12, 1, 1, 'completed'),
 (12, 1, 2, 'completed'),
 (12, 1, 3, 'completed'),
 (12, 1, 4, 'completed'),
-(12, 1, 5, 'completed'),
 (12, 2, 6, 'completed'),
 (12, 2, 7, 'in_progress'),
 (12, 3, 8, 'in_progress'),
@@ -10120,19 +9512,14 @@ VALUES
 (14, 4, 10, 'completed'),
 (14, 5, 11, 'completed'),
 (14, 5, 12, 'completed'),
-(14, 5, 13, 'in_progress'),
-(14, 7, 16, 'completed'),
 (14, 7, 17, 'in_progress'),
 (14, 8, 18, 'in_progress'),
 (14, 9, 19, 'completed'),
-(14, 9, 20, 'completed'),
 
 -- student 15
-(15, 1, 1, 'completed'),
 (15, 1, 2, 'completed'),
 (15, 1, 3, 'completed'),
 (15, 1, 4, 'completed'),
-(15, 1, 5, 'completed'),
 (15, 2, 6, 'completed'),
 (15, 2, 7, 'completed'),
 (15, 14, 25, 'completed'),
@@ -10143,7 +9530,6 @@ VALUES
 (16, 4, 10, 'in_progress'),
 (16, 5, 11, 'in_progress'),
 (16, 9, 19, 'completed'),
-(16, 9, 20, 'completed'),
 (16, 10, 21, 'in_progress'),
 (16, 11, 22, 'video-completed'),
 
@@ -10165,19 +9551,15 @@ VALUES
 (19, 15, 26, 'completed'),
 
 -- student 20
-(20, 1, 1, 'completed'),
 (20, 1, 2, 'completed'),
 (20, 1, 3, 'completed'),
 (20, 1, 4, 'completed'),
-(20, 1, 5, 'completed'),
 (20, 2, 6, 'completed'),
 (20, 2, 7, 'completed'),
-(20, 7, 16, 'completed'),
 (20, 7, 17, 'video-completed'),
 
 -- student 21
 (21, 9, 19, 'completed'),
-(21, 9, 20, 'completed'),
 (21, 10, 21, 'completed'),
 (21, 11, 22, 'in_progress'),
 
@@ -10201,7 +9583,6 @@ VALUES
 -- student 25
 (25, 3, 8, 'completed'),
 (25, 9, 19, 'completed'),
-(25, 9, 20, 'completed'),
 (25, 20, 32, 'in_progress'),
 (25, 24, 36, 'in_progress');
 
@@ -11303,7 +10684,7 @@ VALUES (
         'course.updated',
         'Cập nhật tài liệu khóa System Design',
         'Tài liệu tổng quan kiến trúc hệ thống đã được cập nhật.',
-        '{"courseId":7,"lessonId":16}',
+        '{"courseId":7,"lessonId":17}',
         0,
         'course',
         7,
