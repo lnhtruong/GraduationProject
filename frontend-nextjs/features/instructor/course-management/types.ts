@@ -199,6 +199,7 @@ export interface CourseFeedCreatePayload extends CourseFeedUpsertPayload {
   course_id: number;
 }
 
+
 export interface CourseFeedCandidateVideo {
   id: number;
   name: string;
@@ -206,4 +207,5 @@ export interface CourseFeedCandidateVideo {
   thumbnail?: string | null;
   duration?: number | null;
   type: string;
+  isUsedInFeed?: boolean;
 }

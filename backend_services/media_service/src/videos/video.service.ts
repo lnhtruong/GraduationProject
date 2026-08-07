@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import type { FindOptions } from 'sequelize';
+
 import { Video, VideoType } from './video.model';
 import { CreateVideoDto } from 'src/dto/create-video.dto';
 import { UpdateVideoDto } from 'src/dto/update-video.dto';
 import { MascotImage } from 'src/images_mascot/images.model';
+import { HighlightFeed } from 'src/models/highlight_feed.model';
 
 @Injectable()
 export class VideoService {
@@ -14,6 +17,9 @@ export class VideoService {
 
         @InjectModel(MascotImage)
         private readonly mascotImageModel: typeof MascotImage,
+
+        @InjectModel(HighlightFeed)
+        private readonly highlightFeedModel: typeof HighlightFeed,
     ) { }
 
     async create(dto: CreateVideoDto, userId: number | undefined) {
@@ -38,7 +44,7 @@ export class VideoService {
     async findAll(
         user_id: number | undefined,
         type: string,
-        pagination: { page?: number; limit?: number } = {},
+        pagination: { page?: number; limit?: number; availableForFeed?: boolean; includeFeedUsage?: boolean } = {},
     ) {
 
         if (!user_id) {
@@ -57,15 +63,33 @@ export class VideoService {
             );
         }
 
+        const where: Record<string, unknown> = {
+            user_id,
+            type: normalizedType as VideoType,
+        };
+
+        const shouldResolveFeedUsage = pagination.availableForFeed || pagination.includeFeedUsage;
+        const usedVideoIds = shouldResolveFeedUsage
+            ? await this.findFeedVideoIds()
+            : [];
+        const usedVideoIdSet = new Set(usedVideoIds);
+
+        if (pagination.availableForFeed && usedVideoIds.length > 0) {
+            where.id = { [Op.notIn]: usedVideoIds };
+        }
+
         const baseQuery: FindOptions = {
-            where: { user_id, type: normalizedType as VideoType },
+            where,
             include: [MascotImage],
             order: [['created_at', 'DESC']],
         };
 
         const shouldPaginate = pagination.page !== undefined || pagination.limit !== undefined;
         if (!shouldPaginate) {
-            return this.videoModel.findAll(baseQuery);
+            const rows = await this.videoModel.findAll(baseQuery);
+            return pagination.includeFeedUsage
+                ? this.withFeedUsage(rows, usedVideoIdSet)
+                : rows;
         }
 
         const page = Number.isInteger(pagination.page) && (pagination.page as number) > 0
@@ -84,7 +108,7 @@ export class VideoService {
         });
 
         return {
-            data: rows,
+            data: pagination.includeFeedUsage ? this.withFeedUsage(rows, usedVideoIdSet) : rows,
             pagination: {
                 page,
                 limit,
@@ -92,6 +116,28 @@ export class VideoService {
                 totalPages: count > 0 ? Math.ceil(count / limit) : 0,
             },
         };
+    }
+
+    private withFeedUsage(rows: Video[], usedVideoIdSet: Set<number>) {
+        return rows.map((row) => {
+            const videoId = Number(row.id);
+
+            return {
+                ...row.get({ plain: true }),
+                is_used_in_feed: usedVideoIdSet.has(videoId),
+            };
+        });
+    }
+
+    private async findFeedVideoIds(): Promise<number[]> {
+        const feeds = await this.highlightFeedModel.findAll({
+            attributes: ['video_id'],
+            raw: true,
+        });
+
+        return feeds
+            .map((feed) => Number(feed.video_id))
+            .filter((videoId) => Number.isInteger(videoId) && videoId > 0);
     }
 
     async findOne(id: number) {
