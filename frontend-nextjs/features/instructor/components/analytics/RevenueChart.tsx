@@ -14,7 +14,7 @@ import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import type { TimeseriesItem } from "../../revenue/types";
 
 const chartConfig = {
-  revenue: { label: "Doanh thu", color: "var(--primary)" },
+  revenue: { label: "Tạm thực nhận", color: "var(--primary)" },
 } satisfies ChartConfig;
 
 function formatVND(amount: number): string {
@@ -41,7 +41,7 @@ interface Props {
 }
 
 export function RevenueChart({ data, isLoading, showBrush }: Props) {
-  const chartH = showBrush ? "h-[296px]" : "h-[240px]";
+  const chartH = showBrush ? "h-[180px]" : "h-[156px]";
 
   if (isLoading) {
     return (
@@ -70,7 +70,7 @@ export function RevenueChart({ data, isLoading, showBrush }: Props) {
     );
   }
 
-  const hasBrush = showBrush && data.length > 8;
+  const hasBrush = showBrush && data.length > 18;
   // Default Brush window: show last 12 data points
   const brushStart = hasBrush ? Math.max(0, data.length - 12) : undefined;
   const brushEnd = hasBrush ? data.length - 1 : undefined;
@@ -98,7 +98,7 @@ export function RevenueChart({ data, isLoading, showBrush }: Props) {
             cursor={{ fill: "var(--muted)", opacity: 0.4 }}
             formatter={(value: number) => [
               `${value.toLocaleString("vi-VN")} ₫`,
-              "Doanh thu",
+              "Tạm thực nhận",
             ]}
             labelFormatter={formatDateLabel}
             contentStyle={{

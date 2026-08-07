@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, CalendarDays, X } from "lucide-react";
+import { CalendarDays, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRevenueSummary, useRevenueTimeseries } from "../../revenue/hooks";
+import { useRevenueSummaryByRange, useRevenueTimeseries } from "../../revenue/hooks";
 import { useCourseStatsOverview } from "../../analytics/hooks";
 import type { RevenueTimeseriesParams } from "../../revenue/types";
 import { RevenueSummaryCards } from "./RevenueSummaryCards";
 import { RevenueChart } from "./RevenueChart";
 import { CourseRevenueTable } from "./CourseRevenueTable";
-import { PLATFORM_FEE_PERCENT_LABEL } from "@/lib/env";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -29,13 +28,16 @@ const PRESETS: Preset[] = [
   { key: "thisMonth", label: "Tháng này", defaultGranularity: "daily"   },
   { key: "3m",        label: "3 tháng",   defaultGranularity: "weekly"  },
   { key: "1y",        label: "Năm nay",   defaultGranularity: "monthly" },
-  { key: "all",       label: "Tất cả",    defaultGranularity: "monthly" },
+  { key: "all",       label: "12 tháng gần nhất",   defaultGranularity: "monthly" },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getPresetRange(key: PresetKey): { from: string; to: string } {
@@ -65,7 +67,10 @@ function getPresetRange(key: PresetKey): { from: string; to: string } {
     const from = new Date(today.getFullYear(), 0, 1);
     return { from: toDateStr(from), to: todayStr };
   }
-  return { from: "2020-01-01", to: todayStr };
+  const from = new Date(today);
+  from.setMonth(from.getMonth() - 11);
+  from.setDate(1);
+  return { from: toDateStr(from), to: todayStr };
 }
 
 function getPresetLabel(preset: PresetKey, from?: string, to?: string): string {
@@ -74,7 +79,7 @@ function getPresetLabel(preset: PresetKey, from?: string, to?: string): string {
   if (preset === "thisMonth") return "Tháng này";
   if (preset === "3m") return "3 tháng qua";
   if (preset === "1y") return "Năm nay";
-  if (preset === "all") return "Tất cả";
+  if (preset === "all") return "12 tháng gần nhất";
   if (from && to) return `${from} → ${to}`;
   if (from) return `Từ ${from}`;
   if (to) return `Đến ${to}`;
@@ -94,6 +99,7 @@ function PeriodBadge({ label }: { label: string }) {
 
 export function RevenueTab() {
   const [activePreset, setActivePreset] = useState<PresetKey>("all");
+  const presetButtonRefs = useRef<Partial<Record<PresetKey, HTMLButtonElement | null>>>({});
   const [granularity, setGranularity] =
     useState<RevenueTimeseriesParams["granularity"]>("monthly");
   const [showCustom, setShowCustom] = useState(false);
@@ -106,7 +112,7 @@ export function RevenueTab() {
     () => getPresetRange("all").to,
   );
 
-  const { data: summary, isLoading: summaryLoading } = useRevenueSummary();
+  const { data: summary, isLoading: summaryLoading } = useRevenueSummaryByRange(appliedFrom, appliedTo);
   const { data: statsOverview } = useCourseStatsOverview();
   const { data: timeseries = [], isLoading: chartLoading } = useRevenueTimeseries({
     granularity,
@@ -131,8 +137,18 @@ export function RevenueTab() {
     [summary, ratingMap],
   );
 
+  const chartData = useMemo(
+    () => timeseries.map((item) => ({ ...item, revenue: item.netRevenue ?? item.revenue })),
+    [timeseries],
+  );
+
   const appliedLabel = getPresetLabel(activePreset, appliedFrom, appliedTo);
   const customDateInvalid = Boolean(customFrom && customTo && customFrom > customTo);
+  const vatPercent = summary?.vatPercent ?? 5;
+  const pitPercent = summary?.pitPercent ?? 2;
+  const vatTreatmentLabel =
+    vatPercent === 0 ? "GTGT không chịu thuế" : `GTGT ${vatPercent}%`;
+  const pitWithholdingLabel = `TNCN ${pitPercent}%`;
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -176,6 +192,21 @@ export function RevenueTab() {
   const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
+    const activeButton = presetButtonRefs.current[activePreset];
+    if (!activeButton) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      activeButton.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activePreset, toolbarSlot]);
+
+  useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
@@ -188,24 +219,27 @@ export function RevenueTab() {
   }, []);
 
   const revenueToolbar = (
-    <div className="rounded-xl border border-border/60 bg-background p-3 shadow-xs">
+    <div className="rounded-lg bg-transparent px-1 py-1">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 gap-2">
           <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Khoảng thời gian</p>
             <p className="text-xs text-muted-foreground">
-              Áp dụng cho biểu đồ và doanh thu theo khoá
+              Áp dụng cho biểu đồ và thu nhập theo khoá
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+        <div className="relative -mx-3 flex snap-x scroll-px-3 items-center gap-1.5 overflow-x-auto px-3 pb-1 pr-12 [-ms-overflow-style:none] [scrollbar-width:none] after:pointer-events-none after:sticky after:right-0 after:h-11 after:w-8 after:shrink-0 after:bg-linear-to-l after:from-background after:to-transparent [&::-webkit-scrollbar]:hidden lg:mx-0 lg:flex-wrap lg:justify-end lg:overflow-visible lg:px-0 lg:pb-0 lg:after:hidden">
           {PRESETS.map((preset) => (
             <button
               key={preset.key}
               type="button"
+              ref={(node) => {
+                presetButtonRefs.current[preset.key] = node;
+              }}
               onClick={() => handlePresetClick(preset)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`h-11 shrink-0 snap-start rounded-md px-3 text-xs font-medium transition-all ${
                 activePreset === preset.key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -218,7 +252,7 @@ export function RevenueTab() {
           <button
             type="button"
             onClick={() => setShowCustom((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`inline-flex h-11 shrink-0 snap-start items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-all ${
               activePreset === "custom"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -232,7 +266,7 @@ export function RevenueTab() {
             <button
               type="button"
               onClick={handleResetAll}
-              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex h-11 shrink-0 snap-start items-center gap-1 rounded-md px-2.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-3 w-3" />
               Xoá lọc
@@ -242,7 +276,7 @@ export function RevenueTab() {
       </div>
 
       {showCustom && (
-        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-3 py-3">
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border/50 bg-transparent px-3 py-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-medium text-muted-foreground">Từ ngày</span>
             <Input
@@ -297,42 +331,38 @@ export function RevenueTab() {
     <>
       {toolbarSlot ? createPortal(revenueToolbar, toolbarSlot) : null}
       <div className="space-y-4">
-      <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>
-          Thông tin doanh thu chỉ dành cho giảng viên sở hữu khóa học. Các số
-          liệu hiện là doanh thu ghi nhận từ giao dịch thành công; khi hệ thống
-          áp dụng phí nền tảng {PLATFORM_FEE_PERCENT_LABEL}, cần trừ phần phí này trước khi đối soát cho
-          giảng viên.
-        </p>
-      </div>
-
       {/* ── KPI summary ── */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
         <RevenueSummaryCards data={summary} isLoading={summaryLoading} />
+        <div className="flex gap-2 border-t border-border/40 bg-primary/5 px-4 py-2.5 text-xs text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <p>
+            Tạm khấu trừ thuế: {vatTreatmentLabel} · {pitWithholdingLabel} · Ngưỡng doanh thu năm: 1 tỷ đồng.
+          </p>
+        </div>
       </div>
 
-      {/* ── Biểu đồ doanh thu ── */}
+      {/* ── Biểu đồ thu nhập ── */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-          <span className="text-sm font-semibold">Biểu đồ doanh thu</span>
-          <PeriodBadge label={appliedLabel} />
+          <span className="text-sm font-semibold">Biểu đồ thu nhập</span>
+          {activePreset !== "all" && <PeriodBadge label={appliedLabel} />}
         </div>
         <div className="px-4 pb-5 pt-3">
           <RevenueChart
-            data={timeseries}
+            data={chartData}
             isLoading={chartLoading}
-            showBrush={activePreset === "all" || activePreset === "1y"}
+            showBrush={chartData.length > 18}
           />
         </div>
       </div>
 
-      {/* ── Doanh thu theo khoá học ── */}
+      {/* ── Thu nhập theo khoá học ── */}
       <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">Doanh thu theo khoá học</span>
-            <PeriodBadge label={appliedLabel} />
+            <span className="text-sm font-semibold">Thu nhập theo khoá học</span>
+            {activePreset !== "all" && <PeriodBadge label={appliedLabel} />}
           </div>
           {summary && summary.courses.length > 0 && (
             <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground">

@@ -2,6 +2,20 @@ export interface RevenueSummary {
   allTime: number;
   thisMonth: number;
   lastMonth: number;
+  grossRevenue?: number;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  withholdingBaseAmount?: number;
+  vatPercent?: number;
+  vatAmount?: number;
+  pitPercent?: number;
+  pitAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  annualTaxExemptThreshold?: number;
+  netRevenue?: number;
+  thisMonthNetRevenue?: number;
+  lastMonthNetRevenue?: number;
   growthPercent: number | null;
   courses: CourseRevenueSummary[];
 }
@@ -14,6 +28,19 @@ export interface CourseRevenueSummary {
   allTime: number;
   thisMonth: number;
   lastMonth: number;
+  grossRevenue?: number;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  withholdingBaseAmount?: number;
+  vatPercent?: number;
+  vatAmount?: number;
+  pitPercent?: number;
+  pitAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  netRevenue?: number;
+  thisMonthNetRevenue?: number;
+  lastMonthNetRevenue?: number;
   enrollCount: number;
   growthPercent: number | null;
 }
@@ -21,6 +48,17 @@ export interface CourseRevenueSummary {
 export interface TimeseriesItem {
   date: string;
   revenue: number;
+  grossRevenue?: number;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  withholdingBaseAmount?: number;
+  vatPercent?: number;
+  vatAmount?: number;
+  pitPercent?: number;
+  pitAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  netRevenue?: number;
   enrollCount: number;
 }
 
@@ -29,6 +67,17 @@ export interface TimeseriesWithCoursesItem extends TimeseriesItem {
     courseId: number;
     courseName: string;
     revenue: number;
+    grossRevenue?: number;
+    platformFeePercent?: number;
+    platformFeeAmount?: number;
+    withholdingBaseAmount?: number;
+    vatPercent?: number;
+    vatAmount?: number;
+    pitPercent?: number;
+    pitAmount?: number;
+    taxPercent?: number;
+    taxAmount?: number;
+    netRevenue?: number;
     enrollCount: number;
   }[];
 }
@@ -39,6 +88,16 @@ export interface CourseTransactionItems {
   from: string;
   to: string;
   totalRevenue: number;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  withholdingBaseAmount?: number;
+  vatPercent?: number;
+  vatAmount?: number;
+  pitPercent?: number;
+  pitAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  netRevenue?: number;
   totalItems: number;
   items: SaleItem[];
 }
@@ -48,6 +107,17 @@ export interface SaleItem {
   transactionId: number;
   buyerUserId: number;
   price: number;
+  grossRevenue?: number;
+  platformFeePercent?: number;
+  platformFeeAmount?: number;
+  withholdingBaseAmount?: number;
+  vatPercent?: number;
+  vatAmount?: number;
+  pitPercent?: number;
+  pitAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  netAmount?: number;
   paidAt: string;
   provider: string;
   providerOrderId: string | null;

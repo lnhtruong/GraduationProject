@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,8 @@ import { cn } from "@/lib/utils";
 const SCROLL_THRESHOLD = 260;
 
 export function ScrollToTopButton() {
+  const pathname = usePathname();
+  const hideOnAnalyticsTouch = pathname?.startsWith("/instructor/analytics");
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -31,6 +34,7 @@ export function ScrollToTopButton() {
     <div
       className={cn(
         "pointer-events-none fixed right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 transition-all duration-200 sm:right-6 sm:bottom-6",
+        hideOnAnalyticsTouch ? "max-lg:hidden" : "",
         isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
       )}
       aria-hidden={!isVisible}
