@@ -37,10 +37,10 @@ export function RoleBadge({ role, className }: RoleBadgeProps) {
   return (
     <Badge
       variant="outline"
-      className={cn("gap-1 text-[10px] font-medium", getRoleBadgeClass(roleValue), className)}
+      className={cn("min-w-0 gap-1 text-[10px] font-medium", getRoleBadgeClass(roleValue), className)}
     >
-      {getRoleIcon(roleValue)}
-      {getRoleName(roleValue)}
+      <span className="shrink-0">{getRoleIcon(roleValue)}</span>
+      <span className="min-w-0 truncate">{getRoleName(roleValue)}</span>
     </Badge>
   );
 }
