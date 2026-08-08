@@ -24,6 +24,7 @@ import {
   invalidateLessonQuizCache,
   useLessonActivitiesByLessonId,
   useQuizzesByLessonId,
+  useQuizTimelineByLessonId,
   useCreateLessonActivity,
   useCreateQuiz,
 } from "../api/course-management.hooks";
@@ -37,7 +38,6 @@ import {
   buildInitialLessonValues,
   isLessonEditMode,
 } from "../utils/lesson-form.utils";
-import { buildQuizTimelineMarkers } from "../utils/quiz-timeline.utils";
 import {
   canCreateInVideoQuiz,
   generateTimestampOptions,
@@ -74,8 +74,10 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   const isEdit = isLessonEditMode(lesson);
   const lessonId = lesson?.id ?? null;
 
-  const [editingOutsideQuizActivityId, setEditingOutsideQuizActivityId] =
-    useState<number | null>(null);
+  const [editingOutsideQuizTarget, setEditingOutsideQuizTarget] = useState<{
+    activityId: number;
+    quizId: number | null;
+  } | null>(null);
   const [showQuizEditorModal, setShowQuizEditorModal] = useState(false);
   const [pendingQuizStates, setPendingQuizStates] = useState<QuizEditorState[]>(
     [],
@@ -99,8 +101,13 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   const { data: activities, isLoading: activitiesLoading } =
     useLessonActivitiesByLessonId(lessonId, Boolean(lessonId));
 
-  const { data: inVideoQuizzes, isLoading: quizzesLoading } =
+  const { data: inVideoQuizzes, isLoading: inVideoQuizzesLoading } =
     useQuizzesByLessonId(lessonId, "in_video", undefined, Boolean(lessonId));
+
+  const { data: timelineMarkers = [], isLoading: timelineMarkersLoading } =
+    useQuizTimelineByLessonId(lessonId, undefined, Boolean(lessonId));
+
+  const quizzesLoading = inVideoQuizzesLoading || timelineMarkersLoading;
 
   const { data: outVideoQuizzes, isLoading: outVideoQuizzesLoading } =
     useQuizzesByLessonId(lessonId, "after_video", undefined, Boolean(lessonId));
@@ -278,23 +285,28 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     );
   }, [inVideoQuizzes, activeVideoDurationSeconds]);
 
-  const timelineMarkers = useMemo(
-    () => buildQuizTimelineMarkers(inVideoQuizzes, activities),
-    [inVideoQuizzes, activities],
-  );
-
   const displayActivities = useMemo(() => {
-    const outsideVideoActivityIds = new Set(
-      (outVideoQuizzes ?? []).map((quiz) => quiz.lessonActivityId),
-    );
-
-    return (activities ?? []).filter((activity) => {
-      if (activity.activityType !== "quiz") {
-        return true;
-      }
-
-      return outsideVideoActivityIds.has(activity.id);
+    const activityById = new Map((activities ?? []).map((activity) => [activity.id, activity]));
+    const nonQuizActivities = (activities ?? [])
+      .filter((activity) => activity.activityType !== "quiz")
+      .map((activity) => ({
+        activityId: activity.id,
+        title: activity.title,
+        activityType: activity.activityType,
+        status: activity.status,
+      }));
+    const outsideVideoQuizRows = (outVideoQuizzes ?? []).map((quiz) => {
+      const activity = activityById.get(quiz.lessonActivityId);
+      return {
+        activityId: quiz.lessonActivityId,
+        title: quiz.name || activity?.title || null,
+        activityType: "quiz" as const,
+        status: activity?.status ?? "public",
+        quizId: quiz.id,
+      };
     });
+
+    return [...nonQuizActivities, ...outsideVideoQuizRows];
   }, [activities, outVideoQuizzes]);
 
   const savePendingQuizzes = async (
@@ -543,22 +555,26 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
             activitiesLoading || quizzesLoading || outVideoQuizzesLoading
           }
           timelineCount={timelineMarkers.length}
-          onEditQuiz={(activityId) => {
-            setEditingOutsideQuizActivityId(activityId);
+          onEditQuiz={(target) => {
+            setEditingOutsideQuizTarget({
+              activityId: target.activityId,
+              quizId: target.quizId ?? null,
+            });
           }}
         />
       )}
 
       {lessonId ? (
         <OutsideQuizEditorDialog
-          open={editingOutsideQuizActivityId !== null}
+          open={editingOutsideQuizTarget !== null}
           onOpenChange={(open) => {
             if (!open) {
-              setEditingOutsideQuizActivityId(null);
+              setEditingOutsideQuizTarget(null);
             }
           }}
           lessonTitle={lesson?.title ?? "Bài học"}
-          lessonActivityId={editingOutsideQuizActivityId}
+          lessonActivityId={editingOutsideQuizTarget?.activityId ?? null}
+          quizId={editingOutsideQuizTarget?.quizId ?? null}
         />
       ) : null}
 
@@ -612,6 +628,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
                 ref={quizFormRef}
                 initialInVideo={quizMode === "in_video"}
                 defaultTimestamp={quizTimestamp}
+                videoUrl={activeVideoUrl}
+                videoDurationSeconds={activeVideoDurationSeconds}
                 onSubmit={handleSaveLocalQuiz}
               />
             </div>

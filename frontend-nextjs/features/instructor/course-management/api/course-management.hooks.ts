@@ -281,6 +281,19 @@ export function useQuizzesByLessonId(
   });
 }
 
+export function useQuizTimelineByLessonId(
+  lessonId: number | null,
+  status?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: lessonQuizKeys.custom("timeline", lessonId, status ?? "all"),
+    queryFn: () => quizApi.listTimelineByLesson(lessonId as number, status),
+    enabled: enabled && lessonId !== null,
+    staleTime: 60 * 1000,
+  });
+}
+
 type MediaVideoRaw = {
   id: number;
   name?: string | null;
@@ -288,6 +301,8 @@ type MediaVideoRaw = {
   thumbnail?: string | null;
   duration?: number | null;
   type?: string;
+  is_used_in_feed?: boolean;
+  isUsedInFeed?: boolean;
 };
 
 export function useCourseFeed(
@@ -338,23 +353,54 @@ export function useCourseFeedPage(
   });
 }
 
+type MediaVideoListResponse = MediaVideoRaw[] | { data?: MediaVideoRaw[] };
+
+function readMediaVideos(payload: MediaVideoListResponse): MediaVideoRaw[] {
+  if (Array.isArray(payload)) return payload;
+  return Array.isArray(payload.data) ? payload.data : [];
+}
+
+type CourseFeedCandidateVideoOptions = {
+  includeUsed?: boolean;
+};
+
+
 export function useCourseFeedCandidateVideos(
   courseId: number | null,
   enabled = true,
+  options: CourseFeedCandidateVideoOptions = {},
 ) {
+  const includeUsed = options.includeUsed === true;
+
   return useQuery({
-    queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+    queryKey: courseFeedKeys.custom(
+      "candidate-videos",
+      courseId,
+      includeUsed ? "full" : "available",
+    ),
     queryFn: async () => {
+      const videoParams = {
+        page: 1,
+        limit: 100,
+        ...(includeUsed
+          ? { includeFeedUsage: true }
+          : { availableForFeed: true }),
+      };
+
       const [highlightResponse, mascotResponse] = await Promise.all([
-        apiHttpClient.get<MediaVideoRaw[]>("/media/videos/user/highlight"),
-        apiHttpClient.get<MediaVideoRaw[]>("/media/videos/user/mascot"),
+        apiHttpClient.get<MediaVideoListResponse>(
+          "/media/videos/user/highlight",
+          { params: videoParams },
+        ),
+        apiHttpClient.get<MediaVideoListResponse>(
+          "/media/videos/user/mascot",
+          { params: videoParams },
+        ),
       ]);
 
       const resolvedVideos = [
-        ...(Array.isArray(highlightResponse.data)
-          ? highlightResponse.data
-          : []),
-        ...(Array.isArray(mascotResponse.data) ? mascotResponse.data : []),
+        ...readMediaVideos(highlightResponse.data),
+        ...readMediaVideos(mascotResponse.data),
       ];
 
       return resolvedVideos
@@ -370,6 +416,7 @@ export function useCourseFeedCandidateVideos(
           thumbnail: video.thumbnail ?? null,
           duration: video.duration ?? null,
           type: video.type ?? "unknown",
+          isUsedInFeed: Boolean(video.is_used_in_feed ?? video.isUsedInFeed),
         }));
     },
     enabled: enabled && courseId !== null,

@@ -32,6 +32,8 @@ export class VideoController {
         @Headers('x-user-id') userIdHeader?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
+        @Query('availableForFeed') availableForFeed?: string,
+        @Query('includeFeedUsage') includeFeedUsage?: string,
     ) {
         const userId =
             typeof userIdHeader === 'string' && userIdHeader.trim().length > 0
@@ -40,9 +42,15 @@ export class VideoController {
         return this.VideoService.findAll(userId, type, {
             page: page !== undefined ? Number(page) : undefined,
             limit: limit !== undefined ? Number(limit) : undefined,
+            availableForFeed: this.parseBooleanQuery(availableForFeed),
+            includeFeedUsage: this.parseBooleanQuery(includeFeedUsage),
         });
     }
 
+    private parseBooleanQuery(value?: string): boolean {
+        if (typeof value !== 'string') return false;
+        return ['1', 'true', 'yes'].includes(value.trim().toLowerCase());
+    }
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.VideoService.findOne(+id);

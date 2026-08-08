@@ -720,6 +720,8 @@ export function ActivityCreationDialog({
                       ref={quizFormRef}
                       initialInVideo={quizMode === "in_video"}
                       defaultTimestamp={quizTimestamp}
+                      videoUrl={activeVideoUrl}
+                      videoDurationSeconds={activeVideoDurationSeconds}
                       onSubmit={handleCreateQuizFromPopup}
                     />
                   </div>

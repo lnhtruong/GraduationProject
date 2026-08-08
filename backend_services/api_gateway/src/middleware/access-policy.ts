@@ -234,6 +234,7 @@ const ACCESS_RULES: AccessRule[] = [
   { method: 'GET', pattern: '/api/course/lessons/course', access: 'public' },
   { method: 'GET', pattern: '/api/course/lessons/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes', access: 'public' },
+  { method: 'GET', pattern: '/api/course/quizzes/lesson/:id/timeline', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes/lesson/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/quizzes/:id', access: 'authenticated' },
   { method: 'GET', pattern: '/api/course/lesson-activities', access: 'authenticated' },

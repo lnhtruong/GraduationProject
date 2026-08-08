@@ -200,7 +200,7 @@ export function LessonVideoQuizOverlay({
                       key={`${activeQuizPoint.id}-${optionIndex}`}
                       type="button"
                       disabled={submitted}
-                      className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${classes.card}`}
+                      className={`flex min-w-0 w-full cursor-pointer items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-90 sm:gap-4 sm:p-4 ${classes.card}`}
                       onClick={() =>
                         onSelectInVideoAnswer(activeQuizPoint.id, optionIndex)
                       }
@@ -278,18 +278,18 @@ export function LessonVideoQuizOverlay({
                 </div>
               ) : null}
 
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+              <div className="mt-6 flex flex-col items-stretch gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 text-xs text-white/75">
                   <CircleHelp className="h-3.5 w-3.5 text-white/70" />
                   {isReviewingSolvedQuiz
                     ? "Xem lại câu hỏi đã trả lời"
                     : "Chọn đáp án để tiếp tục video"}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                   {!isReviewingSolvedQuiz ? (
                     <Button
                       size="sm"
-                      className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
+                      className="w-full rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50 sm:w-auto"
                       disabled={
                         inVideoAnswers[activeQuizPoint.id] === undefined ||
                         Boolean(inVideoSubmitted[activeQuizPoint.id])
@@ -314,7 +314,7 @@ export function LessonVideoQuizOverlay({
                   {inVideoScore !== null ? (
                     <Button
                       size="sm"
-                      className="rounded-lg bg-primary px-4 text-primary-foreground shadow-none hover:bg-primary/90"
+                      className="w-full rounded-lg bg-primary px-4 text-primary-foreground shadow-none hover:bg-primary/90 sm:w-auto"
                       onClick={onContinueAfterInVideoQuiz}
                     >
                       {isReviewingSolvedQuiz ? "Đóng" : "Tiếp tục video"}
@@ -455,7 +455,7 @@ export function LessonVideoQuizOverlay({
               <div className="mt-6 flex justify-end border-t border-white/10 pt-4">
                 <Button
                   size="sm"
-                  className="rounded-lg bg-primary px-4 text-primary-foreground shadow-none hover:bg-primary/90"
+                  className="w-full rounded-lg bg-primary px-4 text-primary-foreground shadow-none hover:bg-primary/90 sm:w-auto"
                   onClick={onCloseQuizGroupReview}
                 >
                   Đóng
@@ -521,7 +521,7 @@ export function LessonVideoQuizOverlay({
                                 key={`${question.id}-${optionIndex}`}
                                 type="button"
                                 disabled={afterLessonSubmitted}
-                                className={`flex min-w-0 w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${classes.card}`}
+                                className={`flex min-w-0 w-full cursor-pointer items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-90 sm:gap-4 sm:p-4 ${classes.card}`}
                                 onClick={() =>
                                   onSelectAfterLessonAnswer(
                                     question.id,
@@ -588,15 +588,15 @@ export function LessonVideoQuizOverlay({
                       </div>
                     ))}
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+                    <div className="flex flex-col items-stretch gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2 text-xs text-white/75">
                         <CircleHelp className="h-3.5 w-3.5 text-white/70" />
                         Chọn đáp án để tiếp tục
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                         <Button
                           size="sm"
-                          className="rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50"
+                          className="w-full rounded-lg border border-white/25 bg-white/10 px-4 text-white shadow-none hover:bg-white/20 disabled:border-white/10 disabled:bg-white/5 disabled:text-white/50 sm:w-auto"
                           disabled={afterLessonSubmitted}
                           onClick={onSubmitAfterLessonQuiz}
                         >

@@ -43,6 +43,7 @@ const ADMIN = { userId: 1, role: 1 };
 describe('QuizzesService - direct quiz write review guards', () => {
   let service: QuizzesService;
   let quizModel: ReturnType<typeof makeModelMock>;
+  let lessonActivityModel: ReturnType<typeof makeModelMock>;
   let coursesService: {
     findCourseByLessonActivityId: Mock;
     createQuizChangeRequest: Mock;
@@ -51,6 +52,7 @@ describe('QuizzesService - direct quiz write review guards', () => {
 
   beforeEach(async () => {
     quizModel = makeModelMock();
+    lessonActivityModel = makeModelMock();
     coursesService = {
       findCourseByLessonActivityId: jest.fn(),
       createQuizChangeRequest: jest.fn().mockResolvedValue({ id: 555 }),
@@ -64,7 +66,7 @@ describe('QuizzesService - direct quiz write review guards', () => {
         { provide: getModelToken(QuizQuestion), useValue: makeModelMock() },
         { provide: getModelToken(QuizOption), useValue: makeModelMock() },
         { provide: getModelToken(Video), useValue: makeModelMock() },
-        { provide: getModelToken(LessonActivity), useValue: makeModelMock() },
+        { provide: getModelToken(LessonActivity), useValue: lessonActivityModel },
         {
           provide: getConnectionToken(),
           useValue: {
@@ -213,6 +215,112 @@ describe('QuizzesService - direct quiz write review guards', () => {
       expect(service.remove).toHaveBeenCalledWith(42);
       expect(coursesService.createQuizChangeRequest).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('findTimelineByLessonId', () => {
+    it('groups questions from the same quiz and timestamp into one marker', async () => {
+      lessonActivityModel.findAll
+        .mockResolvedValueOnce([{ id: 3 }])
+        .mockResolvedValueOnce([{ id: 3, title: 'Timeline activity', description: null }]);
+      quizModel.findAll.mockResolvedValue([
+        {
+          id: 7,
+          lessonActivityId: 3,
+          name: 'Quiz fallback',
+          isInVideo: true,
+          questions: [
+            { id: 11, orderIndex: 2, videoTimestamp: '00:10:00.000', quesText: 'Question B' },
+            { id: 10, orderIndex: 1, videoTimestamp: '00:10:00.000', quesText: 'Question A' },
+            { id: 12, orderIndex: 3, videoTimestamp: '00:20:00.000', quesText: 'Question C' },
+          ],
+        },
+      ]);
+
+      const result = await service.findTimelineByLessonId(2);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        quizId: 7,
+        lessonActivityId: 3,
+        questionIds: [10, 11],
+        questionId: 10,
+        questionCount: 2,
+        quizName: 'Timeline activity',
+        questionText: 'Question A',
+        timestamp: '00:10:00.000',
+        timestampLabel: '10:00',
+        timestampSeconds: 600,
+      });
+      expect(result[1]).toMatchObject({
+        questionIds: [12],
+        questionCount: 1,
+        timestampLabel: '20:00',
+      });
+    });
+
+    it('groups different quizzes at the same timestamp into one marker with items', async () => {
+      lessonActivityModel.findAll
+        .mockResolvedValueOnce([{ id: 3 }, { id: 4 }])
+        .mockResolvedValueOnce([
+          { id: 3, title: 'Activity A', description: null },
+          { id: 4, title: 'Activity B', description: null },
+        ]);
+      quizModel.findAll.mockResolvedValue([
+        {
+          id: 7,
+          lessonActivityId: 3,
+          name: 'Quiz A',
+          isInVideo: true,
+          questions: [
+            { id: 10, orderIndex: 1, videoTimestamp: '00:08:00.000', quesText: 'Question A' },
+          ],
+        },
+        {
+          id: 8,
+          lessonActivityId: 4,
+          name: 'Quiz B',
+          isInVideo: true,
+          questions: [
+            { id: 11, orderIndex: 1, videoTimestamp: '00:08:00.000', quesText: 'Question B' },
+          ],
+        },
+      ]);
+
+      const result = await service.findTimelineByLessonId(2);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        timestamp: '00:08:00.000',
+        timestampLabel: '08:00',
+        timestampSeconds: 480,
+        questionIds: [10, 11],
+        questionCount: 2,
+        quizCount: 2,
+      });
+      expect(result[0].items).toEqual([
+        expect.objectContaining({ quizId: 7, questionIds: [10], questionCount: 1 }),
+        expect.objectContaining({ quizId: 8, questionIds: [11], questionCount: 1 }),
+      ]);
+    });
+
+    it('skips AI review pending activities', async () => {
+      lessonActivityModel.findAll
+        .mockResolvedValueOnce([{ id: 3 }])
+        .mockResolvedValueOnce([{ id: 3, title: 'Pending', description: 'AI_REVIEW_PENDING' }]);
+      quizModel.findAll.mockResolvedValue([
+        {
+          id: 7,
+          lessonActivityId: 3,
+          name: 'Pending quiz',
+          isInVideo: true,
+          questions: [
+            { id: 10, orderIndex: 1, videoTimestamp: '00:10:00.000', quesText: 'Question A' },
+          ],
+        },
+      ]);
+
+      await expect(service.findTimelineByLessonId(2)).resolves.toEqual([]);
     });
   });
 
