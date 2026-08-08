@@ -14,7 +14,7 @@ import {
 import { JOB_STATUS_ENDPOINT } from "./upload.api";
 import type { JobIdResponse } from "../types";
 
-export const TRANSCRIBE_ENDPOINT = "/transcribe";
+export const TRANSCRIBE_ENDPOINT = "/mascot_colab/transcribe";
 
 export interface StartTranscribeJobParams {
   videoUrl: string;
