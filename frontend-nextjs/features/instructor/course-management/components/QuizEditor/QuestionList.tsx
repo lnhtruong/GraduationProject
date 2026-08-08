@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, Plus, Check } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { QuizEditorQuestion } from "../../types";
 
@@ -11,6 +11,11 @@ interface Props {
   onAddQuestion: () => void;
   onRemoveQuestion: (questionId: number) => void;
   saveAction?: React.ReactNode;
+  title?: string;
+  countLabel?: string;
+  showAddButton?: boolean;
+  showRemoveButtons?: boolean;
+  getQuestionLabel?: (question: QuizEditorQuestion, index: number) => string;
 }
 
 export function QuestionList({
@@ -20,27 +25,34 @@ export function QuestionList({
   onAddQuestion,
   onRemoveQuestion,
   saveAction,
+  title = "Danh sách câu hỏi",
+  countLabel,
+  showAddButton = true,
+  showRemoveButtons = true,
+  getQuestionLabel,
 }: Props) {
   return (
     <div className="w-full min-w-0 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Danh sách câu hỏi
+            {title}
           </p>
-          <h3 className="text-lg font-bold mt-0.5">{questions.length} câu hỏi</h3>
+          <h3 className="text-lg font-bold mt-0.5">{countLabel ?? `${questions.length} câu hỏi`}</h3>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onAddQuestion}
-            className="w-full sm:w-auto h-9 rounded-xl font-bold gap-1.5 shadow-xs"
-          >
-            <Plus className="h-4 w-4 text-primary" />
-            Thêm câu hỏi
-          </Button>
+          {showAddButton ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onAddQuestion}
+              className="w-full sm:w-auto h-9 rounded-xl font-bold gap-1.5 shadow-xs"
+            >
+              <Plus className="h-4 w-4 text-primary" />
+              Thêm câu hỏi
+            </Button>
+          ) : null}
           {saveAction}
         </div>
       </div>
@@ -71,21 +83,23 @@ export function QuestionList({
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                   isSelected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
                 }`}>
-                  Câu {index + 1}
+                  {getQuestionLabel?.(question, index) ?? `Câu ${index + 1}`}
                 </span>
                 
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveQuestion(question.id);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {showRemoveButtons ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveQuestion(question.id);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                ) : null}
               </div>
 
               <div className="flex items-end justify-between gap-1.5 w-full">

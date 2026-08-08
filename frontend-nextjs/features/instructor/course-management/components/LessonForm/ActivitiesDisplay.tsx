@@ -5,17 +5,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface Activity {
-  id: number;
+  activityId: number;
   title?: string | null;
   activityType: "quiz" | "assignment";
   status: string;
+  quizId?: number | null;
 }
 
 interface Props {
   activities?: Activity[] | null;
   isLoading: boolean;
   timelineCount?: number;
-  onEditQuiz?: (activityId: number) => void;
+  onEditQuiz?: (target: { activityId: number; quizId?: number | null }) => void;
 }
 
 export function ActivitiesDisplay({
@@ -52,12 +53,15 @@ export function ActivitiesDisplay({
 
                 return (
                   <button
-                    key={activity.id}
+                    key={activity.quizId ? `${activity.activityId}-${activity.quizId}` : activity.activityId}
                     type="button"
                     disabled={!isQuiz}
                     onClick={() => {
                       if (isQuiz) {
-                        onEditQuiz?.(activity.id);
+                        onEditQuiz?.({
+                          activityId: activity.activityId,
+                          quizId: activity.quizId ?? null,
+                        });
                       }
                     }}
                     className={cn(

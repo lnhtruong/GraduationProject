@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { QuizEditor } from "../QuizEditor";
 import {
+  invalidateLessonQuizCache,
   useCreateQuiz,
-  useQuizzesByLessonActivityId,
+  useQuizById,
   useUpdateQuiz,
 } from "../../api/course-management.hooks";
 import type { QuizEditorState } from "../../types";
@@ -27,6 +29,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   lessonTitle: string;
   lessonActivityId: number | null;
+  quizId?: number | null;
 }
 
 export function OutsideQuizEditorDialog({
@@ -34,13 +37,15 @@ export function OutsideQuizEditorDialog({
   onOpenChange,
   lessonTitle,
   lessonActivityId,
+  quizId,
 }: Props) {
-  const { data: quizzes, isLoading } = useQuizzesByLessonActivityId(
-    lessonActivityId,
-    open && lessonActivityId !== null,
+  const queryClient = useQueryClient();
+  const { data: quiz, isLoading } = useQuizById(
+    quizId ?? null,
+    open && quizId !== null && quizId !== undefined,
   );
 
-  const existingQuiz = quizzes?.[0] ?? null;
+  const existingQuiz = quiz ?? null;
 
   const createQuizMutation = useCreateQuiz();
   const updateQuizMutation = useUpdateQuiz();
@@ -70,6 +75,7 @@ export function OutsideQuizEditorDialog({
       await createQuizMutation.mutateAsync(payload);
     }
 
+    await invalidateLessonQuizCache(queryClient);
     onOpenChange(false);
   };
 
@@ -105,7 +111,7 @@ export function OutsideQuizEditorDialog({
             <QuizEditor
               key={buildQuizEditorKey(
                 lessonActivityId,
-                existingQuiz?.id ?? null,
+                quizId ?? existingQuiz?.id ?? null,
               )}
               quiz={editorState}
               onSave={handleSave}

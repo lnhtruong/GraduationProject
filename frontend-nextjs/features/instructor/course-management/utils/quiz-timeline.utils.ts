@@ -1,12 +1,21 @@
 import type { InstructorLessonActivity, InstructorQuiz } from "../types";
 
-export interface QuizTimelineMarker {
+export interface QuizTimelineMarkerItem {
   quizId: number;
   lessonActivityId: number;
+  questionIds: number[];
+  questionId?: number;
+  questionCount: number;
   quizName: string;
   questionText: string;
+}
+
+export interface QuizTimelineMarker extends QuizTimelineMarkerItem {
+  timestamp?: string;
   timestampLabel: string;
   timestampSeconds: number;
+  quizCount?: number;
+  items?: QuizTimelineMarkerItem[];
 }
 
 export function parseVideoTimestampToSeconds(
@@ -83,6 +92,9 @@ export function buildQuizTimelineMarkers(
       markers.push({
         quizId: quiz.id,
         lessonActivityId: quiz.lessonActivityId,
+        questionIds: typeof question.id === "number" ? [question.id] : [],
+        questionId: question.id,
+        questionCount: 1,
         quizName:
           activityTitleMap.get(quiz.lessonActivityId) ??
           quiz.name ??

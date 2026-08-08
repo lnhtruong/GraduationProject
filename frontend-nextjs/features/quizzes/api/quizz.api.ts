@@ -8,6 +8,7 @@ import type {
 	CreateQuizPayload,
 	LessonQuizTypeFilter,
 	Quiz,
+	QuizTimelineMarker,
 	QuizListParams,
 	UpdateQuizPayload,
 } from "../types";
@@ -78,6 +79,17 @@ export const quizApi = {
 
 		return (Array.isArray(data) ? data : []).map(mapQuiz);
 	},
+	listTimelineByLesson: async (
+		lessonId: number,
+		status?: string,
+	): Promise<QuizTimelineMarker[]> => {
+		const { data } = await apiHttpClient.get<QuizTimelineMarker[]>(
+			`/course/quizzes/lesson/${lessonId}/timeline`,
+			{ params: { ...(status ? { status } : {}) } },
+		);
+
+		return Array.isArray(data) ? data : [];
+	},
 };
 
 export const quizAiApi = {
@@ -103,5 +115,6 @@ export type {
 	LessonQuizTypeFilter,
 	Quiz,
 	QuizListParams,
+	QuizTimelineMarker,
 	UpdateQuizPayload,
 } from "../types";

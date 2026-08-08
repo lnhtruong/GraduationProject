@@ -281,6 +281,19 @@ export function useQuizzesByLessonId(
   });
 }
 
+export function useQuizTimelineByLessonId(
+  lessonId: number | null,
+  status?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: lessonQuizKeys.custom("timeline", lessonId, status ?? "all"),
+    queryFn: () => quizApi.listTimelineByLesson(lessonId as number, status),
+    enabled: enabled && lessonId !== null,
+    staleTime: 60 * 1000,
+  });
+}
+
 type MediaVideoRaw = {
   id: number;
   name?: string | null;

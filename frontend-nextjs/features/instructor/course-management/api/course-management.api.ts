@@ -102,10 +102,6 @@ function toCoursePayload(payload: CourseFormValues) {
 }
 
 function toQuizPayload(payload: QuizEditorState) {
-  const sharedVideoTimestamp = payload.questions.find((q) =>
-    q.videoTimestamp?.trim(),
-  )?.videoTimestamp?.trim();
-
   return {
     lessonActivityId: payload.lessonActivityId as number,
     name: payload.title,
@@ -120,8 +116,12 @@ function toQuizPayload(payload: QuizEditorState) {
       point: 1,
       explanation: question.explanation ?? "",
       orderIndex: index + 1,
-      videoTimestamp: payload.isInVideo ? sharedVideoTimestamp : undefined,
-      evidenceTimestamp: question.evidenceTimestamp?.trim() || undefined,
+      ...(payload.isInVideo && question.videoTimestamp?.trim()
+        ? { videoTimestamp: question.videoTimestamp.trim() }
+        : {}),
+      ...(payload.isInVideo && question.evidenceTimestamp?.trim()
+        ? { evidenceTimestamp: question.evidenceTimestamp.trim() }
+        : {}),
       options: question.options.map((option, optionIndex) => ({
         optionText: option.label,
         isCorrect: option.isCorrect,
@@ -224,6 +224,7 @@ export const quizApi = {
       : baseQuizApi.update(id, toQuizPayload(payload)),
   delete: (id: number) => baseQuizApi.delete(id),
   listByLesson: baseQuizApi.listByLesson,
+  listTimelineByLesson: baseQuizApi.listTimelineByLesson,
 };
 
 const courseFeedCrudApi = createResourceApi<

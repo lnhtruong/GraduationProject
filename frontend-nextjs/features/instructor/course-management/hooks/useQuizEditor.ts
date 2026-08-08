@@ -59,12 +59,16 @@ const createBlankQuizState = (
 
 export function useQuizEditor(
   initialQuiz?: QuizEditorState | null,
+  initialSelectedQuestionId?: number | null,
 ): UseQuizEditorReturn {
   const [state, setState] = useState<QuizEditorState>(
     initialQuiz ?? createBlankQuizState(null),
   );
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
-    state.questions[0]?.id ?? null,
+    initialSelectedQuestionId &&
+      state.questions.some((question) => question.id === initialSelectedQuestionId)
+      ? initialSelectedQuestionId
+      : state.questions[0]?.id ?? null,
   );
 
   const selectedQuestion =
