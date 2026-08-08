@@ -248,11 +248,11 @@ VALUES (
         '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
         'Minh Chi',
         'Phan',
-        2,
+        3,
         'https://res.cloudinary.com/iudiaynp/image/upload/v1785648161/phan-minh-chi_c9w8i3.png',
         0,
         '2025-12-14 16:00:00',
-        '2026-01-07 14:35:00'
+        '2026-07-20 09:00:00'
     ),
     (
         14,
@@ -272,11 +272,11 @@ VALUES (
         '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
         'Thùy Dương',
         'Hoàng',
-        2,
+        3,
         'https://res.cloudinary.com/iudiaynp/image/upload/v1785648165/hoang-thuy-duong_mw92w0.png',
         0,
         '2025-12-16 16:00:00',
-        '2026-01-21 08:45:00'
+        '2026-07-22 10:00:00'
     ),
     (
         16,
@@ -356,11 +356,11 @@ VALUES (
         '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
         'Thành Long',
         'Đoàn',
-        2,
+        3,
         'https://res.cloudinary.com/iudiaynp/image/upload/v1785648159/doan-thanh-long_wwzpbl.png',
         0,
         '2025-12-23 16:00:00',
-        '2026-03-11 16:30:00'
+        '2026-07-25 09:30:00'
     ),
     (
         23,
@@ -399,7 +399,6 @@ VALUES (
         '2026-04-04 20:10:00'
     );
 
-
 -- ============================================================================
 -- MASCOT IMAGES (one stock mascot per teacher who uses the video editor)
 -- ============================================================================
@@ -417,8 +416,7 @@ INSERT INTO
         createdAt,
         updatedAt
     )
-VALUES
-    (
+VALUES (
         1,
         2,
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783953276/png_bddk0a.png',
@@ -5946,7 +5944,7 @@ VALUES (
         '["TOEIC","Grammar","English"]',
         'Beginner',
         '02:51:45.875',
-        'Vietnamese',
+        'vi',
         399000,
         2,
         'publish',
@@ -5962,7 +5960,7 @@ VALUES (
         '["Languages","English","Conversation"]',
         'Beginner',
         '02:55:03.530',
-        'English',
+        'en',
         199000,
         2,
         'publish',
@@ -5978,7 +5976,7 @@ VALUES (
         '["Languages","Chinese","HSK"]',
         'Beginner',
         '01:18:33.643',
-        'Vietnamese',
+        'vi',
         149000,
         3,
         'publish',
@@ -5994,7 +5992,7 @@ VALUES (
         '["Programming","Web","DevTools"]',
         'Beginner',
         '02:52:59.783',
-        'Vietnamese',
+        'vi',
         199000,
         4,
         'publish',
@@ -6010,7 +6008,7 @@ VALUES (
         '["Programming","Web","JavaScript"]',
         'Intermediate',
         '04:14:59.349',
-        'English',
+        'en',
         499000,
         4,
         'publish',
@@ -6026,7 +6024,7 @@ VALUES (
         '["Programming","Web","HTML","CSS","Node.js"]',
         'Intermediate',
         '12:31:49.568',
-        'English',
+        'en',
         499000,
         4,
         'publish',
@@ -6042,7 +6040,7 @@ VALUES (
         '["Programming","System Design","DevOps"]',
         'Advanced',
         '02:05:21.965',
-        'English',
+        'en',
         699000,
         5,
         'publish',
@@ -6058,7 +6056,7 @@ VALUES (
         '["Programming","Data Structures","Algorithms"]',
         'Intermediate',
         '01:50:05.291',
-        'Vietnamese',
+        'vi',
         299000,
         5,
         'publish',
@@ -6074,7 +6072,7 @@ VALUES (
         '["Programming","Python"]',
         'Beginner',
         '00:43:15.805',
-        'Vietnamese',
+        'vi',
         0,
         6,
         'publish',
@@ -6090,7 +6088,7 @@ VALUES (
         '["AI","Machine Learning","Python","Data Science"]',
         'Intermediate',
         '01:37:40.885',
-        'English',
+        'en',
         399000,
         6,
         'publish',
@@ -6106,7 +6104,7 @@ VALUES (
         '["AI","ChatGPT","Prompt"]',
         'Beginner',
         '01:21:24.203',
-        'Vietnamese',
+        'vi',
         149000,
         6,
         'banned',
@@ -6122,7 +6120,7 @@ VALUES (
         '["Design","Photography","Lightroom"]',
         'Intermediate',
         '01:29:26.101',
-        'Vietnamese',
+        'vi',
         299000,
         7,
         'publish',
@@ -6138,7 +6136,7 @@ VALUES (
         '["Design","Graphic Design"]',
         'Beginner',
         '01:20:15.424',
-        'Vietnamese',
+        'vi',
         349000,
         7,
         'publish',
@@ -6154,7 +6152,7 @@ VALUES (
         '["Design","Photography"]',
         'Beginner',
         '01:28:29.126',
-        'English',
+        'en',
         199000,
         7,
         'publish',
@@ -6170,7 +6168,7 @@ VALUES (
         '["Design","UI/UX","Figma"]',
         'Beginner',
         '01:05:53.792',
-        'English',
+        'en',
         249000,
         7,
         'publish',
@@ -6186,7 +6184,7 @@ VALUES (
         '["Marketing","Digital Marketing"]',
         'Beginner',
         '02:39:38.839',
-        'Vietnamese',
+        'vi',
         299000,
         8,
         'publish',
@@ -6202,7 +6200,7 @@ VALUES (
         '["Marketing","Copywriting"]',
         'Intermediate',
         '01:11:36.713',
-        'English',
+        'en',
         199000,
         8,
         'publish',
@@ -6218,7 +6216,7 @@ VALUES (
         '["Marketing","SEO"]',
         'Advanced',
         '01:51:53.771',
-        'English',
+        'en',
         499000,
         8,
         'publish',
@@ -6234,7 +6232,7 @@ VALUES (
         '["Data","Business Intelligence","Power BI"]',
         'Intermediate',
         '01:18:41.344',
-        'Vietnamese',
+        'vi',
         349000,
         8,
         'publish',
@@ -6250,7 +6248,7 @@ VALUES (
         '["Video","Editing","CapCut"]',
         'Beginner',
         '01:03:38.709',
-        'Vietnamese',
+        'vi',
         199000,
         9,
         'publish',
@@ -6266,7 +6264,7 @@ VALUES (
         '["Video","Editing","Premiere Pro"]',
         'Beginner',
         '01:16:06.741',
-        'English',
+        'en',
         249000,
         9,
         'publish',
@@ -6282,7 +6280,7 @@ VALUES (
         '["Soft Skills","Critical Thinking"]',
         'Beginner',
         '01:12:49.299',
-        'Vietnamese',
+        'vi',
         149000,
         10,
         'publish',
@@ -6298,7 +6296,7 @@ VALUES (
         '["Soft Skills","Project Management"]',
         'Beginner',
         '01:00:23.808',
-        'English',
+        'en',
         199000,
         10,
         'publish',
@@ -6314,7 +6312,7 @@ VALUES (
         '["Music","Guitar"]',
         'Beginner',
         '01:30:39.979',
-        'English',
+        'en',
         179000,
         10,
         'publish',
@@ -6330,7 +6328,7 @@ VALUES (
         '["Programming","Mobile","Flutter"]',
         'Intermediate',
         '03:45:00.000',
-        'Vietnamese',
+        'vi',
         349000,
         4,
         'pending',
@@ -6346,7 +6344,7 @@ VALUES (
         '["Programming","Web","Next.js"]',
         'Advanced',
         '04:10:00.000',
-        'Vietnamese',
+        'vi',
         499000,
         4,
         'pending',
@@ -6362,7 +6360,7 @@ VALUES (
         '["Design","UI/UX","Research"]',
         'Intermediate',
         '02:15:00.000',
-        'English',
+        'en',
         299000,
         7,
         'pending',
@@ -6378,7 +6376,7 @@ VALUES (
         '["Programming","DevOps","Docker"]',
         'Advanced',
         '05:20:00.000',
-        'English',
+        'en',
         599000,
         5,
         'rejected',
@@ -6394,7 +6392,7 @@ VALUES (
         '["AI","Deep Learning","Python"]',
         'Advanced',
         '06:00:00.000',
-        'Vietnamese',
+        'vi',
         699000,
         6,
         'draft',
@@ -6883,16 +6881,29 @@ VALUES (
     ),
     (
         7,
-        18,
+        25,
         'quiz',
-        'Quiz từ video - Cây Nhị Phân (Binary Tree)',
+        'Quiz từ video - Learn Photography in 90 Minutes',
+        'AI Quiz generated from lesson video',
+        1,
+        NULL,
+        'public',
+        7,
+        '2026-08-08 16:03:23',
+        '2026-08-08 16:06:28'
+    ),
+    (
+        8,
+        9,
+        'quiz',
+        'Quiz từ video - Cài Đặt Môi Trường Windows Mới',
         'AI Quiz generated from lesson video',
         2,
         NULL,
         'public',
-        5,
-        '2026-08-06 14:10:03',
-        '2026-08-06 14:17:53'
+        4,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:40:16'
     );
 
 -- ============================================================================
@@ -6938,14 +6949,38 @@ VALUES (
     (
         6,
         7,
-        'Quiz từ video - Cây Nhị Phân (Binary Tree)',
+        'Quiz từ video - Learn Photography in 90 Minutes',
         0,
         0,
         80,
         0,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:06:43'
+    ),
+    (
+        7,
+        8,
+        'Quiz từ video - Cài Đặt Môi Trường Windows Mới',
+        0,
+        0,
+        80,
+        0,
+        1,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
+    ),
+    (
+        8,
+        8,
+        'Quiz từ video - Cài Đặt Môi Trường Windows Mới',
+        0,
+        0,
+        80,
+        0,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
     );
 
 -- ============================================================================
@@ -6958,48 +6993,55 @@ INSERT INTO
         ques_type,
         ques_text,
         point,
-        correct_ans,
+        explanation,
         order_index,
         video_timestamp,
+        evidence_timestamp,
         created_at,
         updated_at
     )
 VALUES
--- Quiz 4 (In-video TOEIC Tenses spot-check)
-(
-    13,
-    4,
-    'mcq',
-    'Theo bài: chọn thì đúng cho "By next year, she ___ here for 10 years."',
-    2.00,
-    'will have lived',
-    1,
-    '00:10:00.000',
-    '2026-06-20 12:13:00',
-    '2026-06-20 12:13:00'
-),
-(
-    14,
-    4,
-    'true/false',
-    'Present Perfect dùng cho hành động có mốc thời gian cụ thể trong quá khứ.',
-    1.00,
-    'false',
-    2,
-    '00:18:30.000',
-    '2026-06-20 12:13:10',
-    '2026-06-20 12:13:10'
-),
+    -- Quiz 4 (In-video TOEIC Tenses spot-check)
+    -- video_timestamp giống nhau cho mọi câu trong 1 quiz "trong video": UI chỉ cho chọn 1 mốc chung cho cả quiz
+    -- (ActivityQuizForm.tsx dùng chung 1 sharedVideoTimestamp), không có mốc riêng theo từng câu khi tạo thủ công.
+    (
+        13,
+        4,
+        'mcq',
+        'Theo bài: chọn thì đúng cho "By next year, she ___ here for 10 years."',
+        2.00,
+        'Dùng Future Perfect ("will have lived") vì hành động sống ở đây sẽ hoàn thành tính đến một mốc trong tương lai (by next year).',
+        1,
+        '00:10:00.000',
+        NULL,
+        '2026-06-20 12:13:00',
+        '2026-06-20 12:13:00'
+    ),
+    (
+        14,
+        4,
+        'true/false',
+        'Present Perfect dùng cho hành động có mốc thời gian cụ thể trong quá khứ.',
+        1.00,
+        'Sai. Present Perfect dùng cho hành động không có mốc thời gian cụ thể (đã xảy ra nhưng không rõ khi nào, hoặc còn liên quan đến hiện tại) — có mốc cụ thể phải dùng Simple Past.',
+        2,
+        '00:10:00.000',
+        NULL,
+        '2026-06-20 12:13:10',
+        '2026-06-20 12:13:10'
+    ),
 
 -- Quiz 5 (Binary Tree fundamentals - standalone after-lesson quiz)
+-- evidence_timestamp = NULL: quiz thủ công "ngoài video" hiện tại không có ô nhập bằng chứng khi tạo mới.
 (
     15,
     5,
     'mcq',
     'Trong một cây nhị phân, nút gốc được xác định như thế nào?',
     1.00,
-    'Nút không có nút cha',
+    'Nút gốc (root) là nút duy nhất không có nút cha; mọi nút khác trong cây đều có đúng một nút cha.',
     1,
+    NULL,
     NULL,
     '2026-06-22 12:38:00',
     '2026-06-22 12:38:00'
@@ -7010,8 +7052,9 @@ VALUES
     'mcq',
     'Mỗi nút trong cây nhị phân có tối đa bao nhiêu nút con?',
     1.00,
-    '2',
+    'Theo định nghĩa, mỗi nút của cây nhị phân có tối đa 2 nút con (con trái và con phải).',
     2,
+    NULL,
     NULL,
     '2026-06-22 12:38:10',
     '2026-06-22 12:38:10'
@@ -7022,8 +7065,9 @@ VALUES
     'mcq',
     'Nút lá trong cây nhị phân là nút như thế nào?',
     1.00,
-    'Nút không có nút con',
+    'Nút lá là nút không có nút con nào (khác với nút gốc là nút không có nút cha).',
     3,
+    NULL,
     NULL,
     '2026-06-22 12:38:20',
     '2026-06-22 12:38:20'
@@ -7034,8 +7078,9 @@ VALUES
     'mcq',
     'Thứ tự duyệt Preorder của cây nhị phân là gì?',
     1.00,
-    'Gốc → Trái → Phải',
+    'Preorder duyệt theo thứ tự Gốc → Trái → Phải: xử lý nút gốc trước, rồi mới duyệt cây con trái, sau đó cây con phải.',
     4,
+    NULL,
     NULL,
     '2026-06-22 12:38:30',
     '2026-06-22 12:38:30'
@@ -7046,8 +7091,9 @@ VALUES
     'mcq',
     'Thứ tự duyệt Inorder của cây nhị phân là gì?',
     1.00,
-    'Trái → Gốc → Phải',
+    'Inorder duyệt theo thứ tự Trái → Gốc → Phải: duyệt cây con trái trước, xử lý nút gốc, rồi duyệt cây con phải.',
     5,
+    NULL,
     NULL,
     '2026-06-22 12:38:40',
     '2026-06-22 12:38:40'
@@ -7058,8 +7104,9 @@ VALUES
     'mcq',
     'Thứ tự duyệt Postorder của cây nhị phân là gì?',
     1.00,
-    'Trái → Phải → Gốc',
+    'Postorder duyệt theo thứ tự Trái → Phải → Gốc: duyệt cả hai cây con trước, xử lý nút gốc sau cùng.',
     6,
+    NULL,
     NULL,
     '2026-06-22 12:38:50',
     '2026-06-22 12:38:50'
@@ -7070,8 +7117,9 @@ VALUES
     'mcq',
     'Với cây tìm kiếm nhị phân có các khóa phân biệt, tính chất nào luôn đúng?',
     1.00,
-    'Mọi khóa ở cây con trái nhỏ hơn nút, cây con phải lớn hơn nút',
+    'Đây là tính chất định nghĩa của cây tìm kiếm nhị phân (BST): tại mọi nút, toàn bộ khóa ở cây con trái nhỏ hơn khóa của nút đó, và toàn bộ khóa ở cây con phải lớn hơn.',
     7,
+    NULL,
     NULL,
     '2026-06-22 12:39:00',
     '2026-06-22 12:39:00'
@@ -7082,8 +7130,9 @@ VALUES
     'mcq',
     'Đặc điểm của cây nhị phân đầy đủ (full binary tree) là gì?',
     1.00,
-    'Mỗi nút có đúng 0 hoặc 2 nút con',
+    'Cây nhị phân đầy đủ (full binary tree) yêu cầu mỗi nút có đúng 0 hoặc 2 nút con — không có nút nào chỉ có 1 nút con.',
     8,
+    NULL,
     NULL,
     '2026-06-22 12:39:10',
     '2026-06-22 12:39:10'
@@ -7094,8 +7143,9 @@ VALUES
     'mcq',
     'Mô tả nào đúng về cây nhị phân hoàn chỉnh (complete binary tree)?',
     1.00,
-    'Mọi tầng trừ tầng cuối đều đầy đủ; tầng cuối được điền từ trái sang phải',
+    'Cây nhị phân hoàn chỉnh (complete binary tree) yêu cầu mọi tầng đều đầy đủ trừ tầng cuối, và tầng cuối được điền các nút từ trái sang phải, không để trống ở giữa.',
     9,
+    NULL,
     NULL,
     '2026-06-22 12:39:20',
     '2026-06-22 12:39:20'
@@ -7106,133 +7156,215 @@ VALUES
     'mcq',
     'Trong trường hợp xấu nhất, tìm kiếm trên một cây tìm kiếm nhị phân bị lệch có độ phức tạp thời gian là bao nhiêu?',
     1.00,
-    'O(n)',
+    'Khi cây bị lệch hoàn toàn (suy biến thành danh sách liên kết), chiều cao cây bằng n, nên tìm kiếm trong trường hợp xấu nhất tốn O(n) thay vì O(log n) như cây cân bằng.',
     10,
+    NULL,
     NULL,
     '2026-06-22 12:39:30',
     '2026-06-22 12:39:30'
 ),
 
--- Quiz 6 (AI-generated in-video quiz for Binary Tree lesson)
+-- Quiz 6 (AI-generated quiz, thay bằng dữ liệu THẬT lấy từ quiz id=9 do AI sinh qua pipeline thật
+-- — course "Học Nhiếp Ảnh Cơ Bản Trong 90 Phút" / lesson "Learn Photography in 90 Minutes".
+-- Giữ nguyên id nội bộ 25-29 (5 câu, đúng số câu thật của quiz 9) để không phải renumber gì khác.
 (
     25,
     6,
     'mcq',
-    'Cấu trúc dữ liệu nào được gọi là cây nhị phân?',
+    'What does a higher ISO setting in photography result in?',
     1.00,
-    'Cây nhị phân là cấu trúc dữ liệu mà mỗi nút quản lý hai nút con.',
+    'A higher ISO setting leads to more digital noise in the image.',
     1,
-    '00:02:34.420',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    '00:14:34.440',
+    '00:02:49.760',
+    '2026-08-08 16:05:59',
+    '2026-08-08 16:06:43'
 ),
 (
     26,
     6,
     'true/false',
-    'Cây nhị phân tìm kiếm yêu cầu tất cả các nút con bên trái phải nhỏ hơn nút gốc.',
+    'The aperture is referred to as a hole in the lens.',
     1.00,
-    'Trong cây nhị phân tìm kiếm, tất cả các nút con bên trái đều phải nhỏ hơn nút gốc.',
+    'The transcript states that the aperture is a fancy name for a hole in your lens.',
     2,
-    '00:09:14.470',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    '00:14:34.440',
+    '00:03:44.640',
+    '2026-08-08 16:05:59',
+    '2026-08-08 16:06:43'
 ),
 (
     27,
     6,
     'mcq',
-    'Chiều cao của một cây được tính từ đâu?',
+    'What is the effect of using a larger aperture like F1.4 compared to a smaller aperture like F16?',
     1.00,
-    'Chiều cao của cây được tính từ nút gốc đến nút lá sâu nhất.',
+    'A larger aperture like F1.4 results in a smaller depth of field.',
     3,
-    '00:03:39.040',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    '00:14:34.440',
+    '00:14:34.440',
+    '2026-08-08 16:05:59',
+    '2026-08-08 16:06:43'
 ),
 (
     28,
     6,
     'true/false',
-    'Cây nhị phân tìm kiếm có thể có nhiều nút con bên trái lớn hơn nút gốc.',
+    'ISO settings do not provide any creative options in photography.',
     1.00,
-    'Trong cây nhị phân tìm kiếm, tất cả các nút con bên trái phải nhỏ hơn nút gốc.',
+    'The transcript states that ISO does not provide any creative options.',
     4,
-    '00:09:12.130',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    '00:14:34.440',
+    '00:07:13.240',
+    '2026-08-08 16:05:59',
+    '2026-08-08 16:06:43'
 ),
 (
     29,
     6,
     'mcq',
-    'What is the first step when implementing the delete function in a binary search tree?',
+    'What is the recommended ISO setting for shooting outdoors on a bright sunny day?',
     1.00,
-    'The first step is to check if the root is null to handle the case of an empty tree.',
+    'The transcript recommends using the lowest ISO available, like 100 or 200, on a bright sunny day.',
     5,
-    '00:52:43.010',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    '00:14:34.440',
+    '00:08:28.280',
+    '2026-08-08 16:05:59',
+    '2026-08-08 16:06:43'
 ),
+
+-- Quiz 7 (AI-generated, dữ liệu thật lấy từ quiz id=7) — course "Cài Đặt Môi Trường & Khắc Phục CORS" / lesson "Cài Đặt Môi Trường Windows Mới"
 (
     30,
-    6,
-    'true/false',
-    'The delete function in a binary search tree can be implemented without recursion.',
+    7,
+    'mcq',
+    'What is the first step to move the Downloads folder to drive D?',
     1.00,
-    'The transcript explicitly states that the deletion is performed using a recursive method.',
-    6,
-    '00:51:55.130',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    'The first step is to select the Downloads folder to move it.',
+    1,
+    '00:05:41.650',
+    '00:03:23.350',
+    '2026-08-08 16:39:42',
+    '2026-08-08 16:39:42'
 ),
 (
     31,
-    6,
-    'mcq',
-    'What should be returned when a node with no children is deleted from the tree?',
-    1.00,
-    'When a node with no children is deleted, it is replaced with null.',
     7,
-    '00:58:06.240',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    'mcq',
+    'What should be done after selecting ''Move'' in the Properties of the Downloads folder?',
+    1.00,
+    'After selecting ''Move'', the new location on drive D must be selected.',
+    2,
+    '00:05:41.650',
+    '00:03:30.350',
+    '2026-08-08 16:39:42',
+    '2026-08-08 16:39:42'
 ),
 (
     32,
-    6,
-    'mcq',
-    'What technique is used in the discussed problem?',
+    7,
+    'true/false',
+    'The video suggests creating a folder named ''workspace'' in drive D.',
     1.00,
-    'The technique used in the discussed problem is recursion.',
-    8,
-    '01:48:43.010',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    'The video explicitly states to create a folder named ''workspace'' in drive D.',
+    3,
+    '00:05:41.650',
+    '00:04:20.950',
+    '2026-08-08 16:39:42',
+    '2026-08-08 16:39:42'
 ),
 (
     33,
-    6,
-    'true/false',
-    'Leapcode and HackerRank are mentioned as two of the largest programming practice platforms in the world.',
+    7,
+    'mcq',
+    'What option should be selected to pin a folder to Quick Access?',
     1.00,
-    'Leapcode and HackerRank are stated to be two of the largest programming practice platforms.',
-    9,
-    '01:49:24.410',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    'To pin a folder to Quick Access, right-click the folder and select ''Pin to Quick Access''.',
+    4,
+    '00:05:41.650',
+    '00:04:29.650',
+    '2026-08-08 16:39:42',
+    '2026-08-08 16:39:42'
 ),
 (
     34,
-    6,
-    'mcq',
-    'What will participants do weekly if they join the online course?',
+    7,
+    'true/false',
+    'The video mentions that users should keep all pinned items in Quick Access.',
     1.00,
-    'Participants will solve exercises together on Leapcode weekly.',
-    10,
-    '01:49:46.850',
-    '2026-08-06 14:17:02',
-    '2026-08-06 14:17:53'
+    'The video suggests removing items from Quick Access that are not frequently used.',
+    5,
+    '00:05:41.650',
+    '00:05:41.650',
+    '2026-08-08 16:39:42',
+    '2026-08-08 16:39:42'
+),
+
+-- Quiz 8 (AI-generated, dữ liệu thật lấy từ quiz id=8) — cùng lesson_activity với Quiz 7 (2 lần chạy AI cách nhau ~34s, giữ nguyên như dữ liệu thật)
+(
+    35,
+    8,
+    'mcq',
+    'What should a user do to pin a folder to quick access?',
+    1.00,
+    'The correct action to pin a folder to quick access is to right-click the folder and select ''Pin to quick access''.',
+    1,
+    '00:09:49.750',
+    '00:04:27.550',
+    '2026-08-08 16:40:16',
+    '2026-08-08 16:40:16'
+),
+(
+    36,
+    8,
+    'true/false',
+    'A user can remove items from quick access by right-clicking and selecting ''Remove''.',
+    1.00,
+    'The transcript states that users can remove items from quick access by right-clicking and selecting ''Remove''.',
+    2,
+    '00:09:49.750',
+    '00:06:54.650',
+    '2026-08-08 16:40:16',
+    '2026-08-08 16:40:16'
+),
+(
+    37,
+    8,
+    'mcq',
+    'What should be done to set a default web browser after installing it?',
+    1.00,
+    'To set a default web browser, the user should open the start menu and search for ''default web browser''.',
+    3,
+    '00:09:49.750',
+    '00:08:21.200',
+    '2026-08-08 16:40:16',
+    '2026-08-08 16:40:16'
+),
+(
+    38,
+    8,
+    'mcq',
+    'Which terminal is mentioned as commonly used for programming?',
+    1.00,
+    'The transcript mentions that Windows Terminal is commonly used for programming.',
+    4,
+    '00:09:49.750',
+    '00:07:25.650',
+    '2026-08-08 16:40:16',
+    '2026-08-08 16:40:16'
+),
+(
+    39,
+    8,
+    'true/false',
+    'Installing the VKF-L2 requires restarting the computer.',
+    1.00,
+    'The transcript states that after installing VKF-L2, a restart is required for the changes to take effect.',
+    5,
+    '00:09:49.750',
+    '00:09:49.750',
+    '2026-08-08 16:40:16',
+    '2026-08-08 16:40:16'
 );
 
 -- ============================================================================
@@ -7675,52 +7807,52 @@ VALUES
         '2026-06-22 12:41:30',
         '2026-06-22 12:41:30'
     ),
-    -- Q25: binary tree definition
+    -- Q25 (thật, quiz AI id=9): higher ISO effect
     (
         81,
         25,
-        'Cây mà mỗi nút quản lý một hoặc nhiều nút con',
+        'A brighter image with less noise',
         0,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         82,
         25,
-        'Cây mà mỗi nút quản lý hai nút con',
+        'More digital noise in the image',
         1,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         83,
         25,
-        'Cây mà mỗi nút không có con',
+        'A darker image with more detail',
         0,
         3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         84,
         25,
-        'Cây mà mỗi nút chỉ quản lý một nút con',
+        'Less sensitivity to light',
         0,
         4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
-    -- Q26: BST left-side rule
+    -- Q26 (thật): aperture is a hole in the lens
     (
         85,
         26,
         'True',
         1,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         86,
@@ -7728,250 +7860,399 @@ VALUES
         'False',
         0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
-    -- Q27: tree height
+    -- Q27 (thật): larger aperture F1.4 vs smaller F16
     (
         87,
         27,
-        'Từ nút lá đến nút gốc',
+        'More elements in focus with F1.4',
         0,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         88,
         27,
-        'Từ nút gốc đến nút lá sâu nhất',
-        1,
+        'Less light entering the camera with F1.4',
+        0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         89,
         27,
-        'Từ nút gốc đến nút con đầu tiên',
-        0,
+        'A smaller depth of field with F1.4',
+        1,
         3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         90,
         27,
-        'Từ nút lá đến nút con đầu tiên',
+        'Increased exposure time with F1.4',
         0,
         4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
-    -- Q28: invalid BST left-side rule
+    -- Q28 (thật): ISO provides no creative options
     (
         91,
         28,
         'True',
-        0,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        1,
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         92,
         28,
         'False',
-        1,
+        0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
-    -- Q29: BST delete first step
+    -- Q29 (thật): recommended ISO on a bright sunny day
     (
         93,
         29,
-        'Check if the root is null',
+        'ISO 400 to 800',
+        0,
         1,
-        1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         94,
         29,
-        'Return the root immediately',
+        'ISO 800 to 1600',
         0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         95,
         29,
-        'Delete the left child',
-        0,
+        'ISO 100 or 200',
+        1,
         3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
     (
         96,
         29,
-        'Check if the key is found',
+        'ISO 1600 or higher',
         0,
         4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:05:59',
+        '2026-08-08 16:05:59'
     ),
-    -- Q30: recursive deletion
+    -- Q30: move Downloads folder, step 1
     (
         97,
         30,
-        'True',
-        0,
+        'Select the Downloads folder',
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        1,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         98,
         30,
-        'False',
-        1,
+        'Create a new folder in drive D',
+        0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
-    -- Q31: delete leaf node
     (
         99,
-        31,
-        'The parent node',
+        30,
+        'Delete the Downloads folder',
         0,
-        1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        3,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         100,
-        31,
-        'Null',
-        1,
-        2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        30,
+        'Rename the Downloads folder',
+        0,
+        4,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
+    -- Q31: move Downloads folder, step 2
     (
         101,
         31,
-        'The left child',
-        0,
-        3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        'Select the new location on drive D',
+        1,
+        1,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         102,
         31,
-        'The right child',
+        'Delete the Downloads folder',
         0,
-        4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        2,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
-    -- Q32: recursion technique
     (
         103,
-        32,
-        'Iteration',
+        31,
+        'Rename the Downloads folder',
         0,
-        1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        3,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         104,
-        32,
-        'Recursion',
-        1,
-        2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        31,
+        'Create a new folder in drive D',
+        0,
+        4,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
+    -- Q32: workspace folder on drive D
     (
         105,
         32,
-        'Dynamic Programming',
-        0,
-        3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        'True',
+        1,
+        1,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         106,
         32,
-        'Greedy Algorithm',
+        'False',
         0,
-        4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        2,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
-    -- Q33: programming practice platforms
+    -- Q33: pin folder to Quick Access
     (
         107,
         33,
-        'True',
+        'Right-click the folder and select ''Pin to Quick Access''',
         1,
         1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         108,
         33,
-        'False',
+        'Drag the folder to Quick Access',
         0,
         2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
-    -- Q34: weekly course activity
     (
         109,
-        34,
-        'Attend lectures',
+        33,
+        'Delete the folder',
         0,
-        1,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        3,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         110,
-        34,
-        'Solve exercises together',
-        1,
-        2,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        33,
+        'Rename the folder',
+        0,
+        4,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
+    -- Q34: keep all pinned items in Quick Access
     (
         111,
         34,
-        'Take exams',
+        'True',
         0,
-        3,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        1,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
     ),
     (
         112,
         34,
-        'Watch recorded videos',
+        'False',
+        1,
+        2,
+        '2026-08-08 16:39:42',
+        '2026-08-08 16:39:42'
+    ),
+    -- Q35: pin folder to quick access (Quiz 8)
+    (
+        113,
+        35,
+        'Right-click the folder and select ''Pin to quick access''',
+        1,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        114,
+        35,
+        'Drag the folder to the desktop',
+        0,
+        2,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        115,
+        35,
+        'Open the folder and click ''Add to quick access''',
+        0,
+        3,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        116,
+        35,
+        'Select the folder and press Ctrl + P',
         0,
         4,
-        '2026-08-06 14:17:02',
-        '2026-08-06 14:17:02'
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    -- Q36: remove items from quick access
+    (
+        117,
+        36,
+        'True',
+        1,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        118,
+        36,
+        'False',
+        0,
+        2,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    -- Q37: set default web browser
+    (
+        119,
+        37,
+        'Open the start menu and search for ''default web browser''',
+        1,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        120,
+        37,
+        'Access browser settings and select ''Make default''',
+        0,
+        2,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        121,
+        37,
+        'Right-click the browser icon and select ''Set as default''',
+        0,
+        3,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        122,
+        37,
+        'Open the browser and click ''Set as default'' in the homepage',
+        0,
+        4,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    -- Q38: terminal commonly used for programming
+    (
+        123,
+        38,
+        'Windows Terminal',
+        1,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        124,
+        38,
+        'Command Prompt',
+        0,
+        2,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        125,
+        38,
+        'Git Bash',
+        0,
+        3,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        126,
+        38,
+        'PowerShell',
+        0,
+        4,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    -- Q39: installing VKF-L2 requires restart
+    (
+        127,
+        39,
+        'True',
+        1,
+        1,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
+    ),
+    (
+        128,
+        39,
+        'False',
+        0,
+        2,
+        '2026-08-08 16:40:16',
+        '2026-08-08 16:40:16'
     );
 
 -- ============================================================================
@@ -10712,18 +10993,17 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         'course',
         10,
         'misleading',
-        'Ten khoa va mo ta Machine Learning ghi huong den nguoi moi, nhung level dang de Intermediate; can giang vien lam ro tien quyet va do kho.',
+        'Tên khóa và mô tả Machine Learning ghi hướng đến người mới, nhưng level đang để Intermediate; cần giảng viên làm rõ tiên quyết và độ khó.',
         '[13]',
         'approved',
         17,
         1,
-        'Da yeu cau giang vien cap nhat mo ta, tien quyet va do kho de tranh gay hieu nham.',
+        'Đã yêu cầu giảng viên cập nhật mô tả, tiên quyết và độ khó để tránh gây hiểu nhầm.',
         '2026-07-05 09:30:00',
         '2026-07-04 08:30:00',
         '2026-07-05 09:30:00'
@@ -10733,12 +11013,12 @@ VALUES
         'course',
         5,
         'misleading',
-        'Khoa JavaScript ghi Tu Zero Den Hero nhung level dang la Intermediate; nguoi hoc moi co the hieu nham ve muc do dau vao.',
+        'Khóa JavaScript ghi Từ Zero Đến Hero nhưng level đang là Intermediate; người học mới có thể hiểu nhầm về mức độ đầu vào.',
         '[14]',
         'approved',
         16,
         1,
-        'Da yeu cau bo sung muc kien thuc nen tang va dieu chinh thong diep cho dung level.',
+        'Đã yêu cầu bổ sung mục kiến thức nền tảng và điều chỉnh thông điệp cho đúng level.',
         '2026-06-28 09:00:00',
         '2026-06-27 14:00:00',
         '2026-06-28 09:00:00'
@@ -10748,7 +11028,7 @@ VALUES
         'lesson',
         11,
         'copyright',
-        'Lesson JavaScript Full Course ghi nguon freeCodeCamp; can doi chieu quyen su dung video/tai nguyen truoc khi hien thi trong khoa co phi.',
+        'Lesson JavaScript Full Course ghi nguồn freeCodeCamp; cần đối chiếu quyền sử dụng video/tài nguyên trước khi hiển thị trong khóa có phí.',
         '[15]',
         'pending',
         18,
@@ -10763,7 +11043,7 @@ VALUES
         'teacher',
         8,
         'other',
-        'Ho so giang vien Marketing hien trong course section con thieu thong tin kinh nghiem/chung chi de doi chieu voi noi dung khoa dang ban.',
+        'Hồ sơ giảng viên Marketing hiện trong course section còn thiếu thông tin kinh nghiệm/chứng chỉ để đối chiếu với nội dung khóa đang bán.',
         '[16]',
         'pending',
         24,
@@ -10778,7 +11058,7 @@ VALUES
         'course',
         19,
         'other',
-        'Trang khoa Power BI chua the hien ro dataset thuc hanh va tai lieu kem theo, trong khi mo ta nhan manh data model va dashboard.',
+        'Trang khóa Power BI chưa thể hiện rõ dataset thực hành và tài liệu kèm theo, trong khi mô tả nhấn mạnh data model và dashboard.',
         '[17]',
         'pending',
         21,
@@ -10793,12 +11073,12 @@ VALUES
         'course',
         15,
         'copyright',
-        'Khoa Figma co noi dung demo/prototype can bo sung nguon hoac xac nhan tai nguyen tu tao truoc khi tiep tuc quang ba.',
+        'Khóa Figma có nội dung demo/prototype cần bổ sung nguồn hoặc xác nhận tài nguyên tự tạo trước khi tiếp tục quảng bá.',
         '[34]',
         'approved',
         11,
         1,
-        'Da yeu cau giang vien bo sung nguon asset va ghi chu quyen su dung trong noi dung khoa.',
+        'Đã yêu cầu giảng viên bổ sung nguồn asset và ghi chú quyền sử dụng trong nội dung khóa.',
         '2026-07-29 09:10:00',
         '2026-07-28 10:20:00',
         '2026-07-29 09:10:00'
@@ -10808,12 +11088,12 @@ VALUES
         'course',
         6,
         'misleading',
-        'Trang khoa Full Stack ghi mot path duy nhat tu HTML/CSS sang Node.js, can lam ro pham vi backend va thoi luong hoc de tranh hieu nham.',
+        'Trang khóa Full Stack ghi một path duy nhất từ HTML/CSS sang Node.js, cần làm rõ phạm vi backend và thời lượng học để tránh hiểu nhầm.',
         '[35]',
         'approved',
         12,
         1,
-        'Da yeu cau chinh lai mo ta pham vi khoa hoc va them outline chi tiet.',
+        'Đã yêu cầu chỉnh lại mô tả phạm vi khóa học và thêm outline chi tiết.',
         '2026-07-29 11:30:00',
         '2026-07-28 15:15:00',
         '2026-07-29 11:30:00'
@@ -10823,7 +11103,7 @@ VALUES
         'teacher',
         7,
         'other',
-        'Nguoi hoc report profile giang vien Design vi phan gioi thieu chua du thong tin ve kinh nghiem day Figma/Auto Layout.',
+        'Người học report profile giảng viên Design vì phần giới thiệu chưa đủ thông tin về kinh nghiệm dạy Figma/Auto Layout.',
         '[36]',
         'pending',
         13,
@@ -10838,7 +11118,7 @@ VALUES
         'lesson',
         4,
         'misleading',
-        'Lesson TOEIC Participles can bo sung muc tieu va vi du minh hoa ro hon; anh evidence chup dung lesson dang bi report.',
+        'Lesson TOEIC Participles cần bổ sung mục tiêu và ví dụ minh họa rõ hơn; ảnh evidence chụp đúng lesson đang bị report.',
         '[37]',
         'pending',
         14,
@@ -10853,12 +11133,12 @@ VALUES
         'course',
         6,
         'other',
-        'Course detail Full Stack can bo sung thong tin tai nguyen thuc hanh va yeu cau moi truong cai dat truoc khi hoc.',
+        'Course detail Full Stack cần bổ sung thông tin tài nguyên thực hành và yêu cầu môi trường cài đặt trước khi học.',
         '[38]',
         'approved',
         15,
         1,
-        'Da ghi nhan la yeu cau cai thien thong tin khoa hoc, khong phai vi pham nghiem trong.',
+        'Đã ghi nhận là yêu cầu cải thiện thông tin khóa học, không phải vi phạm nghiêm trọng.',
         '2026-07-30 12:00:00',
         '2026-07-30 09:05:00',
         '2026-07-30 12:00:00'
@@ -10868,12 +11148,12 @@ VALUES
         'course',
         20,
         'misleading',
-        'Khoa CapCut ghi Hoc trong 1 gio, can doi chieu voi ket qua dau ra va pham vi noi dung de tranh quang cao qua muc.',
+        'Khóa CapCut ghi Học trong 1 giờ, cần đối chiếu với kết quả đầu ra và phạm vi nội dung để tránh quảng cáo quá mức.',
         '[39]',
         'rejected',
         20,
         1,
-        'Chua du can cu xu ly report; giu lai nhu feedback ve cach dat tieu de khoa hoc.',
+        'Chưa đủ căn cứ xử lý report; giữ lại như feedback về cách đặt tiêu đề khóa học.',
         '2026-07-31 09:20:00',
         '2026-07-30 14:30:00',
         '2026-07-31 09:20:00'
@@ -10883,7 +11163,7 @@ VALUES
         'lesson',
         30,
         'other',
-        'Lesson SEO checklist can them link tai lieu hoac file thuc hanh vi nguoi hoc khong thay tai nguyen kem theo trong trang hoc.',
+        'Lesson SEO checklist cần thêm link tài liệu hoặc file thực hành vì người học không thấy tài nguyên kèm theo trong trang học.',
         '[40]',
         'pending',
         22,
@@ -10898,12 +11178,12 @@ VALUES
         'teacher',
         9,
         'other',
-        'Profile giang vien Video/CapCut trong trang khoa hoc con ngan, can bo sung kinh nghiem san xuat video hoac portfolio mau.',
+        'Profile giảng viên Video/CapCut trong trang khóa học còn ngắn, cần bổ sung kinh nghiệm sản xuất video hoặc portfolio mẫu.',
         '[41]',
         'rejected',
         23,
         1,
-        'Day la feedback ho so giang vien, chua phai report vi pham nen khong xu ly khoa hoc.',
+        'Đây là feedback hồ sơ giảng viên, chưa phải report vi phạm nên không xử lý khóa học.',
         '2026-07-31 15:30:00',
         '2026-07-31 11:40:00',
         '2026-07-31 15:30:00'
@@ -10913,7 +11193,7 @@ VALUES
         'lesson',
         34,
         'inappropriate',
-        'Lesson Tu duy phan bien can admin xem lai vi du noi dung trong video/seminar co the khong phu hop voi nhom hoc sinh nho tuoi.',
+        'Lesson Tư duy phản biện cần admin xem lại ví dụ nội dung trong video/seminar có thể không phù hợp với nhóm học sinh nhỏ tuổi.',
         '[42]',
         'pending',
         24,
@@ -10928,7 +11208,7 @@ VALUES
         'course',
         23,
         'misleading',
-        'Khoa Project Management 101 can lam ro ket qua dau ra va cong cu su dung; mo ta hien tai qua rong so voi course beginner gia thap.',
+        'Khóa Project Management 101 cần làm rõ kết quả đầu ra và công cụ sử dụng; mô tả hiện tại quá rộng so với course beginner giá thấp.',
         '[43]',
         'pending',
         25,
@@ -11058,16 +11338,15 @@ INSERT INTO
         created_at,
         updated_at
     )
-VALUES
-    (
+VALUES (
         1,
         18,
-        'Toi co ba nam kinh nghiem tro giang tieng Anh va da chuan bi de cuong phat am cho nguoi moi bat dau.',
+        'Tôi có ba năm kinh nghiệm trợ giảng tiếng Anh và đã chuẩn bị đề cương phát âm cho người mới bắt đầu. Tôi từng trợ giảng cho các lớp phát âm tại một trung tâm Anh ngữ ở Hà Nội, chuyên hỗ trợ học viên mất gốc luyện âm IPA và ngữ điệu câu. Lộ trình tôi xây dựng gồm 8 buổi, mỗi buổi có bài tập nghe – nhại và hướng dẫn khẩu hình cụ thể. Tôi cũng đã hoàn thành khóa nghiệp vụ sư phạm tiếng Anh để trang bị thêm phương pháp giảng dạy bài bản.',
         'English pronunciation, beginner speaking',
         '[8,9]',
         'approved',
         1,
-        'Ho so ro rang, minh chung phu hop va de cuong khoa hoc dat tieu chuan nen tang.',
+        'Hồ sơ rõ ràng, minh chứng phù hợp và đề cương khóa học đạt tiêu chuẩn nền tảng.',
         '2026-07-05 10:15:00',
         '2026-07-03 14:20:00',
         '2026-07-05 10:15:00'
@@ -11075,12 +11354,12 @@ VALUES
     (
         2,
         19,
-        'Toi muon chia se phuong phap ghi chu va hoc nhom da ap dung trong cac lop dai hoc.',
+        'Tôi muốn chia sẻ phương pháp ghi chú và học nhóm đã áp dụng trong các lớp đại học. Trong 2 năm học đại học, tôi từng tổ chức nhóm học 5-6 người ôn thi giữa kỳ bằng phương pháp Cornell Notes và sơ đồ tư duy, giúp cả nhóm cải thiện điểm số rõ rệt. Tôi mong muốn đóng gói lại kinh nghiệm này thành một khóa học ngắn cho sinh viên năm nhất mới vào trường.',
         'Study skills, note taking, group learning',
         '[]',
         'rejected',
         1,
-        'Can bo sung minh chung giang day hoac de cuong khoa hoc chi tiet hon truoc khi duyet.',
+        'Cần bổ sung minh chứng giảng dạy hoặc đề cương khóa học chi tiết hơn trước khi duyệt.',
         '2026-07-11 16:40:00',
         '2026-07-10 09:30:00',
         '2026-07-11 16:40:00'
@@ -11088,7 +11367,7 @@ VALUES
     (
         3,
         23,
-        'Toi dang chuan bi khoa Excel nhap mon cho sinh vien nam nhat, da co de cuong va video mau.',
+        'Tôi đang chuẩn bị khóa Excel nhập môn cho sinh viên năm nhất, đã có đề cương và video mẫu. Tôi hiện làm trợ lý hành chính và sử dụng Excel xử lý báo cáo hàng ngày, từ hàm cơ bản đến bảng tổng hợp Pivot Table. Đề cương tôi xây dựng chia thành 6 buổi, đi từ thao tác nhập liệu, công thức tính toán đến cách trình bày bảng biểu chuyên nghiệp. Tôi muốn giúp các bạn sinh viên năm nhất tự tin làm báo cáo ngay từ những môn học đầu tiên.',
         'Excel basics, spreadsheet productivity',
         '[10]',
         'pending',
@@ -11101,7 +11380,7 @@ VALUES
     (
         4,
         24,
-        'Toi co 4 nam kinh nghiem lam UI/UX Designer tai cong ty cong nghe va mong muon chia se quy trinh thiet ke Figma chuyen nghiep.',
+        'Tôi có 4 năm kinh nghiệm làm UI/UX Designer tại công ty công nghệ và mong muốn chia sẻ quy trình thiết kế Figma chuyên nghiệp. Trong công việc, tôi phụ trách thiết kế giao diện cho các ứng dụng di động từ giai đoạn wireframe đến prototype tương tác. Tôi từng dẫn dắt vài dự án từ bước nghiên cứu người dùng đến khi bàn giao thiết kế cho lập trình viên. Tôi muốn hướng dẫn học viên mới bắt đầu làm quen với Figma theo đúng quy trình thực tế mà các công ty đang áp dụng.',
         'UI/UX design, Figma prototyping',
         '[11]',
         'pending',
@@ -11114,12 +11393,12 @@ VALUES
     (
         5,
         21,
-        'Toi tung giang day lap trinh Mobile Flutter va da hoan thanh giao trinh bai giang ngan gon.',
+        'Tôi từng giảng dạy lập trình Mobile Flutter và đã hoàn thành giáo trình bài giảng ngắn gọn. Tôi từng hướng dẫn một nhóm sinh viên thực tập xây dựng ứng dụng quản lý chi tiêu bằng Flutter trong 6 tuần, từ dựng giao diện đến kết nối API. Giáo trình tôi xây dựng được chia theo từng buổi, mỗi buổi có bài tập thực hành nhỏ để học viên áp dụng ngay kiến thức vừa học.',
         'Flutter mobile development',
         '[12]',
         'approved',
         1,
-        'Kinh nghiem thuc te tot, minh chung video bai hoc ngan sac net.',
+        'Kinh nghiệm thực tế tốt, minh chứng video bài học ngắn sắc nét.',
         '2026-07-16 09:00:00',
         '2026-07-14 15:10:00',
         '2026-07-16 09:00:00'
@@ -11127,7 +11406,7 @@ VALUES
     (
         6,
         12,
-        'Toi da thiet ke chuong trinh luyen nghe noi tieng Anh cho lop 20 hoc vien va co video day thu cung rubric danh gia.',
+        'Tôi đã thiết kế chương trình luyện nghe nói tiếng Anh cho lớp 20 học viên và có video dạy thử cùng rubric đánh giá. Tôi từng dạy kèm nhóm luyện thi IELTS Speaking tại nhà, tập trung vào cách triển khai ý tưởng và sửa lỗi phát âm cho từng học viên. Rubric đánh giá tôi xây dựng dựa theo 4 tiêu chí chấm điểm IELTS Speaking chính thức để học viên dễ hình dung điểm mạnh, điểm yếu của mình.',
         'English communication, IELTS speaking, pronunciation coaching',
         '[18,19]',
         'pending',
@@ -11140,12 +11419,12 @@ VALUES
     (
         7,
         13,
-        'Toi co kinh nghiem lam data analyst va muon mo lop SQL cho nguoi moi, kem bai tap truy van va dashboard mau.',
+        'Tôi có kinh nghiệm làm data analyst và muốn mở lớp SQL cho người mới, kèm bài tập truy vấn và dashboard mẫu. Công việc hiện tại của tôi là viết truy vấn SQL và xây dựng dashboard báo cáo doanh số hàng tuần cho bộ phận kinh doanh. Tôi cũng vừa hoàn thành một khóa phân tích dữ liệu nâng cao để cập nhật thêm kiến thức trước khi nộp hồ sơ. Bài tập tôi chuẩn bị đi từ câu lệnh SELECT cơ bản đến JOIN nhiều bảng và tổng hợp dữ liệu cho dashboard thực tế.',
         'SQL foundations, data analysis, dashboard practice',
         '[20,21]',
         'approved',
         1,
-        'Ho so day du, minh chung chung chi va de cuong bai tap ro rang.',
+        'Hồ sơ đầy đủ, minh chứng chứng chỉ và đề cương bài tập rõ ràng.',
         '2026-07-20 09:00:00',
         '2026-07-19 13:30:00',
         '2026-07-20 09:00:00'
@@ -11153,7 +11432,7 @@ VALUES
     (
         8,
         14,
-        'Toi tung lam product designer, co portfolio case study va prototype Figma cho quy trinh research den handoff.',
+        'Tôi từng làm product designer, có portfolio case study và prototype Figma cho quy trình research đến handoff. Tôi từng tham gia một dự án từ giai đoạn phỏng vấn người dùng, vẽ luồng thao tác đến thiết kế chi tiết. Tôi cũng thường xuyên review prototype cùng đội lập trình và chú thích rõ specs khi bàn giao thiết kế. Tôi muốn chia sẻ lại đúng quy trình làm việc thực tế này cho những bạn mới bắt đầu với UI/UX.',
         'Product design, UX research, Figma handoff',
         '[22,23]',
         'pending',
@@ -11166,12 +11445,12 @@ VALUES
     (
         9,
         15,
-        'Toi muon day Docker va CI co ban dua tren workshop noi bo da to chuc, gom slide, lab va checklist cham bai.',
+        'Tôi muốn dạy Docker và CI cơ bản dựa trên workshop nội bộ đã tổ chức, gồm slide, lab và checklist chấm bài. Trước đây tôi từng tổ chức một buổi workshop nội bộ chia sẻ cách đóng gói ứng dụng bằng Docker và thiết lập pipeline CI đơn giản cho đồng nghiệp mới. Buổi chia sẻ đó nhận được phản hồi tích cực nên tôi muốn phát triển thành một khóa học bài bản hơn. Nội dung tôi chuẩn bị chia thành các lab thực hành từ viết Dockerfile cơ bản đến cấu hình pipeline tự động build và test.',
         'Docker basics, CI pipeline, DevOps lab',
         '[24,25]',
         'approved',
         1,
-        'Minh chung workshop va syllabus dap ung yeu cau mo khoa thuc hanh.',
+        'Minh chứng workshop và syllabus đáp ứng yêu cầu mở khóa thực hành.',
         '2026-07-22 10:00:00',
         '2026-07-21 08:40:00',
         '2026-07-22 10:00:00'
@@ -11179,12 +11458,12 @@ VALUES
     (
         10,
         16,
-        'Toi da huan luyen IELTS speaking cho nhom sinh vien va co feedback mau, nhung chua co de cuong hoc phan hoan chinh.',
+        'Tôi đã huấn luyện IELTS speaking cho nhóm sinh viên và có feedback mẫu, nhưng chưa có đề cương học phần hoàn chỉnh. Tôi từng kèm 1-1 cho vài người bạn ôn thi IELTS Speaking, chủ yếu góp ý qua các bản ghi âm luyện nói của họ. Tôi có thói quen viết nhận xét chi tiết cho từng học viên sau mỗi buổi luyện nói. Tôi biết phần đề cương và tiêu chí chấm điểm của mình chưa đầy đủ nên sẽ bổ sung thêm nếu được admin góp ý cụ thể hơn.',
         'IELTS speaking, feedback coaching',
         '[26,27]',
         'rejected',
         1,
-        'Can bo sung de cuong khoa hoc va quy dinh cham diem truoc khi mo quyen giang vien.',
+        'Cần bổ sung đề cương khóa học và quy định chấm điểm trước khi mở quyền giảng viên.',
         '2026-07-23 15:00:00',
         '2026-07-22 15:20:00',
         '2026-07-23 15:00:00'
@@ -11192,7 +11471,7 @@ VALUES
     (
         11,
         20,
-        'Toi dang xay dung khoa nhap mon an toan thong tin voi lab thuc hanh phong thu va checklist dao duc nghe nghiep.',
+        'Tôi đang xây dựng khóa nhập môn an toàn thông tin với lab thực hành phòng thủ và checklist đạo đức nghề nghiệp. Tôi tự học và thực hành an toàn thông tin qua các phòng lab ảo hợp pháp, tập trung vào kỹ năng phòng thủ hệ thống thay vì tấn công. Checklist đạo đức nghề nghiệp tôi xây dựng nhằm nhắc học viên chỉ thực hành trên môi trường được cấp phép, tránh vi phạm pháp luật.',
         'Cybersecurity fundamentals, safe lab practice',
         '[28,29]',
         'pending',
@@ -11205,12 +11484,12 @@ VALUES
     (
         12,
         22,
-        'Toi co portfolio cac chien dich content marketing va muon day lap ke hoach noi dung theo thang cho sinh vien.',
+        'Tôi có portfolio các chiến dịch content marketing và muốn dạy lập kế hoạch nội dung theo tháng cho sinh viên. Tôi từng lên kế hoạch và theo dõi số liệu tương tác cho một vài chiến dịch của khách hàng nhỏ. Tôi có thói quen phân bổ chủ đề bài đăng theo tuần, cân đối giữa nội dung bán hàng và nội dung tương tác. Tôi muốn hướng dẫn học viên cách lập kế hoạch nội dung có mục tiêu rõ ràng thay vì đăng bài ngẫu hứng.',
         'Content marketing, campaign planning, analytics',
         '[30,31]',
         'approved',
         1,
-        'Portfolio va lich noi dung mau ro rang, phu hop nhom khoa marketing.',
+        'Portfolio và lịch nội dung mẫu rõ ràng, phù hợp nhóm khóa marketing.',
         '2026-07-25 09:30:00',
         '2026-07-24 16:00:00',
         '2026-07-25 09:30:00'
@@ -11218,7 +11497,7 @@ VALUES
     (
         13,
         25,
-        'Toi da chuan bi notebook Python va rubric cham bai cho khoa tu dong hoa bao cao bang pandas.',
+        'Tôi đã chuẩn bị notebook Python và rubric chấm bài cho khóa tự động hóa báo cáo bằng pandas. Công việc hiện tại của tôi có phần tự động hóa tổng hợp báo cáo Excel bằng Python và thư viện pandas, giúp giảm đáng kể thời gian làm thủ công mỗi tuần. Tôi thiết kế bài thực hành đi từ đọc dữ liệu, xử lý đến xuất báo cáo để học viên dễ hình dung quy trình. Rubric chấm bài tôi xây dựng theo từng bước: đọc dữ liệu đúng, xử lý đúng logic và trình bày báo cáo rõ ràng.',
         'Python automation, pandas reporting, notebook workflow',
         '[32,33]',
         'pending',
@@ -12193,6 +12472,447 @@ VALUES (
         'PAYOS-2026-1095',
         '2026-08-06 11:28:00',
         '2026-08-06 11:32:00'
+    ),
+    -- Back-filled purchases for enrollments that previously had no matching transaction.
+    (
+        96,
+        15,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1096',
+        '2026-06-05 08:57:00',
+        '2026-06-05 09:00:00'
+    ),
+    (
+        97,
+        11,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1097',
+        '2026-06-05 09:57:00',
+        '2026-06-05 10:00:00'
+    ),
+    (
+        98,
+        12,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1098',
+        '2026-06-05 10:57:00',
+        '2026-06-05 11:00:00'
+    ),
+    (
+        99,
+        20,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1099',
+        '2026-06-06 08:57:00',
+        '2026-06-06 09:00:00'
+    ),
+    (
+        100,
+        13,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1100',
+        '2026-06-06 09:27:00',
+        '2026-06-06 09:30:00'
+    ),
+    (
+        101,
+        14,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1101',
+        '2026-06-07 13:57:00',
+        '2026-06-07 14:00:00'
+    ),
+    (
+        102,
+        15,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1102',
+        '2026-06-08 08:57:00',
+        '2026-06-08 09:00:00'
+    ),
+    (
+        103,
+        11,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1103',
+        '2026-06-08 09:57:00',
+        '2026-06-08 10:00:00'
+    ),
+    (
+        104,
+        16,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1104',
+        '2026-06-09 13:57:00',
+        '2026-06-09 14:00:00'
+    ),
+    (
+        105,
+        19,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1105',
+        '2026-06-09 14:57:00',
+        '2026-06-09 15:00:00'
+    ),
+    (
+        106,
+        24,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1106',
+        '2026-06-10 10:57:00',
+        '2026-06-10 11:00:00'
+    ),
+    (
+        107,
+        16,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1107',
+        '2026-06-10 13:57:00',
+        '2026-06-10 14:00:00'
+    ),
+    (
+        108,
+        19,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1108',
+        '2026-06-11 14:57:00',
+        '2026-06-11 15:00:00'
+    ),
+    (
+        109,
+        21,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1109',
+        '2026-06-12 08:57:00',
+        '2026-06-12 09:00:00'
+    ),
+    (
+        110,
+        15,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1110',
+        '2026-06-12 08:57:00',
+        '2026-06-12 09:00:00'
+    ),
+    (
+        111,
+        17,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1111',
+        '2026-06-12 09:57:00',
+        '2026-06-12 10:00:00'
+    ),
+    (
+        112,
+        22,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1112',
+        '2026-06-12 13:57:00',
+        '2026-06-12 14:00:00'
+    ),
+    (
+        113,
+        18,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1113',
+        '2026-06-12 15:57:00',
+        '2026-06-12 16:00:00'
+    ),
+    (
+        114,
+        20,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1114',
+        '2026-06-14 08:57:00',
+        '2026-06-14 09:00:00'
+    ),
+    (
+        115,
+        18,
+        249000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1115',
+        '2026-06-14 15:57:00',
+        '2026-06-14 16:00:00'
+    ),
+    (
+        116,
+        21,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1116',
+        '2026-06-15 08:57:00',
+        '2026-06-15 09:00:00'
+    ),
+    (
+        117,
+        25,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1117',
+        '2026-06-15 09:57:00',
+        '2026-06-15 10:00:00'
+    ),
+    (
+        118,
+        12,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1118',
+        '2026-06-15 10:57:00',
+        '2026-06-15 11:00:00'
+    ),
+    (
+        119,
+        22,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1119',
+        '2026-06-15 13:57:00',
+        '2026-06-15 14:00:00'
+    ),
+    (
+        120,
+        14,
+        699000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1120',
+        '2026-06-15 13:57:00',
+        '2026-06-15 14:00:00'
+    ),
+    (
+        121,
+        23,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1121',
+        '2026-06-19 08:57:00',
+        '2026-06-19 09:00:00'
+    ),
+    (
+        122,
+        14,
+        299000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1122',
+        '2026-06-19 13:57:00',
+        '2026-06-19 14:00:00'
+    ),
+    (
+        123,
+        13,
+        249000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1123',
+        '2026-06-20 08:57:00',
+        '2026-06-20 09:00:00'
+    ),
+    (
+        124,
+        24,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1124',
+        '2026-06-20 10:57:00',
+        '2026-06-20 11:00:00'
+    ),
+    (
+        125,
+        16,
+        399000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1125',
+        '2026-06-20 13:57:00',
+        '2026-06-20 14:00:00'
+    ),
+    (
+        126,
+        15,
+        249000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1126',
+        '2026-06-21 08:57:00',
+        '2026-06-21 09:00:00'
+    ),
+    (
+        127,
+        20,
+        699000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1127',
+        '2026-06-22 08:57:00',
+        '2026-06-22 09:00:00'
+    ),
+    (
+        128,
+        18,
+        349000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1128',
+        '2026-06-22 15:57:00',
+        '2026-06-22 16:00:00'
+    ),
+    (
+        129,
+        17,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1129',
+        '2026-06-23 09:57:00',
+        '2026-06-23 10:00:00'
+    ),
+    (
+        130,
+        24,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1130',
+        '2026-06-23 10:57:00',
+        '2026-06-23 11:00:00'
+    ),
+    (
+        131,
+        25,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1131',
+        '2026-06-25 09:57:00',
+        '2026-06-25 10:00:00'
+    ),
+    (
+        132,
+        17,
+        499000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1132',
+        '2026-06-26 09:57:00',
+        '2026-06-26 10:00:00'
+    ),
+    (
+        133,
+        18,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1133',
+        '2026-07-24 09:27:00',
+        '2026-07-24 09:30:00'
+    ),
+    (
+        134,
+        22,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1134',
+        '2026-07-26 13:57:00',
+        '2026-07-26 14:00:00'
+    ),
+    (
+        135,
+        17,
+        199000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1135',
+        '2026-07-27 09:57:00',
+        '2026-07-27 10:00:00'
+    ),
+    (
+        136,
+        21,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1136',
+        '2026-07-28 20:12:00',
+        '2026-07-28 20:15:00'
+    ),
+    (
+        137,
+        23,
+        179000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1137',
+        '2026-07-30 08:57:00',
+        '2026-07-30 09:00:00'
+    ),
+    (
+        138,
+        25,
+        179000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1138',
+        '2026-07-31 09:57:00',
+        '2026-07-31 10:00:00'
+    ),
+    (
+        139,
+        24,
+        149000,
+        'paid',
+        'payos',
+        'PAYOS-2026-1139',
+        '2026-08-01 09:02:00',
+        '2026-08-01 09:05:00'
     );
 
 -- ============================================================================
@@ -12338,7 +13058,52 @@ VALUES (1, 1, 4, 199000),
     (130, 93, 21, 249000),
     (131, 93, 20, 199000),
     (132, 94, 22, 149000),
-    (133, 95, 10, 399000);
+    (133, 95, 10, 399000),
+    -- Line items for the back-filled purchases above (matches previously orphan enrolls).
+    (134, 96, 1, 399000),
+    (135, 97, 1, 399000),
+    (136, 98, 1, 399000),
+    (137, 99, 1, 399000),
+    (138, 100, 14, 199000),
+    (139, 101, 4, 199000),
+    (140, 102, 14, 199000),
+    (141, 103, 5, 499000),
+    (142, 104, 4, 199000),
+    (143, 105, 10, 399000),
+    (144, 106, 16, 299000),
+    (145, 107, 11, 149000),
+    (146, 108, 12, 299000),
+    (147, 109, 10, 399000),
+    (148, 110, 2, 199000),
+    (149, 111, 16, 299000),
+    (150, 112, 12, 299000),
+    (151, 113, 20, 199000),
+    (152, 114, 2, 199000),
+    (153, 115, 21, 249000),
+    (154, 116, 11, 149000),
+    (155, 117, 3, 149000),
+    (156, 118, 3, 149000),
+    (157, 119, 14, 199000),
+    (158, 120, 7, 699000),
+    (159, 121, 23, 199000),
+    (160, 122, 8, 299000),
+    (161, 123, 15, 249000),
+    (162, 124, 17, 199000),
+    (163, 125, 10, 399000),
+    (164, 126, 15, 249000),
+    (165, 127, 7, 699000),
+    (166, 128, 13, 349000),
+    (167, 129, 17, 199000),
+    (168, 130, 18, 499000),
+    (169, 131, 20, 199000),
+    (170, 132, 18, 499000),
+    (171, 133, 3, 149000),
+    (172, 134, 22, 149000),
+    (173, 135, 23, 199000),
+    (174, 136, 3, 149000),
+    (175, 137, 24, 179000),
+    (176, 138, 24, 179000),
+    (177, 139, 3, 149000);
 
 -- ============================================================================
 -- HIGHLIGHT_FEED (newsfeed entries; one per highlight video)
