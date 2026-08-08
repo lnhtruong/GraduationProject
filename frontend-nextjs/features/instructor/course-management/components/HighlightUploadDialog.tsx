@@ -94,6 +94,9 @@ export function HighlightUploadDialog({
     stage,
     progressPercent,
     jobType,
+    sourceVideoId,
+    sourceVideoUrl,
+    startFileUpload,
     startUpload,
     startFromExistingVideo,
     ensureProjectForClip,
@@ -177,6 +180,18 @@ export function HighlightUploadDialog({
       ? fileDurationSec
       : (selectedExistingVideo?.duration ?? undefined);
 
+  // Segment Selection Picker (specs/002-highlight-segment-picker-ui): needs a
+  // real video_id. "existing-video" already has one the instant a lesson
+  // video card is picked (no upload needed); "file" only gets one once the
+  // pre-upload (ADR 0002, triggered below in the FilePreview onUpload
+  // handler) resolves.
+  const highlightVideoId =
+    sourceMode === "file" ? sourceVideoId : (selectedExistingVideo?.id ?? null);
+  const highlightVideoUrl =
+    sourceMode === "file"
+      ? sourceVideoUrl
+      : (selectedExistingVideo?.url ?? null);
+
   const { blocked: quotaBlocked } = useQuotaCost(
     "highlight",
     sourceDurationSec,
@@ -251,8 +266,12 @@ export function HighlightUploadDialog({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const isProcessing =
-    status === "uploading" || status === "pending" || status === "processing";
+  // ADR 0002 (see GraduationProject docs/adr): "uploading" now only ever
+  // means the pre-upload phase (started when the file is confirmed, while
+  // HighlightParamsForm is shown) — startUpload's submit phase goes
+  // straight to "pending". Must NOT count as "processing" here either,
+  // same fix as features/upload/index.tsx.
+  const isProcessing = status === "pending" || status === "processing";
   const isCompleted = status === "completed" && clips.length > 0;
   const isFailed = status === "failed";
   const showSourceSwitcher =
@@ -502,7 +521,13 @@ export function HighlightUploadDialog({
                 <FilePreview
                   file={file}
                   onRemove={handleRemoveFile}
-                  onUpload={() => setShowForm(true)}
+                  onUpload={() => {
+                    // ADR 0002: start the Bunny upload now, in parallel with
+                    // the params form, instead of waiting for form submit —
+                    // so video_id is available while the form is still open.
+                    void startFileUpload(file);
+                    setShowForm(true);
+                  }}
                   isUploading={false}
                 />
               )}
@@ -524,10 +549,17 @@ export function HighlightUploadDialog({
                 noCard={true}
                 compact
                 hideActions
+                isUploadingSource={sourceMode === "file" && status === "uploading"}
+                uploadProgress={sourceMode === "file" ? progress : null}
+                uploadError={
+                  sourceMode === "file" && status === "failed" ? error : null
+                }
+                videoId={highlightVideoId}
+                videoUrl={highlightVideoUrl}
               />
             )}
 
-            {(isProcessing || isCompleted || isFailed) && (
+            {(isProcessing || isCompleted || (isFailed && !showForm)) && (
               <UploadProgress
                 progress={progress}
                 status={status}
