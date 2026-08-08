@@ -6,6 +6,8 @@ const KEYS = {
   summary: ["instructor", "revenue", "summary"] as const,
   summaryByRange: (from?: string, to?: string) =>
     ["instructor", "revenue", "summary", from, to] as const,
+  coursesByRange: (from?: string, to?: string) =>
+    ["instructor", "revenue", "courses", from, to] as const,
   timeseries: (params?: RevenueTimeseriesParams) =>
     ["instructor", "revenue", "timeseries", params] as const,
   transactionItems: (courseId: number, from?: string, to?: string) =>
@@ -20,10 +22,19 @@ export function useRevenueSummary() {
   });
 }
 
-/** Doanh thu theo từng khoá học trong date range — đồng bộ với biểu đồ */
-export function useRevenueCoursesByRange(from?: string, to?: string) {
+export function useRevenueSummaryByRange(from?: string, to?: string) {
   return useQuery({
     queryKey: KEYS.summaryByRange(from, to),
+    queryFn: () => instructorRevenueApi.getSummaryByRange(from, to),
+    enabled: Boolean(from && to),
+    staleTime: 2 * 60_000,
+  });
+}
+
+/** Doanh thu theo từng khoá học trong date range, đồng bộ với biểu đồ. */
+export function useRevenueCoursesByRange(from?: string, to?: string) {
+  return useQuery({
+    queryKey: KEYS.coursesByRange(from, to),
     queryFn: () => instructorRevenueApi.getCourseRevenueByRange(from, to),
     enabled: Boolean(from && to),
     staleTime: 2 * 60_000,

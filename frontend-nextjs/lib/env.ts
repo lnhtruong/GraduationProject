@@ -79,3 +79,25 @@ export const PLATFORM_FEE_PERCENT = parseOptionalBoundedNumber(
 );
 export const PLATFORM_FEE_PERCENT_LABEL =
   PLATFORM_FEE_PERCENT === null ? "N%" : formatPercent(PLATFORM_FEE_PERCENT);
+
+export const INSTRUCTOR_PIT_WITHHOLDING_PERCENT = parseOptionalBoundedNumber(
+  process.env.NEXT_PUBLIC_INSTRUCTOR_PIT_WITHHOLDING_PERCENT,
+  0,
+  100,
+) ?? 2;
+export const INSTRUCTOR_VAT_WITHHOLDING_PERCENT = parseOptionalBoundedNumber(
+  process.env.NEXT_PUBLIC_INSTRUCTOR_VAT_WITHHOLDING_PERCENT,
+  0,
+  100,
+) ?? 5;
+export const INSTRUCTOR_TAX_EXEMPT_ANNUAL_REVENUE_VND = parsePositiveNumber(
+  process.env.NEXT_PUBLIC_INSTRUCTOR_TAX_EXEMPT_ANNUAL_REVENUE_VND,
+  1_000_000_000,
+);
+export const INSTRUCTOR_TAX_PERCENT =
+  INSTRUCTOR_PIT_WITHHOLDING_PERCENT + INSTRUCTOR_VAT_WITHHOLDING_PERCENT;
+export const INSTRUCTOR_TAX_PERCENT_LABEL = formatPercent(INSTRUCTOR_TAX_PERCENT);
+export const INSTRUCTOR_TAX_BASE_MODE =
+  process.env.NEXT_PUBLIC_INSTRUCTOR_TAX_BASE_MODE === "after_platform_fee"
+    ? "after_platform_fee"
+    : "gross";
