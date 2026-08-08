@@ -183,6 +183,9 @@ export default function Upload() {
     stage,
     progressPercent,
     jobType,
+    sourceVideoId,
+    sourceVideoUrl,
+    startFileUpload,
     startUpload,
     startFromExistingVideo,
     ensureProjectForClip,
@@ -274,7 +277,16 @@ export default function Upload() {
     setHasSubmittedHighlight(false);
   };
 
-  const handleConfirmFile = () => setShowForm(true);
+  const handleConfirmFile = () => {
+    // ADR 0002 (GraduationProject): start the Bunny upload now, in parallel
+    // with the user filling in HighlightParamsForm, instead of waiting for
+    // that form's submit — so a video_id is available while the form is
+    // still open (needed by the segment selection picker).
+    if (sourceMode === "file" && file) {
+      void startFileUpload(file);
+    }
+    setShowForm(true);
+  };
   const handleCancelForm = () => setShowForm(false);
 
   const handleFormSubmit = (params: HighlightParams) => {
@@ -341,8 +353,12 @@ export default function Upload() {
       ?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const isProcessing =
-    status === "uploading" || status === "pending" || status === "processing";
+  // ADR 0002: "uploading" now only ever means the pre-upload phase (started
+  // on file confirmation, running while HighlightParamsForm is shown) —
+  // startUpload's submit phase goes straight to "pending". So it must NOT
+  // count as "processing" (that gate hides the params form / shows the
+  // full-screen UploadProgress, both wrong during pre-upload).
+  const isProcessing = status === "pending" || status === "processing";
   const isCompleted = status === "completed" && clips.length > 0;
   const isFailed = status === "failed";
   const showFilePreview =
@@ -539,11 +555,24 @@ export default function Upload() {
                       onCancel={handleCancelForm}
                       isSubmitting={false}
                       submitDisabled={quotaBlocked}
+                      isUploadingSource={
+                        sourceMode === "file" && status === "uploading"
+                      }
+                      uploadProgress={
+                        sourceMode === "file" ? progress : null
+                      }
+                      uploadError={
+                        sourceMode === "file" && status === "failed"
+                          ? error
+                          : null
+                      }
+                      videoId={sourceMode === "file" ? sourceVideoId : null}
+                      videoUrl={sourceMode === "file" ? sourceVideoUrl : null}
                     />
                   </>
                 )}
 
-                {(isProcessing || isCompleted || isFailed) && (
+                {(isProcessing || isCompleted || (isFailed && !showForm)) && (
                   <UploadProgress
                     progress={progress}
                     status={status}

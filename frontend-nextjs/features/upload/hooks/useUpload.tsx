@@ -481,6 +481,22 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   } | null> | null>(null);
   const redirectedProjectRef = useRef<number | null>(null);
 
+  // Pre-upload (ADR 0002, GraduationProject): the Bunny upload now starts as
+  // soon as the file is confirmed, not deferred until the highlight params
+  // form is submitted. `uploadGenerationRef` guards against a stale upload's
+  // result/error landing after cancel()/reset() started a new one.
+  const uploadGenerationRef = useRef(0);
+  const preUploadRef = useRef<{
+    file: File;
+    promise: Promise<{
+      videoId: number;
+      bunnyVideoId: string;
+      videoUrl: string;
+      thumbnail?: string | null;
+      duration?: number | null;
+    }>;
+  } | null>(null);
+
   const setJobStarted = useCallback((jobId: string) => {
     setState((prev) => ({
       ...prev,
@@ -966,15 +982,19 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     });
   };
 
-  const startUpload = async (
-    fileToUpload: File,
-    params: HighlightParams,
-    sourceDurationSec?: number,
-  ) => {
+  /**
+   * Upload-only phase (ADR 0002). Called as soon as the user confirms their
+   * file — well before the highlight params form is submitted — so a
+   * `videoId` is available while that form is still open (needed by the
+   * segment selection picker to check for/start a transcript).
+   */
+  const startFileUpload = async (fileToUpload: File): Promise<void> => {
     if (fileToUpload.size > BUNNY_MAX_UPLOAD_BYTES) {
       toast.error(`File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`);
       return;
     }
+
+    const generation = ++uploadGenerationRef.current;
 
     updateState({
       file: fileToUpload,
@@ -990,23 +1010,81 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       error: null,
       stage: "Đang tải video lên hệ thống",
       progressPercent: undefined,
+    });
+
+    const uploadPromise = uploadFileToBunny(fileToUpload, (percent) => {
+      if (uploadGenerationRef.current !== generation) return;
+      updateState({ progress: percent });
+    });
+    preUploadRef.current = { file: fileToUpload, promise: uploadPromise };
+
+    try {
+      const bunny = await uploadPromise;
+      if (uploadGenerationRef.current !== generation) return;
+
+      updateState({
+        progress: null,
+        status: "idle",
+        bunnyVideoId: bunny.bunnyVideoId,
+        sourceVideoId: bunny.videoId,
+        sourceVideoUrl: bunny.videoUrl,
+        stage: undefined,
+      });
+    } catch (error) {
+      if (uploadGenerationRef.current !== generation) return;
+      preUploadRef.current = null;
+      setState((prev) => ({
+        ...prev,
+        status: "failed",
+        progress: null,
+        error: getUserFacingErrorMessage(
+          error,
+          "Không thể tải video lên hệ thống.",
+        ),
+      }));
+    }
+  };
+
+  const startUpload = async (
+    fileToUpload: File,
+    params: HighlightParams,
+    sourceDurationSec?: number,
+  ) => {
+    if (fileToUpload.size > BUNNY_MAX_UPLOAD_BYTES) {
+      toast.error(`File quá lớn. Kích thước tối đa: ${BUNNY_MAX_UPLOAD_LABEL}`);
+      return;
+    }
+
+    updateState({
+      file: fileToUpload,
+      source: "file",
+      status: "pending",
+      clips: [],
+      jobId: null,
+      createdProjectId: null,
+      error: null,
+      stage: "Đang gửi yêu cầu tạo highlight",
+      progressPercent: 5,
       jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
     });
 
     try {
-      const bunny = await uploadFileToBunny(fileToUpload, (percent) =>
-        updateState({ progress: percent }),
-      );
+      // Reuse the pre-upload started on file confirmation (ADR 0002) — reuses
+      // its result if already done, or awaits it if still in flight. Falls
+      // back to uploading inline if no matching pre-upload was ever started
+      // (defensive — normally index.tsx always starts one on confirm).
+      const bunny =
+        preUploadRef.current?.file === fileToUpload
+          ? await preUploadRef.current.promise
+          : await uploadFileToBunny(fileToUpload, (percent) =>
+              updateState({ progress: percent }),
+            );
 
       updateState({
         progress: null,
-        status: "pending",
         bunnyVideoId: bunny.bunnyVideoId,
         sourceVideoId: bunny.videoId,
         sourceVideoUrl: bunny.videoUrl,
-        stage: "Đang gửi yêu cầu tạo highlight",
-        progressPercent: 5,
-        jobType: params.isMultiOutput ? "highlight-multi" : "highlight",
       });
 
       await startHighlightFromUrl(bunny.videoUrl, params, {
@@ -1074,6 +1152,8 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   };
 
   const cancel = () => {
+    uploadGenerationRef.current += 1;
+    preUploadRef.current = null;
     setState(INITIAL_STATE);
   };
 
@@ -1095,6 +1175,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
   return {
     ...state,
     setFile,
+    startFileUpload,
     startUpload,
     startFromExistingVideo,
     ensureProjectForClip: createOrGetProjectForClip,
