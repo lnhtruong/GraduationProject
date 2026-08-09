@@ -196,7 +196,7 @@ export function TransactionItemsDrawer({ course, from, to, onClose }: Props) {
                     </div>
 
                     <span className="mt-2 block text-xs text-muted-foreground sm:mt-0 sm:pt-0.5">
-                      Người mua
+                      {item.buyerName || `Người mua #${item.buyerUserId}`}
                     </span>
 
                     <div className="mt-2 min-w-0 sm:mt-0 sm:text-right">

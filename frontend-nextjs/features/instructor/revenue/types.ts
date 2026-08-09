@@ -106,6 +106,7 @@ export interface SaleItem {
   transactionItemId: number;
   transactionId: number;
   buyerUserId: number;
+  buyerName?: string;
   price: number;
   grossRevenue?: number;
   platformFeePercent?: number;
