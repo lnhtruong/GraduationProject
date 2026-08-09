@@ -74,7 +74,7 @@ export function AdminLecturerRequestReviewSheet({
   return (
     <Sheet open={open} onOpenChange={(v) => !v && handleClose()}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
-        <SheetHeader className="border-b border-border/50 px-6 py-4">
+        <SheetHeader className="border-b border-border/50 px-6 py-4 pr-12">
           <div className="flex items-center justify-between gap-3">
             <SheetTitle className="text-base">Chi tiết yêu cầu #{request.id}</SheetTitle>
             <LecturerRequestStatusBadge status={request.status} />

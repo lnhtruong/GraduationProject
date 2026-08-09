@@ -292,7 +292,7 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
             {request ? (
               <>
                 {/* Header */}
-                <SheetHeader className="mb-5 space-y-0 text-left">
+                <SheetHeader className="mb-5 space-y-0 pr-8 text-left">
                   <div className="flex items-start justify-between gap-3">
                     <SheetTitle className="line-clamp-2 text-base leading-snug">
                       {request.course?.name ?? "Khóa học liên quan"}

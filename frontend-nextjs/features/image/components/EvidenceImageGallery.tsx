@@ -54,7 +54,7 @@ export function EvidenceImageGallery({
       </div>
 
       <Dialog open={Boolean(selectedImage)} onOpenChange={(open) => !open && setSelectedImage(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl p-2 sm:p-3">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl p-2 pt-8 sm:p-3 sm:pt-9">
           <DialogTitle className="sr-only">{label}</DialogTitle>
           <DialogDescription className="sr-only">
             Xem ảnh minh chứng kích thước lớn.
