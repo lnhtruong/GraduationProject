@@ -1,12 +1,12 @@
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { ListChecks, Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -40,6 +40,7 @@ import { fetchAndParseSrt } from "../utils/srt.utils";
 import SegmentPickerSheet, {
   type PickerVideoState,
 } from "./SegmentPicker/SegmentPickerSheet";
+import TranscribePrompt from "./SegmentPicker/TranscribePrompt";
 
 const SEGMENT_SELECTION_TARGET_MAX = 180;
 const TRANSCRIBE_JOB_STORAGE = {
@@ -58,6 +59,8 @@ interface HighlightParamsFormProps {
   hideActions?: boolean;
   /** Chặn submit khi không đủ credit quota. Nội dung riêng render bên ngoài form. */
   submitDisabled?: boolean;
+  submitLabel?: string;
+  onCanSubmitChange?: (canSubmit: boolean) => void;
   /** ADR 0002: video được upload song song lúc điền form, không đợi submit. */
   isUploadingSource?: boolean;
   uploadProgress?: number | null;
@@ -103,6 +106,8 @@ export default function HighlightParamsForm({
   formId,
   hideActions = false,
   submitDisabled = false,
+  submitLabel = "Tạo highlight",
+  onCanSubmitChange,
   isUploadingSource = false,
   uploadProgress = null,
   uploadError = null,
@@ -113,6 +118,7 @@ export default function HighlightParamsForm({
   const [excludeInput, setExcludeInput] = React.useState("");
   const form = useForm<HighlightParamsFormValues>({
     resolver: zodResolver(highlightParamsSchema),
+    mode: "onChange",
     defaultValues: {
       topic: "",
       includeKeywords: [],
@@ -122,8 +128,26 @@ export default function HighlightParamsForm({
     },
   });
 
-  const watchedIsOpenAI = form.watch("isOpenAI");
-  const watchedIsMultiOutput = form.watch("isMultiOutput");
+  const watchedTopic = useWatch({
+    control: form.control,
+    name: "topic",
+  });
+  const watchedIncludeKeywords = useWatch({
+    control: form.control,
+    name: "includeKeywords",
+  });
+  const watchedExcludeKeywords = useWatch({
+    control: form.control,
+    name: "excludeKeywords",
+  });
+  const watchedIsOpenAI = useWatch({
+    control: form.control,
+    name: "isOpenAI",
+  });
+  const watchedIsMultiOutput = useWatch({
+    control: form.control,
+    name: "isMultiOutput",
+  });
 
   // ---- Segment Selection Picker (specs/002-highlight-segment-picker-ui,
   // colab2 repo). segmentSelection is instantiated HERE, at the form level
@@ -138,6 +162,7 @@ export default function HighlightParamsForm({
   const canUseSegmentPicker = hasSupportedMode && videoId != null;
 
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
+  const [isTranscribePromptOpen, setIsTranscribePromptOpen] = React.useState(false);
   const [transcribeStatus, setTranscribeStatus] = React.useState<
     "idle" | "running" | "failed"
   >("idle");
@@ -157,7 +182,7 @@ export default function HighlightParamsForm({
     },
     onError: () => {
       setTranscribeStatus("failed");
-      toast.error("Không thể bắt đầu transcribe. Vui lòng thử lại.");
+      toast.error("Không thể bắt đầu tạo phụ đề. Vui lòng thử lại.");
     },
   });
 
@@ -199,11 +224,11 @@ export default function HighlightParamsForm({
       setTranscribeStatus("idle");
       setTranscribeJobId(null);
       void refetchVideo();
-      toast.success("Transcribe hoàn tất — video đã sẵn sàng để chọn đoạn.");
+      toast.success("Phụ đề đã sẵn sàng để tinh chỉnh theo từng đoạn.");
     };
     const handleFailed = () => {
       setTranscribeStatus("failed");
-      toast.error("Transcribe thất bại. Vui lòng thử lại.");
+      toast.error("Tạo phụ đề thất bại. Vui lòng thử lại.");
     };
 
     const watcher = watchInferenceJob({
@@ -218,9 +243,20 @@ export default function HighlightParamsForm({
       },
       onCompleted: (payload) => {
         const record = payload as unknown as {
+          job_id?: string;
+          jobId?: string;
           data?: { job_id?: string; jobId?: string };
         };
-        if (matchesJob(record.data?.job_id ?? record.data?.jobId)) handleDone();
+        if (
+          matchesJob(
+            record.job_id ??
+              record.jobId ??
+              record.data?.job_id ??
+              record.data?.jobId,
+          )
+        ) {
+          handleDone();
+        }
       },
       onError: (payload) => {
         const record = payload as unknown as { jobId?: string };
@@ -245,6 +281,18 @@ export default function HighlightParamsForm({
   const [isLoadingSrt, setIsLoadingSrt] = React.useState(false);
   const [srtError, setSrtError] = React.useState<string | null>(null);
   const loadedSrtUrlRef = React.useRef<string | null>(null);
+  const previousVideoIdRef = React.useRef<number | null>(videoId);
+
+  React.useEffect(() => {
+    if (previousVideoIdRef.current === videoId) return;
+    previousVideoIdRef.current = videoId;
+    segmentSelection.clearAll();
+    setSubtitleLines([]);
+    setSrtError(null);
+    loadedSrtUrlRef.current = null;
+    setIsPickerOpen(false);
+    setIsTranscribePromptOpen(false);
+  }, [segmentSelection, videoId]);
 
   React.useEffect(() => {
     if (videoState.kind !== "ready") return;
@@ -272,26 +320,50 @@ export default function HighlightParamsForm({
   }, [videoState]);
 
   const keepDurationSec = segmentSelection.keepDurationSec(subtitleLines);
-  const exceedsTargetMax = keepDurationSec > SEGMENT_SELECTION_TARGET_MAX;
+  const exceedsTargetMax =
+    canUseSegmentPicker && keepDurationSec > SEGMENT_SELECTION_TARGET_MAX;
 
   const handleOpenPicker = () => {
     if (!canUseSegmentPicker) return;
+    if (videoState.kind === "no-transcript") {
+      setIsTranscribePromptOpen(true);
+      return;
+    }
+    if (videoState.kind !== "ready") return;
     setIsPickerOpen(true);
+  };
+
+  const handleEnableSegmentRequirements = () => {
+    form.setValue("isOpenAI", true, { shouldDirty: true, shouldValidate: true });
+    form.setValue("isMultiOutput", false, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const handleStartTranscribe = () => {
     if (!videoId || !videoUrl) return;
+    setIsTranscribePromptOpen(false);
     startTranscribeMutation.mutate({ videoUrl, videoId });
   };
+
+  const topicReady = (watchedTopic ?? "").trim().length >= 3;
+  const canSubmitForm = topicReady && !exceedsTargetMax;
+
+  React.useEffect(() => {
+    onCanSubmitChange?.(canSubmitForm);
+  }, [canSubmitForm, onCanSubmitChange]);
   // ---- end Segment Selection Picker wiring ----
 
   const handleFormSubmit = form.handleSubmit((data) => {
     const { keepRanges, removeRanges } = segmentSelection.toPayloadRanges();
-    const usesSegmentSelection = keepRanges.length > 0 || removeRanges.length > 0;
+    const usesSegmentSelection =
+      canUseSegmentPicker &&
+      (keepRanges.length > 0 || removeRanges.length > 0);
 
     if (usesSegmentSelection && exceedsTargetMax) {
       toast.error(
-        "Tổng thời lượng đoạn ưu tiên đang vượt quá giới hạn cho phép.",
+        "Tổng thời lượng đoạn cần giữ đang vượt quá giới hạn cho phép.",
       );
       return;
     }
@@ -349,10 +421,10 @@ export default function HighlightParamsForm({
 
         <div>
           <h3 className={cn("font-semibold", compact ? "text-lg" : "text-xl")}>
-            Bạn muốn lấy phần nào trong video?
+            Bạn muốn highlight tập trung vào gì?
           </h3>
           <p className="mt-1 text-sm leading-5 text-muted-foreground">
-            Mô tả mục tiêu học để StudyLoop ưu tiên đúng đoạn cần giữ.
+            Mô tả ngắn nội dung quan trọng để StudyLoop chọn đoạn phù hợp.
           </p>
         </div>
 
@@ -416,7 +488,7 @@ export default function HighlightParamsForm({
                       <div>
                         <div className="font-semibold">Tiêu chuẩn</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                          Dùng luồng phân tích mặc định của StudyLoop.
+                          Phù hợp với hầu hết video, xử lý nhanh hơn.
                         </p>
                       </div>
                     </div>
@@ -446,9 +518,9 @@ export default function HighlightParamsForm({
                         ) : null}
                       </span>
                       <div>
-                        <div className="font-semibold">Nâng cao với OpenAI</div>
+                        <div className="font-semibold">Phân tích nâng cao</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                          Ưu tiên phân tích bằng OpenAI cho nội dung cần độ chính xác cao hơn.
+                          Phân tích kỹ hơn để chọn đoạn chính xác hơn.
                         </p>
                       </div>
                     </div>
@@ -495,7 +567,7 @@ export default function HighlightParamsForm({
                       <div>
                         <div className="font-semibold">Một đoạn hay nhất</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                          Dùng khi muốn mở Studio nhanh và chỉnh tiếp ngay.
+                          StudyLoop chọn đoạn phù hợp nhất và mở thẳng trong Studio.
                         </p>
                       </div>
                     </div>
@@ -527,7 +599,7 @@ export default function HighlightParamsForm({
                       <div>
                         <div className="font-semibold">Nhiều đoạn để chọn</div>
                         <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                          Dùng khi video dài và cần so sánh vài phương án.
+                          StudyLoop đề xuất vài đoạn để bạn xem và chọn trước khi chỉnh sửa.
                         </p>
                       </div>
                     </div>
@@ -538,47 +610,100 @@ export default function HighlightParamsForm({
           )}
         />
 
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canUseSegmentPicker}
-            onClick={handleOpenPicker}
-            className="gap-2"
-          >
-            Chọn đoạn ưu tiên/loại bỏ
-            {transcribeStatus === "running" && (
-              <Badge variant="secondary">Đang transcribe...</Badge>
+        <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <ListChecks className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Tinh chỉnh theo từng đoạn</p>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                  Chọn phần nên giữ lại hoặc nên tránh khi StudyLoop tạo highlight mới.
+                </p>
+              </div>
+            </div>
+
+            {!hasSupportedMode ? (
+              <Button
+                type="button"
+                onClick={handleEnableSegmentRequirements}
+                disabled={isSubmitting}
+                className="h-10 shrink-0 bg-primary px-4 text-primary-foreground shadow-sm hover:bg-primary/90"
+              >
+                Bật tinh chỉnh
+              </Button>
+            ) : videoState.kind === "no-transcript" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsTranscribePromptOpen(true)}
+                disabled={isSubmitting || startTranscribeMutation.isPending}
+                className="h-10 shrink-0 border-primary/50 px-4 text-primary shadow-sm hover:bg-primary/5 hover:text-primary"
+              >
+                {startTranscribeMutation.isPending ? "Đang bắt đầu..." : "Tạo phụ đề để chọn đoạn"}
+              </Button>
+            ) : videoState.kind === "transcribing" ? (
+              <Button type="button" variant="outline" disabled className="h-10 shrink-0 gap-2 px-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang tạo phụ đề
+              </Button>
+            ) : videoState.kind === "ready" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleOpenPicker}
+                disabled={isSubmitting || isLoadingSrt}
+                className="h-10 shrink-0 px-4"
+              >
+                Mở danh sách đoạn
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" disabled className="h-10 shrink-0 gap-2 px-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang kiểm tra
+              </Button>
             )}
-            {transcribeStatus !== "running" &&
-              (segmentSelection.keepCount > 0 ||
-                segmentSelection.removeCount > 0) && (
-                <Badge>
-                  {segmentSelection.keepCount} ưu tiên ·{" "}
-                  {segmentSelection.removeCount} loại bỏ
-                </Badge>
-              )}
-          </Button>
-          {!canUseSegmentPicker && (
-            <p className="text-xs text-muted-foreground">
-              {!hasSupportedMode
-                ? 'Cần bật "Nâng cao với OpenAI" và chọn "Một đoạn hay nhất" để dùng tính năng này.'
-                : "Chỉ dùng được khi tạo highlight từ video vừa tải lên (tab \"Tải từ máy\")."}
+          </div>
+
+          {videoState.kind !== "transcribing" && (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Dùng khi muốn chọn chính xác đoạn nên giữ hoặc nên tránh trong video.
             </p>
           )}
-        </div>
+          {videoState.kind === "transcribing" && (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Đang xử lý nền, bạn có thể tiếp tục thiết lập highlight trong lúc chờ.
+            </p>
+          )}
 
+          {transcribeStatus !== "running" &&
+            (segmentSelection.keepCount > 0 || segmentSelection.removeCount > 0) && (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <Badge variant="secondary">
+                  {segmentSelection.keepCount} đoạn nên giữ
+                </Badge>
+                <Badge variant="outline">
+                  {segmentSelection.removeCount} đoạn nên tránh
+                </Badge>
+              </div>
+            )}
+        </div>
         <SegmentPickerSheet
           open={isPickerOpen}
           onOpenChange={setIsPickerOpen}
           videoState={videoState}
           segmentSelection={segmentSelection}
           targetMaxSec={SEGMENT_SELECTION_TARGET_MAX}
-          onStartTranscribe={handleStartTranscribe}
-          isStartingTranscribe={startTranscribeMutation.isPending}
           lines={subtitleLines}
           isLoadingSrt={isLoadingSrt}
           srtError={srtError}
+        />
+        <TranscribePrompt
+          open={isTranscribePromptOpen}
+          onOpenChange={setIsTranscribePromptOpen}
+          onConfirm={handleStartTranscribe}
+          isStarting={startTranscribeMutation.isPending}
         />
 
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
@@ -588,7 +713,7 @@ export default function HighlightParamsForm({
             render={({ field }) => (
               <FormItem className="flex h-full flex-col">
                 <FormLabel className="text-base font-medium">
-                  Muốn giữ lại nội dung gì?
+                  Nội dung nên xuất hiện
                 </FormLabel>
                 <FormControl>
                   <Input
@@ -597,7 +722,7 @@ export default function HighlightParamsForm({
                       setIncludeInput(event.target.value);
                       field.onChange(parsePreferences(event.target.value));
                     }}
-                    placeholder="Ví dụ: ví dụ thực tế, đoạn minh họa, công thức quan trọng"
+                    placeholder="VD: đoạn minh họa, ví dụ thực tế, công thức quan trọng"
                     disabled={isSubmitting}
                     className="h-11"
                   />
@@ -616,14 +741,19 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("includeKeywords", preset, setIncludeInput)
                       }
-                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className={cn(
+                        "cursor-pointer rounded-full border px-3 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-60",
+                        watchedIncludeKeywords.includes(preset)
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                      )}
                     >
-                      {preset}
+                      {watchedIncludeKeywords.includes(preset) ? "✓ " : ""}{preset}
                     </button>
                   ))}
                 </div>
                 <FormDescription className="mt-auto">
-                  Có thể nhập nhiều ý, cách nhau bằng dấu phẩy.
+                  Có thể chọn gợi ý hoặc tự nhập.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -664,9 +794,14 @@ export default function HighlightParamsForm({
                       onClick={() =>
                         applyPreset("excludeKeywords", preset, setExcludeInput)
                       }
-                      className="cursor-pointer rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      className={cn(
+                        "cursor-pointer rounded-full border px-3 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-60",
+                        watchedExcludeKeywords.includes(preset)
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                      )}
                     >
-                      {preset}
+                      {watchedExcludeKeywords.includes(preset) ? "✓ " : ""}{preset}
                     </button>
                   ))}
                 </div>
@@ -692,7 +827,7 @@ export default function HighlightParamsForm({
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting || submitDisabled || exceedsTargetMax}
+            disabled={isSubmitting || submitDisabled || !canSubmitForm}
             className="h-11 flex-1"
           >
             {isSubmitting ? (
@@ -702,7 +837,7 @@ export default function HighlightParamsForm({
               </>
             ) : (
               <>
-                Tạo highlight
+                {submitLabel}
               </>
             )}
           </Button>

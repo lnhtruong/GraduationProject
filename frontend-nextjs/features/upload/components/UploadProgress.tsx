@@ -13,6 +13,7 @@ interface UploadProgressProps {
   error?: string | null;
   onViewResults: () => void;
   onStartNew?: () => void;
+  onRefineCriteria?: () => void;
   stage?: string;
   progressPercent?: number;
   jobType?: string;
@@ -32,6 +33,7 @@ export default function UploadProgress({
   jobType,
   onViewResults,
   onStartNew,
+  onRefineCriteria,
   mode,
   onClose,
 }: UploadProgressProps) {
@@ -68,6 +70,7 @@ export default function UploadProgress({
         clipsCount={clipsCount}
         onViewResults={onViewResults}
         onStartNew={onStartNew}
+        onRefineCriteria={onRefineCriteria}
         mode={mode}
         onClose={onClose}
       />

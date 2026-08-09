@@ -8,6 +8,7 @@ interface ResultsSectionProps {
   isVisible: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
   onStartNew?: () => void;
+  onRefineCriteria?: () => void;
 }
 
 function cleanFileName(value?: string | null): string {
@@ -55,6 +56,7 @@ export default function ResultsSection({
   isVisible,
   onEditClip,
   onStartNew,
+  onRefineCriteria,
 }: ResultsSectionProps) {
   if (!isVisible || clips.length === 0) return null;
 
@@ -66,18 +68,31 @@ export default function ResultsSection({
         <h3 className="text-xl font-semibold">
           {isSingle ? "Highlight đã tạo" : `${clips.length} highlight đã tạo`}
         </h3>
-        {onStartNew ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 sm:w-auto"
-            onClick={onStartNew}
-          >
-            <RotateCcw className="h-4 w-4" />
-            Tạo highlight khác
-          </Button>
-        ) : null}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {onRefineCriteria ? (
+            <Button
+              type="button"
+              size="sm"
+              className="w-full gap-2 sm:w-auto"
+              onClick={onRefineCriteria}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Chỉnh tiêu chí và tạo lại
+            </Button>
+          ) : null}
+          {onStartNew ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 sm:w-auto"
+              onClick={onStartNew}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Chọn nguồn khác
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className={cn("grid gap-4", !isSingle && "lg:grid-cols-2")}>

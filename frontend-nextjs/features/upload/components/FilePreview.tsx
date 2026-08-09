@@ -129,7 +129,7 @@ export default function FilePreview({
             ) : (
               <>
                 <Upload className="mr-2 h-4 w-4" />
-                Chọn cách cắt
+                Đặt tiêu chí
               </>
             )}
           </Button>

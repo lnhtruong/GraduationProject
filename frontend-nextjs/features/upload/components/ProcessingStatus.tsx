@@ -74,7 +74,7 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
     description: "Video đã được nhận và đang chờ xử lý",
   },
   processing: {
-    label: "Đang cắt highlight",
+    label: "Đang tạo highlight",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Loader2,
     progress: 60,
@@ -98,7 +98,7 @@ const STATUS_CONFIG: Record<UploadStatus, StatusConfig> = {
 
 const SINGLE_HIGHLIGHT_STEPS = [
   "Chuẩn bị transcript và video",
-  "Chọn đoạn highlight",
+  "Chọn nội dung phù hợp",
   "Render phụ đề vào video",
   "Lưu highlight vào thư viện",
 ];
@@ -126,7 +126,7 @@ const SINGLE_STAGE_MAP: Record<string, StageInfo> = {
     activeStep: 1,
   },
   "2/4": {
-    label: "Đang chọn đoạn highlight phù hợp",
+    label: "Đang chọn nội dung phù hợp",
     progress: 45,
     activeStep: 2,
   },
@@ -241,7 +241,7 @@ function fallbackStageInfo(stage?: string, isMultiHighlight = false): StageInfo 
 
   if (/select|highlight|analy/.test(raw)) {
     return {
-      label: "Đang chọn đoạn highlight phù hợp",
+      label: "Đang chọn nội dung phù hợp",
       progress: 45,
       activeStep: 2,
     };
