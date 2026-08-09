@@ -9,8 +9,10 @@ import {
   ChevronLeft,
   Eye,
   Heart,
+  Loader2,
   Plus,
   PencilLine,
+  Scissors,
   Trash2,
   VideoOff,
 } from "lucide-react";
@@ -42,6 +44,9 @@ import {
   useDeleteCourseFeed,
   useInstructorCourseById,
 } from "./api/course-management.hooks";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 
 type FeedStatusFilter = "all" | "active" | "hidden" | "removed";
 const FEED_PAGE_SIZE = 6;
@@ -80,6 +85,8 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
     id: number;
     title: string;
   } | null>(null);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    useState<EditableHighlightVideo | null>(null);
 
   const feeds = useMemo(() => feedPage?.data ?? [], [feedPage?.data]);
   const pagination = feedPage?.pagination ?? {
@@ -335,6 +342,33 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                               Sửa
                             </Link>
                           </Button>
+                          {feed.video?.type === "highlight" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 shrink-0 text-muted-foreground"
+                              disabled={
+                                !feed.video.original_video_id ||
+                                !feed.video.srt_raw_url
+                              }
+                              onClick={() => setEditSegmentsVideo(feed.video)}
+                              aria-label="Chỉnh sửa đoạn"
+                              title={
+                                feed.video.editing_job_id
+                                  ? "Đang chỉnh sửa..."
+                                  : !feed.video.original_video_id ||
+                                      !feed.video.srt_raw_url
+                                    ? "Không khả dụng cho video này"
+                                    : "Chỉnh sửa đoạn"
+                              }
+                            >
+                              {feed.video.editing_job_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Scissors className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -506,6 +540,17 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(open) => {
+          if (!open) setEditSegmentsVideo(null);
+        }}
+        onEditApplied={() => {
+          void invalidateCourseFeedCache(queryClient, courseId);
+        }}
+      />
     </ManagementPageShell>
   );
 }

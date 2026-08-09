@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Edit3, FileArchive, RotateCcw } from "lucide-react";
+import { Edit3, FileArchive, RotateCcw, Scissors } from "lucide-react";
 import type { Clip } from "@/features/upload/types";
 
 interface ResultsSectionProps {
@@ -8,6 +8,12 @@ interface ResultsSectionProps {
   isVisible: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
   onStartNew?: () => void;
+  /** Opens the segment-removal Sheet (spec 003-highlight-segment-removal)
+   * right after the highlight finishes — only shown once the clip has a
+   * resolvable video id and its own current-segments SRT (both come from
+   * the completion payload; a paste-URL-sourced highlight won't have a
+   * video id and just won't show this button here). */
+  onEditSegments?: (clip: Clip) => void;
 }
 
 function cleanFileName(value?: string | null): string {
@@ -55,6 +61,7 @@ export default function ResultsSection({
   isVisible,
   onEditClip,
   onStartNew,
+  onEditSegments,
 }: ResultsSectionProps) {
   if (!isVisible || clips.length === 0) return null;
 
@@ -89,6 +96,7 @@ export default function ResultsSection({
             isSingle={isSingle}
             compact={!isSingle}
             onEditClip={onEditClip}
+            onEditSegments={onEditSegments}
           />
         ))}
       </div>
@@ -102,6 +110,7 @@ interface ClipCardProps {
   isSingle: boolean;
   compact?: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
+  onEditSegments?: (clip: Clip) => void;
 }
 
 function ClipCard({
@@ -110,6 +119,7 @@ function ClipCard({
   isSingle,
   compact = false,
   onEditClip,
+  onEditSegments,
 }: ClipCardProps) {
   const isZip = clip.url.endsWith(".zip") || clip.name.endsWith(".zip");
   const isVideo =
@@ -147,17 +157,31 @@ function ClipCard({
         )}
 
         {isVideo ? (
-          <Button
-            type="button"
-            size="sm"
-            className="w-full gap-2 sm:w-auto"
-            onClick={() => {
-              void onEditClip?.(clip);
-            }}
-          >
-            <Edit3 className="h-4 w-4" />
-            Mở Studio
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            {onEditSegments && clip.videoId != null && clip.srtUrl ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full gap-2 sm:w-auto"
+                onClick={() => onEditSegments(clip)}
+              >
+                <Scissors className="h-4 w-4" />
+                Chỉnh sửa đoạn
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              className="w-full gap-2 sm:w-auto"
+              onClick={() => {
+                void onEditClip?.(clip);
+              }}
+            >
+              <Edit3 className="h-4 w-4" />
+              Mở Studio
+            </Button>
+          </div>
         ) : null}
       </div>
 

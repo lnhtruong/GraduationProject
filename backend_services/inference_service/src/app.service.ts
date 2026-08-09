@@ -284,6 +284,124 @@ export class AppService {
   }
 
   // -----------------------------------------------------------------
+  // 2a. Highlight Segment Removal (spec 003-highlight-segment-removal) —
+  // bỏ đoạn khỏi một highlight single-output đã tạo xong. Luôn cắt lại từ
+  // video GỐC (original_video_id), không phải từ chính file highlight —
+  // xem plan.md/research.md của spec để biết lý do.
+  //
+  // Body từ FE: { video_id: number, remove_ranges: {start_index,end_index}[] }
+  // -----------------------------------------------------------------
+  async editHighlightSegments(
+    body: unknown,
+    userIdFromHeader?: number,
+    role?: number,
+  ): Promise<unknown> {
+    const payloadBody = isRecord(body) ? body : {};
+    const videoId = payloadBody['video_id'];
+    const removeRanges = payloadBody['remove_ranges'];
+
+    if (typeof videoId !== 'number') {
+      throw new HttpException('video_id is required', 400);
+    }
+    if (!Array.isArray(removeRanges) || removeRanges.length === 0) {
+      throw new HttpException(
+        'remove_ranges must be a non-empty array',
+        400,
+      );
+    }
+
+    const video = await this.mediaClient.getVideoById(videoId);
+    if (!video) {
+      throw new NotFoundException('video not found');
+    }
+    // FR-011: chỉ chủ sở hữu highlight mới được sửa.
+    if (video.user_id !== userIdFromHeader) {
+      throw new HttpException('forbidden', 403);
+    }
+    if (video.type !== 'highlight') {
+      throw new HttpException(
+        'segment removal is only available for highlight videos',
+        400,
+      );
+    }
+    // FR-008 (gián tiếp): multi-output/không rõ video gốc thì không bao giờ
+    // có original_video_id — cùng 1 check này chặn cả 2 lý do (FR-008 lẫn
+    // FR-012), không cần cột/flag riêng để phân biệt (xem data-model.md).
+    if (!video.original_video_id) {
+      throw new HttpException(
+        'this highlight is not eligible for segment removal (no linked source video)',
+        400,
+      );
+    }
+    if (!video.srt_raw_url) {
+      throw new HttpException(
+        'this highlight has no segment data to edit',
+        400,
+      );
+    }
+    if (!video.job_id) {
+      // Không nên xảy ra với 1 row type=highlight hợp lệ — nhưng target_job_id
+      // là bắt buộc cho Colab (xem HighlightEditBody.target_job_id), nên chặn
+      // sớm ở đây thay vì để Colab tự raise lỗi khó hiểu hơn.
+      throw new HttpException(
+        'this highlight is missing its original job id — cannot edit',
+        500,
+      );
+    }
+    // FR-009: chỉ 1 edit tại một thời điểm cho mỗi highlight.
+    if (video.editing_job_id) {
+      throw new HttpException(
+        'an edit is already in progress for this video',
+        409,
+      );
+    }
+
+    const sourceVideo = await this.mediaClient.getVideoById(
+      video.original_video_id,
+    );
+    if (!sourceVideo?.url) {
+      throw new HttpException(
+        'the source video this highlight was generated from is no longer available',
+        409,
+      );
+    }
+
+    const quota: QuotaContext = {
+      userId: userIdFromHeader,
+      role,
+      feature: 'highlight',
+    };
+    const result = await this.pickAndPersist(
+      this.highlightPool,
+      quota,
+      async (colabUrl) => {
+        const payload: Record<string, unknown> = {
+          // Colab's HighlightEditBody.user_id is `str` (Pydantic) — unlike
+          // createHighlightReelLink's payload, nothing here later overwrites
+          // this with a frontend-supplied string, so it must be stringified now.
+          user_id: String(userIdFromHeader ?? ''),
+          video_id: videoId,
+          video_url: sourceVideo.url,
+          current_srt_url: video.srt_raw_url,
+          target_job_id: video.job_id,
+          remove_ranges: removeRanges,
+        };
+        return this.forwardJson(colabUrl, '/highlight-edit-link', payload);
+      },
+    );
+
+    const jobId = extractJobId(result);
+    if (jobId) {
+      // Đặt guard NGAY sau khi Colab đã nhận job — tránh race giữa 2 request
+      // gần như đồng thời (double-click) đều pass qua check editing_job_id
+      // ở trên trước khi cái nào set guard trước.
+      await this.mediaClient.updateVideo(videoId, { editing_job_id: jobId });
+    }
+
+    return result;
+  }
+
+  // -----------------------------------------------------------------
   // 2b. Transcribe — Whisper SRT từ video URL
   //
   // Body từ FE:

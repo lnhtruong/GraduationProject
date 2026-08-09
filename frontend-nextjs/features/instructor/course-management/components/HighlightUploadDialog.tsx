@@ -42,10 +42,14 @@ import { getVideoDurationFromFile } from "@/features/video/utils/get-video-durat
 import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import { cn } from "@/lib/utils";
 import type {
+  Clip,
   HighlightParams,
   UploadHookReturn,
 } from "@/features/upload/types";
 import type { Video as StudyLoopVideo } from "@/features/video/types";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 
 type SourceMode = "file" | "existing-video";
 const HIGHLIGHT_PARAMS_FORM_ID = "feed-highlight-params-form";
@@ -115,6 +119,8 @@ export function HighlightUploadDialog({
   const [existingVideoQuery, setExistingVideoQuery] = React.useState("");
   const [videoPage, setVideoPage] = React.useState(1);
   const [showForm, setShowForm] = React.useState(false);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    React.useState<EditableHighlightVideo | null>(null);
   const { data: lessonVideos = [], isLoading: lessonVideosLoading } =
     useVideosByUser("long", open && sourceMode === "existing-video");
 
@@ -253,6 +259,15 @@ export function HighlightUploadDialog({
     }
 
     router.push(`/editor?${params.toString()}`);
+  };
+
+  const handleEditSegments = (clip: Clip) => {
+    if (clip.videoId == null) return;
+    setEditSegmentsVideo({
+      id: clip.videoId,
+      srt_raw_url: clip.srtUrl ?? null,
+      editing_job_id: null,
+    });
   };
 
   const handleViewResults = async () => {
@@ -582,6 +597,7 @@ export function HighlightUploadDialog({
                 isVisible={isCompleted}
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
+                onEditSegments={handleEditSegments}
               />
             </div>
           </div>
@@ -626,6 +642,14 @@ export function HighlightUploadDialog({
           ) : null}
         </div>
       </DialogContent>
+
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(next) => {
+          if (!next) setEditSegmentsVideo(null);
+        }}
+      />
     </Dialog>
   );
 }

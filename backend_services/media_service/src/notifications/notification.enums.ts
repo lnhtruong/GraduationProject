@@ -17,6 +17,10 @@ export const NotificationEventType = {
   COURSE_CHANGE_REQUEST_APPROVED: 'course.change_request.approved',
   COURSE_CHANGE_REQUEST_REJECTED: 'course.change_request.rejected',
   COURSE_UPDATED: 'course.updated',
+  // No HIGHLIGHT_EDIT_FAILED — failures reuse the existing generic
+  // VIDEO_JOB_FAILED/VIDEO_ERROR pair, same as every other job type
+  // (see the `case 'job_failed'` handling in webhook.service.ts).
+  HIGHLIGHT_EDIT_COMPLETED: 'highlight_edit.completed',
 } as const;
 
 export type NotificationEventType =
@@ -73,6 +77,7 @@ export const NOTIFICATION_EVENT_TYPE_MYSQL_ENUM = [
   NotificationEventType.COURSE_CHANGE_REQUEST_APPROVED,
   NotificationEventType.COURSE_CHANGE_REQUEST_REJECTED,
   NotificationEventType.COURSE_UPDATED,
+  NotificationEventType.HIGHLIGHT_EDIT_COMPLETED,
 ] as const;
 
 export const NOTIFICATION_SOURCE_TYPE_MYSQL_ENUM = [

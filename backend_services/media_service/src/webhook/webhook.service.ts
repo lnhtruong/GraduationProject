@@ -944,6 +944,71 @@ export class WebhookService {
         };
     }
 
+    /**
+     * `type: "highlight_edit"` completed event (feature 003-highlight-segment-removal).
+     * Unlike every other completed-event branch, this NEVER creates a row — an edit
+     * always targets a pre-existing highlight, resolved strictly by `payload.video_id`
+     * (mirrors the `subtitle` type's video_id-first resolution). Clears `editing_job_id`
+     * so the video becomes editable again (repeatable editing, FR-007).
+     */
+    private async handleHighlightEditCompleted(params: {
+        payload: ai_model_result;
+        userId: number;
+    }) {
+        const { payload, userId } = params;
+
+        const videoId = this.parsePositiveInt(payload.video_id ?? payload.videoId);
+        if (!videoId) {
+            this.logger.warn('highlight_edit completed missing video_id');
+            return { ignored: true, reason: 'missing_video_id' };
+        }
+
+        const url = payload.url ?? payload.video_url;
+        if (!url) {
+            this.logger.warn('highlight_edit completed missing url');
+            return { ignored: true, reason: 'missing_url' };
+        }
+
+        const row = await this.videoModel.findByPk(videoId);
+        if (!row) {
+            this.logger.warn(`highlight_edit completed: video_id=${videoId} không tồn tại`);
+            return { ignored: true, reason: 'video_not_found' };
+        }
+        if (row.user_id !== userId) {
+            this.logger.warn(
+                `highlight_edit completed: video_id=${videoId} thuộc user khác (${row.user_id} vs ${userId}) — reject`,
+            );
+            return { ignored: true, reason: 'video_id_user_mismatch' };
+        }
+
+        await row.update({
+            url,
+            duration: typeof payload.duration === 'number' ? payload.duration : row.duration,
+            srt_raw_url: payload.srt_url ?? row.srt_raw_url,
+            editing_job_id: null,
+        });
+
+        await this.notificationService.createAndEmit({
+            userId,
+            eventType: NotificationEventType.HIGHLIGHT_EDIT_COMPLETED,
+            sseEventType: NotificationSseEventType.VIDEO_COMPLETED,
+            title: 'Chỉnh sửa highlight hoàn tất',
+            message: 'Highlight của bạn đã được cập nhật',
+            sourceType: NotificationSourceType.VIDEO,
+            sourceId: row.id,
+            payload: {
+                videoId: row.id,
+                url: row.url,
+                duration: row.duration,
+                type: 'highlight_edit',
+                status: 'completed',
+                redirectUrl: this.buildLibraryRedirectUrl({ videoId: row.id, type: VideoType.HIGHLIGHT }),
+            },
+        });
+
+        return { success: true, id: row.id };
+    }
+
     async handleAIResult(payload: ai_model_result) {
 
         console.log('handleHighlightMultiCompleted', payload);
@@ -1003,6 +1068,19 @@ export class WebhookService {
                 break;
 
             case 'job_failed':
+                // highlight_edit: clear editing_job_id so the video becomes
+                // editable again — the generic failure notification below still
+                // fires, but this type never touches url/duration/srt_raw_url
+                // (FR-010: the previous video must stay unchanged on failure).
+                if (rawType === 'highlight_edit') {
+                    const failedVideoId = this.parsePositiveInt(payload.video_id ?? payload.videoId);
+                    if (failedVideoId) {
+                        const row = await this.videoModel.findByPk(failedVideoId);
+                        if (row && row.user_id === userId) {
+                            await row.update({ editing_job_id: null });
+                        }
+                    }
+                }
                 // Bắn SSE báo lỗi
                 await this.notificationService.createAndEmit({
                     userId,
@@ -1229,6 +1307,10 @@ export class WebhookService {
                     });
                 }
 
+                if (rawType === 'highlight_edit') {
+                    return this.handleHighlightEditCompleted({ payload, userId });
+                }
+
                 const url = payload.url ?? payload.video_url;
                 if (!url) {
                     this.logger.warn('AI model webhook missing url for completed event');
@@ -1252,6 +1334,16 @@ export class WebhookService {
                         const thumbnail =
                             this.buildCloudinaryVideoThumbnailUrl(url) ??
                             'https://placehold.co/320x180/png?text=thumbnail';
+                        // original_video_id: only meaningful for single-output highlights —
+                        // this is the SOLE mechanism enforcing FR-008 (segment-removal
+                        // eligibility is single-output-only, spec 003-highlight-segment-removal).
+                        // Do NOT thread `payload.video_id` into `handleHighlightMultiCompleted`'s
+                        // row-creation — a multi-output row having original_video_id set would
+                        // silently make it edit-eligible with no other guard in place.
+                        const originalVideoId =
+                            completedVideoType === VideoType.HIGHLIGHT
+                                ? this.parsePositiveInt(payload.video_id)
+                                : null;
                         videoRow = await this.videoModel.create({
                             job_id: jobId,
                             user_id: userId,
@@ -1263,6 +1355,7 @@ export class WebhookService {
                                 `${jobId}_${completedVideoLabel}.mp4`,
                             thumbnail,
                             srt_raw_url: payload.srt_url ?? null,
+                            original_video_id: originalVideoId ?? null,
                             upload_context: {
                                 sourceOriginalFilename: payload.source_original_filename ?? null,
                                 type: typeForSse,
@@ -1271,6 +1364,10 @@ export class WebhookService {
                         this.logger.log(`Created video row id=${videoRow.id} from AI completed job_id=${jobId}`);
                     } else {
                         const thumbnail = this.buildCloudinaryVideoThumbnailUrl(url);
+                        const originalVideoId =
+                            completedVideoType === VideoType.HIGHLIGHT
+                                ? this.parsePositiveInt(payload.video_id)
+                                : null;
                         await videoRow.update({
                             user_id: userId,
                             type: completedVideoType,
@@ -1284,6 +1381,7 @@ export class WebhookService {
                                 : {}),
                             ...(thumbnail ? { thumbnail } : {}),
                             srt_raw_url: payload.srt_url ?? videoRow.srt_raw_url,
+                            original_video_id: originalVideoId ?? videoRow.original_video_id,
                         });
                     }
                     videoId = videoRow.id;

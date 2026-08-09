@@ -858,7 +858,23 @@ export class FeedService {
     const { rows: feeds, count } = await this.highlightFeedModel.findAndCountAll({
       where: whereClause,
       include: [
-        { model: Video, attributes: ['url', 'thumbnail', 'duration', 'type'] },
+        {
+          model: Video,
+          // id/srt_raw_url/original_video_id/editing_job_id: needed by the
+          // instructor-management UI to gate the segment-removal action
+          // (spec 003-highlight-segment-removal) — this is the only feed
+          // listing that surface uses, so only this occurrence changed.
+          attributes: [
+            'id',
+            'url',
+            'thumbnail',
+            'duration',
+            'type',
+            'srt_raw_url',
+            'original_video_id',
+            'editing_job_id',
+          ],
+        },
         {
           model: Course,
           required: true,

@@ -22,7 +22,10 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
-import type { HighlightParams } from "@/features/upload/types";
+import type { Clip, HighlightParams } from "@/features/upload/types";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 import {
   Check,
   FileVideo,
@@ -199,6 +202,8 @@ export default function Upload() {
   const [isOpeningStudio, setIsOpeningStudio] = React.useState(false);
   const [hasSubmittedHighlight, setHasSubmittedHighlight] =
     React.useState(false);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    React.useState<EditableHighlightVideo | null>(null);
 
   // Thời lượng video nguồn để tính trước chi phí credit: đọc từ File ở nhánh
   // upload, từ URL (kèm fallback hls.js) ở nhánh "Thư viện".
@@ -340,6 +345,15 @@ export default function Upload() {
     window.setTimeout(() => {
       router.push(`/editor?${params.toString()}`);
     }, 300);
+  };
+
+  const handleEditSegments = (clip: Clip) => {
+    if (clip.videoId == null) return;
+    setEditSegmentsVideo({
+      id: clip.videoId,
+      srt_raw_url: clip.srtUrl ?? null,
+      editing_job_id: null,
+    });
   };
 
   const handleViewResults = async () => {
@@ -596,6 +610,7 @@ export default function Upload() {
                 isVisible={showResults}
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
+                onEditSegments={handleEditSegments}
               />
             </div>
           </div>
@@ -606,6 +621,14 @@ export default function Upload() {
           isAuthenticated={isAuthenticated}
         />
       </div>
+
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(open) => {
+          if (!open) setEditSegmentsVideo(null);
+        }}
+      />
     </main>
   );
 }

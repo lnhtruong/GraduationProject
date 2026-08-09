@@ -16,4 +16,8 @@ export class UpdateVideoDto {
     @IsOptional()
     @IsString()
     srt_raw_url?: string;
+
+    @IsOptional()
+    @IsString()
+    editing_job_id?: string | null;
 }

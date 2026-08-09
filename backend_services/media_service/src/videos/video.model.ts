@@ -109,6 +109,22 @@ export class Video extends Model {
   })
   declare upload_context: Record<string, unknown> | null;
 
+  /** For a highlight video: the `videos.id` of the source video it was generated from. */
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    field: 'original_video_id',
+  })
+  declare original_video_id: number | null;
+
+  /** Set to an in-flight segment-removal edit job's id; cleared when that job completes/fails. */
+  @Column({
+    type: DataType.STRING(191),
+    allowNull: true,
+    field: 'editing_job_id',
+  })
+  declare editing_job_id: string | null;
+
   @BelongsTo(() => MascotImage)
   image?: MascotImage;
 }

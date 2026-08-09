@@ -56,6 +56,7 @@ export class AppController {
         transcribe: 'POST /transcribe (JSON)',
         highlight_upload: 'POST /highlight-reel (FormData)',
         highlight_link: 'POST /highlight-reel-link (JSON)',
+        highlight_edit_link: 'POST /highlight-edit-link (JSON)',
         generate_quiz: 'POST /generate-quiz',
         mascot: 'POST /mascot (legacy)',
         quota: 'GET /quota',
@@ -142,6 +143,20 @@ export class AppController {
       parseNumericHeader(userIdHeader),
       parseNumericHeader(roleHeader),
       parseDurationSec(body),
+    );
+  }
+
+  // POST /highlight-edit-link — bỏ đoạn khỏi 1 highlight đã tạo (spec 003)
+  @Post('highlight-edit-link')
+  async editHighlightSegments(
+    @Body() body: unknown,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ): Promise<unknown> {
+    return this.appService.editHighlightSegments(
+      body,
+      parseNumericHeader(userIdHeader),
+      parseNumericHeader(roleHeader),
     );
   }
 
