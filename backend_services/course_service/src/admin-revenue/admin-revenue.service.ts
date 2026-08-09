@@ -72,9 +72,6 @@ export class AdminRevenueService {
             COUNT(DISTINCT t.id) AS paidOrders,
             COUNT(ti.id) AS coursesSold
           FROM transaction_items ti
-          INNER JOIN courses c
-            ON c.id = ti.course_id
-            AND c.status = :publishedStatus
           INNER JOIN transactions t
             ON t.id = ti.transaction_id
             AND t.status = 'paid'

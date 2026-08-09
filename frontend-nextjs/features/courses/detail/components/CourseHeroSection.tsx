@@ -23,6 +23,11 @@ const LEVEL_LABELS: Record<string, string> = {
   Advanced: "Nâng cao",
 };
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  vi: "Tiếng Việt",
+  en: "Tiếng Anh",
+};
+
 export function CourseHeroSection({ course, isEnrolled }: Props) {
   const stars = Array.from({ length: 5 }, (_, i) => i + 1);
 
@@ -114,7 +119,7 @@ export function CourseHeroSection({ course, isEnrolled }: Props) {
           <div className="flex flex-wrap gap-4 text-xs text-slate-400">
             <span className="flex items-center gap-1.5">
               <Globe className="h-3.5 w-3.5" />
-              {course.language}
+              {LANGUAGE_LABELS[course.language] ?? course.language}
             </span>
             <span className="flex items-center gap-1.5">
               <BarChart2 className="h-3.5 w-3.5" />
