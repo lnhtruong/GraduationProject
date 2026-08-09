@@ -51,7 +51,7 @@ export function CartItemsSection({
           <div>
             <p className="font-semibold">Chưa có khóa học nào trong giỏ</p>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Hay them khoa hoc ban muon hoc de thanh toan tai day.
+              Hãy thêm khóa học bạn muốn học để thanh toán tại đây.
             </p>
           </div>
         </CardContent>
@@ -81,7 +81,7 @@ export function CartItemsSection({
               disabled={isRemovingSelected}
             >
               <Trash2 className="h-4 w-4" />
-              Xóa đã chọn
+              Xóa khóa học đã chọn
             </Button>
           )}
         </div>

@@ -6,6 +6,7 @@ interface SuccessStatusProps {
   clipsCount: number;
   onViewResults: () => void;
   onStartNew?: () => void;
+  onRefineCriteria?: () => void;
   mode?: "upload" | "feed";
   onClose?: () => void;
 }
@@ -14,6 +15,7 @@ export default function SuccessStatus({
   clipsCount,
   onViewResults,
   onStartNew,
+  onRefineCriteria,
   mode = "upload",
   onClose,
 }: SuccessStatusProps) {
@@ -52,10 +54,16 @@ export default function SuccessStatus({
             {isSingleClip ? "Mở Studio" : "Xem kết quả"}
           </Button>
 
+          {onRefineCriteria ? (
+            <Button type="button" onClick={onRefineCriteria} variant="secondary">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Chỉnh tiêu chí và tạo lại
+            </Button>
+          ) : null}
           {onStartNew ? (
             <Button type="button" onClick={onStartNew} variant="outline">
               <RotateCcw className="mr-2 h-4 w-4" />
-              Tạo highlight khác
+              Chọn nguồn khác
             </Button>
           ) : null}
         </div>

@@ -52,11 +52,17 @@ const LESSON_STATUS_VALUE_LABELS: Record<string, string> = {
   blocked: "Bị chặn",
 };
 
+const LANGUAGE_VALUE_LABELS: Record<string, string> = {
+  vi: "Tiếng Việt",
+  en: "Tiếng Anh",
+};
+
 // Field dạng enum: map giá trị enum thô (backend) sang nhãn tiếng Việt.
 const ENUM_VALUE_LABELS: Record<string, Record<string, string>> = {
   level: LEVEL_VALUE_LABELS,
   contentType: CONTENT_TYPE_VALUE_LABELS,
   status: LESSON_STATUS_VALUE_LABELS,
+  language: LANGUAGE_VALUE_LABELS,
 };
 
 /** Định dạng 1 giá trị field cho hiển thị diff, tuỳ theo kiểu dữ liệu thực tế. */

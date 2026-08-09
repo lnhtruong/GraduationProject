@@ -79,41 +79,44 @@ export default function SubtitleLineList({
   const hasHighlight = highlighted.size > 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-2.5">
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Tìm theo từ khóa trong phụ đề..."
-          className="pl-8"
+          className="h-10 pl-8"
         />
       </div>
 
       {hasHighlight && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span>{highlighted.size} dòng đang chọn</span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               variant="outline"
+              className="min-w-0"
               onClick={() => applyBulk("keep")}
             >
-              Đánh dấu ưu tiên
+              Đánh dấu giữ
             </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
+              className="min-w-0"
               onClick={() => applyBulk("remove")}
             >
-              Đánh dấu loại bỏ
+              Đánh dấu bỏ
             </Button>
             <Button
               type="button"
               size="sm"
               variant="ghost"
+              className="min-w-0"
               onClick={() => applyBulk(null)}
             >
               Bỏ chọn
@@ -122,7 +125,7 @@ export default function SubtitleLineList({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1.5">
         {filteredLines.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Không tìm thấy dòng phụ đề nào khớp.

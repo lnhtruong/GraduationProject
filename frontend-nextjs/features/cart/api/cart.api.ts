@@ -12,7 +12,7 @@ type CartItemRaw = {
     price: number;
     level?: "Beginner" | "Intermediate" | "Advanced";
     duration?: string; // HH:MM:SS
-    video?: { thumbnail?: string; url?: string } | null;
+    thumbnailUrl?: string | null;
     instructor?: {
       firstName?: string | null;
       lastName?: string | null;
@@ -59,7 +59,7 @@ function buildCartItems(raw: CartItemRaw[]): CartItem[] {
       courseId: item.courseId,
       title: c?.name ?? "Khóa học trong giỏ",
       instructorName,
-      thumbnailUrl: c?.video?.thumbnail,
+      thumbnailUrl: c?.thumbnailUrl ?? undefined,
       level: c?.level ?? "Beginner",
       durationSeconds: parseHHMMSS(c?.duration),
       price: c?.price ?? 0,

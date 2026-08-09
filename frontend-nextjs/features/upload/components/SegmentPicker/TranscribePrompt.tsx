@@ -26,20 +26,17 @@ export default function TranscribePrompt({
 }: TranscribePromptProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-[min(calc(100vw-2rem),32rem)] rounded-2xl p-6">
         <AlertDialogHeader>
-          <AlertDialogTitle>Video này chưa có phụ đề</AlertDialogTitle>
-          <AlertDialogDescription>
-            Để chọn đoạn ưu tiên/loại bỏ, video cần được chuyển thành phụ đề
-            (transcribe) trước. Quá trình này chạy nền và có thể mất vài phút
-            tới hàng chục phút tùy độ dài video — bạn có thể tiếp tục điền
-            form hoặc rời trang trong lúc chờ.
+          <AlertDialogTitle className="text-xl">Tạo phụ đề cho video?</AlertDialogTitle>
+          <AlertDialogDescription className="text-[15px] leading-6">
+            StudyLoop cần phụ đề để xác định chính xác các đoạn bạn muốn giữ hoặc tránh. Quá trình chạy nền, có thể mất vài phút và chỉ cần thực hiện một lần cho video này. Không tốn credit; bạn vẫn có thể tiếp tục thiết lập trong lúc chờ.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isStarting}>Không</AlertDialogCancel>
-          <AlertDialogAction disabled={isStarting} onClick={onConfirm}>
-            {isStarting ? "Đang bắt đầu..." : "Có, transcribe ngay"}
+        <AlertDialogFooter className="gap-2 sm:gap-2">
+          <AlertDialogCancel className="h-11" disabled={isStarting}>Để sau</AlertDialogCancel>
+          <AlertDialogAction className="h-11" disabled={isStarting} onClick={onConfirm}>
+            {isStarting ? "Đang tạo phụ đề..." : "Tạo phụ đề"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

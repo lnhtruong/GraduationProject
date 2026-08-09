@@ -44,7 +44,7 @@ const WORKFLOW_STEPS = [
     description: "Upload file hoặc dùng video đã có trên StudyLoop.",
   },
   {
-    title: "Đặt tiêu chí cắt",
+    title: "Đặt tiêu chí",
     description: "Nêu chủ đề, phần cần giữ và phần cần bỏ.",
   },
   {
@@ -193,6 +193,7 @@ export default function Upload() {
     startFromExistingVideo,
     ensureProjectForClip,
     cancel,
+    reset,
   } = useUpload({ autoCreateProject: false });
 
   const router = useRouter();
@@ -238,7 +239,7 @@ export default function Upload() {
     };
   }, [sourceMode, file, trimmedExistingUrl]);
 
-  const { blocked: quotaBlocked } = useQuotaCost(
+  const { cost: quotaCost, blocked: quotaBlocked } = useQuotaCost(
     "highlight",
     sourceDurationSec,
   );
@@ -323,6 +324,13 @@ export default function Upload() {
     cancel();
     setShowForm(false);
     setExistingVideoUrl("");
+    setIsOpeningStudio(false);
+    setHasSubmittedHighlight(false);
+  };
+
+  const handleRefineCriteria = () => {
+    reset();
+    setShowForm(true);
     setIsOpeningStudio(false);
     setHasSubmittedHighlight(false);
   };
@@ -426,7 +434,7 @@ export default function Upload() {
             {!isAuthenticated ? (
               <div className="relative min-h-[320px] w-full rounded-2xl">
                 {renderLockOverlay(
-                  "Vui lòng đăng nhập để tải video bài giảng, cắt highlight tự động và mở Studio chỉnh sửa.",
+                  "Vui lòng đăng nhập để tải video bài giảng, tạo highlight tự động và mở Studio chỉnh sửa.",
                 )}
               </div>
             ) : (
@@ -540,7 +548,7 @@ export default function Upload() {
                                 : "bg-primary text-primary-foreground hover:bg-primary/90",
                             )}
                           >
-                            Chọn cách cắt highlight
+                            Chọn tiêu chí tạo highlight
                           </Button>
                         </div>
                       </TabsContent>
@@ -569,6 +577,7 @@ export default function Upload() {
                       onCancel={handleCancelForm}
                       isSubmitting={false}
                       submitDisabled={quotaBlocked}
+                      submitLabel={`Tạo highlight${quotaCost ? ` · ${quotaCost} credit` : ""}`}
                       isUploadingSource={
                         sourceMode === "file" && status === "uploading"
                       }
@@ -599,6 +608,7 @@ export default function Upload() {
                     jobType={jobType}
                     onViewResults={handleViewResults}
                     onStartNew={handleStartNew}
+                    onRefineCriteria={handleRefineCriteria}
                   />
                 )}
               </>
@@ -611,6 +621,8 @@ export default function Upload() {
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
                 onEditSegments={handleEditSegments}
+                onRefineCriteria={handleRefineCriteria}
+
               />
             </div>
           </div>

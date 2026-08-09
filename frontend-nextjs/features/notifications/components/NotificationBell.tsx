@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   notificationKeys,
   useBulkUpdateNotifications,
@@ -247,6 +248,36 @@ export function NotificationBell({ className }: { className?: string }) {
 
   const unreadCount = unreadQuery.data?.data.length ?? 0;
   const hasUnread = unreadCount > 0;
+  const autoMarkedVisibleRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      autoMarkedVisibleRef.current = false;
+      return;
+    }
+
+    if (
+      !userId ||
+      !isAuthenticated ||
+      bulkMutation.isPending ||
+      autoMarkedVisibleRef.current
+    ) {
+      return;
+    }
+
+    const unreadVisibleIds = visibleNotifications
+      .filter((notification) => !notification.is_read)
+      .map((notification) => notification.id);
+
+    if (unreadVisibleIds.length === 0) return;
+
+    autoMarkedVisibleRef.current = true;
+    void bulkMutation
+      .mutateAsync({ ids: unreadVisibleIds, is_read: true })
+      .catch(() => {
+        autoMarkedVisibleRef.current = false;
+      });
+  }, [bulkMutation, isAuthenticated, open, userId, visibleNotifications]);
 
   useEffect(() => {
     if (!userId || !isAuthenticated) return;
@@ -584,9 +615,16 @@ export function NotificationBell({ className }: { className?: string }) {
                                       </p>
 
                                       {notification.message ? (
-                                        <p className="line-clamp-2 text-sm text-muted-foreground">
-                                          {notification.message}
-                                        </p>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <p className="line-clamp-2 text-sm text-muted-foreground">
+                                              {notification.message}
+                                            </p>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="bottom" className="max-w-xs text-wrap">
+                                            {notification.message}
+                                          </TooltipContent>
+                                        </Tooltip>
                                       ) : null}
 
                                       <p className="pt-1 text-[11px] font-medium text-muted-foreground/70">

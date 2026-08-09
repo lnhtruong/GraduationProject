@@ -236,7 +236,7 @@ export function AdminReportReviewModal({ report, open, onClose }: Props) {
             {report && (
               <>
                 {/* Header */}
-                <SheetHeader className="mb-5 space-y-0 text-left">
+                <SheetHeader className="mb-5 space-y-0 pr-8 text-left">
                   <div className="flex items-start justify-between gap-3">
                     <SheetTitle className="text-base leading-snug">
                       Báo cáo #{report.id}

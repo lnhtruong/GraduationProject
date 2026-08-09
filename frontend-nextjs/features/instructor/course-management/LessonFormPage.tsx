@@ -119,7 +119,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
       ]}
       action={
         <div className="flex flex-wrap items-center gap-2">
-          {/* "Tạo hoạt động" — in edit mode opens ActivityCreationDialog,
+          {/* "Tạo bài kiểm tra — in edit mode opens ActivityCreationDialog,
               in create mode opens the pending-quiz modal inside LessonForm */}
           <Button
             type="button"
@@ -134,7 +134,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
             }}
           >
             <NotebookText className="h-4 w-4 text-primary" />
-            Tạo hoạt động
+            Tạo bài kiểm tra
           </Button>
 
           {/* Submit button — targets the form by id so it works outside the form element */}

@@ -60,3 +60,21 @@ export type QuizListParams = {
 };
 
 export type LessonQuizTypeFilter = "in_video" | "after_video";
+
+export interface QuizTimelineMarkerItem {
+	quizId: number;
+	lessonActivityId: number;
+	questionIds: number[];
+	questionId?: number;
+	questionCount: number;
+	quizName: string;
+	questionText: string;
+}
+
+export interface QuizTimelineMarker extends QuizTimelineMarkerItem {
+	timestamp: string;
+	timestampLabel: string;
+	timestampSeconds: number;
+	quizCount?: number;
+	items?: QuizTimelineMarkerItem[];
+}

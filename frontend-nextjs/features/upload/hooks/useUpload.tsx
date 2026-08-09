@@ -979,6 +979,8 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       isMultiOutput: params.isMultiOutput,
       isOpenAI: params.isOpenAI,
       durationSec: meta?.durationSec,
+      keepRanges: params.keepRanges,
+      removeRanges: params.removeRanges,
     });
   };
 
@@ -1111,6 +1113,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
     videoUrl: string,
     params: HighlightParams,
     durationSec?: number,
+    videoId?: number | null,
   ) => {
     updateState({
       file: null,
@@ -1120,7 +1123,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
       clips: [],
       jobId: null,
       bunnyVideoId: null,
-      sourceVideoId: null,
+      sourceVideoId: videoId ?? null,
       sourceVideoUrl: videoUrl,
       createdProjectId: null,
       error: null,
@@ -1131,6 +1134,7 @@ export function useUpload(options?: UseUploadOptions): UploadHookReturn {
 
     try {
       await startHighlightFromUrl(videoUrl, params, {
+        videoId,
         durationSec: await resolveDurationSec(durationSec, () =>
           getVideoDurationFromUrl(videoUrl),
         ),

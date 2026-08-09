@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Play, Star, Trash2 } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,17 +119,6 @@ export function CartItemCard({
             className="absolute inset-0 h-full w-full object-cover"
           />
         )}
-
-        {/* Play icon overlay */}
-        <div
-          className={`absolute inset-0 flex items-center justify-center
-            transition-opacity duration-300
-            ${item.highlightVideoUrl && videoReady ? "opacity-0" : "opacity-100"}`}
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40">
-            <Play className="ml-0.5 h-4 w-4 fill-white text-white" />
-          </div>
-        </div>
 
         {/* "Xem thử" badge khi video đang play */}
         {item.highlightVideoUrl && videoReady && (

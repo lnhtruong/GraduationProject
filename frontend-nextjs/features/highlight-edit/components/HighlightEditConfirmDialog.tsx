@@ -19,7 +19,6 @@ interface HighlightEditConfirmDialogProps {
   markedCount: number;
 }
 
-/** FR-003: overwriting the current video is irreversible — requires explicit confirmation. */
 export default function HighlightEditConfirmDialog({
   open,
   onOpenChange,
@@ -31,16 +30,17 @@ export default function HighlightEditConfirmDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Áp dụng thay đổi?</AlertDialogTitle>
+          <AlertDialogTitle>Cập nhật highlight?</AlertDialogTitle>
           <AlertDialogDescription>
-            {markedCount} đoạn sẽ bị bỏ khỏi highlight. Video hiện tại sẽ bị
-            thay thế bằng video mới — thao tác này không thể hoàn tác.
+            StudyLoop sẽ tạo lại highlight không gồm {markedCount} đoạn đã chọn.
+            Video gốc vẫn được giữ nguyên; bản highlight hiện tại sẽ cập nhật sau
+            khi xử lý xong.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isSubmitting}>Hủy</AlertDialogCancel>
+          <AlertDialogCancel disabled={isSubmitting}>Để sau</AlertDialogCancel>
           <AlertDialogAction disabled={isSubmitting} onClick={onConfirm}>
-            {isSubmitting ? "Đang áp dụng..." : "Áp dụng"}
+            {isSubmitting ? "Đang bắt đầu..." : "Cập nhật highlight"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -38,27 +38,31 @@ export default function SubtitleLineRow({
       onMouseEnter={onMouseEnter}
       onClick={onClick}
       className={cn(
-        "flex select-none items-start gap-3 rounded-md border px-3 py-2 text-sm transition",
+        "grid cursor-pointer select-none grid-cols-[5.5rem_minmax(0,1fr)_4.25rem] items-start gap-2 rounded-md border px-3 py-2 text-sm transition hover:bg-muted/30",
         mark === "keep" && "border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30",
         mark === "remove" && "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30",
         !mark && "border-border",
         isHighlighted && "ring-2 ring-primary/60",
       )}
     >
-      <div className="w-24 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">
+      <div className="whitespace-nowrap pt-0.5 font-mono text-[11px] text-muted-foreground">
         {formatTime(line.startSec)} - {formatTime(line.endSec)}
       </div>
-      <p className="min-w-0 flex-1 leading-5">{line.text}</p>
-      <div className="flex shrink-0 items-center gap-1">
+      <p className="line-clamp-2 min-w-0 leading-5" title={line.text}>{line.text}</p>
+      <div className="flex shrink-0 items-center justify-end gap-1">
         <button
           type="button"
-          title="Đánh dấu ưu tiên"
+          aria-label="Đánh dấu giữ"
+          title="Đánh dấu giữ"
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             event.stopPropagation();
             onMark("keep");
           }}
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-full border transition hover:border-emerald-400",
+            "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border transition hover:border-emerald-400 hover:bg-emerald-50",
             mark === "keep"
               ? "border-emerald-500 bg-emerald-500 text-white"
               : "border-border text-muted-foreground",
@@ -68,13 +72,17 @@ export default function SubtitleLineRow({
         </button>
         <button
           type="button"
-          title="Đánh dấu loại bỏ"
+          aria-label="Đánh dấu bỏ"
+          title="Đánh dấu bỏ"
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             event.stopPropagation();
             onMark("remove");
           }}
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-full border transition hover:border-red-400",
+            "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border transition hover:border-red-400 hover:bg-red-50",
             mark === "remove"
               ? "border-red-500 bg-red-500 text-white"
               : "border-border text-muted-foreground",

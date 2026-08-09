@@ -29,7 +29,7 @@ export function AssignmentForm({
       </div>
 
       <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
-        Tạo hoạt động loại bài tập cho bài học hiện tại. Hệ thống sẽ tạo một biểu mẫu nộp bài để học viên gửi bài làm của mình.
+        Tạo bài tập cho bài học hiện tại. Hệ thống sẽ tạo một biểu mẫu nộp bài để học viên gửi bài làm của mình.
       </div>
     </div>
   );

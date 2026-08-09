@@ -87,6 +87,7 @@ export interface UploadHookReturn extends UploadState {
     videoUrl: string,
     params: HighlightParams,
     durationSec?: number,
+    videoId?: number | null,
   ) => Promise<void>;
   ensureProjectForClip: (clip: Clip) => Promise<{
     projectId: number;

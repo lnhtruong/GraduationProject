@@ -18,6 +18,8 @@ interface Props {
   onStateChange?: (state: QuizEditorState) => void;
   videoUrl?: string | null;
   videoDurationSeconds?: number;
+  initialSelectedQuestionId?: number | null;
+  visibleQuestionIds?: number[];
 }
 
 export function QuizEditor({
@@ -27,6 +29,8 @@ export function QuizEditor({
   onStateChange,
   videoUrl,
   videoDurationSeconds,
+  initialSelectedQuestionId,
+  visibleQuestionIds,
 }: Props) {
   const {
     state,
@@ -42,12 +46,20 @@ export function QuizEditor({
     updateDescription,
     updatePassingScore,
     updateIsInVideo,
-  } = useQuizEditor(quiz);
+  } = useQuizEditor(quiz, initialSelectedQuestionId);
 
   useEffect(() => {
     onStateChange?.(state);
   }, [onStateChange, state]);
 
+
+  const openedFromTimelineMarker = Boolean(visibleQuestionIds?.length) || (initialSelectedQuestionId !== null && initialSelectedQuestionId !== undefined);
+  const visibleQuestionIdSet = visibleQuestionIds?.length ? new Set(visibleQuestionIds) : null;
+  const visibleQuestions = visibleQuestionIdSet
+    ? state.questions.filter((question) => visibleQuestionIdSet.has(question.id))
+    : openedFromTimelineMarker && selectedQuestion
+      ? [selectedQuestion]
+      : state.questions;
   const handleSave = async () => {
     await onSave?.(state);
     toast.success("Đã lưu quiz");
@@ -58,11 +70,21 @@ export function QuizEditor({
       <Card className="border-border/60 bg-muted/15">
         <CardContent className="min-w-0 space-y-4 p-4 sm:p-5">
           <QuestionList
-            questions={state.questions}
+            questions={visibleQuestions}
             selectedQuestionId={selectedQuestionId}
             onSelectQuestion={setSelectedQuestionId}
             onAddQuestion={addQuestion}
             onRemoveQuestion={removeQuestion}
+            title={openedFromTimelineMarker ? "Câu hỏi tại mốc này" : undefined}
+            countLabel={openedFromTimelineMarker ? `${visibleQuestions.length} câu đang sửa` : undefined}
+            showAddButton={!openedFromTimelineMarker}
+            showRemoveButtons={!openedFromTimelineMarker}
+            getQuestionLabel={
+              openedFromTimelineMarker
+                ? (question) =>
+                    `Câu ${state.questions.findIndex((q) => q.id === question.id) + 1}`
+                : undefined
+            }
             saveAction={
               showSaveButton ? (
                 <Button
@@ -97,6 +119,7 @@ export function QuizEditor({
         onRemoveOption={removeOption}
         videoUrl={videoUrl}
         videoDurationSeconds={videoDurationSeconds}
+        isInVideo={state.isInVideo}
       />
     </div>
   );

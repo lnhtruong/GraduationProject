@@ -2,10 +2,11 @@
 
 import {
   Eye, Loader2, Check, X, BookOpen, FileText, HelpCircle,
-  Trash2, PlusCircle, PenLine, User, Calendar,
+  Trash2, PlusCircle, PenLine, Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar } from "@/components/UserAvatar";
 import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
 import type { CourseChangeRequest, CourseChangeRequestKind } from "../../types/change-request.types";
 
@@ -207,7 +208,7 @@ export function AdminChangeRequestTable({
               </div>
               <div className="flex shrink-0 items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
+                  <UserAvatar user={req.requester} className="h-4 w-4" />
                   {req.requester
                     ? `${req.requester.lastName} ${req.requester.firstName}`.trim()
                     : "Giảng viên"}

@@ -1,20 +1,37 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle } from "react";
-import { CirclePlus, Trash2 } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { CirclePlus, Crosshair, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 import type { QuizEditorOption, QuizEditorState } from "../types";
 import { useQuizEditor } from "../hooks/useQuizEditor";
+import { parseVideoTimestampToSeconds } from "../utils/quiz-timeline.utils";
+import { EvidenceVideoPlayer } from "./QuizEditor/EvidenceVideoPlayer";
+
+const VIDEO_TIMESTAMP_PATTERN = /^\d{2}:\d{2}:\d{2}[,.]\d{3}$/;
+function formatSecondsToTimestamp(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds);
+  const totalMillis = Math.round(safe * 1000);
+  const wholeSeconds = Math.floor(totalMillis / 1000);
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const seconds = wholeSeconds % 60;
+  const millis = totalMillis % 1000;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")},${String(millis).padStart(3, "0")}`;
+}
 
 interface Props {
   initialInVideo: boolean;
   defaultTimestamp?: string;
   onSubmit: (state: QuizEditorState) => Promise<void> | void;
+  videoUrl?: string | null;
+  videoDurationSeconds?: number;
 }
 
 export interface ActivityQuizFormHandle {
@@ -23,9 +40,20 @@ export interface ActivityQuizFormHandle {
 
 export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
   function ActivityQuizForm(
-    { initialInVideo, defaultTimestamp = "", onSubmit }: Props,
+    {
+      initialInVideo,
+      defaultTimestamp = "",
+      onSubmit,
+      videoUrl,
+      videoDurationSeconds,
+    }: Props,
     ref,
   ) {
+    const evidenceVideoRefs = useRef(new Map<number, HTMLVideoElement | null>());
+    const [enabledEvidenceQuestionIds, setEnabledEvidenceQuestionIds] = useState<Set<number>>(
+      () => new Set(),
+    );
+
     const {
       state,
       setState,
@@ -48,6 +76,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
           videoTimestamp: initialInVideo
             ? question.videoTimestamp || defaultTimestamp
             : "",
+          evidenceTimestamp: initialInVideo ? question.evidenceTimestamp : "",
         })),
       }));
     }, [defaultTimestamp, initialInVideo, setState]);
@@ -86,6 +115,14 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
           toast.error("Mỗi câu hỏi phải có 1 đáp án đúng");
           return false;
         }
+        if (
+          question.evidenceTimestamp?.trim() &&
+          !VIDEO_TIMESTAMP_PATTERN.test(question.evidenceTimestamp.trim())
+        ) {
+          toast.error("Mốc minh chứng cần đúng định dạng HH:MM:SS,mmm");
+          return false;
+        }
+
       }
 
       return true;
@@ -265,7 +302,7 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                               })),
                             }))
                           }
-                          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 mt-0.5 ${
+                          className={`flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all duration-200 mt-0.5 ${
                             option.isCorrect
                               ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-sm"
                               : "bg-background border-border hover:bg-muted/40 text-muted-foreground"
@@ -312,6 +349,95 @@ export const ActivityQuizForm = forwardRef<ActivityQuizFormHandle, Props>(
                     }
                   />
                 </div>
+                {state.isInVideo ? (
+                  <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/10 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Minh chứng video
+                        </Label>
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">
+                          Tùy chọn, chỉ bật khi đáp án cần dẫn chứng khác mốc quiz.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={enabledEvidenceQuestionIds.has(question.id)}
+                        onCheckedChange={(checked) => {
+                          setEnabledEvidenceQuestionIds((current) => {
+                            const next = new Set(current);
+                            if (checked) {
+                              next.add(question.id);
+                            } else {
+                              next.delete(question.id);
+                            }
+                            return next;
+                          });
+                          updateQuestion(question.id, (current) => ({
+                            ...current,
+                            evidenceTimestamp: checked
+                              ? current.evidenceTimestamp || current.videoTimestamp || defaultTimestamp
+                              : "",
+                          }));
+                        }}
+                        aria-label="Bật minh chứng video"
+                      />
+                    </div>
+
+                    {enabledEvidenceQuestionIds.has(question.id) ? (
+                      <div className="grid gap-3">
+                        {videoUrl ? (
+                          <EvidenceVideoPlayer
+                            videoUrl={videoUrl}
+                            videoDurationSeconds={videoDurationSeconds}
+                            seekToSeconds={parseVideoTimestampToSeconds(
+                              question.evidenceTimestamp,
+                            )}
+                            onVideoRefChange={(element) => {
+                              evidenceVideoRefs.current.set(question.id, element);
+                            }}
+                          />
+                        ) : null}
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            value={question.evidenceTimestamp ?? ""}
+                            onChange={(event) =>
+                              updateQuestion(question.id, (current) => ({
+                                ...current,
+                                evidenceTimestamp: event.target.value,
+                              }))
+                            }
+                            placeholder="HH:MM:SS,mmm"
+                            className={`h-10 rounded-lg bg-background font-mono text-sm ${
+                              question.evidenceTimestamp?.trim() &&
+                              !VIDEO_TIMESTAMP_PATTERN.test(question.evidenceTimestamp.trim())
+                                ? "border-destructive focus-visible:ring-destructive/30"
+                                : "border-border focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50"
+                            }`}
+                          />
+                          {videoUrl ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              title="Lấy thời điểm hiện tại của video"
+                              onClick={() =>
+                                updateQuestion(question.id, (current) => ({
+                                  ...current,
+                                  evidenceTimestamp: formatSecondsToTimestamp(
+                                    evidenceVideoRefs.current.get(question.id)?.currentTime ?? 0,
+                                  ),
+                                }))
+                              }
+                              className="h-10 w-full shrink-0 cursor-pointer gap-2 rounded-lg bg-primary px-3 font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-primary/90 hover:text-primary-foreground hover:shadow-md sm:w-auto"
+                            >
+                              <Crosshair className="h-3.5 w-3.5" />
+                              Lấy mốc
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}

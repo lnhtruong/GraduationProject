@@ -113,9 +113,6 @@ export default function CourseOverviewPage({ courseId }: Props) {
   const descriptionExpanded = expandedDescriptionCourseId === courseId;
 
   const lessonCount = lessons?.length ?? 0;
-  const readyLessons = (lessons ?? []).filter(
-    (lesson) => String(lesson.status).toLowerCase() === "active",
-  ).length;
   const totalLessonMinutes = (lessons ?? []).reduce(
     (sum, lesson) => sum + toSeconds(lesson.duration),
     0,
@@ -411,7 +408,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border/50 bg-muted/40 text-muted-foreground font-semibold">
                 <BookOpen className="h-3.5 w-3.5 text-primary" />
-                <span>{lessonCount} bài học ({readyLessons} hoạt động)</span>
+                <span>{lessonCount} bài học</span>
               </div>
 
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/50 bg-muted/40 text-muted-foreground font-semibold">

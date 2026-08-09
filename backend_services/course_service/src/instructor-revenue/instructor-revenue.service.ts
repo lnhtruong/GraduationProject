@@ -8,6 +8,7 @@ import { Op, QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Course, CourseStatus } from 'src/models/course.model';
 import { TransactionItem } from 'src/models/transaction-item.model';
+import { User } from 'src/users/user.model';
 import {
   PaymentTransaction,
   TransactionStatus,
@@ -59,6 +60,7 @@ export class InstructorRevenueService {
     @InjectModel(Course) private readonly courseModel: typeof Course,
     @InjectModel(TransactionItem)
     private readonly transactionItemModel: typeof TransactionItem,
+    @InjectModel(User) private readonly userModel: typeof User,
   ) { }
 
   async getSummary(instructorId: number) {
@@ -369,18 +371,28 @@ export class InstructorRevenueService {
       ],
     });
 
-    const items = rows.map((row) => ({
-      transactionItemId: this.toNumber(row.id),
-      transactionId: this.toNumber(row.transaction?.id),
-      buyerUserId: this.toNumber(row.transaction?.userId),
-      price: this.roundCurrency(this.toNumber(row.price)),
-      paidAt: this.formatOutputDateTime(row.transaction?.paidAt),
-      provider: row.transaction?.provider ?? '',
-      providerOrderId: row.transaction?.providerOrderId ?? null,
-      transactionTotalAmount: this.roundCurrency(
-        this.toNumber(row.transaction?.totalAmount),
-      ),
-    }));
+    const buyerIds = [
+      ...new Set(rows.map((row) => this.toNumber(row.transaction?.userId))),
+    ].filter((id) => id > 0);
+    const buyerNameById = await this.resolveUserNames(buyerIds);
+
+    const items = rows.map((row) => {
+      const buyerUserId = this.toNumber(row.transaction?.userId);
+
+      return {
+        transactionItemId: this.toNumber(row.id),
+        transactionId: this.toNumber(row.transaction?.id),
+        buyerUserId,
+        buyerName: buyerNameById.get(buyerUserId) ?? '',
+        price: this.roundCurrency(this.toNumber(row.price)),
+        paidAt: this.formatOutputDateTime(row.transaction?.paidAt),
+        provider: row.transaction?.provider ?? '',
+        providerOrderId: row.transaction?.providerOrderId ?? null,
+        transactionTotalAmount: this.roundCurrency(
+          this.toNumber(row.transaction?.totalAmount),
+        ),
+      };
+    });
 
     return {
       courseId: this.toNumber(course.id),
@@ -393,6 +405,26 @@ export class InstructorRevenueService {
       totalItems: items.length,
       items,
     };
+  }
+
+  private async resolveUserNames(ids: number[]): Promise<Map<number, string>> {
+    const map = new Map<number, string>();
+    if (ids.length === 0) return map;
+
+    const users = await this.userModel.findAll({
+      where: { id: { [Op.in]: ids } },
+      attributes: ['id', 'firstName', 'lastName', 'email'],
+    });
+
+    for (const user of users) {
+      const name = [user.lastName, user.firstName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      map.set(this.toNumber((user as { id: number }).id), name || user.email || '');
+    }
+
+    return map;
   }
 
   private parseDateRange(fromValue?: string, toValue?: string): DateRange {
