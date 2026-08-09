@@ -978,9 +978,8 @@ VALUES (
 
 -- ============================================================================
 -- ============================================================================
--- VIDEOS - LONG FORM (31 long-form course videos, all stored on Bunny Stream)
--- id 1..31 mapped to teachers as planned in the seed README at the top
--- (highlight-type videos are inserted in a separate INSERT below, ids 32+)
+-- VIDEOS - LONG FORM (34 long-form course videos, all stored on Bunny Stream)
+-- ids 1..31 and 315..317 are course-source videos. Highlight videos occupy 32..314.
 -- ============================================================================
 INSERT INTO
     videos (
@@ -1462,6 +1461,54 @@ VALUES (
         'job-vid-sleep-english-phrases',
         '2026-06-20 10:30:00',
         '2026-06-20 10:30:00'
+    ),
+    -- Pending course 25: Flutter. Duration verified from the provided upload card.
+    (
+        315,
+        4,
+        2,
+        'long',
+        'Flutter & Dart Cross-Platform Mobile Apps',
+        'https://vz-e0f2a12f-935.b-cdn.net/f929ff34-cf71-4106-b685-0cd32b0dab56/playlist.m3u8',
+        4889.000,
+        'https://vz-e0f2a12f-935.b-cdn.net/f929ff34-cf71-4106-b685-0cd32b0dab56/thumbnail.jpg',
+        NULL,
+        'f929ff34-cf71-4106-b685-0cd32b0dab56',
+        'seed-vid-course-025-flutter',
+        '2026-07-25 08:40:00',
+        '2026-07-25 08:40:00'
+    ),
+    -- Pending course 26: Next.js.
+    (
+        316,
+        4,
+        2,
+        'long',
+        'Next.js App Router & Server Actions',
+        'https://vz-e0f2a12f-935.b-cdn.net/747c4df8-b678-4ea0-bed2-5ca223efeea3/playlist.m3u8',
+        4657.000,
+        'https://vz-e0f2a12f-935.b-cdn.net/747c4df8-b678-4ea0-bed2-5ca223efeea3/thumbnail.jpg',
+        NULL,
+        '747c4df8-b678-4ea0-bed2-5ca223efeea3',
+        'seed-vid-course-026-nextjs',
+        '2026-07-29 10:25:00',
+        '2026-07-29 10:25:00'
+    ),
+    -- Pending course 27: UI/UX research.
+    (
+        317,
+        7,
+        5,
+        'long',
+        'UI/UX Research & Usability Testing',
+        'https://vz-e0f2a12f-935.b-cdn.net/dce45a67-2a24-4a95-83f6-76885bceef40/playlist.m3u8',
+        16388.000,
+        'https://vz-e0f2a12f-935.b-cdn.net/dce45a67-2a24-4a95-83f6-76885bceef40/thumbnail.jpg',
+        NULL,
+        'dce45a67-2a24-4a95-83f6-76885bceef40',
+        'seed-vid-course-027-uiux-research',
+        '2026-07-25 10:05:00',
+        '2026-07-25 10:05:00'
     );
 
 -- Generated from courses_data uploads; linked to long videos & courses below.
@@ -6327,12 +6374,12 @@ VALUES (
         'Xây dựng ứng dụng di động iOS & Android đa nền tảng với Flutter từ cơ bản đến nâng cao.',
         '["Programming","Mobile","Flutter"]',
         'Intermediate',
-        '03:45:00.000',
+        '01:21:29.000',
         'vi',
         349000,
         4,
         'pending',
-        NULL,
+        315,
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1786272391/Flutter-1.2-Dart-2.2-Googles-Treat-to-Cross-Platform-App-Development-Segment_aufbq4.webp',
         '2026-07-25 08:45:00',
         '2026-07-25 08:45:00'
@@ -6343,12 +6390,12 @@ VALUES (
         'Lập trình web hiện đại với Next.js, SSR, SSG, Server Actions và Tailwind CSS.',
         '["Programming","Web","Next.js"]',
         'Advanced',
-        '04:10:00.000',
+        '01:17:37.000',
         'vi',
         499000,
         4,
         'pending',
-        NULL,
+        316,
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1786272560/images_aza2k3.jpg',
         '2026-07-29 10:30:00',
         '2026-07-29 10:30:00'
@@ -6359,12 +6406,12 @@ VALUES (
         'Quy trình nghiên cứu người dùng, phỏng vấn chuyên sâu và kiểm thử giao diện người dùng.',
         '["Design","UI/UX","Research"]',
         'Intermediate',
-        '02:15:00.000',
+        '04:33:08.000',
         'en',
         299000,
         7,
         'pending',
-        NULL,
+        317,
         'https://res.cloudinary.com/dbwqzrbur/image/upload/v1783950412/images_k2cwt8.jpg',
         '2026-07-25 10:10:00',
         '2026-07-25 10:10:00'
@@ -6821,6 +6868,45 @@ VALUES (
         23,
         '2026-06-26 13:05:00',
         '2026-06-26 13:05:00'
+    ),
+    (
+        37,
+        25,
+        'Flutter & Dart Cross-Platform Mobile Apps',
+        'video',
+        '{"video_id":315}',
+        '01:21:29.000',
+        'active',
+        'Xây dựng ứng dụng Flutter đa nền tảng từ cơ bản đến nâng cao.',
+        315,
+        '2026-07-25 08:40:00',
+        '2026-07-25 08:40:00'
+    ),
+    (
+        38,
+        26,
+        'Next.js App Router & Server Actions',
+        'video',
+        '{"video_id":316}',
+        '01:17:37.000',
+        'active',
+        'Xây dựng ứng dụng web hiện đại với Next.js App Router và Server Actions.',
+        316,
+        '2026-07-29 10:25:00',
+        '2026-07-29 10:25:00'
+    ),
+    (
+        39,
+        27,
+        'UI/UX Research & Usability Testing',
+        'video',
+        '{"video_id":317}',
+        '04:33:08.000',
+        'active',
+        'Quy trình nghiên cứu người dùng và kiểm thử trải nghiệm sử dụng.',
+        317,
+        '2026-07-25 10:05:00',
+        '2026-07-25 10:05:00'
     );
 
 -- ============================================================================
