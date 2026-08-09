@@ -54,9 +54,6 @@ export function QuizEditor({
 
 
   const openedFromTimelineMarker = Boolean(visibleQuestionIds?.length) || (initialSelectedQuestionId !== null && initialSelectedQuestionId !== undefined);
-  const selectedQuestionIndex = state.questions.findIndex(
-    (question) => question.id === selectedQuestionId,
-  );
   const visibleQuestionIdSet = visibleQuestionIds?.length ? new Set(visibleQuestionIds) : null;
   const visibleQuestions = visibleQuestionIdSet
     ? state.questions.filter((question) => visibleQuestionIdSet.has(question.id))
@@ -82,7 +79,12 @@ export function QuizEditor({
             countLabel={openedFromTimelineMarker ? `${visibleQuestions.length} câu đang sửa` : undefined}
             showAddButton={!openedFromTimelineMarker}
             showRemoveButtons={!openedFromTimelineMarker}
-            getQuestionLabel={openedFromTimelineMarker && selectedQuestionIndex >= 0 ? () => `Câu ${selectedQuestionIndex + 1}` : undefined}
+            getQuestionLabel={
+              openedFromTimelineMarker
+                ? (question) =>
+                    `Câu ${state.questions.findIndex((q) => q.id === question.id) + 1}`
+                : undefined
+            }
             saveAction={
               showSaveButton ? (
                 <Button

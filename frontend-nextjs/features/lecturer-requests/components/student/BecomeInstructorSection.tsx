@@ -42,7 +42,7 @@ export function BecomeInstructorSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-primary" />
-            Trở thành Giảng viên
+            Đăng ký trờ thành Giảng viên
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
