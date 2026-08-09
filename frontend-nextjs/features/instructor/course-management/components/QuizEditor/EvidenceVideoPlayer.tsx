@@ -148,10 +148,10 @@ export function EvidenceVideoPlayer({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-black shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-zinc-950 shadow-sm">
       <video
         ref={videoRef}
-        className="mx-auto block h-auto max-h-[220px] w-full object-contain cursor-pointer select-none"
+        className="mx-auto block aspect-video max-h-[180px] w-full cursor-pointer select-none object-contain"
         preload="metadata"
         playsInline
         onClick={togglePlay}
@@ -160,18 +160,23 @@ export function EvidenceVideoPlayer({
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
       />
 
-      <div className="absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/75 px-2.5 py-2 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="shrink-0 text-white hover:text-primary transition-colors"
-        >
-          {isPlaying ? (
-            <Pause className="h-4 w-4 fill-white text-white" />
-          ) : (
-            <Play className="h-4 w-4 fill-white text-white" />
-          )}
-        </button>
+      <div className="border-t border-white/10 bg-zinc-950 px-3 py-2.5">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-zinc-950 shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
+            {isPlaying ? (
+              <Pause className="h-3.5 w-3.5 fill-current" />
+            ) : (
+              <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
+            )}
+          </button>
+          <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 font-mono text-[11px] text-zinc-100">
+            {formatClockNormal(currentTime)} / {formatClockNormal(safeDuration)}
+          </span>
+        </div>
         <Slider
           value={[Math.min(currentTime, safeDuration || 0)]}
           min={0}
@@ -182,11 +187,7 @@ export function EvidenceVideoPlayer({
             videoRef.current.currentTime = value;
             setCurrentTime(value);
           }}
-          className="flex-1"
         />
-        <span className="shrink-0 font-mono text-[11px] text-zinc-200">
-          {formatClockNormal(currentTime)} / {formatClockNormal(safeDuration)}
-        </span>
       </div>
     </div>
   );

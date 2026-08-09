@@ -6,7 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Edit3,
+  Eye,
+  EyeOff,
+  Filter,
   Loader2,
   Search,
   Send,
@@ -23,6 +27,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +45,6 @@ import { useUpload } from "@/features/upload/hooks/useUpload";
 import {
   courseFeedKeys,
   invalidateCourseFeedCache,
-  useCourseFeeds,
   useCourseFeedCandidateVideos,
   useCreateCourseFeed,
   useInstructorCourseById,
@@ -56,6 +65,25 @@ const feedFormSchema = z.object({
 
 type FeedFormValues = z.infer<typeof feedFormSchema>;
 
+type VideoTypeFilter = "all" | "highlight" | "mascot";
+
+const VIDEO_TYPE_FILTER_OPTIONS: Array<{
+  key: VideoTypeFilter;
+  label: string;
+}> = [
+  {
+    key: "all",
+    label: "Tất cả",
+  },
+  {
+    key: "highlight",
+    label: "Highlight",
+  },
+  {
+    key: "mascot",
+    label: "Mascot",
+  },
+];
 function parseHashtagTokens(value: string) {
   return value
     .split(",")
@@ -119,28 +147,41 @@ function formatDuration(duration: number | null | undefined): string {
     .join(":");
 }
 
+function buildSuggestedCaption(videoName: string, courseName?: string) {
+  const coursePart = courseName?.trim()
+    ? ` từ khóa ${courseName.trim()}`
+    : "";
+
+  return `${videoName.trim()}${coursePart}. Lưu lại để ôn nhanh nội dung chính và tiếp tục học theo lộ trình.`;
+}
+
+function buildSuggestedHashtags(categories?: string[]) {
+  const base = ["StudyLoop", ...(categories ?? [])]
+    .map((item) => item.trim().replace(/^#/, ""))
+    .filter(Boolean);
+
+  return Array.from(new Set(base.map((item) => item.replace(/\s+/g, "")))).slice(0, 5);
+}
 export default function CourseFeedCreatePage({ courseId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { data: course, isLoading: courseLoading } =
     useInstructorCourseById(courseId);
-  // Fetch ALL feeds of the instructor (all courses) to deduplicate globally —
-  // backend rejects a video that is ALREADY in ANY feed (not just this course).
-  const { data: allMyFeeds } = useCourseFeeds({ pageSize: 500 });
+  const [showAllVideos, setShowAllVideos] = useState(false);
   const {
     data: candidateVideos,
     isLoading: candidateLoading,
     refetch: refetchCandidateVideos,
-  } = useCourseFeedCandidateVideos(courseId);
+  } = useCourseFeedCandidateVideos(courseId, true, {
+    includeUsed: showAllVideos,
+  });
   const createFeedMutation = useCreateCourseFeed();
   const highlightUpload = useUpload({ autoCreateProject: false });
 
   const [hashtagDraft, setHashtagDraft] = useState("");
   const [videoQuery, setVideoQuery] = useState("");
-  const [videoTypeFilter, setVideoTypeFilter] = useState<
-    "all" | "highlight" | "mascot"
-  >("all");
+  const [videoTypeFilter, setVideoTypeFilter] = useState<VideoTypeFilter>("all");
   const [visibleCount, setVisibleCount] = useState(12);
   const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
   const [pendingHighlightClip, setPendingHighlightClip] = useState<Clip | null>(null);
@@ -163,22 +204,14 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       name: ["videoId", "title", "caption", "hashtags"],
     });
 
-  // Build set of video IDs already on ANY feed (global dedup)
-  const feedVideoIds = useMemo(
-    () => new Set((allMyFeeds ?? []).map((item) => item.video?.id)),
-    [allMyFeeds],
-  );
-
   const availableVideosForCreate = useMemo(
-    () =>
-      (candidateVideos ?? []).filter((video) => !feedVideoIds.has(video.id)),
-    [candidateVideos, feedVideoIds],
+    () => candidateVideos ?? [],
+    [candidateVideos],
   );
 
-  const hiddenUsedVideoCount = Math.max(
-    0,
-    (candidateVideos?.length ?? 0) - availableVideosForCreate.length,
-  );
+  const selectedVideoTypeLabel =
+    VIDEO_TYPE_FILTER_OPTIONS.find((option) => option.key === videoTypeFilter)
+      ?.label ?? "Loại video";
 
   const selectedVideo =
     availableVideosForCreate.find(
@@ -199,11 +232,30 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
           shouldValidate: true,
         });
       }
+      if (!formCaption.trim()) {
+        setValue("caption", buildSuggestedCaption(video.name, course?.name), {
+          shouldDirty: true,
+          shouldTouch: true,
+        });
+      }
+      if (formHashtags.length === 0) {
+        setValue("hashtags", buildSuggestedHashtags(course?.categories), {
+          shouldDirty: true,
+          shouldTouch: true,
+        });
+      }
       setVideoQuery("");
       setVideoTypeFilter("all");
       setVisibleCount(12);
     },
-    [formTitle, setValue],
+    [
+      course?.categories,
+      course?.name,
+      formCaption,
+      formHashtags.length,
+      formTitle,
+      setValue,
+    ],
   );
 
   const handleEditFeedVideo = useCallback(
@@ -245,7 +297,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       const findAvailableVideo = (videos: CourseFeedCandidateVideo[] = []) =>
         videos.find(
           (video) =>
-            String(video.id) === returnedVideoId && !feedVideoIds.has(video.id),
+            String(video.id) === returnedVideoId,
         ) ?? null;
 
       let matchedVideo = findAvailableVideo(availableVideosForCreate);
@@ -278,7 +330,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   }, [
     availableVideosForCreate,
     courseId,
-    feedVideoIds,
     queryClient,
     refetchCandidateVideos,
     router,
@@ -408,6 +459,12 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   );
 
   const hasMoreVideos = visibleCount < filteredVideos.length;
+  const hasVideoFilters = videoQuery.trim().length > 0 || videoTypeFilter !== "all";
+  const emptyVideoState: "filtered" | "used-hidden" | "none" = hasVideoFilters
+    ? "filtered"
+    : showAllVideos
+      ? "none"
+      : "used-hidden";
   const isHighlightUploadActive =
     highlightUpload.status === "uploading" ||
     highlightUpload.status === "pending" ||
@@ -444,10 +501,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
       return;
     }
 
-    if (feedVideoIds.has(videoId)) {
-      toast.error("Video này đã có trên feed. Vui lòng chọn highlight khác.", { id: "feed-duplicate-error" });
-      return;
-    }
 
     try {
       await createFeedMutation.mutateAsync({
@@ -534,7 +587,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
           <Button
             type="submit"
             form="create-feed-form"
-            disabled={createFeedMutation.isPending}
+            disabled={createFeedMutation.isPending || !formVideoId || !formTitle.trim()}
             className="h-10 gap-2 px-4 text-xs font-semibold"
           >
             {createFeedMutation.isPending ? (
@@ -671,8 +724,8 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                     )}
                   >
                     <CardContent className="space-y-5 p-6">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                        <div className="flex min-w-0 items-center gap-2">
                           <div className="rounded-lg bg-primary/10 p-2 text-primary">
                             <Clapperboard className="h-4 w-4" />
                           </div>
@@ -681,30 +734,53 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               Thư viện video <span className="text-destructive">*</span>
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Chọn một video để hiển thị trên bảng tin.
+                              {showAllVideos
+                                ? "Đang hiển thị cả video đã đăng feed để đối chiếu."
+                                : "Chỉ hiển thị video chưa đăng feed, đúng chế độ tạo mới."}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap sm:justify-end">
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-9 gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                            className={cn(
+                              "h-8 w-auto justify-center gap-1.5 px-3 text-xs font-semibold",
+                              showAllVideos
+                                ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                : "hover:border-primary/40 hover:bg-primary/5 hover:text-primary",
+                            )}
+                            onClick={() => {
+                              setShowAllVideos((value) => !value);
+                              setVisibleCount(12);
+                              setValue("videoId", "", {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: false,
+                              });
+                            }}
+                          >
+                            {showAllVideos ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                            {showAllVideos ? "Ẩn video đã đăng" : "Hiện video đã đăng"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-auto justify-center gap-1.5 border-primary/30 px-3 text-xs font-semibold text-primary transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
                             title="Tạo highlight"
                             onClick={() => setIsHighlightUploadOpen(true)}
                           >
                             <Video className="h-4 w-4" />
-                            <span>Tạo video highlight</span>
+                            <span>Tạo highlight</span>
                           </Button>
                         </div>
                       </div>
-
-                      {hiddenUsedVideoCount > 0 ? (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                          Đã ẩn {hiddenUsedVideoCount} video vì các video này đã có trên feed. Một video chỉ được đăng feed một lần để tránh trùng nội dung.
-                        </div>
-                      ) : null}
 
                       {(isHighlightUploadActive || pendingHighlightClip) && (
                         <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm text-primary sm:flex-row sm:items-center sm:justify-between">
@@ -735,7 +811,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                         <p className="text-sm font-medium text-destructive">{errors.videoId.message}</p>
                       )}
 
-                      <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                      <div className="grid grid-cols-[minmax(0,1fr)_minmax(8.75rem,0.42fr)] gap-2 max-[420px]:grid-cols-1 md:grid-cols-[1fr_auto]">
                         <div className="relative">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
@@ -749,85 +825,143 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           />
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {(
-                            [
-                              { key: "all", label: "Tất cả" },
-                              { key: "highlight", label: "Highlight" },
-                              { key: "mascot", label: "Mascot" },
-                            ] as const
-                          ).map((option) => (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
-                              key={option.key}
                               type="button"
-                              size="sm"
-                              variant={
-                                videoTypeFilter === option.key ? "default" : "outline"
-                              }
-                              onClick={() => {
-                                setVideoTypeFilter(option.key);
-                                setVisibleCount(12);
-                              }}
-                              className="h-10"
+                              variant="outline"
+                              className="h-10 w-full justify-between gap-2 px-3 text-sm md:w-44"
                             >
-                              {option.label}
+                              <span className="inline-flex min-w-0 items-center gap-2">
+                                <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{selectedVideoTypeLabel}</span>
+                              </span>
+                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                             </Button>
-                          ))}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            sideOffset={8}
+                            className="w-[min(16rem,calc(100vw-2rem))] rounded-xl border-border/70 p-1 shadow-lg"
+                          >
+                            {VIDEO_TYPE_FILTER_OPTIONS.map((option) => {
+                              const isActive = option.key === videoTypeFilter;
+
+                              return (
+                                <DropdownMenuItem
+                                  key={option.key}
+                                  onSelect={() => {
+                                    setVideoTypeFilter(option.key);
+                                    setVisibleCount(12);
+                                  }}
+                                  className={cn(
+                                    "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors data-[highlighted]:bg-primary/5 data-[highlighted]:text-foreground focus:bg-primary/5",
+                                    isActive && "bg-primary/10 text-primary data-[highlighted]:bg-primary/10 focus:bg-primary/10",
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                                      isActive
+                                        ? "border-primary bg-primary text-primary-foreground"
+                                        : "border-border bg-background",
+                                    )}
+                                  >
+                                    {isActive && <CheckCircle2 className="h-3 w-3" />}
+                                  </span>
+                                  <span className="min-w-0 truncate font-medium">{option.label}</span>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
 
                       {candidateLoading ? (
-                        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-8 text-center text-sm text-muted-foreground animate-pulse">
-                          Đang tải danh sách video...
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                          {Array.from({ length: 6 }).map((_, index) => (
+                            <div
+                              key={index}
+                              className="flex gap-3 rounded-xl border border-border/60 bg-card p-2 shadow-sm sm:block sm:p-0"
+                            >
+                              <div className="h-16 w-24 shrink-0 animate-pulse rounded-lg bg-muted sm:h-auto sm:w-full sm:aspect-video sm:rounded-b-none sm:rounded-t-xl" />
+                              <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 sm:p-3">
+                                <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
+                                <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted/80 sm:hidden" />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ) : filteredVideos.length ? (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                             {visibleVideos.map((video) => {
                               const isSelected = String(video.id) === field.value;
+                              const isUsedInFeed = showAllVideos && video.isUsedInFeed;
                               const thumbnail = getVideoThumbnail(video);
+                              const videoTypeLabel = video.type === "mascot" ? "Mascot" : "Highlight";
 
                               return (
                                 <div key={video.id} className="group/card relative">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      field.onChange(String(video.id))
-                                    }
+                                    disabled={isUsedInFeed}
+                                    aria-disabled={isUsedInFeed}
+                                    onClick={() => {
+                                      if (isUsedInFeed) return;
+                                      selectVideoForFeed(video);
+                                    }}
                                     className={cn(
-                                      "group relative w-full cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                                      "group flex w-full gap-3 overflow-hidden rounded-xl border bg-card p-2 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm sm:block sm:h-full sm:p-0",
                                       isSelected
                                         ? "border-primary ring-2 ring-primary/20"
-                                        : "border-border/60 hover:border-primary/40",
+                                        : isUsedInFeed
+                                          ? "border-amber-200 bg-amber-50/55"
+                                          : "border-border/60 hover:border-primary/40",
                                     )}
                                   >
-                                    <div className="relative aspect-video bg-muted overflow-hidden shrink-0">
+                                    <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-auto sm:w-full sm:aspect-video sm:rounded-b-none sm:rounded-t-xl">
                                       {thumbnail ? (
                                         <div
                                           className="h-full w-full bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
                                           style={{ backgroundImage: `url(${thumbnail})` }}
                                         />
                                       ) : (
-                                        <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-muted">
+                                        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
                                           <Video className="h-5 w-5" />
                                         </div>
                                       )}
 
                                       {isSelected && (
-                                        <div className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                        <div className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                                           <CheckCircle2 className="h-3 w-3" />
                                         </div>
                                       )}
 
-                                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium text-white tracking-wide leading-none shadow-sm">
+                                      {isUsedInFeed && (
+                                        <span className="absolute right-1.5 top-1.5 hidden rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm sm:inline-flex">
+                                          Đã đăng
+                                        </span>
+                                      )}
+                                      <span className="absolute bottom-1.5 right-1.5 hidden rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-medium leading-none tracking-wide text-white shadow-sm sm:inline-flex">
                                         {formatDuration(video.duration)}
                                       </span>
                                     </div>
 
-                                    <div className="p-3 space-y-1">
-                                      <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-foreground group-hover:text-primary transition-colors">
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 sm:min-h-[4.75rem] sm:gap-2 sm:p-3">
+                                      <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-xs sm:leading-relaxed">
                                         {video.name}
                                       </p>
+                                      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground sm:hidden">
+                                        <span>{videoTypeLabel}</span>
+                                        <span>·</span>
+                                        <span>{formatDuration(video.duration)}</span>
+                                        {isUsedInFeed && (
+                                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
+                                            Đã đăng
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </button>
                                   <Button
@@ -835,7 +969,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                     variant="secondary"
                                     size="icon-sm"
                                     aria-label={`Mở Studio chỉnh sửa ${video.name}`}
-                                    className="absolute left-2 top-2 h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-0 shadow-sm hover:bg-primary hover:text-white group-hover/card:opacity-100 focus:opacity-100 focus:ring-primary/40"
+                                    className="absolute left-2 top-2 h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 sm:opacity-0 sm:group-hover/card:opacity-100"
                                     onClick={() => {
                                       void handleEditFeedVideo(video);
                                     }}
@@ -852,7 +986,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               <span className="text-xs text-muted-foreground">
                                 Đang xem {visibleVideos.length} trong {filteredVideos.length} video
                               </span>
-                              <div className="flex items-center gap-2">
+                              <div className="flex min-w-0 items-center gap-2">
                                 {visibleCount > 12 && (
                                   <Button
                                     type="button"
@@ -878,32 +1012,80 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                           )}
                         </div>
                       ) : (
-                        <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-8 text-center">
-                          {videoTypeFilter === "mascot" ? (
-                            <>
-                              <p className="text-sm text-muted-foreground">Bạn chưa có video Mascot nào.</p>
-                              <p className="text-xs text-muted-foreground/70">Hãy tạo video mascot trong Studio để đưa lên feed.</p>
+                        <div className="flex min-h-44 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-8 text-center">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Clapperboard className="h-5 w-5" />
+                          </div>
+
+                          <div className="max-w-md space-y-1.5">
+                            <p className="text-sm font-semibold text-foreground">
+                              {emptyVideoState === "filtered"
+                                ? "Không tìm thấy video phù hợp"
+                                : emptyVideoState === "used-hidden"
+                                  ? "Không còn video chưa đăng"
+                                  : "Chưa có video để chọn"}
+                            </p>
+                            <p className="text-xs leading-relaxed text-muted-foreground">
+                              {emptyVideoState === "filtered"
+                                ? "Thử đổi từ khóa hoặc loại video để tìm trong thư viện hiện tại."
+                                : emptyVideoState === "used-hidden"
+                                  ? "Các video đã đăng feed đang được ẩn để tránh tạo trùng. Bật hiển thị video đã đăng nếu bạn muốn đối chiếu."
+                                  : "Khóa học này chưa có video Highlight hoặc Mascot phù hợp để đăng lên feed."}
+                            </p>
+                          </div>
+
+                          <div className="flex w-full flex-col items-center justify-center gap-2 sm:w-auto sm:flex-row">
+                            {emptyVideoState === "filtered" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  setVideoQuery("");
+                                  setVideoTypeFilter("all");
+                                  setVisibleCount(12);
+                                }}
+                              >
+                                Xóa bộ lọc
+                              </Button>
+                            )}
+                            {emptyVideoState === "used-hidden" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5 sm:w-auto"
+                                onClick={() => {
+                                  setShowAllVideos(true);
+                                  setVisibleCount(12);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                                Hiện video đã đăng
+                              </Button>
+                            )}
+                            {videoTypeFilter === "mascot" ? (
                               <Link
                                 href="/studio"
-                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                                className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-primary/30 px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto"
                               >
-                                <Clapperboard className="h-3.5 w-3.5" />
+                                <Clapperboard className="h-4 w-4" />
                                 Mở Studio tạo Mascot
                               </Link>
-                            </>
-                          ) : videoTypeFilter === "highlight" ? (
-                            <>
-                              <p className="text-sm text-muted-foreground">Không có video Highlight nào để chọn.</p>
-                              <p className="text-xs text-muted-foreground/70">Tất cả highlight đã có trên feed hoặc bạn chưa tạo highlight nào.</p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-muted-foreground">Không có video nào khả dụng.</p>
-                              <p className="text-xs text-muted-foreground/70">
-                                Chỉ các video dạng <strong>Highlight</strong> và <strong>Mascot</strong> mới có thể đăng lên feed. Video gốc dài không được hỗ trợ.
-                              </p>
-                            </>
-                          )}
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground sm:w-auto"
+                                onClick={() => setIsHighlightUploadOpen(true)}
+                              >
+                                <Video className="h-4 w-4" />
+                                Tạo highlight mới
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -913,7 +1095,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
             </div>
 
             {/* Cột phải: Live Preview */}
-            <div className="space-y-5 xl:sticky xl:top-24 xl:h-fit">
+            <div className="space-y-5 xl:sticky xl:top-24 xl:h-fit max-xl:hidden">
               <Card className="border-border/60 shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                   <div className="flex items-center gap-2 border-b border-border/60 px-5 py-4 bg-muted/20">

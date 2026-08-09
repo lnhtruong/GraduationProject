@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X, Loader2 } from "lucide-react";
+import { Flag, Pause, Play, Clapperboard, Settings, ChevronRight, ChevronLeft, Check, X, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,10 @@ import {
 } from "../../api/course-management.hooks";
 import type { QuizEditorState } from "../../types";
 import { mapQuizToEditorState } from "../../utils/quiz-editor.utils";
-import type { QuizTimelineMarker } from "../../utils/quiz-timeline.utils";
+import type {
+  QuizTimelineMarker,
+  QuizTimelineMarkerItem,
+} from "../../utils/quiz-timeline.utils";
 
 interface Props {
   courseId: number;
@@ -83,6 +86,9 @@ export function VideoPreview({
   );
   const [draftQuizState, setDraftQuizState] = useState<QuizEditorState | null>(
     null,
+  );
+  const [editingMarkerQuestionIds, setEditingMarkerQuestionIds] = useState<number[]>(
+    [],
   );
 
   useEffect(() => {
@@ -268,13 +274,32 @@ export function VideoPreview({
   }, [mediaDuration, videoDurationSeconds]);
 
   const seekTo = (seconds: number) => {
-    if (!videoRef.current) {
+    const element = videoRef.current;
+    if (!element || !Number.isFinite(seconds)) {
       return;
     }
-    videoRef.current.currentTime = seconds;
-    videoRef.current.play().catch(() => undefined);
-  };
 
+    const duration = Number.isFinite(element.duration) && element.duration > 0
+      ? element.duration
+      : safeDuration;
+    const clamped = duration > 0
+      ? Math.max(0, Math.min(duration, seconds))
+      : Math.max(0, seconds);
+
+    const applySeek = () => {
+      element.currentTime = clamped;
+      currentTimeRef.current = clamped;
+      setCurrentTime(clamped);
+      element.play().catch(() => undefined);
+    };
+
+    if (element.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      applySeek();
+      return;
+    }
+
+    element.addEventListener("loadedmetadata", applySeek, { once: true });
+  };
   const handleTogglePlayback = () => {
     const element = videoRef.current;
     if (!element) {
@@ -326,15 +351,91 @@ export function VideoPreview({
       ? Math.min(100, Math.max(0, (currentTime / safeDuration) * 100))
       : 0;
 
-  const hoveredMarker = useMemo(
-    () =>
-      timelineMarkers.find(
-        (marker, index) =>
-          `${marker.quizId}-${index}-${marker.timestampSeconds}` ===
-          hoveredMarkerKey,
-      ) ?? null,
-    [timelineMarkers, hoveredMarkerKey],
+  const timelineMarkerGroups = useMemo(() => {
+    const groups = new Map<string, QuizTimelineMarker[]>();
+
+    timelineMarkers.forEach((marker) => {
+      const key = `${marker.timestampSeconds}`;
+      const current = groups.get(key) ?? [];
+      current.push(marker);
+      groups.set(key, current);
+    });
+
+    return Array.from(groups.entries()).map(([key, markers]) => {
+      const primaryMarker = markers[0];
+      const items = markers.flatMap((marker) =>
+        marker.items?.length
+          ? marker.items
+          : [
+              {
+                quizId: marker.quizId,
+                lessonActivityId: marker.lessonActivityId,
+                questionIds: marker.questionIds,
+                questionId: marker.questionId,
+                questionCount: marker.questionCount ?? 1,
+                quizName: marker.quizName,
+                questionText: marker.questionText,
+              },
+            ],
+      );
+      const questionIds = items.flatMap((item) => item.questionIds ?? []);
+      const questionCount = items.reduce(
+        (total, item) => total + (item.questionCount ?? item.questionIds?.length ?? 1),
+        0,
+      );
+
+      return {
+        key,
+        marker: {
+          ...primaryMarker,
+          questionIds,
+          questionId: questionIds[0] ?? primaryMarker.questionId,
+          questionCount,
+          quizCount: items.length,
+          items,
+        },
+        markers,
+        items,
+        questionCount,
+      };
+    });
+  }, [timelineMarkers]);
+  const hoveredMarkerGroup = useMemo(
+    () => timelineMarkerGroups.find((group) => group.key === hoveredMarkerKey) ?? null,
+    [timelineMarkerGroups, hoveredMarkerKey],
   );
+
+  const hoveredMarker = hoveredMarkerGroup?.marker ?? null;
+  const hoveredMarkerQuestionCount = hoveredMarkerGroup?.questionCount ?? 0;
+  const hoveredMarkerItems = hoveredMarkerGroup?.items ?? [];
+
+  const openMarkerEditor = (
+    marker: QuizTimelineMarker,
+    item?: QuizTimelineMarkerItem,
+  ) => {
+    const targetItem = item ?? marker.items?.[0];
+    const visibleIds = targetItem?.questionIds?.length
+      ? targetItem.questionIds
+      : marker.questionIds?.length
+        ? marker.questionIds
+        : marker.questionId !== undefined
+          ? [marker.questionId]
+          : [];
+
+    setEditingMarkerQuestionIds(visibleIds);
+    setEditingMarker({
+      ...marker,
+      quizId: targetItem?.quizId ?? marker.quizId,
+      lessonActivityId: targetItem?.lessonActivityId ?? marker.lessonActivityId,
+      quizName: targetItem?.quizName ?? marker.quizName,
+      questionText: targetItem?.questionText ?? marker.questionText,
+      questionIds: visibleIds,
+      questionId: visibleIds[0],
+      questionCount: targetItem?.questionCount ?? (visibleIds.length || 1),
+      items: targetItem ? [targetItem] : marker.items,
+      quizCount: targetItem ? 1 : marker.quizCount,
+    });
+  };
 
   const { data: editingQuiz } = useQuizById(editingMarker?.quizId ?? null);
   const updateQuizMutation = useUpdateQuiz();
@@ -363,6 +464,7 @@ export function VideoPreview({
     await invalidateLessonQuizCache(queryClient, lessonId);
 
     setEditingMarker(null);
+    setEditingMarkerQuestionIds([]);
     router.refresh();
   };
 
@@ -452,7 +554,7 @@ export function VideoPreview({
                 <button
                   type="button"
                   onClick={handleTogglePlayback}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white hover:bg-black/55"
+                  className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-black/35 text-white transition hover:scale-105 hover:bg-black/55"
                 >
                   {isPlaying ? (
                     <Pause className="h-3.5 w-3.5" />
@@ -489,17 +591,21 @@ export function VideoPreview({
                     className="relative z-10 h-4 w-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:shadow-xs [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:shadow-xs [&::-moz-range-thumb]:border-0"
                   />
 
-                  {timelineMarkers.map((marker, index) => {
+                  {timelineMarkerGroups.map(({ key, marker, questionCount, items }) => {
                     const left = (marker.timestampSeconds / safeDuration) * 100;
                     const isActive =
                       Math.abs(currentTime - marker.timestampSeconds) <= 1.2;
+                    const quizCount = items.length;
+                    const questionCountLabel = quizCount > 1
+                      ? `${questionCount} c\u00e2u t\u1ea1i m\u1ed1c / ${quizCount} quiz`
+                      : `${questionCount} c\u00e2u trong quiz`;
 
                     return (
                       <button
-                        key={`${marker.quizId}-${index}-${marker.timestampSeconds}`}
+                        key={key}
                         type="button"
-                        title={`${marker.timestampLabel} - ${marker.questionText}`}
-                        className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 transition ${
+                        title={`${marker.timestampLabel} - ${questionCountLabel} - ${marker.questionText}`}
+                        className={`absolute top-1/2 z-20 h-3.5 w-3.5 -translate-y-1/2 -translate-x-1/2 cursor-pointer rounded-full border-2 transition hover:scale-110 ${
                           isActive
                             ? "border-primary bg-primary shadow-[0_0_0_3px_rgba(59,130,246,0.35)]"
                             : "border-black/60 bg-amber-300 hover:scale-110"
@@ -509,21 +615,31 @@ export function VideoPreview({
                         }}
                         onMouseEnter={() =>
                           openMarkerTooltip(
-                            `${marker.quizId}-${index}-${marker.timestampSeconds}`,
+                            key,
                           )
                         }
                         onMouseLeave={scheduleTooltipHide}
                         onClick={(event) => {
                           event.stopPropagation();
-                          setEditingMarker(marker);
+                          if (items.length > 1) {
+                            openMarkerTooltip(key);
+                            return;
+                          }
+                          openMarkerEditor(marker, items[0]);
                         }}
-                      />
+                      >
+                        {questionCount > 1 ? (
+                          <span className="pointer-events-none absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-black/40 bg-primary px-1 text-[9px] font-bold leading-none text-white shadow-xs">
+                            {questionCount}
+                          </span>
+                        ) : null}
+                      </button>
                     );
                   })}
 
                   {hoveredMarker ? (
                     <div
-                      className="pointer-events-auto absolute bottom-full z-30 mb-4 w-62 max-w-[calc(100vw-3rem)] rounded-lg border border-border/70 bg-background/95 p-2.5 text-foreground shadow-lg transition-all duration-150"
+                      className="pointer-events-auto absolute bottom-full z-30 mb-4 w-80 max-w-[calc(100vw-3rem)] rounded-xl border border-border/70 bg-background/95 p-3 text-foreground shadow-xl transition-all duration-150"
                       style={{
                         left: `calc(${hoveredLeft}% - ${(hoveredLeft / 100) * 12}px + 6px)`,
                         transform: `translateX(${tooltipTranslateX})`,
@@ -532,38 +648,91 @@ export function VideoPreview({
                       onMouseLeave={scheduleTooltipHide}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <p className="line-clamp-1 text-xs font-semibold">
-                        {hoveredMarker.quizName}
+                      <p className="line-clamp-1 text-sm font-semibold leading-5">
+                        {hoveredMarkerItems.length > 1
+                          ? `${hoveredMarkerItems.length} quiz ${"t\u1ea1i m\u1ed1c"} ${hoveredMarker.timestampLabel}`
+                          : hoveredMarker.quizName}
                       </p>
-                      <p className="line-clamp-1 text-[11px] text-muted-foreground mt-0.5">
-                        {hoveredMarker.questionText}
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                        {hoveredMarkerItems.length > 1
+                          ? "Ch\u1ecdn quiz b\u00ean d\u01b0\u1edbi \u0111\u1ec3 s\u1eeda \u0111\u00fang n\u1ed9i dung."
+                          : hoveredMarker.questionText}
                       </p>
-                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/40 pt-2">
-                        <span className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          <Flag className="h-3 w-3 text-primary" />
-                          {hoveredMarker.timestampLabel}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
+                      {hoveredMarkerItems.length > 1 ? (
+                        <div className="mt-3 space-y-1.5">
+                          {hoveredMarkerItems.map((item, itemIndex) => (
+                            <button
+                              key={`${item.quizId}-${item.lessonActivityId}-${itemIndex}`}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/80 px-2.5 py-2 text-left transition hover:border-primary/50 hover:bg-primary/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openMarkerEditor(hoveredMarker, item);
+                              }}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-[11px] font-semibold">
+                                  {item.quizName || `Quiz ${itemIndex + 1}`}
+                                </span>
+                                <span className="block truncate text-[10px] text-muted-foreground">
+                                  {item.questionText}
+                                </span>
+                              </span>
+                              <span className="flex shrink-0 items-center gap-1.5">
+                                <span className="rounded-md border border-amber-300/70 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                                  {item.questionCount ?? item.questionIds?.length ?? 1} {"c\u00e2u"}
+                                </span>
+                                <span className="inline-flex h-6 items-center gap-1 rounded-md bg-primary px-2 text-[10px] font-bold text-white shadow-xs">
+                                  <Pencil className="h-3 w-3" />
+                                  {"S\u1eeda"}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-3 space-y-2 border-t border-border/40 pt-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 text-[10px] font-medium text-muted-foreground">
+                            <Flag className="h-3 w-3 text-primary" />
+                            {hoveredMarker.timestampLabel}
+                          </span>
+                          <span className="inline-flex h-6 items-center whitespace-nowrap rounded-md border border-amber-300/70 bg-amber-50 px-2 text-[10px] font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+                            {hoveredMarkerItems.length > 1
+                              ? `${hoveredMarkerQuestionCount} c\u00e2u t\u1ea1i m\u1ed1c / ${hoveredMarkerItems.length} quiz`
+                              : `${hoveredMarkerQuestionCount} c\u00e2u trong quiz`}
+                          </span>
+                        </div>
+                        <div className={cn(
+                          "grid gap-2",
+                          hoveredMarkerItems.length > 1 ? "grid-cols-1" : "grid-cols-2",
+                        )}>
+                          <Button
                             type="button"
-                            className="pointer-events-auto h-7 px-2.5 text-[11px] font-bold text-white bg-primary hover:bg-primary/90 rounded-md transition-all shadow-xs cursor-pointer"
+                            size="sm"
+                            className="pointer-events-auto h-8 cursor-pointer rounded-md px-3 text-[11px] font-bold shadow-xs transition hover:-translate-y-0.5 hover:shadow-md"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               seekTo(hoveredMarker.timestampSeconds);
                             }}
                           >
-                            Tới mốc
-                          </button>
-                          <button
-                            type="button"
-                            className="pointer-events-auto h-7 px-2.5 text-[11px] font-bold bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 rounded-md transition-all shadow-xs cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingMarker(hoveredMarker);
-                            }}
-                          >
-                            Sửa ngay
-                          </button>
+                            {"T\u1edbi m\u1ed1c"}
+                          </Button>
+                          {hoveredMarkerItems.length === 1 ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="pointer-events-auto h-8 cursor-pointer rounded-md bg-background px-3 text-[11px] font-bold shadow-xs transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 hover:text-primary hover:shadow-md"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openMarkerEditor(hoveredMarker, hoveredMarkerItems[0]);
+                              }}
+                            >
+                              {"S\u1eeda ngay"}
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -578,7 +747,7 @@ export function VideoPreview({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/25 text-white hover:bg-black/55 focus:outline-hidden transition-colors"
+                      className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/25 text-white transition hover:scale-105 hover:bg-black/55 focus:outline-hidden"
                       aria-label="Cài đặt video"
                     >
                       <Settings className="h-3.5 w-3.5" />
@@ -707,6 +876,7 @@ export function VideoPreview({
         onOpenChange={(open) => {
           if (!open) {
             setEditingMarker(null);
+            setEditingMarkerQuestionIds([]);
             setDraftQuizState(null);
           }
         }}
@@ -740,7 +910,10 @@ export function VideoPreview({
             <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 space-y-4">
               {editingQuizState ? (
                 <QuizEditor
+                  key={`${editingMarker?.quizId ?? "quiz"}-${editingMarker?.questionId ?? "first"}`}
                   quiz={editingQuizState}
+                  initialSelectedQuestionId={editingMarker?.questionId ?? null}
+                  visibleQuestionIds={editingMarkerQuestionIds}
                   showSaveButton={false}
                   onStateChange={setDraftQuizState}
                   videoUrl={videoUrl}

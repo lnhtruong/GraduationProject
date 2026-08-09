@@ -34,6 +34,7 @@ interface Props {
   onRemoveOption: (questionId: number, optionId: string) => void;
   videoUrl?: string | null;
   videoDurationSeconds?: number;
+  isInVideo?: boolean;
 }
 
 export function QuestionEditor({
@@ -43,6 +44,7 @@ export function QuestionEditor({
   onRemoveOption,
   videoUrl,
   videoDurationSeconds,
+  isInVideo = false,
 }: Props) {
   const evidenceVideoRef = useRef<HTMLVideoElement | null>(null);
   if (!question) {
@@ -185,10 +187,18 @@ export function QuestionEditor({
           />
         </div>
 
-        <div className="grid gap-2 pt-2 border-t border-border/40">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-            Bằng chứng video (Tùy chọn)
-          </Label>
+        {isInVideo && videoUrl ? (
+          <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+              Bằng chứng video (Tùy chọn)
+            </Label>
+            {question.evidenceTimestamp ? (
+              <span className="rounded-full bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground shadow-sm">
+                {question.evidenceTimestamp}
+              </span>
+            ) : null}
+          </div>
           <EvidenceVideoPlayer
             videoUrl={videoUrl}
             videoDurationSeconds={videoDurationSeconds}
@@ -209,7 +219,7 @@ export function QuestionEditor({
                 }))
               }
               placeholder="HH:MM:SS,mmm"
-              className={`rounded-lg font-mono text-sm ${
+              className={`h-10 rounded-lg bg-background font-mono text-sm ${
                 question.evidenceTimestamp &&
                 !VIDEO_TIMESTAMP_PATTERN.test(question.evidenceTimestamp.trim())
                   ? "border-destructive focus-visible:ring-destructive/30"
@@ -220,7 +230,6 @@ export function QuestionEditor({
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
                 title="Lấy thời điểm hiện tại của video"
                 onClick={() =>
                   onUpdateQuestion(question.id, (current) => ({
@@ -230,9 +239,10 @@ export function QuestionEditor({
                     ),
                   }))
                 }
-                className="h-10 w-full shrink-0 cursor-pointer px-2.5 rounded-lg border-border/80 bg-background hover:bg-muted/40 sm:w-auto"
+                className="h-10 w-full shrink-0 cursor-pointer gap-2 rounded-lg bg-primary px-3 font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-primary/90 hover:text-primary-foreground hover:shadow-md sm:w-auto"
               >
                 <Crosshair className="h-3.5 w-3.5" />
+                Lấy mốc
               </Button>
             ) : null}
           </div>
@@ -246,7 +256,8 @@ export function QuestionEditor({
               Mốc thời gian trong video chứng minh đáp án — để trống nếu không có.
             </p>
           )}
-        </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

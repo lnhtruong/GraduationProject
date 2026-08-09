@@ -57,6 +57,24 @@ type RequesterContext = {
   requesterRole: number;
 };
 
+export type QuizTimelineMarkerItemDto = {
+  quizId: number;
+  lessonActivityId: number;
+  questionIds: number[];
+  questionId?: number;
+  questionCount: number;
+  quizName: string;
+  questionText: string;
+};
+
+export type QuizTimelineMarkerDto = QuizTimelineMarkerItemDto & {
+  timestamp: string;
+  timestampLabel: string;
+  timestampSeconds: number;
+  quizCount: number;
+  items: QuizTimelineMarkerItemDto[];
+};
+
 /** Ngữ cảnh người gọi cho các thao tác sửa quiz (từ header x-user-id/role). */
 type QuizRequester = {
   userId?: number;
@@ -100,6 +118,43 @@ export class QuizzesService {
       );
     }
     return normalized;
+  }
+
+  private parseVideoTimestampToSeconds(value?: string | null): number | null {
+    if (!value) return null;
+    const normalized = value.trim().replace(',', '.');
+    const match = normalized.match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
+    if (!match) return null;
+
+    const [, hh, mm, ss, ms = '0'] = match;
+    const hours = Number(hh);
+    const minutes = Number(mm);
+    const seconds = Number(ss);
+    const millis = Number(ms.padEnd(3, '0'));
+
+    if (
+      Number.isNaN(hours) ||
+      Number.isNaN(minutes) ||
+      Number.isNaN(seconds) ||
+      Number.isNaN(millis)
+    ) {
+      return null;
+    }
+
+    return hours * 3600 + minutes * 60 + seconds + millis / 1000;
+  }
+
+  private formatTimestampLabel(secondsValue: number): string {
+    const safe = Math.max(0, Math.floor(secondsValue));
+    const hours = Math.floor(safe / 3600);
+    const minutes = Math.floor((safe % 3600) / 60);
+    const seconds = safe % 60;
+
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
   private assertQuizVideoTimestampConsistency(
@@ -885,6 +940,97 @@ export class QuizzesService {
         },
       ],
     });
+  }
+
+  async findTimelineByLessonId(
+    lessonId: number,
+    status?: string,
+  ): Promise<QuizTimelineMarkerDto[]> {
+    const quizzes = await this.findAllByLessonId(lessonId, 'in_video', status);
+    if (!quizzes.length) return [];
+
+    const activityIds = Array.from(
+      new Set(quizzes.map((quiz) => quiz.lessonActivityId).filter(Boolean)),
+    );
+    const activities = activityIds.length
+      ? await this.lessonActivityModel.findAll({
+          attributes: ['id', 'title', 'description'],
+          where: { id: { [Op.in]: activityIds } },
+        })
+      : [];
+    const activityById = new Map(
+      activities.map((activity) => [activity.id, activity]),
+    );
+
+    const markerByKey = new Map<string, QuizTimelineMarkerDto>();
+
+    for (const quiz of quizzes) {
+      const activity = activityById.get(quiz.lessonActivityId);
+      if (activity?.description === 'AI_REVIEW_PENDING') continue;
+
+      const quizName = activity?.title?.trim() || quiz.name || 'Untitled quiz';
+      const questions = [...(quiz.questions ?? [])].sort(
+        (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+      );
+
+      for (const question of questions) {
+        const seconds = this.parseVideoTimestampToSeconds(question.videoTimestamp);
+        if (seconds === null) continue;
+
+        const timestamp = question.videoTimestamp?.trim().replace(',', '.') ?? '';
+        const key = timestamp;
+        const questionIds = typeof question.id === 'number' ? [question.id] : [];
+        const existing = markerByKey.get(key);
+
+        if (existing) {
+          let item = existing.items.find((entry) => entry.quizId === quiz.id);
+          if (!item) {
+            item = {
+              quizId: quiz.id,
+              lessonActivityId: quiz.lessonActivityId,
+              questionIds: [],
+              questionId: undefined,
+              questionCount: 0,
+              quizName,
+              questionText: question.quesText,
+            };
+            existing.items.push(item);
+          }
+
+          if (questionIds.length) {
+            item.questionIds.push(...questionIds);
+            if (item.questionId === undefined) item.questionId = questionIds[0];
+          }
+          item.questionCount = item.questionIds.length || item.questionCount + 1;
+          existing.questionIds = existing.items.flatMap((entry) => entry.questionIds);
+          existing.questionCount = existing.items.reduce((total, entry) => total + entry.questionCount, 0);
+          existing.quizCount = existing.items.length;
+          continue;
+        }
+
+        const item = {
+          quizId: quiz.id,
+          lessonActivityId: quiz.lessonActivityId,
+          questionIds,
+          questionId: questionIds[0],
+          questionCount: questionIds.length || 1,
+          quizName,
+          questionText: question.quesText,
+        };
+        markerByKey.set(key, {
+          ...item,
+          timestamp,
+          timestampLabel: this.formatTimestampLabel(seconds),
+          timestampSeconds: seconds,
+          quizCount: 1,
+          items: [item],
+        });
+      }
+    }
+
+    return Array.from(markerByKey.values()).sort(
+      (a, b) => a.timestampSeconds - b.timestampSeconds || a.quizId - b.quizId,
+    );
   }
 
   async findOne(id: number, opts?: { transaction?: any }): Promise<Quiz> {

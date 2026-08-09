@@ -174,6 +174,26 @@ export class QuizzesController {
     return quizzes;
   }
 
+  @Get('lesson/:lessonId/timeline')
+  async findTimelineByLessonId(
+    @Param('lessonId') lessonId: string,
+    @Query('status') status?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const parsedLessonId = Number(lessonId);
+    const requester = this.parseRequester(userIdHeader, roleHeader);
+
+    await this.quizzesService.isQuizOwnerOrAdmin(requester, {
+      lessonId: parsedLessonId,
+    });
+
+    return this.quizzesService.findTimelineByLessonId(
+      parsedLessonId,
+      status,
+    );
+  }
+
   @Get('lesson/:lessonId')
   async findAllByLessonId(
     @Param('lessonId') lessonId: string,
