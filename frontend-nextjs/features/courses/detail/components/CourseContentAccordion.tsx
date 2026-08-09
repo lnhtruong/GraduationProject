@@ -39,26 +39,7 @@ export function CourseContentAccordion({
   const handleLessonClick = (lesson: Lesson) => {
     const isLocked = !isEnrolled && !lesson.isFree;
     if (isLocked) {
-      toast.info("Bạn cần đăng ký khoá học để xem bài học này.", {
-        action: {
-          label: "Đăng ký ngay",
-          onClick: () => {
-            const ctas = Array.from(
-              document.querySelectorAll<HTMLElement>("[data-course-enroll-cta]"),
-            );
-            const target =
-              ctas.find((element) => element.getClientRects().length > 0) ??
-              ctas[0];
-
-            if (target) {
-              target.scrollIntoView({ behavior: "smooth", block: "center" });
-              return;
-            }
-
-            router.push(`/courses/${courseId}#course-enroll-cta`);
-          },
-        },
-      });
+      toast.info("Bạn cần đăng ký khoá học để xem bài học này.");
       return;
     }
     router.push(`/courses/${courseId}/learn?lessonId=${lesson.id}`);
