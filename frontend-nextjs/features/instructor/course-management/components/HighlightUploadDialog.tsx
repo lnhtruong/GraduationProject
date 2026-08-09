@@ -94,13 +94,18 @@ export function HighlightUploadDialog({
     stage,
     progressPercent,
     jobType,
+    sourceVideoId,
+    sourceVideoUrl,
+    startFileUpload,
     startUpload,
     startFromExistingVideo,
     ensureProjectForClip,
     cancel,
+    reset,
   } = upload;
 
   const [sourceMode, setSourceMode] = React.useState<SourceMode>("file");
+  const [paramsCanSubmit, setParamsCanSubmit] = React.useState(false);
   // Thời lượng nguồn để báo giá credit. Video đã có sẵn duration trong DB;
   // file mới thì phải tự đọc ở client.
   const [fileDurationSec, setFileDurationSec] = React.useState<
@@ -177,7 +182,19 @@ export function HighlightUploadDialog({
       ? fileDurationSec
       : (selectedExistingVideo?.duration ?? undefined);
 
-  const { blocked: quotaBlocked } = useQuotaCost(
+  // Segment Selection Picker (specs/002-highlight-segment-picker-ui): needs a
+  // real video_id. "existing-video" already has one the instant a lesson
+  // video card is picked (no upload needed); "file" only gets one once the
+  // pre-upload (ADR 0002, triggered below in the FilePreview onUpload
+  // handler) resolves.
+  const highlightVideoId =
+    sourceMode === "file" ? sourceVideoId : (selectedExistingVideo?.id ?? null);
+  const highlightVideoUrl =
+    sourceMode === "file"
+      ? sourceVideoUrl
+      : (selectedExistingVideo?.url ?? null);
+
+  const { cost: quotaCost, blocked: quotaBlocked } = useQuotaCost(
     "highlight",
     sourceDurationSec,
   );
@@ -185,6 +202,7 @@ export function HighlightUploadDialog({
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
     setShowForm(false);
+    setParamsCanSubmit(false);
   };
 
   const handleFormSubmit = (params: HighlightParams) => {
@@ -204,22 +222,32 @@ export function HighlightUploadDialog({
         selectedExistingVideo.url,
         params,
         sourceDurationSec,
+        selectedExistingVideo.id,
       );
     }
     setShowForm(false);
+    setParamsCanSubmit(false);
   };
 
   const handleRemoveFile = () => {
     cancel();
     setShowForm(false);
+    setParamsCanSubmit(false);
   };
 
   const handleStartNew = () => {
     cancel();
     setShowForm(false);
+    setParamsCanSubmit(false);
     setSelectedExistingVideoId(null);
     setExistingVideoQuery("");
     setSourceMode("file");
+  };
+
+  const handleRefineCriteria = () => {
+    reset();
+    setParamsCanSubmit(false);
+    setShowForm(true);
   };
 
   const handleEditClip = async (clip: (typeof clips)[number]) => {
@@ -251,8 +279,12 @@ export function HighlightUploadDialog({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const isProcessing =
-    status === "uploading" || status === "pending" || status === "processing";
+  // ADR 0002 (see GraduationProject docs/adr): "uploading" now only ever
+  // means the pre-upload phase (started when the file is confirmed, while
+  // HighlightParamsForm is shown) — startUpload's submit phase goes
+  // straight to "pending". Must NOT count as "processing" here either,
+  // same fix as features/upload/index.tsx.
+  const isProcessing = status === "pending" || status === "processing";
   const isCompleted = status === "completed" && clips.length > 0;
   const isFailed = status === "failed";
   const showSourceSwitcher =
@@ -268,7 +300,7 @@ export function HighlightUploadDialog({
       ? "h-[88dvh] !w-[92vw] !max-w-[1120px] max-sm:h-[94dvh]"
       : isFilePickerMode
         ? "h-auto !w-[90vw] !max-w-[980px] max-sm:max-h-[calc(100dvh-1rem)]"
-        : "h-[82dvh] !w-[90vw] !max-w-[980px] max-sm:h-[94dvh]";
+        : "h-[calc(100dvh-40px)] !w-[min(1060px,calc(100vw-48px))] !max-w-[1060px] max-sm:h-[94dvh] max-sm:!w-[calc(100vw-1rem)]";
 
   return (
     <Dialog
@@ -292,14 +324,13 @@ export function HighlightUploadDialog({
             <DialogTitle className="text-xl font-bold">
               Tạo highlight cho feed
             </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Chọn file hoặc video bài học đã upload, đặt tiêu chí cắt rồi lưu
-              kết quả vào thư viện feed.
+            <DialogDescription className="space-y-1 text-sm text-muted-foreground">
+              <span className="block">Chọn file hoặc video bài học đã upload, đặt tiêu chí rồi lưu kết quả vào thư viện feed.</span>
             </DialogDescription>
             <DialogClose asChild>
               <button
                 type="button"
-                className="absolute right-5 top-4 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute right-4 top-3.5 inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Đóng"
               >
                 <X className="h-4 w-4" />
@@ -307,7 +338,7 @@ export function HighlightUploadDialog({
             </DialogClose>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 pb-5 sm:px-5">
             {showSourceSwitcher && (
               <Tabs
                 value={sourceMode}
@@ -338,8 +369,14 @@ export function HighlightUploadDialog({
 
                 <TabsContent value="existing-video" className="mt-3">
                   <div className="space-y-3">
-                    <div className="flex justify-end">
-                      <div className="relative w-full min-w-0 md:max-w-[22rem]">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold">Chọn video bài học</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {filteredLessonVideos.length} video khả dụng trong thư viện bài học.
+                        </p>
+                      </div>
+                      <div className="relative w-full min-w-0 sm:max-w-[22rem]">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           value={existingVideoQuery}
@@ -351,7 +388,6 @@ export function HighlightUploadDialog({
                         />
                       </div>
                     </div>
-
                     {selectedExistingVideo ? (
                       <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
                         <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -502,7 +538,13 @@ export function HighlightUploadDialog({
                 <FilePreview
                   file={file}
                   onRemove={handleRemoveFile}
-                  onUpload={() => setShowForm(true)}
+                  onUpload={() => {
+                    // ADR 0002: start the Bunny upload now, in parallel with
+                    // the params form, instead of waiting for form submit —
+                    // so video_id is available while the form is still open.
+                    void startFileUpload(file);
+                    setShowForm(true);
+                  }}
                   isUploading={false}
                 />
               )}
@@ -524,10 +566,18 @@ export function HighlightUploadDialog({
                 noCard={true}
                 compact
                 hideActions
+                isUploadingSource={sourceMode === "file" && status === "uploading"}
+                uploadProgress={sourceMode === "file" ? progress : null}
+                uploadError={
+                  sourceMode === "file" && status === "failed" ? error : null
+                }
+                videoId={highlightVideoId}
+                videoUrl={highlightVideoUrl}
+                onCanSubmitChange={setParamsCanSubmit}
               />
             )}
 
-            {(isProcessing || isCompleted || isFailed) && (
+            {(isProcessing || isCompleted || (isFailed && !showForm)) && (
               <UploadProgress
                 progress={progress}
                 status={status}
@@ -540,6 +590,7 @@ export function HighlightUploadDialog({
                 jobType={jobType}
                 onViewResults={handleViewResults}
                 onStartNew={handleStartNew}
+                onRefineCriteria={handleRefineCriteria}
                 onClose={() => onOpenChange(false)}
               />
             )}
@@ -550,6 +601,7 @@ export function HighlightUploadDialog({
                 isVisible={isCompleted}
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
+                onRefineCriteria={handleRefineCriteria}
               />
             </div>
           </div>
@@ -569,10 +621,10 @@ export function HighlightUploadDialog({
                   <Button
                     type="submit"
                     form={HIGHLIGHT_PARAMS_FORM_ID}
-                    disabled={quotaBlocked}
+                    disabled={quotaBlocked || !paramsCanSubmit}
                     className="h-10 flex-1 px-5 text-xs font-semibold shadow-sm"
                   >
-                    Tạo highlight
+                    Tạo highlight{quotaCost ? ` · ${quotaCost} credit` : ""}
                   </Button>
                 </div>
               ) : isVideoPickerMode ? (
@@ -586,7 +638,7 @@ export function HighlightUploadDialog({
                       "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 opacity-100 hover:bg-slate-100 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted",
                   )}
                 >
-                  Chọn cách cắt highlight
+                  Tiếp tục thiết lập highlight
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : null}

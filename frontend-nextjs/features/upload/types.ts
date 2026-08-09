@@ -47,10 +47,37 @@ export interface HighlightParams {
   excludeKeywords: string[];
   isMultiOutput?: boolean;
   isOpenAI?: boolean;
+  keepRanges?: SegmentRangePayload[];
+  removeRanges?: SegmentRangePayload[];
+}
+
+// ============================================================================
+// SEGMENT SELECTION PICKER (keep/remove subtitle segments)
+// ============================================================================
+
+/** One entry from a video's SRT, identified by its 1-based block index. */
+export interface SubtitleLine {
+  index: number;
+  startSec: number;
+  endSec: number;
+  text: string;
+}
+
+export type SegmentMarkState = "keep" | "remove";
+
+/** index -> mark. Absent key == neutral (unmarked). */
+export type SegmentSelectionState = Map<number, SegmentMarkState>;
+
+/** Wire shape sent to /highlight-reel-link as keep_ranges/remove_ranges. */
+export interface SegmentRangePayload {
+  start_index: number;
+  end_index: number;
 }
 
 export interface UploadHookReturn extends UploadState {
   setFile: (file: File | null) => void;
+  /** Upload-only phase (ADR 0002) — kicks off as soon as the file is confirmed. */
+  startFileUpload: (file: File) => Promise<void>;
   startUpload: (
     file: File,
     params: HighlightParams,
@@ -60,6 +87,7 @@ export interface UploadHookReturn extends UploadState {
     videoUrl: string,
     params: HighlightParams,
     durationSec?: number,
+    videoId?: number | null,
   ) => Promise<void>;
   ensureProjectForClip: (clip: Clip) => Promise<{
     projectId: number;
@@ -81,4 +109,6 @@ export interface HighlightReelLinkParams {
   isOpenAI?: boolean;
   /** Thời lượng video nguồn, giây. Dùng để backend tính credit quota. */
   durationSec?: number | null;
+  keepRanges?: SegmentRangePayload[];
+  removeRanges?: SegmentRangePayload[];
 }

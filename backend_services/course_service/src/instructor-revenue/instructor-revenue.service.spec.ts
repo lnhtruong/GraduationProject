@@ -7,16 +7,19 @@ describe('InstructorRevenueService', () => {
   let query: jest.Mock;
   let courseModel: { findOne: jest.Mock };
   let transactionItemModel: { findAll: jest.Mock };
+  let userModel: { findAll: jest.Mock };
   let service: InstructorRevenueService;
 
   beforeEach(() => {
     query = jest.fn();
     courseModel = { findOne: jest.fn() };
     transactionItemModel = { findAll: jest.fn() };
+    userModel = { findAll: jest.fn().mockResolvedValue([]) };
     service = new InstructorRevenueService(
       { query } as any,
       courseModel as any,
       transactionItemModel as any,
+      userModel as any,
     );
   });
 
@@ -224,6 +227,10 @@ describe('InstructorRevenueService', () => {
       id: 10,
       name: 'Course A',
     });
+    userModel.findAll.mockResolvedValueOnce([
+      { id: 31, firstName: 'Minh', lastName: 'Nguyen', email: 'minh@example.com' },
+      { id: 32, firstName: 'An', lastName: 'Tran', email: 'an@example.com' },
+    ]);
     transactionItemModel.findAll.mockResolvedValueOnce([
       {
         id: 101,
@@ -270,6 +277,7 @@ describe('InstructorRevenueService', () => {
           transactionItemId: 101,
           transactionId: 501,
           buyerUserId: 31,
+          buyerName: 'Nguyen Minh',
           price: 150000,
           paidAt: '2026-05-12 10:30:00',
           provider: 'payos',
@@ -280,6 +288,7 @@ describe('InstructorRevenueService', () => {
           transactionItemId: 102,
           transactionId: 502,
           buyerUserId: 32,
+          buyerName: 'Tran An',
           price: 200000,
           paidAt: '2026-05-13 09:00:00',
           provider: 'payos',
@@ -322,6 +331,10 @@ describe('InstructorRevenueService', () => {
       id: 10,
       name: 'Course A',
     });
+    userModel.findAll.mockResolvedValueOnce([
+      { id: 31, firstName: 'Minh', lastName: 'Nguyen', email: 'minh@example.com' },
+      { id: 32, firstName: 'An', lastName: 'Tran', email: 'an@example.com' },
+    ]);
     transactionItemModel.findAll.mockResolvedValueOnce([]);
 
     try {

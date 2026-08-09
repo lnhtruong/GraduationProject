@@ -16,6 +16,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   useCourseStatsOverview,
@@ -59,7 +60,7 @@ function PeriodSelector({
   onChange: (v: StatPeriod) => void;
 }) {
   return (
-    <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5">
+    <div className="flex items-center rounded-lg bg-muted/35 p-0.5">
       {PERIOD_OPTIONS.map((opt) => (
         <button
           key={opt.value}
@@ -223,7 +224,7 @@ export default function AnalyticsPage() {
     : 0;
 
   function formatVND(amount: number): string {
-    return `${amount.toLocaleString("vi-VN")}đ`;
+    return `${amount.toLocaleString("vi-VN")} ₫`;
   }
 
   const globalLoading = courseLoading || feedLoading || revenueLoading;
@@ -250,8 +251,10 @@ export default function AnalyticsPage() {
       valueClass: "text-blue-600 dark:text-blue-400",
     },
     {
-      label: "Doanh thu tháng này",
-      value: revenueLoading ? "—" : formatVND(revenueSummary?.thisMonth ?? 0),
+      label: "Thu nhập tháng này",
+      value: revenueLoading
+        ? "—"
+        : formatVND(revenueSummary?.thisMonthNetRevenue ?? revenueSummary?.thisMonth ?? 0),
       icon: DollarSign,
       iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
       iconColor: "text-emerald-600 dark:text-emerald-400",
@@ -283,10 +286,11 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-5">
       {/* ── Hero banner ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-        <div className="relative px-6 py-6">
+      <Card className="relative overflow-hidden rounded-2xl border-border/50 bg-card shadow-xs">
+        <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
+        <CardContent className="relative space-y-5 p-5 sm:p-6">
           {/* Title row */}
-          <div className="mb-5 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25">
               <BarChart3 className="h-5 w-5 text-primary" />
             </div>
@@ -299,29 +303,35 @@ export default function AnalyticsPage() {
           </div>
 
           {/* KPI cards */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-6 lg:grid-cols-5">
             {globalLoading
               ? Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border/60 bg-background shadow-sm">
+                  <div
+                    key={i}
+                    className={`rounded-xl border border-border/60 bg-background shadow-sm ${
+                      i < 3 ? "sm:col-span-2 lg:col-span-1" : "sm:col-span-3 lg:col-span-1"
+                    } ${i === 4 ? "col-span-2" : ""}`}
+                  >
                     <SummaryCardSkeleton />
                   </div>
                 ))
-              : kpiItems.map((item) => (
+              : kpiItems.map((item, index) => (
                   <div
                     key={item.label}
-                    className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm border-t-2 ${item.topBorderClass}`}
+                    className={`overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm border-t-2 ${item.topBorderClass} ${
+                      index < 3 ? "sm:col-span-2 lg:col-span-1" : "sm:col-span-3 lg:col-span-1"
+                    } ${index === 4 ? "col-span-2" : ""}`}
                   >
                     <SummaryCard {...item} />
                   </div>
                 ))}
           </div>
-        </div>
-      </div>
-
+        </CardContent>
+      </Card>
       {activeTab === "revenue" ? (
         <div id="analytics-revenue-toolbar-slot" />
       ) : (
-        <div className="rounded-xl border border-border/60 bg-background p-3 shadow-xs">
+        <div className="rounded-lg bg-transparent px-1 py-1">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 gap-2">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -342,31 +352,31 @@ export default function AnalyticsPage() {
         {/* Tab bar */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="w-full lg:w-auto">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-background p-1 shadow-xs lg:inline-flex lg:w-auto lg:items-center">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-muted/35 p-1 md:grid-cols-4 lg:inline-flex lg:w-auto lg:items-center">
               <TabsTrigger
                 value="courses"
-                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+                className="h-10 min-w-0 justify-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
               >
                 <BookOpen className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap">Khóa học</span>
               </TabsTrigger>
               <TabsTrigger
                 value="feed"
-                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+                className="h-10 min-w-0 justify-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
               >
                 <TrendingUp className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap">Feed</span>
               </TabsTrigger>
               <TabsTrigger
                 value="trending"
-                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+                className="h-10 min-w-0 justify-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
               >
                 <Flame className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap">Trending</span>
               </TabsTrigger>
               <TabsTrigger
                 value="revenue"
-                className="h-10 min-w-0 gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
+                className="h-10 min-w-0 justify-center gap-2 rounded-lg px-2 text-sm font-semibold text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm lg:h-9 lg:shrink-0 lg:px-3"
               >
                 <DollarSign className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap">Thu nhập</span>

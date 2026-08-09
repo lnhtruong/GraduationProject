@@ -1,4 +1,11 @@
 import { authStorageHelper } from "@/store/auth";
+import type { SegmentRangePayload } from "../types";
+
+// Fixed target used only when keep/remove segment marks are present — see
+// specs/002-highlight-segment-picker-ui/research.md ("target_min/target_max:
+// no new form field, fixed constants instead") in the colab2 repo.
+const SEGMENT_SELECTION_TARGET_MIN = 150;
+const SEGMENT_SELECTION_TARGET_MAX = 180;
 
 export type HighlightReelLinkPayload = {
   video_url: string;
@@ -11,6 +18,10 @@ export type HighlightReelLinkPayload = {
   isOpenAI: string;
   isMultiOutput: string;
   duration_sec?: string;
+  keep_ranges?: SegmentRangePayload[];
+  remove_ranges?: SegmentRangePayload[];
+  target_min?: number;
+  target_max?: number;
 };
 
 export function buildHighlightReelLinkPayload(params: {
@@ -24,6 +35,8 @@ export function buildHighlightReelLinkPayload(params: {
   isMultiOutput?: boolean;
   isOpenAI?: boolean;
   durationSec?: number | null;
+  keepRanges?: SegmentRangePayload[];
+  removeRanges?: SegmentRangePayload[];
 }): HighlightReelLinkPayload {
   const videoUrl = params.videoUrl.trim();
   let userIdVal = params.userId;
@@ -51,6 +64,14 @@ export function buildHighlightReelLinkPayload(params: {
     // Thời lượng để backend tính credit quota. Thiếu → backend tính hệ số ×1.
     ...(params.durationSec && params.durationSec > 0
       ? { duration_sec: String(Math.round(params.durationSec)) }
+      : {}),
+    ...(params.keepRanges?.length || params.removeRanges?.length
+      ? {
+          keep_ranges: params.keepRanges ?? [],
+          remove_ranges: params.removeRanges ?? [],
+          target_min: SEGMENT_SELECTION_TARGET_MIN,
+          target_max: SEGMENT_SELECTION_TARGET_MAX,
+        }
       : {}),
   };
 }

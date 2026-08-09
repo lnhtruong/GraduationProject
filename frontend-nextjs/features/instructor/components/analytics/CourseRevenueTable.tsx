@@ -9,10 +9,7 @@ import type { CourseRevenueSummary } from "../../revenue/types";
 import { TransactionItemsDrawer } from "./TransactionItemsDrawer";
 
 function formatVND(amount: number): string {
-  if (amount >= 1_000_000)
-    return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}tr ₫`;
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)}k ₫`;
-  return `${amount.toLocaleString("vi-VN")} ₫`;
+  return `${Math.round(amount).toLocaleString("vi-VN")} ₫`;
 }
 
 const THUMB_COLORS = [
@@ -41,12 +38,12 @@ function CourseThumb({
 }) {
   if (thumbnailUrl) {
     return (
-      <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded-md">
+      <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md lg:h-9 lg:w-16">
         <Image
           src={thumbnailUrl}
           alt={courseName}
           fill
-          sizes="64px"
+          sizes="(max-width: 1023px) 80px, 64px"
           className="object-cover"
         />
       </div>
@@ -54,7 +51,7 @@ function CourseThumb({
   }
   return (
     <div
-      className={`flex h-9 w-16 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white ${courseColor(courseId)}`}
+      className={`flex h-12 w-20 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white lg:h-9 lg:w-16 ${courseColor(courseId)}`}
     >
       {courseName.charAt(0).toUpperCase()}
     </div>
@@ -73,7 +70,7 @@ function RatingBadge({ value }: { value: number | null | undefined }) {
   );
 }
 
-type SortKey = "allTime" | "enrollCount";
+type SortKey = "allTime" | "netRevenue" | "enrollCount";
 type SortDir = "asc" | "desc";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -118,7 +115,7 @@ interface Props {
 }
 
 export function CourseRevenueTable({ from, to, allCourses }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("allTime");
+  const [sortKey, setSortKey] = useState<SortKey>("netRevenue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [drawerCourse, setDrawerCourse] = useState<{ courseId: number; courseName: string } | null>(null);
 
@@ -142,11 +139,12 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
       <div className="divide-y divide-border/40">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
-            <Skeleton className="h-9 w-16 rounded-md" />
-            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-12 w-20 rounded-md lg:h-9 lg:w-16" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
             <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-4 w-10" />
           </div>
         ))}
       </div>
@@ -160,14 +158,25 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
       const ranged = rangedMap.get(base.courseId);
       return ranged
         ? { ...base, ...ranged }
-        : { ...base, allTime: 0, enrollCount: 0, growthPercent: null };
+        : {
+            ...base,
+            allTime: 0,
+            platformFeeAmount: 0,
+            withholdingBaseAmount: 0,
+            vatAmount: 0,
+            pitAmount: 0,
+            taxAmount: 0,
+            netRevenue: 0,
+            enrollCount: 0,
+            growthPercent: null,
+          };
     });
   } else {
     displayCourses = [...allCourses];
   }
 
   const sorted = [...displayCourses].sort((a, b) => {
-    const diff = a[sortKey] - b[sortKey];
+    const diff = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
     return sortDir === "desc" ? -diff : diff;
   });
 
@@ -180,19 +189,71 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
     );
   }
 
-  const maxRevenue = Math.max(...sorted.map((c) => c.allTime), 1);
+  const maxRevenue = Math.max(...sorted.map((c) => c.netRevenue ?? c.allTime), 1);
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-border/35 lg:hidden">
+        {sorted.map((course) => {
+          const netRevenue = course.netRevenue ?? course.allTime;
+          const platformFee = course.platformFeeAmount ?? 0;
+          const vatAmount = course.vatAmount ?? 0;
+          const pitAmount = course.pitAmount ?? 0;
+          const pct = maxRevenue > 0 ? (netRevenue / maxRevenue) * 100 : 0;
+          return (
+            <button
+              key={course.courseId}
+              type="button"
+              onClick={() => setDrawerCourse({ courseId: course.courseId, courseName: course.courseName })}
+              className="block w-full px-4 py-3 text-left transition-colors hover:bg-muted/20"
+            >
+              <div className="flex gap-3">
+                <CourseThumb
+                  courseId={course.courseId}
+                  courseName={course.courseName}
+                  thumbnailUrl={course.thumbnailUrl}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2">
+                    <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground">
+                      {course.courseName}
+                    </p>
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />
+                  </div>
+                  <p className="mt-1 text-lg font-bold tabular-nums text-primary">
+                    {formatVND(netRevenue)}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{course.enrollCount} học viên</span>
+                    <span>·</span>
+                    <RatingBadge value={course.avgRating} />
+                  </div>
+                  <p className="mt-1.5 text-xs leading-5 text-muted-foreground/70">
+                    Doanh thu {formatVND(course.allTime)} · Phí {formatVND(platformFee)}<br />
+                    GTGT {formatVND(vatAmount)} · TNCN {formatVND(pitAmount)}
+                  </p>
+                  <div className="mt-2 h-1 rounded-full bg-muted/50">
+                    <div
+                      className="h-1 rounded-full bg-primary/50"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/40">
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                 Khoá học
               </th>
-              <Th sortKey="allTime" current={sortKey} dir={sortDir} onSort={handleSort}>
-                Doanh thu
+              <Th sortKey="netRevenue" current={sortKey} dir={sortDir} onSort={handleSort}>
+                Tạm thực nhận
               </Th>
               <Th sortKey="enrollCount" current={sortKey} dir={sortDir} onSort={handleSort}>
                 Học viên
@@ -205,8 +266,12 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
           </thead>
           <tbody>
             {sorted.map((course) => {
-              const isZero = course.allTime === 0;
-              const pct = maxRevenue > 0 ? (course.allTime / maxRevenue) * 100 : 0;
+              const netRevenue = course.netRevenue ?? course.allTime;
+              const platformFee = course.platformFeeAmount ?? 0;
+              const vatAmount = course.vatAmount ?? 0;
+              const pitAmount = course.pitAmount ?? 0;
+              const isZero = netRevenue === 0;
+              const pct = maxRevenue > 0 ? (netRevenue / maxRevenue) * 100 : 0;
               return (
                 <tr
                   key={course.courseId}
@@ -234,7 +299,10 @@ export function CourseRevenueTable({ from, to, allCourses }: Props) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    <span className="font-semibold">{formatVND(course.allTime)}</span>
+                    <span className="font-semibold text-primary">{formatVND(netRevenue)}</span>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/60">
+                      Doanh thu {formatVND(course.allTime)} · Phí {formatVND(platformFee)}<br />GTGT {formatVND(vatAmount)} · TNCN {formatVND(pitAmount)}
+                    </p>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                     {course.enrollCount}

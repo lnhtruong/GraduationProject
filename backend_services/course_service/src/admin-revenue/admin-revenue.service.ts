@@ -292,7 +292,10 @@ export class AdminRevenueService {
     const { rows, count } = await this.transactionModel.findAndCountAll({
       where,
       include: [{ model: TransactionItem, as: 'items', attributes: ['id'] }],
-      order: [['id', 'DESC']],
+      order: [
+        ['createdAt', 'DESC'],
+        ['id', 'DESC'],
+      ],
       limit,
       offset,
       distinct: true,
