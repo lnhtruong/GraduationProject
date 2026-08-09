@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CourseHeroSection } from "./components/CourseHeroSection";
@@ -24,28 +24,40 @@ import { ROLES } from "@/lib/roles";
 
 function DescriptionSection({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const safeDescription = useMemo(() => sanitizeHtml(text), [text]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setCanExpand(el.scrollHeight > el.clientHeight + 1);
+  }, [safeDescription]);
+
   if (!text) return null;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold">Mô tả khoá học</h2>
       <div className="relative">
         <div
+          ref={contentRef}
           className={`whitespace-pre-line text-sm leading-relaxed text-muted-foreground ${
             expanded ? "" : "line-clamp-5"
           }`}
           dangerouslySetInnerHTML={{ __html: safeDescription }}
         />
-        {!expanded && (
+        {!expanded && canExpand && (
           <div className="pointer-events-none absolute bottom-0 h-12 w-full bg-gradient-to-t from-background to-transparent" />
         )}
       </div>
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        className="mt-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-      >
-        {expanded ? "Thu gọn ▲" : "Xem thêm ▼"}
-      </button>
+      {canExpand && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+        >
+          {expanded ? "Thu gọn ▲" : "Xem thêm ▼"}
+        </button>
+      )}
     </section>
   );
 }

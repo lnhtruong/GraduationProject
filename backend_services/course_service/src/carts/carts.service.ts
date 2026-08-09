@@ -119,7 +119,7 @@ export class CartsService {
       include: [
         {
           model: Course,
-          attributes: ['id', 'name', 'price', 'level', 'duration', 'userId'],
+          attributes: ['id', 'name', 'price', 'level', 'duration', 'userId', 'thumbnailUrl'],
           include: [
             {
               model: Video,
