@@ -317,7 +317,7 @@ export default function AdminCoursesPage() {
         <TabsList className="h-9 rounded-lg bg-muted/50 p-0.5">
           <TabsTrigger value="courses" className="h-8 gap-2 rounded-md px-4 text-sm">
             <BookCheck className="h-3.5 w-3.5" />
-            Duyệt yêu cầu xuất bản
+            Duyệt khoá học
           </TabsTrigger>
           <TabsTrigger value="change-requests" className="h-8 gap-2 rounded-md px-4 text-sm">
             <FileEdit className="h-3.5 w-3.5" />
