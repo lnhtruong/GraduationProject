@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useReviewChangeRequest } from "../../api/admin-change-requests.hooks";
 import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, HTML_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
 import { VideoDiffPreview } from "./VideoDiffPreview";
@@ -324,9 +325,7 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
                     Giảng viên
                   </p>
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                      {instructorName[0]?.toUpperCase() ?? "?"}
-                    </div>
+                    <UserAvatar user={request.requester} className="h-8 w-8 shrink-0" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{instructorName}</p>
                       {instructorEmail && (
