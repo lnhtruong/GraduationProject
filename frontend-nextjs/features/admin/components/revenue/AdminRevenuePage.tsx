@@ -62,7 +62,7 @@ export default function AdminRevenuePage() {
 
   const summaryQ = useAdminRevenueSummary();
   const timeseriesQ = useAdminRevenueTimeseries({ granularity, from, to });
-  const categoryQ = useAdminRevenueByCategory(from, to);
+  const categoryQ = useAdminRevenueByCategory();
   const txQ = useAdminRevenueTransactions({ limit: 10, page: 1 });
 
   const summary = summaryQ.data;

@@ -224,13 +224,19 @@ export class AdminRevenueService {
 
   // ── Revenue by category (extended) ────────────────────────────────────────
   async getByCategory(fromValue?: string, toValue?: string) {
-    const range = this.parseDateRange(fromValue, toValue);
-    const toExclusive = this.addUtcDays(range.to, 1);
-    const replacements = {
-      from: this.formatSqlDateTime(range.from),
-      toExclusive: this.formatSqlDateTime(toExclusive),
+    const hasDateFilter = Boolean(fromValue || toValue);
+    const replacements: Record<string, unknown> = {
       publishedStatus: CourseStatus.PUBLISH,
     };
+    let dateCondition = '';
+
+    if (hasDateFilter) {
+      const range = this.parseDateRange(fromValue, toValue);
+      const toExclusive = this.addUtcDays(range.to, 1);
+      replacements.from = this.formatSqlDateTime(range.from);
+      replacements.toExclusive = this.formatSqlDateTime(toExclusive);
+      dateCondition = 'AND t.paid_at >= :from AND t.paid_at < :toExclusive';
+    }
 
     const rows = await this.sequelize.query<Record<string, unknown>>(
       `
@@ -243,7 +249,7 @@ export class AdminRevenueService {
         INNER JOIN courses c
           ON c.id = ti.course_id
           AND c.status = :publishedStatus
-        WHERE t.paid_at >= :from AND t.paid_at < :toExclusive
+        WHERE 1=1 ${dateCondition}
       `,
       { type: QueryTypes.SELECT, replacements },
     );
