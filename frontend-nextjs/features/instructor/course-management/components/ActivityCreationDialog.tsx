@@ -647,12 +647,18 @@ export function ActivityCreationDialog({
         <div className="flex h-full min-h-0 flex-col">
           <DialogHeader className="sticky top-0 z-20 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-4 py-4 pr-14 text-left sm:px-6 sm:pr-16">
             <DialogTitle className="text-xl font-bold">
-              {view === "review" ? "Duyệt câu hỏi" : "Tạo hoạt động mới"}
+              {view === "review"
+                ? "Duyệt câu hỏi"
+                : activityTab === "assignment"
+                  ? "Tạo bài tập mới"
+                  : "Tạo bài kiểm tra mới"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
               {view === "review"
                 ? "Kiểm tra và chỉnh lại câu hỏi trước khi áp dụng vào bài học."
-                : "Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học."}
+                : activityTab === "assignment"
+                  ? "Tạo bài tập cho bài học hiện tại. Hệ thống sẽ tạo một biểu mẫu nộp bài để học viên gửi bài làm của mình."
+                  : "Thiết lập bộ câu hỏi cho bài kiểm tra, tích hợp trong timeline video hoặc sau bài học."}
             </DialogDescription>
             <Button
               type="button"

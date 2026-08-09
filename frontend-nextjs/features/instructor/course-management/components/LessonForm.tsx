@@ -586,9 +586,9 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         >
           <div className="flex h-full min-h-0 flex-col">
             <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-linear-to-r from-background to-muted/20 px-5 py-4 pr-12 text-left relative">
-              <DialogTitle className="text-xl font-bold">Tạo hoạt động mới</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Tạo bài kiểm tra mới</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground/80 mt-1">
-                Thiết lập bộ câu hỏi kiểm tra tích hợp trong timeline video hoặc sau bài học.
+                Thiết lập bộ câu hỏi cho bài kiểm tra, tích hợp trong timeline video hoặc sau bài học.
               </DialogDescription>
               <Button
                 variant="ghost"

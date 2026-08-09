@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   notificationKeys,
   useBulkUpdateNotifications,
@@ -614,9 +615,16 @@ export function NotificationBell({ className }: { className?: string }) {
                                       </p>
 
                                       {notification.message ? (
-                                        <p className="line-clamp-2 text-sm text-muted-foreground">
-                                          {notification.message}
-                                        </p>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <p className="line-clamp-2 text-sm text-muted-foreground">
+                                              {notification.message}
+                                            </p>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="bottom" className="max-w-xs text-wrap">
+                                            {notification.message}
+                                          </TooltipContent>
+                                        </Tooltip>
                                       ) : null}
 
                                       <p className="pt-1 text-[11px] font-medium text-muted-foreground/70">
