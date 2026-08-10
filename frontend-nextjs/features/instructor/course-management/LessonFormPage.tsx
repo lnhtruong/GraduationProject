@@ -15,6 +15,7 @@ import {
   useLessonById,
   useUpdateLesson,
 } from "./api/course-management.hooks";
+import { isCourseChangeRequestResult } from "./api/course-management.api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { InstructorCourse } from "./types";
 import type { LessonFormVideoContext } from "./utils/draft-video.utils";
@@ -31,6 +32,10 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
   const { user } = useAuth();
 
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
+  const [lessonFormState, setLessonFormState] = useState({
+    isDirty: false,
+    isSubmitting: false,
+  });
   const [videoContext, setVideoContext] = useState<LessonFormVideoContext>({
     selectedVideoId: null,
     draftVideoBlobUrl: null,
@@ -142,6 +147,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
             type="submit"
             form="lesson-form"
             className="min-w-[120px] h-10 text-xs font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+            disabled={!lessonFormState.isDirty || lessonFormState.isSubmitting}
           >
             {isEdit ? "Lưu bài học" : "Tạo bài học"}
           </Button>
@@ -164,12 +170,19 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
         onRegisterQuizModalOpener={(fn) => {
           openQuizModalRef.current = fn;
         }}
+        onFormStateChange={setLessonFormState}
         onSave={async (payload) => {
           if (isEdit && lesson) {
             const updated = await updateLessonMutation.mutateAsync({
               id: lesson.id,
               data: payload,
             });
+            if (isCourseChangeRequestResult(updated)) {
+              await queryClient.invalidateQueries({
+                queryKey: instructorCourseKeys.detail(course.id),
+              });
+              return "change-request";
+            }
             queryClient.setQueryData<InstructorCourse>(
               instructorCourseKeys.detail(course.id),
               (previous) =>
@@ -192,6 +205,12 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
             ...payload,
             courseId,
           });
+          if (isCourseChangeRequestResult(created)) {
+            await queryClient.invalidateQueries({
+              queryKey: instructorCourseKeys.detail(course.id),
+            });
+            return "change-request";
+          }
           queryClient.setQueryData<InstructorCourse>(
             instructorCourseKeys.detail(course.id),
             (previous) =>

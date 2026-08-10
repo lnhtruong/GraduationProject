@@ -196,13 +196,28 @@ export class CoursesController {
   listChangeRequests(
     @Query('status') status?: string,
     @Query('kind') kind?: string,
+    @Query('courseId') courseId?: string,
+    @Query('requestedBy') requestedBy?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
   ) {
+    const requester = this.parseRequiredUserId(userIdHeader);
+    const role = Number(roleHeader);
+    const isAdmin = role === 1;
+    const scopedRequestedBy = isAdmin
+      ? requestedBy !== undefined
+        ? Number(requestedBy)
+        : undefined
+      : requester;
+
     return this.coursesService.listChangeRequests({
       status,
       kind,
+      courseId: courseId !== undefined ? Number(courseId) : undefined,
+      requestedBy: scopedRequestedBy,
       search,
       page: page !== undefined ? Number(page) : undefined,
       limit: limit !== undefined ? Number(limit) : undefined,
@@ -210,8 +225,32 @@ export class CoursesController {
   }
 
   @Get('change-requests/:requestId')
-  getChangeRequest(@Param('requestId', ParseIntPipe) requestId: number) {
-    return this.coursesService.getChangeRequest(requestId);
+  getChangeRequest(
+    @Param('requestId', ParseIntPipe) requestId: number,
+    @Headers('x-user-id') userIdHeader?: string,
+    @Headers('x-user-role') roleHeader?: string,
+  ) {
+    const requester = this.parseRequiredUserId(userIdHeader);
+    return this.coursesService.getChangeRequestForRequester(
+      requestId,
+      requester,
+      Number(roleHeader),
+    );
+  }
+
+  @Delete('change-requests/:requestId')
+  cancelChangeRequest(
+    @Param('requestId', ParseIntPipe) requestId: number,
+    @Headers('x-user-id') uid: string,
+    @Headers('x-user-role') role: string,
+    @Headers('x-forwarded-for') ff: string,
+    @Headers('user-agent') ua: string,
+  ) {
+    const requester = buildRequesterFromHeaders(uid, role, ff, ua);
+    if (!requester) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return this.coursesService.cancelChangeRequest(requestId, requester);
   }
 
   @Patch('change-requests/:requestId/review')

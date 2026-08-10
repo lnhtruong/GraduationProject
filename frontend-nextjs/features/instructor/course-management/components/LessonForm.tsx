@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { NotebookText, Clapperboard, X } from "lucide-react";
+import { NotebookText, Clapperboard, X, AlertTriangle } from "lucide-react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { lessonFormSchema } from "../schemas";
@@ -60,14 +60,15 @@ interface Props {
   lesson?: InstructorLesson | null;
   courseId: number;
   course?: InstructorCourse | null;
-  onSave?: (payload: LessonFormValues) => Promise<number | void>;
+  onSave?: (payload: LessonFormValues) => Promise<number | "change-request" | void>;
   onSaved?: () => void;
   onVideoContextChange?: (context: LessonFormVideoContext) => void;
   /** Callback to expose openQuizModal() so parent shell can trigger it from header */
   onRegisterQuizModalOpener?: (fn: () => void) => void;
+  onFormStateChange?: (state: { isDirty: boolean; isSubmitting: boolean }) => void;
 }
 
-export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextChange, onRegisterQuizModalOpener }: Props) {
+export function LessonForm({ lesson, courseId, course, onSave, onSaved, onVideoContextChange, onRegisterQuizModalOpener, onFormStateChange }: Props) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -92,6 +93,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
   );
   const [quizTimestamp, setQuizTimestamp] = useState("00:00:00.000");
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [confirmSubmitValues, setConfirmSubmitValues] = useState<LessonFormValues | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Expose openQuizModal to parent (shell header button)
   useEffect(() => {
@@ -128,6 +131,32 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     });
 
   const selectedVideoId = useWatch({ control, name: "videoId" }) ?? null;
+  const isDirty = formState.isDirty;
+  const isSubmitting = formState.isSubmitting || isSaving;
+  const willCreateChangeRequest =
+    course?.status === "publish" || course?.status === "approved";
+  const changeRequestCopy =
+    course?.status === "publish"
+      ? {
+          title: "Gửi bản chỉnh sửa bài học?",
+          description:
+            "Khóa học này đang mở cho học viên. Bài học hiện tại vẫn được giữ nguyên, còn phần bạn vừa sửa sẽ được gửi chờ duyệt trước khi cập nhật.",
+          action: "Gửi bản chỉnh sửa",
+          quizNote:
+            "Sau khi bản chỉnh sửa bài học được duyệt, hãy mở lại bài học để tạo hoặc cập nhật quiz.",
+        }
+      : {
+          title: "Gửi bản chỉnh sửa bài học?",
+          description:
+            "Khóa học này đã được duyệt và đang chờ xuất bản. Phần bạn vừa sửa sẽ được gửi duyệt lại để nội dung bài học luôn khớp trước khi xuất bản.",
+          action: "Gửi duyệt lại",
+          quizNote:
+            "Sau khi bản chỉnh sửa bài học được duyệt, hãy mở lại bài học để tạo hoặc cập nhật quiz.",
+        };
+
+  useEffect(() => {
+    onFormStateChange?.({ isDirty, isSubmitting });
+  }, [isDirty, isSubmitting, onFormStateChange]);
 
   const {
     data: userVideos,
@@ -385,7 +414,8 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
     }
   };
 
-  const onSubmit = async (values: LessonFormValues) => {
+  const saveLessonValues = async (values: LessonFormValues) => {
+    setIsSaving(true);
     try {
       const savedLessonId = await onSave?.({
         courseId: values.courseId,
@@ -404,6 +434,15 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
         videoId: values.videoId,
       });
 
+      if (savedLessonId === "change-request") {
+        if (pendingQuizStates.length > 0) {
+          toast.warning("Sau khi yêu cầu được duyệt, hãy mở lại bài học để tạo hoặc cập nhật quiz.");
+        }
+        onSaved?.();
+        toast.success("Đã gửi yêu cầu thay đổi, chờ admin duyệt");
+        return;
+      }
+
       if (typeof savedLessonId === "number" && pendingQuizStates.length > 0) {
         await savePendingQuizzes(savedLessonId, pendingQuizStates);
       }
@@ -412,11 +451,60 @@ export function LessonForm({ lesson, courseId, onSave, onSaved, onVideoContextCh
       toast.success(isEdit ? "Đã cập nhật bài học" : "Đã tạo bài học mới");
     } catch {
       toast.error("Không thể lưu bài học");
+    } finally {
+      setIsSaving(false);
     }
   };
+  const onSubmit = async (values: LessonFormValues) => {
+    if (willCreateChangeRequest) {
+      setConfirmSubmitValues(values);
+      return;
+    }
 
+    await saveLessonValues(values);
+  };
   return (
     <div className="w-full space-y-6">
+      <Dialog open={Boolean(confirmSubmitValues)} onOpenChange={(open) => !open && setConfirmSubmitValues(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {changeRequestCopy.title}
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-6">
+              {changeRequestCopy.description}
+            </DialogDescription>
+          </DialogHeader>
+          {pendingQuizStates.length > 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              {changeRequestCopy.quizNote}
+            </div>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => setConfirmSubmitValues(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                if (!confirmSubmitValues) return;
+                const values = confirmSubmitValues;
+                setConfirmSubmitValues(null);
+                void saveLessonValues(values);
+              }}
+            >
+              {isSubmitting ? "Đang gửi..." : changeRequestCopy.action}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Lesson Form Section */}
       <form id="lesson-form" onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
         {hasInvalidSavedQuizzes && (

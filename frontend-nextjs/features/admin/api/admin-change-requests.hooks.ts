@@ -12,11 +12,15 @@ const KEYS = {
     ["admin", "change-requests", "list", params] as const,
 };
 
-export function useAdminChangeRequests(params?: ChangeRequestListParams) {
+export function useAdminChangeRequests(
+  params?: ChangeRequestListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => adminChangeRequestsApi.listAll(params),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

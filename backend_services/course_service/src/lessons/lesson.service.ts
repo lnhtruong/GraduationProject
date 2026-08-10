@@ -120,6 +120,90 @@ export class LessonsService {
     };
   }
 
+  private parseDurationToMillis(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.max(0, Math.round(value * 1000));
+    }
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const match = trimmed.match(/^(\d{1,3}):([0-5]\d):([0-5]\d)(?:\.(\d{1,3}))?$/);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const seconds = Number(match[3]);
+      const millis = Number((match[4] ?? '0').padEnd(3, '0'));
+      return ((hours * 60 + minutes) * 60 + seconds) * 1000 + millis;
+    }
+
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? Math.max(0, Math.round(numeric * 1000)) : null;
+  }
+
+  private normalizeLessonDiffValue(field: string, value: unknown): unknown {
+    if (value === undefined) {
+      return null;
+    }
+    if (field === 'duration') {
+      return this.parseDurationToMillis(value);
+    }
+    if (field === 'courseId' || field === 'videoId') {
+      return value === null || value === undefined || value === '' ? null : Number(value);
+    }
+    if (['contentType', 'status', 'level', 'language'].includes(field)) {
+      return typeof value === 'string' ? value.trim().toLowerCase() : value ?? null;
+    }
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.normalizeJsonValue(item));
+    }
+    if (value && typeof value === 'object') {
+      return this.normalizeJsonValue(value);
+    }
+    return value ?? null;
+  }
+
+  private normalizeJsonValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.normalizeJsonValue(item));
+    }
+    if (value && typeof value === 'object') {
+      return Object.keys(value as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = this.normalizeJsonValue((value as Record<string, unknown>)[key]);
+          return acc;
+        }, {});
+    }
+    return value ?? null;
+  }
+
+  private lessonDiffValuesEqual(field: string, next: unknown, current: unknown): boolean {
+    const normalizedNext = this.normalizeLessonDiffValue(field, next);
+    const normalizedCurrent = this.normalizeLessonDiffValue(field, current);
+    return JSON.stringify(normalizedNext) === JSON.stringify(normalizedCurrent);
+  }
+
+  private diffAgainstLesson(
+    lesson: Lesson,
+    payload: LessonChangePayload,
+  ): LessonChangePayload {
+    const diffed: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      const current = lesson.get(key as keyof Lesson) ?? null;
+      if (!this.lessonDiffValuesEqual(key, value, current)) {
+        diffed[key] = value;
+      }
+    }
+    return diffed as LessonChangePayload;
+  }
   /** requestedBy bắt buộc khi tạo change request (cột requested_by NOT NULL). */
   private requireRequester(requester?: LessonRequester): number {
     const userId = requester?.userId;
@@ -256,7 +340,13 @@ export class LessonsService {
     // Course đã publish (và không phải admin) → tạo change request thay vì sửa
     // lesson trực tiếp.
     if (lesson.courseId && needsCR) {
-      const payload = { ...updateLessonDto } as LessonChangePayload;
+      const payload = this.diffAgainstLesson(
+        lesson,
+        { ...updateLessonDto } as LessonChangePayload,
+      );
+      if (Object.keys(payload).length === 0) {
+        return lesson;
+      }
       return await this.coursesService.createLessonChangeRequest({
         kind: CourseChangeRequestKind.LESSON_UPDATE,
         courseId: lesson.courseId,
@@ -266,7 +356,6 @@ export class LessonsService {
         requestedBy: this.requireRequester(requester),
       });
     }
-
     const updated = await lesson.update(updateLessonDto);
 
     if (updated.courseId) {

@@ -6,7 +6,7 @@ import {
   PlusCircle,
   PenLine,
   Trash2,
-  HelpCircle,
+
   Check,
   X,
   Loader2,
@@ -28,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useReviewChangeRequest } from "../../api/admin-change-requests.hooks";
-import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, HTML_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
+import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, HTML_DIFF_FIELDS, formatDiffValue, getDisplayChangeDiffs } from "./change-request-format";
 import { VideoDiffPreview } from "./VideoDiffPreview";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import type {
@@ -47,9 +47,6 @@ const KIND_CONFIG: Record<
   "lesson.create": { label: "Thêm bài học", icon: <PlusCircle className="h-3.5 w-3.5" />, colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" },
   "lesson.update": { label: "Sửa bài học", icon: <PenLine className="h-3.5 w-3.5" />, colorClass: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-800" },
   "lesson.delete": { label: "Xoá bài học", icon: <Trash2 className="h-3.5 w-3.5" />, colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
-  "quiz.create": { label: "Thêm quiz", icon: <PlusCircle className="h-3.5 w-3.5" />, colorClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800" },
-  "quiz.update": { label: "Sửa quiz", icon: <PenLine className="h-3.5 w-3.5" />, colorClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800" },
-  "quiz.delete": { label: "Xoá quiz", icon: <Trash2 className="h-3.5 w-3.5" />, colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
 };
 
 const STATUS_LABEL: Record<string, { label: string; colorClass: string }> = {
@@ -164,10 +161,10 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
   }
 
   if (kind === "lesson.create") {
-    const textDiffs = (changes ?? []).filter(
+    const textDiffs = getDisplayChangeDiffs(changes).filter(
       (c) => !NON_TEXT_DIFF_FIELDS.has(c.field) && !HTML_DIFF_FIELDS.has(c.field),
     );
-    const htmlDiffs = (changes ?? []).filter((c) => HTML_DIFF_FIELDS.has(c.field));
+    const htmlDiffs = getDisplayChangeDiffs(changes).filter((c) => HTML_DIFF_FIELDS.has(c.field));
     const lessonTitle = (changes ?? []).find((c) => c.field === "title")?.to as string | undefined;
     const contentType = (changes ?? []).find((c) => c.field === "contentType")?.to as string | undefined;
     const videoId = (changes ?? []).find((c) => c.field === "videoId")?.to as number | null | undefined;
@@ -206,7 +203,7 @@ function DiffSection({ request }: { request: CourseChangeRequest }) {
     );
   }
 
-  const allDiffs: ChangeRequestFieldDiff[] = changes ?? [];
+  const allDiffs: ChangeRequestFieldDiff[] = getDisplayChangeDiffs(changes);
   const diffs = allDiffs.filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
   const videoIdChange = allDiffs.find((c) => c.field === "videoId");
   const newVideoId = typeof videoIdChange?.to === "number" ? videoIdChange.to : null;
@@ -247,7 +244,7 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
   const isPending = request?.status === "pending";
 
   const kindCfg = request
-    ? (KIND_CONFIG[request.kind] ?? { label: request.kind, icon: <HelpCircle className="h-3.5 w-3.5" />, colorClass: "bg-muted text-muted-foreground border-border" })
+    ? KIND_CONFIG[request.kind]
     : null;
 
   const statusCfg = request ? (STATUS_LABEL[request.status] ?? { label: request.status, colorClass: "bg-muted text-muted-foreground border-border" }) : null;
@@ -304,7 +301,7 @@ export function AdminChangeRequestReviewModal({ request, open, onClose }: Props)
                     )}
                   </div>
                   <SheetDescription className="mt-1.5 text-xs text-muted-foreground">
-                    Gửi lúc {formatDate(request.created_at)} · ID #{request.id}
+                    Gửi lúc {formatDate(request.created_at)}
                   </SheetDescription>
                 </SheetHeader>
 

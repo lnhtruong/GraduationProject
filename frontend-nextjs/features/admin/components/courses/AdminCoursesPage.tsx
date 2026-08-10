@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BookCheck, Search, ChevronLeft, ChevronRight,
   SlidersHorizontal, AlertTriangle, RefreshCw, DollarSign, X, FileEdit,
@@ -40,6 +41,7 @@ type LevelFilter = "all" | "Beginner" | "Intermediate" | "Advanced";
 type KindFilter = "all" | CourseChangeRequestKind;
 type CourseStatusFilter = "pending" | "approved_publish" | "rejected" | "all";
 type CRStatusFilter = "pending" | "approved" | "rejected" | "all";
+type AdminReviewTab = "courses" | "change-requests";
 type ConfirmCourseAction = { type: "approve" | "reject"; course: Course };
 type ConfirmCRAction = { type: "approve" | "reject"; request: CourseChangeRequest };
 
@@ -58,9 +60,6 @@ const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
   { value: "lesson.create", label: "Thêm bài học" },
   { value: "lesson.update", label: "Sửa bài học" },
   { value: "lesson.delete", label: "Xoá bài học" },
-  { value: "quiz.create", label: "Thêm quiz" },
-  { value: "quiz.update", label: "Sửa quiz" },
-  { value: "quiz.delete", label: "Xoá quiz" },
 ];
 
 const COURSE_STATUS_OPTIONS: { value: CourseStatusFilter; label: string }[] = [
@@ -192,6 +191,24 @@ function PriceRangeFilter({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminCoursesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialTab: AdminReviewTab = searchParams.get("tab") === "change-requests" ? "change-requests" : "courses";
+  const [activeTab, setActiveTab] = useState<AdminReviewTab>(initialTab);
+
+  const handleAdminTabChange = (value: string) => {
+    const nextTab: AdminReviewTab = value === "change-requests" ? "change-requests" : "courses";
+    setActiveTab(nextTab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+  useEffect(() => {
+    const tabFromUrl: AdminReviewTab = searchParams.get("tab") === "change-requests" ? "change-requests" : "courses";
+    setActiveTab((current) => (current === tabFromUrl ? current : tabFromUrl));
+  }, [searchParams]);
+
   // ── Course state ──
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [courseStatusFilter, setCourseStatusFilter] = useState<CourseStatusFilter>("pending");
@@ -250,17 +267,20 @@ export default function AdminCoursesPage() {
   };
 
   const { data: courseData, isLoading: isCourseLoading, isError: isCourseError, refetch: refetchCourses } =
-    useAdminCoursesPaginated({ page: coursePage, limit: PAGE_SIZE, ...serverCourseFilters });
+    useAdminCoursesPaginated({ page: coursePage, limit: PAGE_SIZE, ...serverCourseFilters }, { enabled: activeTab === "courses" });
 
   // ── Change-request query (single, server-side filtered) ──
+  const crBaseFilters = {
+    kind: kindFilter !== "all" ? kindFilter as CourseChangeRequestKind : undefined,
+    search: crSearch || undefined,
+  };
   const { data: crData, isLoading: isCrLoading, isError: isCrError, refetch: refetchCR } =
     useAdminChangeRequests({
       status: crStatusFilter !== "all" ? crStatusFilter as CourseChangeRequestStatus : undefined,
-      kind: kindFilter !== "all" ? kindFilter as CourseChangeRequestKind : undefined,
-      search: crSearch || undefined,
+      ...crBaseFilters,
       page: crPage,
       limit: PAGE_SIZE,
-    });
+    }, { enabled: activeTab === "change-requests" });
 
   // ── Course mutations ──
   const approve = useApproveCourse();
@@ -312,16 +332,16 @@ export default function AdminCoursesPage() {
         <p className="mt-0.5 text-sm text-muted-foreground">Xem xét và phê duyệt khóa học do giảng viên gửi lên</p>
       </div>
 
-      <Tabs defaultValue="courses" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleAdminTabChange} className="space-y-4">
         {/* ── Tab list ── */}
         <TabsList className="h-9 rounded-lg bg-muted/50 p-0.5">
           <TabsTrigger value="courses" className="h-8 gap-2 rounded-md px-4 text-sm">
             <BookCheck className="h-3.5 w-3.5" />
-            Duyệt khoá học
+            <span>Duyệt khoá học</span>
           </TabsTrigger>
           <TabsTrigger value="change-requests" className="h-8 gap-2 rounded-md px-4 text-sm">
             <FileEdit className="h-3.5 w-3.5" />
-            Duyệt chỉnh sửa khoá học
+            <span>Duyệt chỉnh sửa khoá học</span>
           </TabsTrigger>
         </TabsList>
 

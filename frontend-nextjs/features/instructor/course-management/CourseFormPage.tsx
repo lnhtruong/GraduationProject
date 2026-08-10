@@ -168,13 +168,13 @@ export default function CourseFormPage({ courseId }: Props) {
         course={course}
         onSave={async (payload) => {
           if (isEdit && course) {
-            await updateCourseMutation.mutateAsync({
+            const result = await updateCourseMutation.mutateAsync({
               id: course.id,
               data: payload,
             });
             router.push(`/instructor/courses/${course.id}`);
             router.refresh();
-            return;
+            return result;
           }
 
           if (!user?.id) {
@@ -184,6 +184,7 @@ export default function CourseFormPage({ courseId }: Props) {
           const created = await createCourseMutation.mutateAsync(payload);
           router.push(`/instructor/courses/${created.id}`);
           router.refresh();
+          return created;
         }}
       />
     </ManagementPageShell>

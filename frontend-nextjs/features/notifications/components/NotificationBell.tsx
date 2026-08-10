@@ -82,9 +82,29 @@ function getRouteForNotification(
     return `/newsfeed?${params.toString()}`;
   };
 
+  const payloadRedirectUrl = data.redirectUrl ?? data.url;
+  const redirectUrl = typeof payloadRedirectUrl === "string" ? payloadRedirectUrl : null;
+  const hasSafeRedirect = redirectUrl !== null && redirectUrl.startsWith("/");
+
+  if (
+    type === "course.change_request.approved" ||
+    type === "course.change_request.rejected"
+  ) {
+    const courseId = readNumber(data.courseId) || readNumber(data.course_id);
+    if (isAdmin) {
+      return courseId ? `/admin/courses?courseId=${courseId}` : "/admin/courses";
+    }
+    if (isLecturer && hasSafeRedirect && !redirectUrl.startsWith("/admin")) {
+      return redirectUrl;
+    }
+    if (courseId) {
+      return `/instructor/courses/${courseId}`;
+    }
+    return routeForRole("/instructor/courses", "/admin/courses");
+  }
+
   // Backend redirect is still validated against the current frontend routes.
-  const redirectUrl = data.redirectUrl;
-  if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
+  if (hasSafeRedirect) {
     if (isAdmin && redirectUrl.startsWith("/instructor")) {
       return "/admin/dashboard";
     }
@@ -93,7 +113,6 @@ function getRouteForNotification(
     }
     return redirectUrl;
   }
-
   if (type === "quiz.generated") {
     return routeForRole("/instructor/courses", "/admin/courses");
   }
@@ -115,12 +134,6 @@ function getRouteForNotification(
     return "/profile";
   }
 
-  if (
-    type === "course.change_request.approved" ||
-    type === "course.change_request.rejected"
-  ) {
-    return routeForRole("/instructor/courses", "/admin/courses");
-  }
 
   if (type === "instructor.follow.new" || type.includes("follow")) {
     return routeForRole("/instructor/analytics", "/admin/dashboard");
