@@ -12,6 +12,8 @@ import {
   EyeOff,
   Filter,
   Loader2,
+  MoreVertical,
+  Scissors,
   Search,
   Send,
   Tag,
@@ -37,10 +39,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import { ManagementPageShell } from "./components/ManagementPageShell";
 import { HighlightUploadDialog } from "./components/HighlightUploadDialog";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 import { useUpload } from "@/features/upload/hooks/useUpload";
 import {
   courseFeedKeys,
@@ -184,6 +190,8 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
   const [videoTypeFilter, setVideoTypeFilter] = useState<VideoTypeFilter>("all");
   const [visibleCount, setVisibleCount] = useState(12);
   const [isHighlightUploadOpen, setIsHighlightUploadOpen] = useState(false);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    useState<EditableHighlightVideo | null>(null);
   const [pendingHighlightClip, setPendingHighlightClip] = useState<Clip | null>(null);
   const autoOpenedHighlightJobRef = useRef<string | null>(null);
   const handledHighlightJobRef = useRef<string | null>(null);
@@ -225,25 +233,19 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         shouldTouch: true,
         shouldValidate: true,
       });
-      if (!formTitle.trim()) {
-        setValue("title", video.name, {
-          shouldDirty: true,
-          shouldTouch: true,
-          shouldValidate: true,
-        });
-      }
-      if (!formCaption.trim()) {
-        setValue("caption", buildSuggestedCaption(video.name, course?.name), {
-          shouldDirty: true,
-          shouldTouch: true,
-        });
-      }
-      if (formHashtags.length === 0) {
-        setValue("hashtags", buildSuggestedHashtags(course?.categories), {
-          shouldDirty: true,
-          shouldTouch: true,
-        });
-      }
+      setValue("title", video.name, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+      setValue("caption", buildSuggestedCaption(video.name, course?.name), {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+      setValue("hashtags", buildSuggestedHashtags(course?.categories), {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
       setVideoQuery("");
       setVideoTypeFilter("all");
       setVisibleCount(12);
@@ -251,9 +253,6 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
     [
       course?.categories,
       course?.name,
-      formCaption,
-      formHashtags.length,
-      formTitle,
       setValue,
     ],
   );
@@ -286,6 +285,14 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
     },
     [courseId, highlightUpload, router],
   );
+  const handleEditSegmentsVideo = useCallback((video: CourseFeedCandidateVideo) => {
+    if (video.type !== "highlight" || !video.original_video_id || !video.srt_raw_url) return;
+    setEditSegmentsVideo({
+      id: video.id,
+      srt_raw_url: video.srt_raw_url,
+      editing_job_id: video.editing_job_id ?? null,
+    });
+  }, []);
 
   useEffect(() => {
     const returnedVideoId = searchParams.get("video_id");
@@ -811,7 +818,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                         <p className="text-sm font-medium text-destructive">{errors.videoId.message}</p>
                       )}
 
-                      <div className="grid grid-cols-[minmax(0,1fr)_minmax(8.75rem,0.42fr)] gap-2 max-[420px]:grid-cols-1 md:grid-cols-[1fr_auto]">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                         <div className="relative">
                           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
@@ -830,13 +837,14 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-10 w-full justify-between gap-2 px-3 text-sm md:w-44"
+                              aria-label="Lọc loại video"
+                              className="h-10 w-10 justify-center gap-2 px-0 text-sm sm:w-44 sm:justify-between sm:px-3"
                             >
                               <span className="inline-flex min-w-0 items-center gap-2">
                                 <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                <span className="truncate">{selectedVideoTypeLabel}</span>
+                                <span className="hidden truncate sm:inline">{selectedVideoTypeLabel}</span>
                               </span>
-                              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <ChevronDown className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
@@ -900,6 +908,15 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               const isUsedInFeed = showAllVideos && video.isUsedInFeed;
                               const thumbnail = getVideoThumbnail(video);
                               const videoTypeLabel = video.type === "mascot" ? "Mascot" : "Highlight";
+                              const canEditSegments = Boolean(
+                                video.type === "highlight" &&
+                                  video.original_video_id &&
+                                  video.srt_raw_url &&
+                                  !video.editing_job_id,
+                              );
+                              const showSegmentEditButton =
+                                video.type === "highlight" &&
+                                (canEditSegments || Boolean(video.editing_job_id));
 
                               return (
                                 <div key={video.id} className="group/card relative">
@@ -948,7 +965,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </span>
                                     </div>
 
-                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 sm:min-h-[4.75rem] sm:gap-2 sm:p-3">
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pr-10 sm:min-h-[4.75rem] sm:gap-2 sm:p-3 sm:pr-3">
                                       <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-xs sm:leading-relaxed">
                                         {video.name}
                                       </p>
@@ -964,18 +981,89 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </div>
                                     </div>
                                   </button>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="icon-sm"
-                                    aria-label={`Mở Studio chỉnh sửa ${video.name}`}
-                                    className="absolute left-2 top-2 h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 sm:opacity-0 sm:group-hover/card:opacity-100"
-                                    onClick={() => {
-                                      void handleEditFeedVideo(video);
-                                    }}
-                                  >
-                                    <Edit3 className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="icon-sm"
+                                        aria-label={`Mở Studio chỉnh sửa ${video.name}`}
+                                        className="absolute left-2 top-2 hidden h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 sm:inline-flex sm:opacity-0 sm:group-hover/card:opacity-100"
+                                        onClick={() => {
+                                          void handleEditFeedVideo(video);
+                                        }}
+                                      >
+                                        <Edit3 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Mở Studio chỉnh sửa</TooltipContent>
+                                  </Tooltip>
+                                  {showSegmentEditButton ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          size="icon-sm"
+                                          disabled={!canEditSegments}
+                                          aria-label={`Tinh chỉnh đoạn ${video.name}`}
+                                          className="absolute left-10 top-2 hidden h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-70 sm:inline-flex sm:opacity-0 sm:group-hover/card:opacity-100"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleEditSegmentsVideo(video);
+                                          }}
+                                        >
+                                          {video.editing_job_id ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <Scissors className="h-3.5 w-3.5" />
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        {video.editing_job_id ? "Đang cập nhật đoạn" : "Tinh chỉnh đoạn"}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : null}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Mở menu thao tác ${video.name}`}
+                                        className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground sm:hidden"
+                                        onClick={(event) => event.stopPropagation()}
+                                      >
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" sideOffset={8} className="w-48 rounded-xl p-1">
+                                      <DropdownMenuItem
+                                        onSelect={() => {
+                                          void handleEditFeedVideo(video);
+                                        }}
+                                        className="cursor-pointer gap-2 rounded-lg"
+                                      >
+                                        <Edit3 className="h-4 w-4" />
+                                        Mở Studio chỉnh sửa
+                                      </DropdownMenuItem>
+                                      {showSegmentEditButton ? (
+                                        <DropdownMenuItem
+                                          disabled={!canEditSegments}
+                                          onSelect={() => handleEditSegmentsVideo(video)}
+                                          className="cursor-pointer gap-2 rounded-lg"
+                                        >
+                                          {video.editing_job_id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Scissors className="h-4 w-4" />
+                                          )}
+                                          {video.editing_job_id ? "Đang cập nhật đoạn" : "Tinh chỉnh đoạn"}
+                                        </DropdownMenuItem>
+                                      ) : null}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               );
                             })}
@@ -1163,6 +1251,19 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
         open={isHighlightUploadOpen}
         onOpenChange={setIsHighlightUploadOpen}
         upload={highlightUpload}
+      />
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(open) => {
+          if (!open) setEditSegmentsVideo(null);
+        }}
+        onEditApplied={() => {
+          void queryClient.invalidateQueries({
+            queryKey: courseFeedKeys.custom("candidate-videos", courseId),
+          });
+          void refetchCandidateVideos();
+        }}
       />
     </ManagementPageShell>
   );

@@ -81,7 +81,7 @@ export function VideoGrid({
 											size="icon"
 											variant="ghost"
 											className="h-7 w-7 text-muted-foreground"
-											disabled={!item.original_video_id || !item.srt_raw_url}
+											disabled={Boolean(item.editing_job_id) || !item.original_video_id || !item.srt_raw_url}
 											onClick={() => onEditSegments(item)}
 											aria-label="Chỉnh sửa đoạn"
 											title={

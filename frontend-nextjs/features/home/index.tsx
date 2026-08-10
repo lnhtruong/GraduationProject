@@ -2,23 +2,45 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Play, Search, Video } from "lucide-react";
-import { motion } from "framer-motion";
 import { FaGraduationCap, FaPlayCircle } from "react-icons/fa";
 
 import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { useAuthState } from "@/features/auth/hooks/useAuth";
 import { CourseCard } from "@/features/home/component/CourseCard";
-import { HeroMotionScene } from "@/features/home/component/HeroMotionScene";
-import { HighlightShowcase } from "@/features/home/component/HighlightShowcase";
 import { SectionHeader } from "@/features/home/component/SectionHeader";
 import { TrendingFeedCard } from "@/features/home/component/TrendingFeedCard";
 import {
   useHomePopularCourses,
   useHomeTrendingFeed,
 } from "./api/home.hooks";
+
+const HeroMotionScene = dynamic(
+  () =>
+    import("@/features/home/component/HeroMotionScene").then(
+      (module) => module.HeroMotionScene,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[24rem] rounded-lg border border-border/70 bg-card/70" />
+    ),
+  },
+);
+
+const HighlightShowcase = dynamic(
+  () =>
+    import("@/features/home/component/HighlightShowcase").then(
+      (module) => module.HighlightShowcase,
+    ),
+  {
+    ssr: false,
+    loading: () => <section className="min-h-[36rem] bg-background" />,
+  },
+);
 export default function Home() {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
@@ -225,19 +247,13 @@ export default function Home() {
           {popularCoursesQuery.isLoading ? (
             <PageLoader message="Đang tải khóa học..." className="py-12" />
           ) : popularCourses.length > 0 ? (
-            <motion.div
-              className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:pb-0 lg:grid-cols-4 xl:gap-6"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.1 }}
-              variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-            >
+            <div className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:pb-0 lg:grid-cols-4 xl:gap-6">
               {popularCourses.slice(0, 4).map((course) => (
                 <div key={course.id} className="w-[280px] shrink-0 sm:w-auto">
                   <CourseCard course={course} />
                 </div>
               ))}
-            </motion.div>
+            </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
               <FaGraduationCap className="mx-auto h-10 w-10 text-muted-foreground" />

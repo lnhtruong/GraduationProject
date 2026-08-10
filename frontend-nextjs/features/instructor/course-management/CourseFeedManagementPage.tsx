@@ -348,6 +348,7 @@ export default function CourseFeedManagementPage({ courseId }: Props) {
                               size="icon"
                               className="h-9 w-9 shrink-0 text-muted-foreground"
                               disabled={
+                                Boolean(feed.video.editing_job_id) ||
                                 !feed.video.original_video_id ||
                                 !feed.video.srt_raw_url
                               }

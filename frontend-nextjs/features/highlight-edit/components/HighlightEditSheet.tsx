@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { createMutationHooks } from "@/features/_shared/react-query-factories";
 import {
+  INFERENCE_JOB_SSE_RECONNECT_MS,
   INFERENCE_JOB_STORAGE_TTL_MS,
   clearPersistedInferenceJob,
   readPersistedInferenceJob,
@@ -21,6 +22,10 @@ import {
   writePersistedInferenceJob,
 } from "@/features/_shared/realtime/inference-job-watcher";
 import { highlightEditApi } from "../api/highlight-edit.api";
+import type {
+  VideoCompletedPayload,
+  VideoErrorPayload,
+} from "@/features/_shared/realtime/media-upload-stream";
 import { useHighlightEditSelection } from "../hooks/useHighlightEditSelection";
 import HighlightEditList from "./HighlightEditList";
 import HighlightEditConfirmDialog from "./HighlightEditConfirmDialog";
@@ -43,11 +48,85 @@ const useStartHighlightEditMutation = createMutationHooks<
   Parameters<typeof highlightEditApi.startJob>[0]
 >("highlight-edit", "start-edit-job", highlightEditApi.startJob);
 
+type HighlightEditEventEnvelope = {
+  data?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  jobId?: string | number;
+  job_id?: string | number;
+  videoId?: string | number;
+  video_id?: string | number;
+  type?: string;
+  status?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readEventJobId(payload: HighlightEditEventEnvelope): string | null {
+  const data = asRecord(payload.data) ?? {};
+  const result = asRecord(payload.result) ?? asRecord(data.result) ?? {};
+  const raw = result.job_id ?? result.jobId ?? data.job_id ?? data.jobId ?? payload.job_id ?? payload.jobId;
+  return raw == null ? null : String(raw);
+}
+
+function readEventVideoId(payload: HighlightEditEventEnvelope): string | null {
+  const data = asRecord(payload.data) ?? {};
+  const result = asRecord(payload.result) ?? asRecord(data.result) ?? {};
+  const raw = result.video_id ?? result.videoId ?? data.video_id ?? data.videoId ?? payload.video_id ?? payload.videoId;
+  return raw == null ? null : String(raw);
+}
+
+function readEventType(payload: HighlightEditEventEnvelope): string {
+  const data = asRecord(payload.data) ?? {};
+  const result = asRecord(payload.result) ?? asRecord(data.result) ?? {};
+  return String(result.type ?? data.type ?? payload.type ?? "").trim().toLowerCase();
+}
+
+function readStatus(payload: unknown): string {
+  const record = asRecord(payload) ?? {};
+  const data = asRecord(record.data) ?? {};
+  const result = asRecord(record.result) ?? asRecord(data.result) ?? {};
+  return String(result.status ?? data.status ?? record.status ?? "").trim().toLowerCase();
+}
+
+function isCompletedStatus(status: string) {
+  return ["completed", "complete", "success", "succeeded"].includes(status);
+}
+
+function isFailedStatus(status: string) {
+  return ["failed", "error", "cancelled", "canceled"].includes(status);
+}
+
+function isHighlightEditCompletion(
+  payload: VideoCompletedPayload,
+  expected: { jobId: string; videoId: number },
+) {
+  const envelope = payload as unknown as HighlightEditEventEnvelope;
+  if (readEventType(envelope) !== "highlight_edit") return false;
+
+  const eventJobId = readEventJobId(envelope);
+  if (eventJobId) return eventJobId === expected.jobId;
+
+  return readEventVideoId(envelope) === String(expected.videoId);
+}
+
+function isHighlightEditError(
+  payload: VideoErrorPayload,
+  expectedJobId: string,
+) {
+  const envelope = payload as unknown as HighlightEditEventEnvelope;
+  if (readEventType(envelope) !== "highlight_edit") return false;
+  return readEventJobId(envelope) === expectedJobId;
+}
+
 interface HighlightEditSheetProps {
   video: EditableHighlightVideo | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEditApplied?: () => void;
+  onEditApplied?: () => void | Promise<void>;
 }
 
 export default function HighlightEditSheet({
@@ -65,6 +144,17 @@ export default function HighlightEditSheet({
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [jobId, setJobId] = React.useState<string | null>(null);
   const [isRunning, setIsRunning] = React.useState(false);
+  const completionHandledRef = React.useRef(false);
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  const onEditAppliedRef = React.useRef(onEditApplied);
+
+  React.useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  React.useEffect(() => {
+    onEditAppliedRef.current = onEditApplied;
+  }, [onEditApplied]);
 
   const startMutation = useStartHighlightEditMutation({
     onSuccess: (newJobId) => {
@@ -92,11 +182,8 @@ export default function HighlightEditSheet({
       .getJobStatus(candidateJobId)
       .then((status) => {
         if (cancelled) return;
-        const jobStatus = String((status as Record<string, unknown>).status ?? "");
-        if (
-          jobStatus === "completed" ||
-          ["failed", "error", "cancelled", "canceled"].includes(jobStatus)
-        ) {
+        const jobStatus = readStatus(status);
+        if (isCompletedStatus(jobStatus) || isFailedStatus(jobStatus)) {
           clearPersistedInferenceJob({ ...HIGHLIGHT_EDIT_JOB_STORAGE });
           return;
         }
@@ -125,16 +212,25 @@ export default function HighlightEditSheet({
   }, [resolvedUserId, videoId, isRunning, jobId]);
 
   React.useEffect(() => {
-    if (!jobId || !resolvedUserId || !isRunning) return;
+    if (!jobId || !resolvedUserId || !isRunning || !videoId) return;
+
+    const activeVideoId = videoId;
+    completionHandledRef.current = false;
 
     const handleDone = () => {
+      if (completionHandledRef.current) return;
+      completionHandledRef.current = true;
       setIsRunning(false);
       setJobId(null);
-      onOpenChange(false);
-      onEditApplied?.();
+      onOpenChangeRef.current(false);
+      void Promise.resolve(onEditAppliedRef.current?.()).catch(() => {
+        toast.error("Đã cập nhật highlight, nhưng chưa tải lại được bản mới. Vui lòng tải lại trang nếu preview chưa đổi.");
+      });
       toast.success("Đã cập nhật highlight.");
     };
     const handleFailed = () => {
+      if (completionHandledRef.current) return;
+      completionHandledRef.current = true;
       setIsRunning(false);
       setJobId(null);
       toast.error("Cập nhật highlight thất bại. Video hiện tại vẫn được giữ nguyên.");
@@ -144,90 +240,146 @@ export default function HighlightEditSheet({
       userId: resolvedUserId,
       pollStatus: () => highlightEditApi.getJobStatus(jobId),
       onPollStatus: (status) => {
-        const record = status as Record<string, unknown>;
-        const jobStatus = String(record.status ?? "");
-        if (jobStatus === "completed") handleDone();
-        else if (["failed", "error", "cancelled", "canceled"].includes(jobStatus)) {
-          handleFailed();
-        }
+        const jobStatus = readStatus(status);
+        if (isCompletedStatus(jobStatus)) handleDone();
+        else if (isFailedStatus(jobStatus)) handleFailed();
+      },
+      reconnectMs: INFERENCE_JOB_SSE_RECONNECT_MS,
+      onCompleted: (payload) => {
+        if (isHighlightEditCompletion(payload, { jobId, videoId: activeVideoId })) handleDone();
+      },
+      onError: (payload) => {
+        if (isHighlightEditError(payload, jobId)) handleFailed();
       },
     });
 
     return () => watcher.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, resolvedUserId, isRunning]);
+  }, [jobId, resolvedUserId, isRunning, videoId]);
 
   const handleConfirm = () => {
     if (!videoId) return;
+    const removeRanges = selection.toPayloadRanges();
+    if (removeRanges.length === 0) {
+      toast.error("Chọn ít nhất 1 đoạn cần bỏ khỏi highlight.");
+      return;
+    }
+    if (!selection.hasRemainingSegment) {
+      toast.error("Cần giữ lại ít nhất 1 đoạn trong highlight.");
+      return;
+    }
+
     startMutation.mutate({
       videoId,
-      removeRanges: selection.toPayloadRanges(),
+      removeRanges,
     });
   };
+
+  const canSubmit = selection.markedCount > 0 && selection.hasRemainingSegment;
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="flex w-full max-w-[600px] flex-col gap-3 sm:max-w-[600px]"
+          className="flex w-full max-w-[640px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px]"
         >
-          <SheetHeader className="pb-2 pr-10">
-            <SheetTitle>Tinh chỉnh highlight</SheetTitle>
-            <SheetDescription>
-              Chọn các đoạn muốn bỏ khỏi highlight hiện tại. StudyLoop sẽ tạo
-              lại bản highlight mới từ video gốc.
-            </SheetDescription>
+          <SheetHeader className="border-b px-4 py-4 pr-12 text-left sm:px-5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Scissors className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <SheetTitle className="text-lg font-semibold">
+                  Tinh chỉnh highlight
+                </SheetTitle>
+                <SheetDescription className="mt-1 leading-5">
+                  Chọn đoạn muốn bỏ. StudyLoop sẽ tạo lại highlight từ video gốc.
+                </SheetDescription>
+              </div>
+            </div>
           </SheetHeader>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col bg-muted/15">
             {isRunning && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <p>Đang cập nhật highlight, có thể mất vài phút.</p>
-                <p>Bạn có thể đóng cửa sổ này và quay lại sau.</p>
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Đang cập nhật highlight</p>
+                  <p className="mt-1 max-w-sm">
+                    Bạn có thể đóng cửa sổ này. Kết quả sẽ tự cập nhật khi xử lý xong.
+                  </p>
+                </div>
               </div>
             )}
 
             {!isRunning && selection.isLoading && (
-              <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Đang tải danh sách đoạn...
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                Đang tải các đoạn trong highlight...
               </div>
             )}
 
             {!isRunning && selection.error && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {selection.error}
+              <div className="m-4 rounded-xl border border-destructive/30 bg-background p-4 text-sm text-destructive shadow-sm">
+                <div className="flex gap-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium">Chưa thể mở tinh chỉnh</p>
+                    <p className="mt-1 text-destructive/85">{selection.error}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {!isRunning && !selection.isLoading && !selection.error && (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <span>{selection.lines.length} đoạn trong highlight</span>
-                  <span>{selection.markedCount} đoạn sẽ bỏ</span>
+                <div className="shrink-0 border-b bg-background px-4 py-3 sm:px-5">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Trong highlight</p>
+                      <p className="mt-0.5 font-semibold">{selection.lines.length} đoạn</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Sẽ bỏ</p>
+                      <p className="mt-0.5 font-semibold text-primary">
+                        {selection.markedCount} đoạn
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <HighlightEditList
-                  lines={selection.lines}
-                  displayTimes={selection.displayTimes}
-                  selection={selection}
-                />
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={
-                    selection.markedCount === 0 || !selection.hasRemainingSegment
-                  }
-                  onClick={() => setConfirmOpen(true)}
-                >
-                  Cập nhật highlight · bỏ {selection.markedCount} đoạn
-                </Button>
-                {!selection.hasRemainingSegment && (
-                  <p className="text-xs text-destructive">
-                    Cần giữ lại ít nhất 1 đoạn trong highlight.
-                  </p>
-                )}
+
+                <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-5">
+                  <HighlightEditList
+                    lines={selection.lines}
+                    displayTimes={selection.displayTimes}
+                    selection={selection}
+                  />
+                </div>
+
+                <div className="shrink-0 border-t bg-background px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] sm:px-5">
+                  {!selection.hasRemainingSegment && (
+                    <div className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Cần giữ lại ít nhất 1 đoạn trong highlight.
+                    </div>
+                  )}
+                  {selection.markedCount === 0 && selection.hasRemainingSegment && (
+                    <div className="mb-2 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      Bấm biểu tượng X ở đoạn bạn muốn bỏ.
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    className="h-11 w-full cursor-pointer rounded-lg font-semibold"
+                    disabled={!canSubmit}
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    Cập nhật highlight{selection.markedCount > 0 ? ` · bỏ ${selection.markedCount} đoạn` : ""}
+                  </Button>
+                </div>
               </>
             )}
           </div>

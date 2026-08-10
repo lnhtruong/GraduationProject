@@ -15,7 +15,6 @@ interface ResultsSectionProps {
    * video id and just won't show this button here). */
   onEditSegments?: (clip: Clip) => void;
   onRefineCriteria?: () => void;
-
 }
 
 function cleanFileName(value?: string | null): string {
@@ -65,14 +64,13 @@ export default function ResultsSection({
   onStartNew,
   onEditSegments,
   onRefineCriteria,
-
 }: ResultsSectionProps) {
   if (!isVisible || clips.length === 0) return null;
 
   const isSingle = clips.length === 1;
 
   return (
-    <section className="space-y-3" aria-label="Kết quả highlight">
+    <section className={cn("space-y-3", isSingle && "min-h-0")} aria-label="Kết quả highlight">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-xl font-semibold">
           {isSingle ? "Highlight đã tạo" : `${clips.length} highlight đã tạo`}
@@ -147,8 +145,13 @@ function ClipCard({
   const showCardTitle = !isSingle || Boolean(meta);
 
   return (
-    <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
-      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+    <article className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", isSingle && "min-h-0")}>
+      <div
+        className={cn(
+          "flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between",
+          isSingle && !showCardTitle && "justify-end p-3",
+        )}
+      >
         {showCardTitle ? (
           <div className="flex min-w-0 gap-3">
             {!isSingle ? (
@@ -202,7 +205,7 @@ function ClipCard({
         ) : null}
       </div>
 
-      <div className="p-4">
+      <div className={cn("p-4", isSingle && "p-3")}>
         {isZip ? (
           <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
             <FileArchive className="mx-auto mb-3 h-10 w-10" />
@@ -212,7 +215,7 @@ function ClipCard({
           <video
             className={cn(
               "w-full rounded-lg border bg-black",
-              compact ? "aspect-video" : "max-h-[520px]",
+              compact ? "aspect-video" : "aspect-video max-h-[70vh] min-h-0",
             )}
             controls
             src={clip.url}

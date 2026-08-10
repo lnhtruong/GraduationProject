@@ -301,6 +301,9 @@ type MediaVideoRaw = {
   thumbnail?: string | null;
   duration?: number | null;
   type?: string;
+  srt_raw_url?: string | null;
+  original_video_id?: number | null;
+  editing_job_id?: string | null;
   is_used_in_feed?: boolean;
   isUsedInFeed?: boolean;
 };
@@ -416,6 +419,9 @@ export function useCourseFeedCandidateVideos(
           thumbnail: video.thumbnail ?? null,
           duration: video.duration ?? null,
           type: video.type ?? "unknown",
+          srt_raw_url: video.srt_raw_url ?? null,
+          original_video_id: video.original_video_id ?? null,
+          editing_job_id: video.editing_job_id ?? null,
           isUsedInFeed: Boolean(video.is_used_in_feed ?? video.isUsedInFeed),
         }));
     },

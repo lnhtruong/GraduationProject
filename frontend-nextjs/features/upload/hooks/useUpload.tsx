@@ -91,6 +91,7 @@ type UploadEventEnvelope = {
   duration?: number;
   srtUrl?: string;
   srt_url?: string;
+  srt_raw_url?: string;
   progress?: number;
   stage?: string;
   data?: Record<string, unknown>;
@@ -199,7 +200,9 @@ function clipFromUnknown(value: unknown, index: number): Clip | null {
         ? record.srtUrl
         : typeof record.srt_url === "string"
           ? record.srt_url
-          : null,
+          : typeof record.srt_raw_url === "string"
+            ? record.srt_raw_url
+            : null,
     name:
       (typeof record.name === "string" && record.name) ||
       (typeof record.title === "string" && record.title) ||
@@ -288,7 +291,7 @@ function readCompletedClips(
         description: source.description,
         thumbnail: source.thumbnail,
         duration: source.duration,
-        srtUrl: source.srtUrl ?? source.srt_url,
+        srtUrl: source.srtUrl ?? source.srt_url ?? source.srt_raw_url,
       },
       0,
     );

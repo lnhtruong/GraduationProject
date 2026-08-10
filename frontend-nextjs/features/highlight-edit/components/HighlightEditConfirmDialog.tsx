@@ -28,19 +28,24 @@ export default function HighlightEditConfirmDialog({
 }: HighlightEditConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle>Cập nhật highlight?</AlertDialogTitle>
           <AlertDialogDescription>
-            StudyLoop sẽ tạo lại highlight không gồm {markedCount} đoạn đã chọn.
-            Video gốc vẫn được giữ nguyên; bản highlight hiện tại sẽ cập nhật sau
-            khi xử lý xong.
+            StudyLoop sẽ tạo lại highlight và bỏ {markedCount} đoạn đã chọn.
+            Video gốc vẫn được giữ nguyên.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isSubmitting}>Để sau</AlertDialogCancel>
-          <AlertDialogAction disabled={isSubmitting} onClick={onConfirm}>
-            {isSubmitting ? "Đang bắt đầu..." : "Cập nhật highlight"}
+          <AlertDialogCancel className="cursor-pointer" disabled={isSubmitting}>
+            Để sau
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="cursor-pointer"
+            disabled={isSubmitting}
+            onClick={onConfirm}
+          >
+            {isSubmitting ? "Đang bắt đầu..." : "Cập nhật"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
