@@ -37,6 +37,8 @@ import {
 	type PreviewItem,
 } from "./types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import HighlightEditSheet from "@/features/highlight-edit/components/HighlightEditSheet";
+import type { Video } from "@/features/video";
 
 const LIBRARY_PAGE_SIZE = 12;
 
@@ -59,6 +61,7 @@ export default function LibraryFeature() {
 	const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
 	const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 	const [dismissedTargetVideoId, setDismissedTargetVideoId] = useState<number | null>(null);
+	const [editSegmentsVideo, setEditSegmentsVideo] = useState<Video | null>(null);
 
 	const tabStats = useMemo(
 		() => ({
@@ -202,6 +205,7 @@ export default function LibraryFeature() {
 										label: getVideoLibraryLabel(item),
 									});
 								}}
+								onEditSegments={(item) => setEditSegmentsVideo(item)}
 							/>
 						</TabsContent>
 
@@ -309,6 +313,17 @@ export default function LibraryFeature() {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			<HighlightEditSheet
+				video={editSegmentsVideo}
+				open={!!editSegmentsVideo}
+				onOpenChange={(open) => {
+					if (!open) setEditSegmentsVideo(null);
+				}}
+				onEditApplied={() => {
+					void library.refetchAll();
+				}}
+			/>
 		</div>
 	);
 }

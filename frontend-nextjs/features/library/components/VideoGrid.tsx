@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppEmptyState } from "@/features/_shared/components/AppEmptyState";
-import { Clock3, PlayCircle, Trash2, VideoIcon } from "lucide-react";
+import { Clock3, Loader2, PlayCircle, Scissors, Trash2, VideoIcon } from "lucide-react";
 import type { Video } from "@/features/video";
 
 interface VideoGridProps {
@@ -11,6 +11,8 @@ interface VideoGridProps {
 	isLoading: boolean;
 	onPreview: (item: Video) => void;
 	onDelete: (item: Video) => void;
+	/** Opens the segment-removal Sheet (spec 003-highlight-segment-removal). Highlight videos only. */
+	onEditSegments?: (item: Video) => void;
 }
 
 export function VideoGrid({
@@ -19,6 +21,7 @@ export function VideoGrid({
 	isLoading,
 	onPreview,
 	onDelete,
+	onEditSegments,
 }: VideoGridProps) {
 	if (isLoading) {
 		return <VideoGridSkeleton />;
@@ -72,15 +75,40 @@ export function VideoGrid({
 							</div>
 							<div className="flex items-center justify-between gap-2">
 								<span className="text-[11px] text-muted-foreground">{formatVideoKind(item.type)}</span>
-								<Button
-									size="icon"
-									variant="ghost"
-									className="h-7 w-7 text-destructive hover:bg-destructive/10"
-									onClick={() => onDelete(item)}
-									aria-label="Xóa video khỏi thư viện"
-								>
-									<Trash2 className="h-4 w-4" />
-								</Button>
+								<div className="flex items-center gap-1">
+									{item.type === "highlight" && onEditSegments && (
+										<Button
+											size="icon"
+											variant="ghost"
+											className="h-7 w-7 text-muted-foreground"
+											disabled={Boolean(item.editing_job_id) || !item.original_video_id || !item.srt_raw_url}
+											onClick={() => onEditSegments(item)}
+											aria-label="Chỉnh sửa đoạn"
+											title={
+												item.editing_job_id
+													? "Đang chỉnh sửa..."
+													: !item.original_video_id || !item.srt_raw_url
+														? "Không khả dụng cho video này"
+														: "Chỉnh sửa đoạn"
+											}
+										>
+											{item.editing_job_id ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												<Scissors className="h-4 w-4" />
+											)}
+										</Button>
+									)}
+									<Button
+										size="icon"
+										variant="ghost"
+										className="h-7 w-7 text-destructive hover:bg-destructive/10"
+										onClick={() => onDelete(item)}
+										aria-label="Xóa video khỏi thư viện"
+									>
+										<Trash2 className="h-4 w-4" />
+									</Button>
+								</div>
 							</div>
 						</CardContent>
 					</Card>

@@ -19,10 +19,14 @@ import UploadDropzone from "@/features/upload/components/UploadDropzone";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import { useUpload } from "@/features/upload/hooks/useUpload";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { videoApi } from "@/features/video/api/video.api";
 import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { BUNNY_MAX_UPLOAD_LABEL } from "@/lib/env";
-import type { HighlightParams } from "@/features/upload/types";
+import type { Clip, HighlightParams } from "@/features/upload/types";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 import {
   Check,
   FileVideo,
@@ -200,6 +204,11 @@ export default function Upload() {
   const [isOpeningStudio, setIsOpeningStudio] = React.useState(false);
   const [hasSubmittedHighlight, setHasSubmittedHighlight] =
     React.useState(false);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    React.useState<EditableHighlightVideo | null>(null);
+  const [editedClipOverrides, setEditedClipOverrides] = React.useState<
+    Record<number, Partial<Clip>>
+  >({});
 
   // Thời lượng video nguồn để tính trước chi phí credit: đọc từ File ở nhánh
   // upload, từ URL (kèm fallback hls.js) ở nhánh "Thư viện".
@@ -238,6 +247,46 @@ export default function Upload() {
     "highlight",
     sourceDurationSec,
   );
+  const displayedClips = React.useMemo(
+    () =>
+      clips.map((clip) => {
+        if (clip.videoId == null) return clip;
+        const override = editedClipOverrides[clip.videoId];
+        return override ? { ...clip, ...override } : clip;
+      }),
+    [clips, editedClipOverrides],
+  );
+
+  const refreshEditedClip = React.useCallback(async () => {
+    const videoId = editSegmentsVideo?.id;
+    if (!videoId) return;
+
+    const currentClip = clips.find((clip) => clip.videoId === videoId);
+    let latest = await videoApi.findById(videoId);
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const latestSrtUrl = latest.srtRawUrl ?? latest.srt_raw_url ?? null;
+      const hasFreshAsset =
+        !currentClip ||
+        latest.url !== currentClip.url ||
+        latestSrtUrl !== (currentClip.srtUrl ?? null);
+
+      if (hasFreshAsset) break;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      latest = await videoApi.findById(videoId);
+    }
+
+    setEditedClipOverrides((current) => ({
+      ...current,
+      [videoId]: {
+        url: latest.url,
+        duration: latest.duration,
+        thumbnail: latest.thumbnail,
+        srtUrl: latest.srtRawUrl ?? latest.srt_raw_url ?? null,
+      },
+    }));
+  }, [clips, editSegmentsVideo?.id]);
 
   if (authLoading) {
     return (
@@ -276,6 +325,7 @@ export default function Upload() {
     setShowForm(false);
     setIsOpeningStudio(false);
     setHasSubmittedHighlight(false);
+    setEditedClipOverrides({});
   };
 
   const handleConfirmFile = () => {
@@ -291,6 +341,7 @@ export default function Upload() {
   const handleCancelForm = () => setShowForm(false);
 
   const handleFormSubmit = (params: HighlightParams) => {
+    setEditedClipOverrides({});
     if (sourceMode === "file") {
       if (!file) return;
       setHasSubmittedHighlight(true);
@@ -313,6 +364,7 @@ export default function Upload() {
     setShowForm(false);
     setIsOpeningStudio(false);
     setHasSubmittedHighlight(false);
+    setEditedClipOverrides({});
   };
 
   const handleStartNew = () => {
@@ -321,6 +373,7 @@ export default function Upload() {
     setExistingVideoUrl("");
     setIsOpeningStudio(false);
     setHasSubmittedHighlight(false);
+    setEditedClipOverrides({});
   };
 
   const handleRefineCriteria = () => {
@@ -328,6 +381,7 @@ export default function Upload() {
     setShowForm(true);
     setIsOpeningStudio(false);
     setHasSubmittedHighlight(false);
+    setEditedClipOverrides({});
   };
 
   const handleEditClip = async (clip: (typeof clips)[number]) => {
@@ -350,9 +404,19 @@ export default function Upload() {
     }, 300);
   };
 
+  const handleEditSegments = (clip: Clip) => {
+    if (clip.videoId == null) return;
+    setEditSegmentsVideo({
+      id: clip.videoId,
+      srt_raw_url: clip.srtUrl ?? null,
+      editing_job_id: null,
+    });
+  };
+
+
   const handleViewResults = async () => {
-    if (clips.length === 1 && clips[0].url) {
-      await handleEditClip(clips[0]);
+    if (displayedClips.length === 1 && displayedClips[0].url) {
+      await handleEditClip(displayedClips[0]);
       return;
     }
 
@@ -587,7 +651,7 @@ export default function Upload() {
                     status={status}
                     jobId={jobId}
                     isDownloading={isDownloading}
-                    clipsCount={clips.length}
+                    clipsCount={displayedClips.length}
                     error={error}
                     stage={stage}
                     progressPercent={progressPercent}
@@ -602,10 +666,11 @@ export default function Upload() {
 
             <div data-results-section>
               <ResultsSection
-                clips={clips}
+                clips={displayedClips}
                 isVisible={showResults}
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
+                onEditSegments={handleEditSegments}
                 onRefineCriteria={handleRefineCriteria}
               />
             </div>
@@ -617,6 +682,15 @@ export default function Upload() {
           isAuthenticated={isAuthenticated}
         />
       </div>
+
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(open) => {
+          if (!open) setEditSegmentsVideo(null);
+        }}
+        onEditApplied={refreshEditedClip}
+      />
     </main>
   );
 }

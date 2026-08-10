@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Edit3, FileArchive, RotateCcw } from "lucide-react";
+import { Edit3, FileArchive, RotateCcw, Scissors } from "lucide-react";
 import type { Clip } from "@/features/upload/types";
 
 interface ResultsSectionProps {
@@ -8,6 +8,12 @@ interface ResultsSectionProps {
   isVisible: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
   onStartNew?: () => void;
+  /** Opens the segment-removal Sheet (spec 003-highlight-segment-removal)
+   * right after the highlight finishes — only shown once the clip has a
+   * resolvable video id and its own current-segments SRT (both come from
+   * the completion payload; a paste-URL-sourced highlight won't have a
+   * video id and just won't show this button here). */
+  onEditSegments?: (clip: Clip) => void;
   onRefineCriteria?: () => void;
 }
 
@@ -56,6 +62,7 @@ export default function ResultsSection({
   isVisible,
   onEditClip,
   onStartNew,
+  onEditSegments,
   onRefineCriteria,
 }: ResultsSectionProps) {
   if (!isVisible || clips.length === 0) return null;
@@ -63,7 +70,7 @@ export default function ResultsSection({
   const isSingle = clips.length === 1;
 
   return (
-    <section className="space-y-3" aria-label="Kết quả highlight">
+    <section className={cn("space-y-3", isSingle && "min-h-0")} aria-label="Kết quả highlight">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-xl font-semibold">
           {isSingle ? "Highlight đã tạo" : `${clips.length} highlight đã tạo`}
@@ -104,6 +111,7 @@ export default function ResultsSection({
             isSingle={isSingle}
             compact={!isSingle}
             onEditClip={onEditClip}
+            onEditSegments={onEditSegments}
           />
         ))}
       </div>
@@ -117,6 +125,7 @@ interface ClipCardProps {
   isSingle: boolean;
   compact?: boolean;
   onEditClip?: (clip: Clip) => void | Promise<void>;
+  onEditSegments?: (clip: Clip) => void;
 }
 
 function ClipCard({
@@ -125,6 +134,7 @@ function ClipCard({
   isSingle,
   compact = false,
   onEditClip,
+  onEditSegments,
 }: ClipCardProps) {
   const isZip = clip.url.endsWith(".zip") || clip.name.endsWith(".zip");
   const isVideo =
@@ -135,8 +145,13 @@ function ClipCard({
   const showCardTitle = !isSingle || Boolean(meta);
 
   return (
-    <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
-      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+    <article className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", isSingle && "min-h-0")}>
+      <div
+        className={cn(
+          "flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between",
+          isSingle && !showCardTitle && "justify-end p-3",
+        )}
+      >
         {showCardTitle ? (
           <div className="flex min-w-0 gap-3">
             {!isSingle ? (
@@ -162,21 +177,35 @@ function ClipCard({
         )}
 
         {isVideo ? (
-          <Button
-            type="button"
-            size="sm"
-            className="w-full gap-2 sm:w-auto"
-            onClick={() => {
-              void onEditClip?.(clip);
-            }}
-          >
-            <Edit3 className="h-4 w-4" />
-            Mở Studio
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            {onEditSegments && clip.videoId != null && clip.srtUrl ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full gap-2 sm:w-auto"
+                onClick={() => onEditSegments(clip)}
+              >
+                <Scissors className="h-4 w-4" />
+                Chỉnh sửa đoạn
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              className="w-full gap-2 sm:w-auto"
+              onClick={() => {
+                void onEditClip?.(clip);
+              }}
+            >
+              <Edit3 className="h-4 w-4" />
+              Mở Studio
+            </Button>
+          </div>
         ) : null}
       </div>
 
-      <div className="p-4">
+      <div className={cn("p-4", isSingle && "p-3")}>
         {isZip ? (
           <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
             <FileArchive className="mx-auto mb-3 h-10 w-10" />
@@ -186,7 +215,7 @@ function ClipCard({
           <video
             className={cn(
               "w-full rounded-lg border bg-black",
-              compact ? "aspect-video" : "max-h-[520px]",
+              compact ? "aspect-video" : "aspect-video max-h-[70vh] min-h-0",
             )}
             controls
             src={clip.url}

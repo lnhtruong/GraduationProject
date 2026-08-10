@@ -10,6 +10,7 @@ import {
   Film,
   Loader2,
   Search,
+  Scissors,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -38,14 +39,19 @@ import HighlightParamsForm from "@/features/upload/components/HighlightParamsFor
 import ResultsSection from "@/features/upload/components/ResultsSection";
 import UploadProgress from "@/features/upload/components/UploadProgress";
 import { useVideosByUser } from "@/features/video/api/video.hooks";
+import { videoApi } from "@/features/video/api/video.api";
 import { getVideoDurationFromFile } from "@/features/video/utils/get-video-duration-from-file";
 import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import { cn } from "@/lib/utils";
 import type {
+  Clip,
   HighlightParams,
   UploadHookReturn,
 } from "@/features/upload/types";
 import type { Video as StudyLoopVideo } from "@/features/video/types";
+import HighlightEditSheet, {
+  type EditableHighlightVideo,
+} from "@/features/highlight-edit/components/HighlightEditSheet";
 
 type SourceMode = "file" | "existing-video";
 const HIGHLIGHT_PARAMS_FORM_ID = "feed-highlight-params-form";
@@ -117,6 +123,12 @@ export function HighlightUploadDialog({
   const [existingVideoQuery, setExistingVideoQuery] = React.useState("");
   const [videoPage, setVideoPage] = React.useState(1);
   const [showForm, setShowForm] = React.useState(false);
+  const previousOpenRef = React.useRef(open);
+  const [editSegmentsVideo, setEditSegmentsVideo] =
+    React.useState<EditableHighlightVideo | null>(null);
+  const [editedClipOverrides, setEditedClipOverrides] = React.useState<
+    Record<number, Partial<Clip>>
+  >({});
   const { data: lessonVideos = [], isLoading: lessonVideosLoading } =
     useVideosByUser("long", open && sourceMode === "existing-video");
 
@@ -144,6 +156,21 @@ export function HighlightUploadDialog({
     const start = (videoPage - 1) * VIDEOS_PER_PAGE;
     return filteredLessonVideos.slice(start, start + VIDEOS_PER_PAGE);
   }, [filteredLessonVideos, videoPage]);
+
+  React.useEffect(() => {
+    const reopened = open && !previousOpenRef.current;
+    previousOpenRef.current = open;
+
+    if (!reopened || status !== "failed") return;
+
+    cancel();
+    setShowForm(false);
+    setParamsCanSubmit(false);
+    setSelectedExistingVideoId(null);
+    setExistingVideoQuery("");
+    setVideoPage(1);
+    setSourceMode("file");
+  }, [cancel, open, status]);
 
   React.useEffect(() => {
     if (!open) {
@@ -203,9 +230,11 @@ export function HighlightUploadDialog({
     setFile(selectedFile);
     setShowForm(false);
     setParamsCanSubmit(false);
+    setEditedClipOverrides({});
   };
 
   const handleFormSubmit = (params: HighlightParams) => {
+    setEditedClipOverrides({});
     if (quotaBlocked) {
       toast.error("Bạn không còn đủ quota AI.");
       return;
@@ -233,6 +262,7 @@ export function HighlightUploadDialog({
     cancel();
     setShowForm(false);
     setParamsCanSubmit(false);
+    setEditedClipOverrides({});
   };
 
   const handleStartNew = () => {
@@ -242,12 +272,14 @@ export function HighlightUploadDialog({
     setSelectedExistingVideoId(null);
     setExistingVideoQuery("");
     setSourceMode("file");
+    setEditedClipOverrides({});
   };
 
   const handleRefineCriteria = () => {
     reset();
     setParamsCanSubmit(false);
     setShowForm(true);
+    setEditedClipOverrides({});
   };
 
   const handleEditClip = async (clip: (typeof clips)[number]) => {
@@ -268,9 +300,67 @@ export function HighlightUploadDialog({
     router.push(`/editor?${params.toString()}`);
   };
 
+  const handleEditSegments = (clip: Clip) => {
+    if (clip.videoId == null) return;
+    setEditSegmentsVideo({
+      id: clip.videoId,
+      srt_raw_url: clip.srtUrl ?? null,
+      editing_job_id: null,
+    });
+  };
+
+  const handleEditSegmentsVideo = (video: StudyLoopVideo) => {
+    if (!video.original_video_id || !video.srt_raw_url || video.editing_job_id) return;
+    setEditSegmentsVideo({
+      id: video.id,
+      srt_raw_url: video.srt_raw_url,
+      editing_job_id: video.editing_job_id ?? null,
+    });
+  };
+  const displayedClips = React.useMemo(
+    () =>
+      clips.map((clip) => {
+        if (clip.videoId == null) return clip;
+        const override = editedClipOverrides[clip.videoId];
+        return override ? { ...clip, ...override } : clip;
+      }),
+    [clips, editedClipOverrides],
+  );
+
+  const refreshEditedClip = React.useCallback(async () => {
+    const videoId = editSegmentsVideo?.id;
+    if (!videoId) return;
+
+    const currentClip = clips.find((clip) => clip.videoId === videoId);
+    let latest = await videoApi.findById(videoId);
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const latestSrtUrl = latest.srtRawUrl ?? latest.srt_raw_url ?? null;
+      const hasFreshAsset =
+        !currentClip ||
+        latest.url !== currentClip.url ||
+        latestSrtUrl !== (currentClip.srtUrl ?? null);
+
+      if (hasFreshAsset) break;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      latest = await videoApi.findById(videoId);
+    }
+
+    setEditedClipOverrides((current) => ({
+      ...current,
+      [videoId]: {
+        url: latest.url,
+        duration: latest.duration,
+        thumbnail: latest.thumbnail,
+        srtUrl: latest.srtRawUrl ?? latest.srt_raw_url ?? null,
+      },
+    }));
+  }, [clips, editSegmentsVideo?.id]);
+
   const handleViewResults = async () => {
-    if (clips.length === 1 && clips[0]?.url) {
-      await handleEditClip(clips[0]);
+    if (displayedClips.length === 1 && displayedClips[0]?.url) {
+      await handleEditClip(displayedClips[0]);
       return;
     }
 
@@ -297,7 +387,7 @@ export function HighlightUploadDialog({
     (showForm && !isProcessing && !isCompleted) || isVideoPickerMode;
   const dialogSizeClass =
     isVideoPickerMode || isResultsMode
-      ? "h-[88dvh] !w-[92vw] !max-w-[1120px] max-sm:h-[94dvh]"
+      ? "h-[94dvh] !w-[92vw] !max-w-[1120px] max-sm:h-[96dvh]"
       : isFilePickerMode
         ? "h-auto !w-[90vw] !max-w-[980px] max-sm:max-h-[calc(100dvh-1rem)]"
         : "h-[calc(100dvh-40px)] !w-[min(1060px,calc(100vw-48px))] !max-w-[1060px] max-sm:h-[94dvh] max-sm:!w-[calc(100vw-1rem)]";
@@ -315,7 +405,7 @@ export function HighlightUploadDialog({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "flex max-h-[900px] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-[width,max-width,height,max-height] duration-200 max-sm:!w-[calc(100vw-1rem)] max-sm:rounded-xl",
+          "flex max-h-[calc(100dvh-1rem)] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl transition-[width,max-width,height,max-height] duration-200 max-sm:!w-[calc(100vw-1rem)] max-sm:rounded-xl",
           dialogSizeClass,
         )}
       >
@@ -406,14 +496,21 @@ export function HighlightUploadDialog({
                       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {paginatedLessonVideos.map((video) => {
                           const selected = video.id === selectedExistingVideoId;
+                          const canEditSegments = Boolean(
+                            video.original_video_id && video.srt_raw_url && !video.editing_job_id,
+                          );
 
                           return (
-                            <button
+                            <div
                               key={video.id}
-                              type="button"
-                              onClick={() =>
-                                setSelectedExistingVideoId(video.id)
-                              }
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedExistingVideoId(video.id)}
+                              onKeyDown={(event) => {
+                                if (event.key !== "Enter" && event.key !== " ") return;
+                                event.preventDefault();
+                                setSelectedExistingVideoId(video.id);
+                              }}
                               className={cn(
                                 "group min-w-0 cursor-pointer overflow-hidden rounded-xl border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                 selected
@@ -438,13 +535,34 @@ export function HighlightUploadDialog({
                                     Đã chọn
                                   </span>
                                 ) : null}
+                                {video.editing_job_id ? (
+                                  <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white">
+                                    Đang cập nhật
+                                  </span>
+                                ) : null}
                               </div>
                               <div className="space-y-1 p-3">
                                 <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground break-words">
                                   {getVideoTitle(video)}
                                 </p>
+                                {canEditSegments ? (
+                                  <button
+                                    type="button"
+                                    aria-label="Tinh chỉnh đoạn highlight"
+                                    title="Tinh chỉnh đoạn highlight"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      handleEditSegmentsVideo(video);
+                                    }}
+                                    className="mt-2 inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
+                                  >
+                                    <Scissors className="h-3.5 w-3.5" />
+                                    Tinh chỉnh đoạn
+                                  </button>
+                                ) : null}
                               </div>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -583,7 +701,7 @@ export function HighlightUploadDialog({
                 status={status}
                 jobId={jobId}
                 isDownloading={isDownloading}
-                clipsCount={clips.length}
+                clipsCount={displayedClips.length}
                 error={error}
                 stage={stage}
                 progressPercent={progressPercent}
@@ -597,10 +715,11 @@ export function HighlightUploadDialog({
 
             <div data-feed-highlight-results>
               <ResultsSection
-                clips={clips}
+                clips={displayedClips}
                 isVisible={isCompleted}
                 onEditClip={handleEditClip}
                 onStartNew={handleStartNew}
+                onEditSegments={handleEditSegments}
                 onRefineCriteria={handleRefineCriteria}
               />
             </div>
@@ -646,6 +765,15 @@ export function HighlightUploadDialog({
           ) : null}
         </div>
       </DialogContent>
+
+      <HighlightEditSheet
+        video={editSegmentsVideo}
+        open={!!editSegmentsVideo}
+        onOpenChange={(next) => {
+          if (!next) setEditSegmentsVideo(null);
+        }}
+        onEditApplied={refreshEditedClip}
+      />
     </Dialog>
   );
 }

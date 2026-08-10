@@ -167,6 +167,13 @@ export class VideoService {
             duration: dto.duration ?? video.duration,
             image_id: dto.image_id ?? video.image_id,
             srt_raw_url: dto.srt_raw_url ?? video.srt_raw_url,
+            // `??` would treat an explicit `null` the same as "not sent" and skip
+            // clearing it — editing_job_id needs to go from a job id back to null
+            // when an edit completes/fails, so check `undefined` explicitly instead.
+            editing_job_id:
+                dto.editing_job_id !== undefined
+                    ? dto.editing_job_id
+                    : video.editing_job_id,
         });
 
         return video;

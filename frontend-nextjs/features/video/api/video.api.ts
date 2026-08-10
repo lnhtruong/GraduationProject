@@ -84,6 +84,8 @@ type VideoApiResponse = {
     url?: string;
     [key: string]: unknown;
   } | null;
+  original_video_id?: number | null;
+  editing_job_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -109,6 +111,8 @@ function mapVideo(raw: VideoApiResponse): Video {
     type: (raw.type ?? "mascot") as Video["type"],
     thumbnail: raw.thumbnail ?? raw.image?.thumbnail ?? null,
     image: raw.image ?? null,
+    original_video_id: raw.original_video_id ?? null,
+    editing_job_id: raw.editing_job_id ?? null,
     created_at: raw.created_at,
     updated_at: raw.updated_at,
   };

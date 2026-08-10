@@ -149,6 +149,10 @@ export interface CourseFeedVideo {
   thumbnail?: string | null;
   duration?: number | null;
   type?: string;
+  /** Segment-removal eligibility (spec 003-highlight-segment-removal) — see getMyFeeds. */
+  srt_raw_url?: string | null;
+  original_video_id?: number | null;
+  editing_job_id?: string | null;
 }
 
 export interface CourseFeedItem {
@@ -207,5 +211,8 @@ export interface CourseFeedCandidateVideo {
   thumbnail?: string | null;
   duration?: number | null;
   type: string;
+  srt_raw_url?: string | null;
+  original_video_id?: number | null;
+  editing_job_id?: string | null;
   isUsedInFeed?: boolean;
 }

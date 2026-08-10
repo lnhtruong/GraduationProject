@@ -31,6 +31,10 @@ export interface Video {
   type: VideoType;
   thumbnail?: string | null;
   image?: VideoImage | null;
+  /** For a highlight video: the videos.id it was generated from. Null if not eligible for segment removal. */
+  original_video_id?: number | null;
+  /** Non-null while a segment-removal edit is in flight for this video. */
+  editing_job_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
