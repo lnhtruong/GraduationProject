@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   courseFeedApi,
   courseApi,
+  instructorChangeRequestApi,
+  isCourseChangeRequestResult,
   courseWorkflowApi,
   lessonActivityApi,
   lessonApi,
@@ -16,6 +18,10 @@ import {
   type LessonActivityListParams,
   type LessonListParams,
   type QuizListParams,
+  type InstructorCourseMutationResult,
+  type InstructorLessonDeleteResult,
+  type InstructorLessonMutationResult,
+  type CancelChangeRequestResponse,
 } from "./course-management.api";
 import type {
   CourseFormValues,
@@ -30,6 +36,57 @@ import type {
   LessonFormValues,
   QuizEditorState,
 } from "../types";
+import type { ChangeRequestListParams } from "@/features/admin/types/change-request.types";
+
+const courseCrudApiForHooks = {
+  ...courseApi,
+  update: async (id: number, data: CourseFormValues): Promise<InstructorCourse> => {
+    const result = await courseApi.update(id, data);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Course update returned a change request");
+    }
+    return result;
+  },
+  updatePatch: async (id: number, data: CourseFormValues): Promise<InstructorCourse> => {
+    const result = await courseApi.updatePatch(id, data);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Course patch returned a change request");
+    }
+    return result;
+  },
+};
+
+const lessonCrudApiForHooks = {
+  ...lessonApi,
+  create: async (data: LessonFormValues): Promise<InstructorLesson> => {
+    const result = await lessonApi.create(data);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Lesson create returned a change request");
+    }
+    return result;
+  },
+  update: async (id: number, data: LessonFormValues): Promise<InstructorLesson> => {
+    const result = await lessonApi.update(id, data);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Lesson update returned a change request");
+    }
+    return result;
+  },
+  updatePatch: async (id: number, data: LessonFormValues): Promise<InstructorLesson> => {
+    const result = await lessonApi.updatePatch(id, data);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Lesson patch returned a change request");
+    }
+    return result;
+  },
+  delete: async (id: number): Promise<{ success?: boolean }> => {
+    const result = await lessonApi.delete(id);
+    if (isCourseChangeRequestResult(result)) {
+      throw new Error("Lesson delete returned a change request");
+    }
+    return result ?? { success: true };
+  },
+};
 
 export const courseHooks = createCrudHooks<
   InstructorCourse,
@@ -38,7 +95,7 @@ export const courseHooks = createCrudHooks<
   number,
   number,
   CourseListParams
->("instructor-course", courseApi);
+>("instructor-course", courseCrudApiForHooks);
 
 export const lessonHooks = createCrudHooks<
   InstructorLesson,
@@ -47,7 +104,7 @@ export const lessonHooks = createCrudHooks<
   number,
   number,
   LessonListParams
->("instructor-lesson", lessonApi, {
+>("instructor-lesson", lessonCrudApiForHooks, {
   parentListKey: "courseId",
   parentListParamsBuilder: (courseId) => ({ courseId: Number(courseId) }),
 });
@@ -92,16 +149,16 @@ export const {
   useListMine: useInstructorCourses,
   useDetail: useInstructorCourseById,
   useCreate: useCreateCourse,
-  useUpdate: useUpdateCourse,
+  useUpdate: useUpdateCourseDirect,
   useDelete: useDeleteCourse,
 } = courseHooks;
 
 export const {
   useListByParent: useLessonsByCourseId,
   useDetail: useLessonById,
-  useCreate: useCreateLesson,
-  useUpdate: useUpdateLesson,
-  useDelete: useDeleteLesson,
+  useCreate: useCreateLessonDirect,
+  useUpdate: useUpdateLessonDirect,
+  useDelete: useDeleteLessonDirect,
 } = lessonHooks;
 
 export const {
@@ -129,6 +186,51 @@ export const {
 } = courseFeedHooks;
 
 export const instructorCourseKeys = createKeyFactory("instructor-course");
+export const instructorLessonKeys = createKeyFactory("instructor-lesson");
+export const instructorChangeRequestKeys = createKeyFactory("instructor-course-change-requests");
+
+export function useInstructorCourseChangeRequests(
+  courseId: number | null,
+  params?: Omit<ChangeRequestListParams, "courseId">,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: instructorChangeRequestKeys.custom("course", courseId, params ?? {}),
+    queryFn: () => instructorChangeRequestApi.listByCourse(courseId as number, params),
+    enabled: enabled && typeof courseId === "number",
+    staleTime: 30 * 1000,
+  });
+}
+
+function invalidateChangeRequestCache(
+  queryClient: {
+    invalidateQueries: (input: { queryKey: readonly unknown[] }) => void;
+  },
+  courseId?: number,
+) {
+  queryClient.invalidateQueries({ queryKey: instructorChangeRequestKeys.root });
+  if (typeof courseId === "number") {
+    queryClient.invalidateQueries({
+      queryKey: instructorChangeRequestKeys.custom("course", courseId),
+    });
+  }
+}
+
+export const useCancelInstructorChangeRequest = createMutationHooks<
+  CancelChangeRequestResponse,
+  number
+>(
+  "instructor-course-change-requests",
+  "cancel",
+  (requestId) => instructorChangeRequestApi.cancel(requestId),
+  {
+    retry: false,
+    onSuccess: (data, _variables, queryClient) => {
+      invalidateChangeRequestCache(queryClient, data.courseId);
+      invalidateCourseCache(queryClient, data.courseId);
+    },
+  },
+);
 
 function invalidateCourseCache(
   queryClient: {
@@ -144,6 +246,85 @@ function invalidateCourseCache(
   }
 }
 
+export const useUpdateCourse = createMutationHooks<
+  InstructorCourseMutationResult,
+  { id: number; data: CourseFormValues }
+>(
+  "instructor-course",
+  "update",
+  ({ id, data }) => courseApi.update(id, data),
+  {
+    retry: false,
+    onSuccess: (data, variables, queryClient) => {
+      const courseId = isCourseChangeRequestResult(data) ? data.courseId : data.id;
+      invalidateCourseCache(queryClient, courseId || variables.id);
+      if (isCourseChangeRequestResult(data)) {
+        invalidateChangeRequestCache(queryClient, data.courseId);
+      }
+    },
+  },
+);
+
+export const useCreateLesson = createMutationHooks<
+  InstructorLessonMutationResult,
+  LessonFormValues
+>(
+  "instructor-lesson",
+  "create",
+  (payload) => lessonApi.create(payload),
+  {
+    retry: false,
+    onSuccess: (data, variables, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: instructorLessonKeys.root });
+      invalidateCourseCache(queryClient, variables.courseId);
+      if (isCourseChangeRequestResult(data)) {
+        invalidateChangeRequestCache(queryClient, data.courseId);
+      }
+    },
+  },
+);
+
+export const useUpdateLesson = createMutationHooks<
+  InstructorLessonMutationResult,
+  { id: number; data: LessonFormValues }
+>(
+  "instructor-lesson",
+  "update",
+  ({ id, data }) => lessonApi.update(id, data),
+  {
+    retry: false,
+    onSuccess: (data, variables, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: instructorLessonKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: instructorLessonKeys.root });
+      const courseId = isCourseChangeRequestResult(data) ? data.courseId : data.courseId;
+      invalidateCourseCache(queryClient, courseId);
+      if (isCourseChangeRequestResult(data)) {
+        invalidateChangeRequestCache(queryClient, data.courseId);
+      }
+    },
+  },
+);
+
+export const useDeleteLesson = createMutationHooks<
+  InstructorLessonDeleteResult,
+  { id: number; courseId?: number }
+>(
+  "instructor-lesson",
+  "delete",
+  ({ id }) => lessonApi.delete(id),
+  {
+    retry: false,
+    onSuccess: (data, variables, queryClient) => {
+      queryClient.invalidateQueries({ queryKey: instructorLessonKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: instructorLessonKeys.root });
+      const courseId = isCourseChangeRequestResult(data) ? data.courseId : variables.courseId;
+      invalidateCourseCache(queryClient, courseId);
+      if (isCourseChangeRequestResult(data)) {
+        invalidateChangeRequestCache(queryClient, data.courseId);
+      }
+    },
+  },
+);
 export const useSubmitCourseForReview = createMutationHooks<
   InstructorCourse,
   number

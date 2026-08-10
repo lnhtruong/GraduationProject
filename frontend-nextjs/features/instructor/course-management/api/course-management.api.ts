@@ -18,6 +18,7 @@ import {
   type QuizListParams,
   quizApi as baseQuizApi,
 } from "@/features/quizzes/api/quizz.api";
+import { apiHttpClient } from "@/features/_shared/api-factories";
 import {
   createResourceApi,
   withQueryPath,
@@ -34,6 +35,11 @@ import type {
   LessonFormValues,
   QuizEditorState,
 } from "../types";
+import type {
+  ChangeRequestListParams,
+  ChangeRequestListResponse,
+  CourseChangeRequest,
+} from "@/features/admin/types/change-request.types";
 
 export type CourseFeedListParams = {
   courseId?: number;
@@ -131,11 +137,49 @@ function toQuizPayload(payload: QuizEditorState) {
   } satisfies CreateQuizPayload;
 }
 
-function toInstructorCourse(item: Course): InstructorCourse {
+function toInstructorCourse(item: Partial<Course>): InstructorCourse {
   return {
-    ...item,
+    id: item.id ?? 0,
+    name: item.name ?? "",
+    description: item.description ?? "",
+    thumbnailUrl: item.thumbnailUrl,
+    categories: Array.isArray(item.categories) ? item.categories : [],
+    level: item.level ?? "Beginner",
     duration: item.duration ?? "00:00:00",
+    language: item.language ?? "vi",
+    price: item.price ?? 0,
+    userId: item.userId ?? 0,
+    status: item.status ?? "draft",
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    lessons: item.lessons as InstructorLesson[] | undefined,
   };
+}
+
+function toInstructorLesson(item: Partial<InstructorLesson>): InstructorLesson {
+  return {
+    id: item.id ?? 0,
+    courseId: item.courseId ?? 0,
+    videoId: item.videoId ?? null,
+    title: item.title ?? "",
+    contentType: item.contentType ?? "text",
+    content: item.content ?? {},
+    duration: item.duration,
+    status: item.status ?? "active",
+    description: item.description,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+}
+
+export type InstructorCourseMutationResult = InstructorCourse | CourseChangeRequest;
+export type InstructorLessonMutationResult = InstructorLesson | CourseChangeRequest;
+export type InstructorLessonDeleteResult = { success?: boolean } | CourseChangeRequest | void;
+
+export function isCourseChangeRequestResult(value: unknown): value is CourseChangeRequest {
+  if (!value || typeof value !== "object") return false;
+  const maybe = value as Partial<CourseChangeRequest>;
+  return typeof maybe.id === "number" && typeof maybe.kind === "string" && "payload" in maybe;
 }
 
 export const courseApi = {
@@ -151,19 +195,26 @@ export const courseApi = {
     baseCourseApi.getOne(id).then(toInstructorCourse),
   create: (payload: CourseFormValues): Promise<InstructorCourse> =>
     baseCourseApi.create(toCoursePayload(payload)).then(toInstructorCourse),
-  update: (id: number, payload: CourseFormValues): Promise<InstructorCourse> =>
-    baseCourseApi.update(id, toCoursePayload(payload)).then(toInstructorCourse),
-  updatePatch: (
+  update: async (
     id: number,
     payload: CourseFormValues,
-  ): Promise<InstructorCourse> =>
-    baseCourseApi.updatePatch
-      ? baseCourseApi
-          .updatePatch(id, toCoursePayload(payload))
-          .then(toInstructorCourse)
-      : baseCourseApi
-          .update(id, toCoursePayload(payload))
-          .then(toInstructorCourse),
+  ): Promise<InstructorCourseMutationResult> => {
+    const { data } = await apiHttpClient.patch<InstructorCourseMutationResult>(
+      `/course/courses/${id}`,
+      toCoursePayload(payload),
+    );
+    return isCourseChangeRequestResult(data) ? data : toInstructorCourse(data);
+  },
+  updatePatch: async (
+    id: number,
+    payload: CourseFormValues,
+  ): Promise<InstructorCourseMutationResult> => {
+    const { data } = await apiHttpClient.patch<InstructorCourseMutationResult>(
+      `/course/courses/${id}`,
+      toCoursePayload(payload),
+    );
+    return isCourseChangeRequestResult(data) ? data : toInstructorCourse(data);
+  },
   delete: (id: number) => baseCourseApi.delete(id),
 };
 
@@ -189,18 +240,65 @@ export const lessonApi = {
   list: (params?: LessonListParams): Promise<InstructorLesson[]> =>
     baseLessonApi.list?.(params) ?? Promise.resolve([]),
   getOne: (id: number): Promise<InstructorLesson> => baseLessonApi.getOne(id),
-  create: (payload: LessonFormValues): Promise<InstructorLesson> =>
-    baseLessonApi.create(toLessonPayload(payload)),
-  update: (id: number, payload: LessonFormValues): Promise<InstructorLesson> =>
-    baseLessonApi.update(id, toLessonPayload(payload)),
-  updatePatch: (
+  create: async (payload: LessonFormValues): Promise<InstructorLessonMutationResult> => {
+    const { data } = await apiHttpClient.post<InstructorLessonMutationResult>(
+      "/course/lessons",
+      toLessonPayload(payload),
+    );
+    return isCourseChangeRequestResult(data) ? data : toInstructorLesson(data);
+  },
+  update: async (
     id: number,
     payload: LessonFormValues,
-  ): Promise<InstructorLesson> =>
-    baseLessonApi.updatePatch
-      ? baseLessonApi.updatePatch(id, toLessonPayload(payload))
-      : baseLessonApi.update(id, toLessonPayload(payload)),
-  delete: (id: number) => baseLessonApi.delete(id),
+  ): Promise<InstructorLessonMutationResult> => {
+    const { data } = await apiHttpClient.patch<InstructorLessonMutationResult>(
+      `/course/lessons/${id}`,
+      toLessonPayload(payload),
+    );
+    return isCourseChangeRequestResult(data) ? data : toInstructorLesson(data);
+  },
+  updatePatch: async (
+    id: number,
+    payload: LessonFormValues,
+  ): Promise<InstructorLessonMutationResult> => {
+    const { data } = await apiHttpClient.patch<InstructorLessonMutationResult>(
+      `/course/lessons/${id}`,
+      toLessonPayload(payload),
+    );
+    return isCourseChangeRequestResult(data) ? data : toInstructorLesson(data);
+  },
+  delete: async (id: number): Promise<InstructorLessonDeleteResult> => {
+    const { data } = await apiHttpClient.delete<InstructorLessonDeleteResult>(
+      `/course/lessons/${id}`,
+    );
+    return data;
+  },
+};
+
+export type CancelChangeRequestResponse = {
+  success: true;
+  id: number;
+  courseId: number;
+};
+
+export const instructorChangeRequestApi = {
+  listByCourse: async (
+    courseId: number,
+    params?: Omit<ChangeRequestListParams, "courseId">,
+  ): Promise<ChangeRequestListResponse> => {
+    const { data } = await apiHttpClient.get<ChangeRequestListResponse>(
+      "/course/courses/change-requests",
+      { params: { ...params, courseId } },
+    );
+    return data;
+  },
+
+  cancel: async (requestId: number): Promise<CancelChangeRequestResponse> => {
+    const { data } = await apiHttpClient.delete<CancelChangeRequestResponse>(
+      `/course/courses/change-requests/${requestId}`,
+    );
+    return data;
+  },
 };
 
 export const quizApi = {

@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  Eye, Loader2, Check, X, BookOpen, FileText, HelpCircle,
+  Eye, Loader2, Check, X, BookOpen, FileText,
   Trash2, PlusCircle, PenLine, Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
-import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue } from "./change-request-format";
+import { FIELD_LABELS, NON_TEXT_DIFF_FIELDS, formatDiffValue, getDisplayChangeDiffs } from "./change-request-format";
 import type { CourseChangeRequest, CourseChangeRequestKind } from "../../types/change-request.types";
 
 // ── Kind config ───────────────────────────────────────────────────────────────
@@ -20,9 +20,6 @@ const KIND_CONFIG: Record<
   "lesson.create":  { label: "Thêm bài học",       icon: <PlusCircle className="h-3 w-3" />, colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" },
   "lesson.update":  { label: "Sửa bài học",        icon: <PenLine className="h-3 w-3" />,    colorClass: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-800" },
   "lesson.delete":  { label: "Xoá bài học",        icon: <Trash2 className="h-3 w-3" />,     colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
-  "quiz.create":    { label: "Thêm quiz",           icon: <PlusCircle className="h-3 w-3" />, colorClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800" },
-  "quiz.update":    { label: "Sửa quiz",            icon: <PenLine className="h-3 w-3" />,    colorClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800" },
-  "quiz.delete":    { label: "Xoá quiz",            icon: <Trash2 className="h-3 w-3" />,     colorClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800" },
 };
 
 const STATUS_CONFIG = {
@@ -55,19 +52,8 @@ function InlinePreview({ req }: { req: CourseChangeRequest }) {
     );
   }
 
-  // quiz.create: kind hợp lệ về mặt backend (giữ để tương thích ngược với
-  // request cũ từ trước khi quiz chuyển sang sửa/xoá trực tiếp), nhưng
-  // QuizChangePayload dùng field "name", không phải "title" như lesson.
-  if (kind === "quiz.create") {
-    const name = (payload?.name as string) ?? (changes?.find((c) => c.field === "name")?.to as string) ?? null;
-    return (
-      <span className="text-xs text-muted-foreground">
-        Tên quiz: <span className="font-medium text-foreground">{name ?? "—"}</span>
-      </span>
-    );
-  }
 
-  const diffs = (changes ?? []).filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
+  const diffs = getDisplayChangeDiffs(changes).filter((c) => !NON_TEXT_DIFF_FIELDS.has(c.field));
   if (diffs.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
 
   return (
@@ -162,11 +148,7 @@ export function AdminChangeRequestTable({
         const isBusy = isApproving || isRejecting;
         const isPending = req.status === "pending";
 
-        const kindCfg = KIND_CONFIG[req.kind] ?? {
-          label: req.kind,
-          icon: <HelpCircle className="h-3 w-3" />,
-          colorClass: "bg-muted text-muted-foreground border-border",
-        };
+        const kindCfg = KIND_CONFIG[req.kind];
         const statusCfg = STATUS_CONFIG[req.status as keyof typeof STATUS_CONFIG] ?? {
           label: req.status,
           colorClass: "bg-muted text-muted-foreground border-border",

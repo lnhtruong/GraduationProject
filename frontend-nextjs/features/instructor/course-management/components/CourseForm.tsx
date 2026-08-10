@@ -18,10 +18,19 @@ import {
   X,
   GraduationCap,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,6 +50,10 @@ import {
 import dynamic from "next/dynamic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { CourseFormValues, InstructorCourse } from "../types";
+import {
+  isCourseChangeRequestResult,
+  type InstructorCourseMutationResult,
+} from "../api/course-management.api";
 import { formatMonthYear } from "@/features/courses/utils";
 import { useCloudinaryDirectUpload } from "@/features/cloudinary";
 import { useCourseCategories } from "@/features/courses/api/courseSearch.hooks";
@@ -60,7 +73,7 @@ const RichTextBoxCKE = dynamic(
 
 interface Props {
   course?: InstructorCourse | null;
-  onSave?: (payload: CourseFormValues) => Promise<void> | void;
+  onSave?: (payload: CourseFormValues) => Promise<InstructorCourseMutationResult | void> | InstructorCourseMutationResult | void;
 }
 
 function getCourseSaveErrorMessage(error: unknown) {
@@ -102,7 +115,7 @@ const CATEGORY_SUGGESTION_EXPANDED_LIMIT = 14;
 
 function formatVndInput(value?: number | null) {
   const amount = Number(value ?? 0);
-  return amount > 0 ? amount.toLocaleString("vi-VN") + " đ" : "";
+  return amount.toLocaleString("vi-VN");
 }
 
 function parseVndInput(value: string) {
@@ -117,6 +130,8 @@ export function CourseForm({ course, onSave }: Props) {
     useState(false);
   const { data: categorySuggestions = [] } = useCourseCategories();
   const [filledAt, setFilledAt] = useState<string | null>(null);
+  const [confirmValues, setConfirmValues] = useState<CourseFormValues | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const formOpenedAt = useMemo(() => new Date().toISOString(), []);
 
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -166,7 +181,7 @@ export function CourseForm({ course, onSave }: Props) {
     [course],
   );
 
-  const { register, control, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<CourseFormValues>({
+  const { register, control, handleSubmit, reset, setValue, formState: { errors, isSubmitting, isDirty } } = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
     defaultValues: initialValues,
   });
@@ -185,7 +200,10 @@ export function CourseForm({ course, onSave }: Props) {
         type: "thumbnail_course",
       });
       if (result?.secure_url) {
-        setValue("thumbnailUrl", result.secure_url);
+        setValue("thumbnailUrl", result.secure_url, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       } else {
         toast.error("Không nhận được URL ảnh từ máy chủ.");
       }
@@ -334,9 +352,27 @@ export function CourseForm({ course, onSave }: Props) {
     onChange(current.filter((item) => item !== target));
   };
 
-  const onSubmit = async (values: CourseFormValues) => {
+  const willCreateChangeRequest =
+    isEdit && (course?.status === "publish" || course?.status === "approved");
+  const changeRequestCopy =
+    course?.status === "publish"
+      ? {
+          title: "Gửi bản chỉnh sửa khóa học?",
+          description:
+            "Khóa học này đang mở cho học viên. Bản đang học sẽ được giữ nguyên, còn phần bạn vừa sửa sẽ được gửi chờ duyệt trước khi cập nhật.",
+          action: "Gửi bản chỉnh sửa",
+        }
+      : {
+          title: "Gửi bản chỉnh sửa khóa học?",
+          description:
+            "Khóa học này đã được duyệt và đang chờ xuất bản. Phần bạn vừa sửa sẽ được gửi duyệt lại để giữ nội dung trước khi xuất bản luôn nhất quán.",
+          action: "Gửi duyệt lại",
+        };
+
+  const saveCourseValues = async (values: CourseFormValues) => {
+    setIsSaving(true);
     try {
-      await onSave?.({
+      const result = await onSave?.({
         name: values.name.trim(),
         description: values.description.trim(),
         thumbnailUrl: values.thumbnailUrl?.trim() || null,
@@ -347,10 +383,9 @@ export function CourseForm({ course, onSave }: Props) {
         price: Number(values.price || 0),
       });
 
-      const shouldCreateReviewRequest =
-        isEdit && course?.status && course.status !== "draft";
+      const didCreateChangeRequest = isCourseChangeRequestResult(result);
       toast.success(
-        shouldCreateReviewRequest
+        didCreateChangeRequest
           ? "Đã gửi yêu cầu chỉnh sửa, đang chờ duyệt."
           : isEdit
             ? "Đã cập nhật khóa học"
@@ -358,9 +393,18 @@ export function CourseForm({ course, onSave }: Props) {
       );
     } catch (error) {
       toast.error(getCourseSaveErrorMessage(error));
+    } finally {
+      setIsSaving(false);
     }
   };
+  const onSubmit = async (values: CourseFormValues) => {
+    if (willCreateChangeRequest) {
+      setConfirmValues(values);
+      return;
+    }
 
+    await saveCourseValues(values);
+  };
   /* ─── Preview Panel (rendered inside Sheet) ─── */
   const previewContent = (
     <div className="space-y-5">
@@ -478,13 +522,48 @@ export function CourseForm({ course, onSave }: Props) {
             </SheetContent>
           </Sheet>
 
-          <Button type="submit" form="course-form" className="min-w-[120px]" disabled={isSubmitting}>
-            {isSubmitting ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
+          <Button type="submit" form="course-form" className="min-w-[120px]" disabled={isSubmitting || isSaving || isUploading || !isDirty}>
+            {isSubmitting || isSaving ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo khóa học"}
           </Button>
         </>,
         portalTarget
       )}
 
+      <Dialog open={Boolean(confirmValues)} onOpenChange={(open) => !open && setConfirmValues(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {changeRequestCopy.title}
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-6">
+              {changeRequestCopy.description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => setConfirmValues(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              disabled={isSaving}
+              onClick={() => {
+                if (!confirmValues) return;
+                const values = confirmValues;
+                setConfirmValues(null);
+                void saveCourseValues(values);
+              }}
+            >
+              {isSaving ? "Đang gửi..." : changeRequestCopy.action}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* ─── Cột trái: Thông tin & Phân loại (8/12) ─── */}
         <div className="space-y-6 lg:col-span-8">
@@ -756,16 +835,21 @@ export function CourseForm({ course, onSave }: Props) {
                   name="price"
                   control={control}
                   render={({ field }) => (
-                    <Input
-                      ref={field.ref}
-                      inputMode="numeric"
-                      value={formatVndInput(field.value)}
-                      onChange={(event) => field.onChange(parseVndInput(event.target.value))}
-                      onBlur={field.onBlur}
-                      onFocus={(event) => event.currentTarget.select()}
-                      placeholder="Nhập giá bán, ví dụ 1.000.000 đ"
-                      className={cn("h-11", errors.price && "border-destructive focus-visible:ring-destructive")}
-                    />
+                    <div className="relative">
+                      <Input
+                        ref={field.ref}
+                        inputMode="numeric"
+                        value={formatVndInput(field.value)}
+                        onChange={(event) => field.onChange(parseVndInput(event.target.value))}
+                        onBlur={field.onBlur}
+                        onFocus={(event) => event.currentTarget.select()}
+                        placeholder="Nhập giá bán, ví dụ 1.000.000"
+                        className={cn("h-11 pr-10", errors.price && "border-destructive focus-visible:ring-destructive")}
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                        đ
+                      </span>
+                    </div>
                   )}
                 />
                 {errors.price && (

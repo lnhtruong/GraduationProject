@@ -4,10 +4,7 @@ export type CourseChangeRequestKind =
   | "course.update"
   | "lesson.create"
   | "lesson.update"
-  | "lesson.delete"
-  | "quiz.create"
-  | "quiz.update"
-  | "quiz.delete";
+  | "lesson.delete";
 
 export type ChangeRequestPayload = Record<string, unknown>;
 
@@ -50,6 +47,8 @@ export interface CourseChangeRequest {
 export interface ChangeRequestListParams {
   status?: CourseChangeRequestStatus;
   kind?: CourseChangeRequestKind;
+  courseId?: number;
+  requestedBy?: number;
   search?: string;
   page?: number;
   limit?: number;

@@ -27,7 +27,10 @@ function makeMockPaginated(courses: Course[], params?: CourseListParams): Pagina
   return { data: courses.slice(start, start + limit), pagination: { page, limit, totalItems, totalPages } };
 }
 
-export function useAdminCoursesPaginated(params?: CourseListParams) {
+export function useAdminCoursesPaginated(
+  params?: CourseListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery<PaginatedCourseResponse>({
     queryKey: ADMIN_COURSE_KEYS.paginated(params),
     queryFn: USE_MOCK
@@ -37,6 +40,7 @@ export function useAdminCoursesPaginated(params?: CourseListParams) {
         }
       : () => adminCourseApi.listPaginated(params),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -387,6 +387,7 @@ export class CoursesService {
             changeRequestId: request.id,
             kind,
             redirectUrl: teacherRedirectUrl,
+            url: teacherRedirectUrl,
           },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
@@ -418,7 +419,7 @@ export class CoursesService {
           sseEventType: NOTIFY_CREATED_SSE_EVENT,
           title,
           message,
-          payload: { courseId, kind, redirectUrl: studentRedirectUrl },
+          payload: { courseId, kind, redirectUrl: studentRedirectUrl, url: studentRedirectUrl },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
         });
@@ -469,7 +470,8 @@ export class CoursesService {
             courseId: request.courseId,
             changeRequestId: request.id,
             kind: request.kind ?? CourseChangeRequestKind.COURSE_UPDATE,
-            redirectUrl: `/instructor/courses/${request.courseId}/edit`,
+            redirectUrl: "/instructor/courses/" + request.courseId + "/edit",
+            url: "/instructor/courses/" + request.courseId + "/edit",
             note: trimmedNote ?? null,
           },
           sourceType: COURSE_SOURCE,
@@ -556,11 +558,61 @@ export class CoursesService {
     const diffed: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(payload)) {
       const current = course.get(key as keyof Course) ?? null;
-      if (JSON.stringify(value ?? null) !== JSON.stringify(current)) {
+      if (!this.areChangeDiffValuesEqual(key, current, value)) {
         diffed[key] = value;
       }
     }
     return diffed as CourseUpdatePayload;
+  }
+
+  private normalizeChangeDiffValue(field: string, value: unknown): unknown {
+    if (value === undefined) {
+      return null;
+    }
+    if (field === 'duration') {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.max(0, Math.round(value * 1000));
+      }
+      return this.parseTimeToMilliseconds(typeof value === 'string' ? value : null);
+    }
+    if (field === 'courseId' || field === 'videoId' || field === 'targetId') {
+      return value === null || value === undefined || value === '' ? null : Number(value);
+    }
+    if (field === 'price') {
+      return value === null || value === undefined || value === '' ? null : Number(value);
+    }
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.normalizeJsonDiffValue(item));
+    }
+    if (value && typeof value === 'object') {
+      return this.normalizeJsonDiffValue(value);
+    }
+    return value ?? null;
+  }
+
+  private normalizeJsonDiffValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.normalizeJsonDiffValue(item));
+    }
+    if (value && typeof value === 'object') {
+      return Object.keys(value as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = this.normalizeJsonDiffValue((value as Record<string, unknown>)[key]);
+          return acc;
+        }, {});
+    }
+    return value ?? null;
+  }
+
+  private areChangeDiffValuesEqual(field: string, from: unknown, to: unknown): boolean {
+    return (
+      JSON.stringify(this.normalizeChangeDiffValue(field, from)) ===
+      JSON.stringify(this.normalizeChangeDiffValue(field, to))
+    );
   }
 
   /** Tạo danh sách diff (cũ → mới) theo từng field có trong `payload`. */
@@ -570,13 +622,14 @@ export class CoursesService {
   ): CourseChangeFieldDiff[] {
     const prev = (prevData ?? {}) as Record<string, unknown>;
     const next = payload as Record<string, unknown>;
-    return Object.keys(next).map((field) => ({
-      field,
-      from: field in prev ? (prev[field] ?? null) : null,
-      to: next[field] ?? null,
-    }));
+    return Object.keys(next)
+      .map((field) => ({
+        field,
+        from: field in prev ? (prev[field] ?? null) : null,
+        to: next[field] ?? null,
+      }))
+      .filter((change) => !this.areChangeDiffValuesEqual(change.field, change.from, change.to));
   }
-
   /** Bọc change request kèm `changes` đã tính sẵn cho FE. */
   private toChangeRequestView(
     request: CourseChangeRequest,
@@ -2004,7 +2057,7 @@ export class CoursesService {
           sseEventType: NOTIFY_CREATED_SSE_EVENT,
           title,
           message,
-          payload: { courseId, kind, redirectUrl: studentRedirectUrl },
+          payload: { courseId, kind, redirectUrl: studentRedirectUrl, url: studentRedirectUrl },
           sourceType: COURSE_SOURCE,
           sourceId: courseId,
         });
@@ -2201,6 +2254,8 @@ export class CoursesService {
   async listChangeRequests(params: {
     status?: string;
     kind?: string;
+    courseId?: number;
+    requestedBy?: number;
     search?: string;
     page?: number;
     limit?: number;
@@ -2219,6 +2274,12 @@ export class CoursesService {
     }
     if (params.kind) {
       where.kind = params.kind;
+    }
+    if (Number.isInteger(params.courseId) && Number(params.courseId) > 0) {
+      where.courseId = Number(params.courseId);
+    }
+    if (Number.isInteger(params.requestedBy) && Number(params.requestedBy) > 0) {
+      where.requestedBy = Number(params.requestedBy);
     }
 
     const keyword = params.search?.trim();
@@ -2260,6 +2321,64 @@ export class CoursesService {
       throw new NotFoundException(`Change request ${id} not found`);
     }
     return this.toChangeRequestView(request);
+  }
+
+  async getChangeRequestForRequester(
+    id: number,
+    requesterId: number,
+    role?: number,
+  ): Promise<CourseChangeRequestView> {
+    const request = await this.courseChangeRequestModel.findByPk(id, {
+      include: this.changeRequestIncludes,
+    });
+    if (!request) {
+      throw new NotFoundException(`Change request ${id} not found`);
+    }
+    if (role !== this.ADMIN_ROLE && request.requestedBy !== requesterId) {
+      throw new ForbiddenException('You are not allowed to view this change request');
+    }
+    return this.toChangeRequestView(request);
+  }
+
+  async cancelChangeRequest(
+    requestId: number,
+    requester: RequesterContext,
+  ): Promise<{ success: true; id: number; courseId: number }> {
+    const request = await this.courseChangeRequestModel.findByPk(requestId);
+    if (!request) {
+      throw new NotFoundException(`Change request ${requestId} not found`);
+    }
+    if (request.status !== CourseChangeRequestStatus.PENDING) {
+      throw new ConflictException('Only pending change requests can be cancelled');
+    }
+    if (
+      requester.role !== this.ADMIN_ROLE &&
+      request.requestedBy !== requester.userId
+    ) {
+      throw new ForbiddenException('You are not allowed to cancel this change request');
+    }
+
+    const courseId = request.courseId;
+    await request.destroy();
+    await this.auditLogsService.log({
+      actorUserId: requester.userId,
+      actorRole: requester.role,
+      action: 'course.change_request.cancel',
+      targetType:
+        request.kind === CourseChangeRequestKind.COURSE_UPDATE
+          ? 'course'
+          : 'lesson',
+      targetId: request.targetId ?? courseId,
+      metadata: {
+        changeRequestId: requestId,
+        kind: request.kind,
+        courseId,
+      },
+      ip: requester.ip ?? null,
+      userAgent: requester.userAgent ?? null,
+    });
+
+    return { success: true, id: requestId, courseId };
   }
 
   /**

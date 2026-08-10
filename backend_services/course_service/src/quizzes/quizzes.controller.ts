@@ -20,7 +20,6 @@ import { CreateQuizFromAIDto } from './dto/create-quiz-from-ai.dto';
 import { FilterQuizQuestionsDto } from './dto/filter-quiz-questions.dto';
 import { RestoreQuizQuestionsDto } from './dto/restore-quiz-questions.dto';
 import { Quiz } from 'src/models/quiz.model';
-import { CourseChangeRequest } from 'src/models/course-change-request.model';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -97,10 +96,10 @@ export class QuizzesController {
     @Headers('x-user-role') roleHeader?: string,
   ) {
     const requester = this.parseRequester(userIdHeader, roleHeader);
-    // Course đã publish (non-admin) → mỗi quiz đi qua change request; còn lại
-    // tạo trực tiếp. Xử lý từng item để cùng một code path gating.
+    // Quiz create chạy trực tiếp ở mọi trạng thái course; service tự kiểm owner/admin
+    // và gửi notification cho học viên nếu course đã publish.
     if (Array.isArray(body)) {
-      const out: Array<Quiz | CourseChangeRequest> = [];
+      const out: Quiz[] = [];
       for (const item of body) {
         out.push(
           await this.quizzesService.createOneWithReview(item, requester),

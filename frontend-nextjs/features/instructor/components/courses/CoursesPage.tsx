@@ -15,12 +15,23 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CourseManageCard } from "./CourseManageCard";
 import {
   useDeleteCourse,
@@ -33,6 +44,7 @@ import { ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { useDebounce } from "@/hooks/useDebounce";
+import type { InstructorCourse } from "../../course-management/types";
 
 type StatusFilter =
   | "all"
@@ -107,6 +119,8 @@ export default function CoursesPage() {
   const [activeWorkflowCourseId, setActiveWorkflowCourseId] = useState<
     number | null
   >(null);
+  const [pendingDeleteCourse, setPendingDeleteCourse] =
+    useState<InstructorCourse | null>(null);
   const pageSize = useResponsiveCoursePageSize();
 
   // Sync state if URL changes externally (e.g. browser back/forward buttons)
@@ -226,11 +240,13 @@ export default function CoursesPage() {
   const submitCourseForReviewMutation = useSubmitCourseForReview();
   const publishCourseMutation = usePublishCourse();
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (course: InstructorCourse) => {
+    const id = course.id;
     setActiveWorkflowCourseId(id);
     try {
       await deleteCourseMutation.mutateAsync(id);
       toast.success("Đã xóa khóa học");
+      setPendingDeleteCourse(null);
     } catch (error) {
       toast.error(getWorkflowErrorMessage(error, "Xóa khóa học thất bại"));
     } finally {
@@ -488,8 +504,8 @@ export default function CoursesPage() {
                         : undefined
                     }
                     workflowLoading={activeWorkflowCourseId === course.id}
-                    onDelete={(courseId) => {
-                      void handleDelete(courseId);
+                    onDelete={() => {
+                      setPendingDeleteCourse(course);
                     }}
                   />
                 ))}
@@ -530,6 +546,59 @@ export default function CoursesPage() {
           )}
         </div>
       </section>
+      <AlertDialog
+        open={Boolean(pendingDeleteCourse)}
+        onOpenChange={(open) => {
+          if (!open && !deleteCourseMutation.isPending) {
+            setPendingDeleteCourse(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] rounded-2xl sm:max-w-md">
+          <AlertDialogHeader className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <AlertDialogTitle className="text-left text-lg font-bold">
+                  Xóa khóa học này?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-left leading-relaxed">
+                  {pendingDeleteCourse?.name ? (
+                    <>
+                      <span className="font-medium text-foreground">
+                        {pendingDeleteCourse.name}
+                      </span>
+                      <br />
+                    </>
+                  ) : null}
+                  Thao tác này sẽ xóa trực tiếp khóa học khỏi danh sách quản lý. Các yêu cầu thay đổi đang chờ của khóa học này cũng sẽ bị hủy.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              className="mt-0"
+              disabled={deleteCourseMutation.isPending}
+            >
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteCourseMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                if (!pendingDeleteCourse) return;
+                void handleDelete(pendingDeleteCourse);
+              }}
+            >
+              {deleteCourseMutation.isPending ? "Đang xóa..." : "Xóa khóa học"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

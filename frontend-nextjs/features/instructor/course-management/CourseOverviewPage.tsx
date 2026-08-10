@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   PencilLine,
+  Settings2,
   Clapperboard,
   Clock3,
   ChevronLeft,
@@ -15,6 +16,7 @@ import {
   Search,
   Filter,
   Trash2,
+  AlertTriangle,
   Rocket,
   ShieldAlert,
   Play,
@@ -27,6 +29,21 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +60,8 @@ import {
   usePublishCourse,
   useSubmitCourseForReview,
 } from "./api/course-management.hooks";
+import { isCourseChangeRequestResult } from "./api/course-management.api";
+import { InstructorChangeRequestPanel } from "./components/InstructorChangeRequestPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,6 +75,7 @@ import { formatDuration, formatPrice } from "@/features/courses/utils";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import type { InstructorLesson } from "./types";
 
 interface Props {
   courseId: number;
@@ -108,9 +128,34 @@ export default function CourseOverviewPage({ courseId }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<LessonStatusFilter>("all");
+  const [lessonPendingDelete, setLessonPendingDelete] =
+    useState<InstructorLesson | null>(null);
   const [expandedDescriptionCourseId, setExpandedDescriptionCourseId] =
     useState<number | null>(null);
   const descriptionExpanded = expandedDescriptionCourseId === courseId;
+  const deleteLessonCreatesChangeRequest =
+    course?.status === "publish" || course?.status === "approved";
+  const deleteLessonDialogCopy =
+    course?.status === "publish"
+      ? {
+          title: "Gửi bản xóa bài học?",
+          description:
+            "Khóa học này đang mở cho học viên. Bài học hiện tại vẫn được giữ nguyên cho tới khi bản xóa được duyệt.",
+          action: "Gửi bản xóa",
+        }
+      : course?.status === "approved"
+        ? {
+            title: "Gửi bản xóa bài học?",
+            description:
+              "Khóa học này đã được duyệt và đang chờ xuất bản. Bản xóa sẽ được gửi duyệt lại trước khi áp dụng.",
+            action: "Gửi duyệt lại",
+          }
+        : {
+            title: "Xóa bài học này?",
+            description:
+              "Bài học sẽ được xóa khỏi khóa học. Thao tác này có thể ảnh hưởng tới nội dung và thời lượng khóa học.",
+            action: "Xóa bài học",
+          };
 
   const lessonCount = lessons?.length ?? 0;
   const totalLessonMinutes = (lessons ?? []).reduce(
@@ -159,17 +204,26 @@ export default function CourseOverviewPage({ courseId }: Props) {
   }, [filteredLessons, safeCurrentPage]);
 
   const handleDeleteLesson = async (lessonId: number) => {
-    await deleteLessonMutation.mutateAsync(lessonId);
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: instructorCourseKeys.detail(courseId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: instructorCourseKeys.root,
-      }),
-    ]);
-    toast.success("Đã xóa bài học");
-    setCurrentPage(1);
+    try {
+      const result = await deleteLessonMutation.mutateAsync({ id: lessonId, courseId });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: instructorCourseKeys.detail(courseId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: instructorCourseKeys.root,
+        }),
+      ]);
+      if (isCourseChangeRequestResult(result)) {
+        toast.success("Đã gửi bản xóa bài học, chờ duyệt");
+      } else {
+        toast.success("Đã xóa bài học");
+      }
+      setCurrentPage(1);
+    } catch (error) {
+      toast.error(getUserFacingErrorMessage(error, "Không thể xóa bài học"));
+      throw error;
+    }
   };
 
   const handleCourseStatusAction = async () => {
@@ -307,7 +361,7 @@ export default function CourseOverviewPage({ courseId }: Props) {
       noCard={true}
       thumbnailUrl={course.thumbnailUrl}
       action={
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {/* Main course operation workflow button */}
           {course.status === "draft" && (
             <Button
@@ -343,6 +397,8 @@ export default function CourseOverviewPage({ courseId }: Props) {
               {publishCourseMutation.isPending ? "Đang xuất bản..." : "Xuất bản"}
             </Button>
           )}
+
+          <InstructorChangeRequestPanel courseId={course.id} />
 
           <Link
             href={`/instructor/courses/${course.id}/edit`}
@@ -575,21 +631,30 @@ export default function CourseOverviewPage({ courseId }: Props) {
                         
                         {/* Lesson Action buttons */}
                         <div className="flex items-center gap-2 self-end sm:self-center">
-                          <Link
-                            href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
-                            className={cn(
-                              buttonVariants({ size: "sm", variant: "outline" }),
-                              "h-8 rounded-lg text-xs cursor-pointer"
-                            )}
-                          >
-                            Chỉnh sửa
-                          </Link>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Link
+                                href={`/instructor/courses/${course.id}/lessons/${lesson.id}/edit`}
+                                aria-label={`Quản lý bài học ${lesson.title}`}
+                                className={cn(
+                                  buttonVariants({ size: "sm", variant: "outline" }),
+                                  "h-8 rounded-lg text-xs cursor-pointer gap-1.5"
+                                )}
+                              >
+                                <Settings2 className="h-3.5 w-3.5" />
+                                Quản lý
+                              </Link>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={8} className="max-w-56 text-center">
+                              Mở trang quản lý bài học: cập nhật nội dung và tạo/chỉnh sửa quiz.
+                            </TooltipContent>
+                          </Tooltip>
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg cursor-pointer"
                             onClick={() => {
-                              void handleDeleteLesson(lesson.id);
+                              setLessonPendingDelete(lesson);
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -661,6 +726,76 @@ export default function CourseOverviewPage({ courseId }: Props) {
         </Card>
       </div>
 
+      <AlertDialog
+        open={Boolean(lessonPendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteLessonMutation.isPending) {
+            setLessonPendingDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl">
+          <AlertDialogHeader className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span
+                className={cn(
+                  "mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                  deleteLessonCreatesChangeRequest
+                    ? "bg-amber-500/10 text-amber-600"
+                    : "bg-rose-500/10 text-rose-600",
+                )}
+              >
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <AlertDialogTitle className="text-left text-lg font-bold">
+                  {deleteLessonDialogCopy.title}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-left leading-relaxed">
+                  {lessonPendingDelete?.title ? (
+                    <>
+                      <span className="font-medium text-foreground">
+                        {lessonPendingDelete.title}
+                      </span>
+                      <br />
+                    </>
+                  ) : null}
+                  {deleteLessonDialogCopy.description}
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              className="mt-0"
+              disabled={deleteLessonMutation.isPending}
+            >
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteLessonMutation.isPending}
+              className={cn(
+                deleteLessonCreatesChangeRequest
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+              )}
+              onClick={(event) => {
+                event.preventDefault();
+                if (!lessonPendingDelete) {
+                  return;
+                }
+                void handleDeleteLesson(lessonPendingDelete.id)
+                  .then(() => setLessonPendingDelete(null))
+                  .catch(() => undefined);
+              }}
+            >
+              {deleteLessonMutation.isPending
+                ? "Đang xử lý..."
+                : deleteLessonDialogCopy.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <style jsx global>{`
         .course-overview-description :where(h1, h2, h3, h4, h5, h6) {
           margin: 0.4rem 0;
