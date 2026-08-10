@@ -39,7 +39,6 @@ import { useGenerateQuizAIMutation } from "../api/ai-quiz.hooks";
 import { aiQuizApi, type AiQuizJobStatus } from "../api/ai-quiz.api";
 import { quizApi } from "../api/course-management.api";
 import { useVideoById } from "@/features/video/api/video.hooks";
-import { useQuota, formatResetAt } from "@/features/_shared/quota";
 
 import type { QuizEditorState } from "../types";
 import {
@@ -236,24 +235,19 @@ export function ActivityCreationDialog({
     lessonVideo?.url?.trim(),
   );
   // Giá quiz tính theo đoạn video chọn trong QuizAIForm, nên nó báo ngược lên.
-  const { data: quota } = useQuota();
   const [isQuotaBlocked, setIsQuotaBlocked] = useState(false);
 
   const isAiQuizBlocked = Boolean(
     isVideoPreparing || !lessonVideoId || !hasAiQuizSource || isQuotaBlocked,
   );
-  // Chưa gọi được quota thì không bịa ra mốc reset — cửa sổ 24h neo theo lần
-  // dùng đầu của từng người nên không có giờ mặc định nào đúng.
-  const quotaResetAt = formatResetAt(quota?.resetAt ?? null);
+  // Hết quota thì QuotaNotice trong QuizAIForm đã báo rồi, không lặp lại ở đây.
   const aiQuizBlockedReason = isVideoPreparing
     ? "Video đang được upload hoặc xử lý trên Bunny. Vui lòng chờ hệ thống nhận URL video trước khi tạo quiz."
     : !lessonVideoId
       ? "Bài học cần có video trước khi tạo quiz."
       : !hasAiQuizSource
         ? "Video chưa có URL hoặc phụ đề để tạo câu hỏi. Vui lòng chờ Bunny xử lý xong."
-        : isQuotaBlocked
-          ? `Bạn không còn đủ credit AI.${quotaResetAt ? ` Hạn mức reset lúc ${quotaResetAt}.` : ""}`
-          : "";
+        : "";
 
   const canUseInVideoQuiz = canCreateInVideoQuiz(
     hasVideoSource,

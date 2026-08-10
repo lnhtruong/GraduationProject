@@ -43,7 +43,6 @@ export function QuotaNotice({
   const rate = describeCost(feature, durationSec, data.pricing);
   const resetAt = formatResetAt(data.resetAt);
   const purpose = PURPOSE[feature] ? ` ${PURPOSE[feature]}` : "";
-  const remainingAfter = Math.max(0, data.remaining - cost);
 
   return (
     <div
@@ -58,15 +57,16 @@ export function QuotaNotice({
     >
       <span className="font-medium">
         {insufficient
-          ? `Cần ${cost} credit${purpose}, bạn chỉ còn ${data.remaining}`
-          : `Chi phí dự kiến: ${cost} credit`}
+          ? `Cần ${cost} quota${purpose}, bạn chỉ còn ${data.remaining}`
+          : `Bạn sẽ tốn ${cost} quota${purpose}`}
+        {rate ? (
+          <span className="font-normal opacity-80"> · {rate}</span>
+        ) : null}
       </span>
       <span className="text-xs">
-        {rate ? `${rate} · ` : ""}
-        {insufficient
-          ? `Bạn còn ${data.remaining}/${data.limit} credit`
-          : `Còn lại sau khi tạo: ${remainingAfter}/${data.limit} credit`}
+        Bạn còn {data.remaining}/{data.limit} quota
         {resetAt ? ` · Reset lúc ${resetAt}` : ""}
-      </span>    </div>
+      </span>
+    </div>
   );
 }

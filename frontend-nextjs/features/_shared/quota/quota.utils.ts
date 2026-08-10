@@ -33,7 +33,7 @@ export function calcCost(
 }
 
 /**
- * Giải thích con số credit cho người dùng, ví dụ "10 credit/phút × 3 phút".
+ * Giải thích con số quota cho người dùng, ví dụ "10 quota/phút × 3 phút".
  * Chưa biết thời lượng thì chỉ nêu đơn giá, không bịa ra số phút.
  */
 export function describeCost(
@@ -43,9 +43,9 @@ export function describeCost(
 ): string {
   const cost = pricing.costs[feature];
   if (!cost) return "";
-  if (!cost.perMinute) return `${cost.credits} credit mỗi lần tạo`;
+  if (!cost.perMinute) return `${cost.credits} quota mỗi lần tạo`;
 
-  const rate = `${cost.credits} credit/phút`;
+  const rate = `${cost.credits} quota/phút`;
   if (!hasDuration(durationSec)) return rate;
 
   const minutes = billableMinutes(durationSec, pricing.maxDurationSec);

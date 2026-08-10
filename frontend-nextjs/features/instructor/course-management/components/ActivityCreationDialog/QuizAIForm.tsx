@@ -799,7 +799,7 @@ export function QuizAIForm({
                   quotaBlocked ? "text-destructive" : "text-foreground"
                 }
               >
-                {quotaCost} credit
+                {quotaCost} quota
               </strong>
             </p>
           ) : null}

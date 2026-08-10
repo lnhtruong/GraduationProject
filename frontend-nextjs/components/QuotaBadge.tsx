@@ -29,7 +29,7 @@ function describeError(error: unknown): string {
 }
 
 /**
- * Số credit AI còn lại trong cửa sổ 24h. Chỉ render cho người dùng đã đăng nhập —
+ * Số quota AI còn lại trong cửa sổ 24h. Chỉ render cho người dùng đã đăng nhập —
  * `GET /mascot_colab/quota` yêu cầu token.
  *
  * Khi lỗi: production ẩn hẳn (không làm phiền người dùng), dev hiện badge mờ
@@ -75,7 +75,7 @@ export function QuotaBadge({ className }: { className?: string }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          aria-label={`Còn ${data.remaining} trên ${data.limit} credit AI`}
+          aria-label={`Còn ${data.remaining} trên ${data.limit} quota AI`}
           className={cn(
             base,
             exhausted
@@ -90,7 +90,7 @@ export function QuotaBadge({ className }: { className?: string }) {
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={6}>
-        Còn {data.remaining}/{data.limit} credit AI
+        Còn {data.remaining}/{data.limit} quota AI
         {resetAt ? ` · reset lúc ${resetAt}` : ""}
       </TooltipContent>
     </Tooltip>
