@@ -22,6 +22,7 @@ import {
   Play,
 } from "lucide-react";
 import Image from "next/image";
+import Hls from "hls.js";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -51,7 +52,7 @@ import {
 } from "../../api/admin-courses.hooks";
 import type { Course } from "@/features/courses/types";
 import type { Lesson } from "@/features/lessons/types";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: "Sơ cấp",
@@ -124,6 +125,51 @@ function getVideoThumbnail(lesson: Lesson): string | null {
   return thumb.trim();
 }
 
+function isHlsUrl(url: string): boolean {
+  return /\.m3u8(?:$|[?#])/i.test(url);
+}
+
+/** Supports the Bunny HLS URLs stored in `videos.url`, including Chrome/Edge. */
+function ReviewVideoPlayer({ videoUrl }: { videoUrl: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+    const tryPlay = () => void video.play().catch(() => undefined);
+
+    if (isHlsUrl(videoUrl) && Hls.isSupported()) {
+      hls = new Hls({ enableWorker: true });
+      hls.loadSource(videoUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, tryPlay);
+    } else {
+      // Safari/iOS can play HLS natively; MP4 also follows this branch.
+      video.src = videoUrl;
+      video.addEventListener("canplay", tryPlay, { once: true });
+      video.load();
+    }
+
+    return () => {
+      hls?.destroy();
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [videoUrl]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      autoPlay
+      className="h-full w-full object-contain"
+    />
+  );
+}
+
 function VideoPreviewInline({
   videoUrl,
   thumbnailUrl,
@@ -186,14 +232,7 @@ function VideoPreviewInline({
             </DialogTitle>
           </DialogHeader>
           <div className="aspect-video w-full bg-black">
-            {open && (
-              <video
-                src={videoUrl}
-                controls
-                autoPlay
-                className="h-full w-full object-contain"
-              />
-            )}
+            {open && <ReviewVideoPlayer videoUrl={videoUrl} />}
           </div>
         </DialogContent>
       </Dialog>
