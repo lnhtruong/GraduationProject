@@ -141,6 +141,8 @@ export interface NewsfeedCommentItem {
 		id: number;
 		firstName?: string;
 		lastName?: string;
+		avatarUrl?: string | null;
+		avatar_url?: string | null;
 	};
 	is_owner: boolean;
 }

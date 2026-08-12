@@ -5,12 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { AlertCircle, ArrowLeft, Home, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useOrderStatus } from "@/features/payment/api/payment.hooks";
 
 function PaymentCancelContent() {
   const searchParams = useSearchParams();
   const orderCode = searchParams.get("orderCode");
   const courseId = searchParams.get("courseId");
   const retryHref = courseId ? `/courses/${courseId}` : "/cart";
+
+  useOrderStatus(orderCode);
 
   if (!orderCode) {
     return (

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageCircleReply, SendHorizonal } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +25,7 @@ const COMMENT_MAX_HEIGHT = 120;
 
 function getCommentAuthorName(
   comment: {
-    commenter?: { firstName?: string; lastName?: string };
+    commenter?: { firstName?: string; lastName?: string; avatarUrl?: string | null; avatar_url?: string | null };
   },
   fallbackName: string,
 ) {
@@ -33,6 +33,10 @@ function getCommentAuthorName(
   const lastName = comment.commenter?.lastName?.trim();
   const fullName = `${lastName ?? ""} ${firstName ?? ""}`.trim();
   return fullName || fallbackName;
+}
+
+function getCommentAvatarUrl(comment: { commenter?: { avatarUrl?: string | null; avatar_url?: string | null } }) {
+  return comment.commenter?.avatarUrl?.trim() || comment.commenter?.avatar_url?.trim() || null;
 }
 
 function getInitials(name: string) {
@@ -198,6 +202,7 @@ useEffect(() => {
     >
       <div className="flex items-start gap-3">
         <Avatar className="h-8 w-8 border border-border/60 bg-background">
+          {getCommentAvatarUrl(comment) ? <AvatarImage src={getCommentAvatarUrl(comment) ?? undefined} alt={getCommentAuthorName(comment, "Người dùng")} /> : null}
           <AvatarFallback className="text-[11px] font-semibold">
             {getInitials(getCommentAuthorName(comment, "Người dùng"))}
           </AvatarFallback>
@@ -290,6 +295,7 @@ useEffect(() => {
                     )}
                   >
                     <Avatar className="h-7 w-7 border border-border/60 bg-background">
+                      {getCommentAvatarUrl(reply) ? <AvatarImage src={getCommentAvatarUrl(reply) ?? undefined} alt={replyAuthorName} /> : null}
                       <AvatarFallback className="text-[10px] font-semibold">
                         {getInitials(replyAuthorName)}
                       </AvatarFallback>

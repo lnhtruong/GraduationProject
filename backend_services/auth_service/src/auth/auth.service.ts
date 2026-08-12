@@ -792,8 +792,12 @@ export class AuthService {
     const fullName = this.readProfileText(value);
     if (!fullName) return [null, null];
 
-    const [firstName, ...lastNameParts] = fullName.split(/\s+/);
-    return [firstName ?? null, lastNameParts.join(' ') || null];
+    const parts = fullName.split(/\s+/);
+    if (parts.length === 1) return [parts[0], null];
+
+    const firstName = parts[parts.length - 1];
+    const lastName = parts.slice(0, -1).join(' ');
+    return [firstName ?? null, lastName || null];
   }
 
   private readProfileText(value: unknown): string | null {

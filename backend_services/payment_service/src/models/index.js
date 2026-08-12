@@ -6,6 +6,10 @@ const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.p
     port: dbConfig.port,
     dialect: dbConfig.dialect,
     logging: dbConfig.logging,
+    timezone: dbConfig.timezone,
+    dialectOptions: {
+        timezone: dbConfig.timezone,
+    },
 });
 
 const db = {};
