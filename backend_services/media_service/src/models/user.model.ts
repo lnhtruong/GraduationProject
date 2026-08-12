@@ -43,4 +43,10 @@ export class User extends Model {
     allowNull: true,
   })
   declare role: number;
+
+  @Column({
+    type: DataType.STRING(500),
+    allowNull: true,
+  })
+  declare avatarUrl: string | null;
 }

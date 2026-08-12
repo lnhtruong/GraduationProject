@@ -2449,7 +2449,7 @@ export class FeedService {
       if (feedOwnerId == null || feedOwnerId === userId) return;
 
       const user = await this.userModel.findByPk(userId, {
-        attributes: ['id', 'firstName', 'lastName'],
+        attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
       });
       const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
       const actorName = fullName || 'Một người dùng';
@@ -2624,7 +2624,7 @@ export class FeedService {
     });
 
     const user = await this.userModel.findByPk(userId, {
-      attributes: ['id', 'firstName', 'lastName'],
+      attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
     });
 
     const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
@@ -2714,7 +2714,7 @@ export class FeedService {
       include: [
         {
           model: User,
-          attributes: ['id', 'firstName', 'lastName'],
+          attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
         },
       ],
       order: [['id', 'DESC']],
@@ -2773,7 +2773,7 @@ export class FeedService {
       include: [
         {
           model: User,
-          attributes: ['id', 'firstName', 'lastName'],
+          attributes: ['id', 'firstName', 'lastName', 'avatarUrl'],
         },
       ],
       order: [['id', 'DESC']],

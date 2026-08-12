@@ -32,6 +32,7 @@ type ReviewQuestion = {
   id: number;
   quesText: string;
   point: number;
+  videoTimestamp?: string | null;
   evidenceTimestamp?: string | null;
   explanation?: string | null;
   options: ReviewQuestionOption[];
@@ -364,6 +365,15 @@ export function QuizAIReviewer({ quizId, lessonVideoUrl, onComplete }: Props) {
                 >
                   {q.point >= 2 ? "Khó" : q.point >= 1.5 ? "Vừa" : "Dễ"} ({q.point}đ)
                 </Badge>
+                {q.videoTimestamp ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSeek(q.videoTimestamp ?? null)}
+                    className="inline-flex h-6 items-center rounded-full border border-sky-500/20 bg-sky-500/10 px-2 text-[10px] font-bold text-sky-600 transition-colors hover:bg-sky-500/15"
+                  >
+                    Lưu tại {q.videoTimestamp.replace(",", ".").split(".")[0]}
+                  </button>
+                ) : null}
               </div>
             </div>
 

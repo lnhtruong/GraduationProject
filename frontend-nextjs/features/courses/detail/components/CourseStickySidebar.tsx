@@ -10,6 +10,8 @@ import {
   Smartphone,
   CheckCircle,
   ShoppingCart,
+  CreditCard,
+  Loader2,
   Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -215,7 +217,17 @@ function EnrollButton({
           onClick={onEnroll}
           disabled={isEnrolling}
         >
-          {isEnrolling ? "Đang xử lý..." : `Mua ngay — ${formatPrice(course.price)}`}
+          {isEnrolling ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Đang xử lý...
+            </>
+          ) : (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Mua ngay - {formatPrice(course.price)}
+            </>
+          )}
         </Button>
         {onAddToCart && (
           isInCart ? (
@@ -238,7 +250,17 @@ function EnrollButton({
               onClick={onAddToCart}
               disabled={isAddingToCart}
             >
-              {isAddingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
+              {isAddingToCart ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang thêm...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Thêm vào giỏ hàng
+                </>
+              )}
             </Button>
           )
         )}
