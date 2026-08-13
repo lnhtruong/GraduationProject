@@ -242,6 +242,7 @@ export default function LessonFormPage({ courseId, lessonId }: Props) {
           open={activityDialogOpen}
           onOpenChange={setActivityDialogOpen}
           lessonId={lesson.id}
+          courseId={course.id}
           lessonTitle={lesson.title}
           lessonVideoId={activeLessonVideoId}
           draftVideoBlobUrl={videoContext.draftVideoBlobUrl}

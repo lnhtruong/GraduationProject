@@ -28,6 +28,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lessonTitle: string;
+  lessonId: number;
+  courseId?: number | null;
   lessonActivityId: number | null;
   quizId?: number | null;
 }
@@ -36,6 +38,8 @@ export function OutsideQuizEditorDialog({
   open,
   onOpenChange,
   lessonTitle,
+  lessonId,
+  courseId,
   lessonActivityId,
   quizId,
 }: Props) {
@@ -75,7 +79,7 @@ export function OutsideQuizEditorDialog({
       await createQuizMutation.mutateAsync(payload);
     }
 
-    await invalidateLessonQuizCache(queryClient);
+    await invalidateLessonQuizCache(queryClient, lessonId, courseId);
     onOpenChange(false);
   };
 
