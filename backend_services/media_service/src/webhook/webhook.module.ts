@@ -7,11 +7,13 @@ import { Video } from 'src/videos/video.model';
 import { Image } from 'src/images_mascot/images.model';
 import { BunnyModule } from 'src/bunny/bunny.module';
 import { NotificationModule } from 'src/notifications/notification.module';
+import { SseModule } from 'src/sse/sse.module';
 
 @Module({
     imports: [
         SequelizeModule.forFeature([Video, Image]),
         NotificationModule,
+        SseModule,
         BunnyModule,
         // Để forward quiz tới course_service /quizzes/from-ai
         HttpModule.register({ timeout: 30000 }),

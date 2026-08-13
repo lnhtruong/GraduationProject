@@ -47,6 +47,7 @@ export default function LibraryFeature() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const targetVideoId = Number(searchParams.get("video_id") ?? searchParams.get("videoId"));
+	const targetImageId = Number(searchParams.get("image_id") ?? searchParams.get("imageId"));
 	const targetType = searchParams.get("type");
 	const targetTab = toLibraryTabValue(searchParams.get("tab"));
 	const page = parsePositiveInteger(searchParams.get("page"), 1);
@@ -61,6 +62,7 @@ export default function LibraryFeature() {
 	const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
 	const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 	const [dismissedTargetVideoId, setDismissedTargetVideoId] = useState<number | null>(null);
+	const [dismissedTargetImageId, setDismissedTargetImageId] = useState<number | null>(null);
 	const [editSegmentsVideo, setEditSegmentsVideo] = useState<Video | null>(null);
 
 	const tabStats = useMemo(
@@ -74,6 +76,17 @@ export default function LibraryFeature() {
 	);
 
 	const queryPreviewItem = useMemo<PreviewItem | null>(() => {
+		if (Number.isFinite(targetImageId) && targetImageId > 0 && dismissedTargetImageId !== targetImageId) {
+			const image = library.images.find((item) => item.id === targetImageId);
+			if (image) {
+				return {
+					kind: "image",
+					item: image,
+					label: getImageLibraryLabel(image),
+				};
+			}
+		}
+
 		if (!Number.isFinite(targetVideoId) || targetVideoId <= 0) return null;
 		if (dismissedTargetVideoId === targetVideoId) return null;
 
@@ -97,9 +110,12 @@ export default function LibraryFeature() {
 
 		return null;
 	}, [
+		dismissedTargetImageId,
 		dismissedTargetVideoId,
+		library.images,
 		library.highlightVideos,
 		library.mascotVideos,
+		targetImageId,
 		targetVideoId,
 	]);
 	const effectivePreviewItem = previewItem ?? queryPreviewItem;
@@ -284,6 +300,8 @@ export default function LibraryFeature() {
 					if (!open) {
 						if (previewItem) {
 							setPreviewItem(null);
+						} else if (Number.isFinite(targetImageId) && targetImageId > 0) {
+							setDismissedTargetImageId(targetImageId);
 						} else if (Number.isFinite(targetVideoId) && targetVideoId > 0) {
 							setDismissedTargetVideoId(targetVideoId);
 						}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ export function QuizEditor({
     updatePassingScore,
     updateIsInVideo,
   } = useQuizEditor(quiz, initialSelectedQuestionId);
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     onStateChange?.(state);
@@ -65,6 +66,13 @@ export function QuizEditor({
     toast.success("Đã lưu quiz");
   };
 
+  const handleSelectQuestion = (questionId: number) => {
+    setSelectedQuestionId(questionId);
+    window.requestAnimationFrame(() => {
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return (
     <div className="space-y-4">
       <Card className="border-border/60 bg-muted/15">
@@ -72,7 +80,7 @@ export function QuizEditor({
           <QuestionList
             questions={visibleQuestions}
             selectedQuestionId={selectedQuestionId}
-            onSelectQuestion={setSelectedQuestionId}
+            onSelectQuestion={handleSelectQuestion}
             onAddQuestion={addQuestion}
             onRemoveQuestion={removeQuestion}
             title={openedFromTimelineMarker ? "Câu hỏi tại mốc này" : undefined}
@@ -112,6 +120,7 @@ export function QuizEditor({
         </CardContent>
       </Card>
 
+      <div ref={editorRef} />
       <QuestionEditor
         question={selectedQuestion}
         onUpdateQuestion={updateQuestion}

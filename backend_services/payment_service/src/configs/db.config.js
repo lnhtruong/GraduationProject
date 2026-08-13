@@ -8,4 +8,5 @@ module.exports = {
     database: process.env.DB_DATABASE || 'graduation_db',
     dialect: 'mysql',
     logging: false, // Set to console.log to see SQL queries
+    timezone: '+07:00',
 };

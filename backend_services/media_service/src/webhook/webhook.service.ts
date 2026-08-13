@@ -15,6 +15,7 @@ import { Image, MascotImageType } from 'src/images_mascot/images.model';
 // import { WebsocketService } from 'src/websocket/websocket.service';
 import { BunnyService } from 'src/bunny/bunny.service';
 import { NotificationService } from 'src/notifications/notification.service';
+import { SseService } from 'src/sse/sse.service';
 import {
     NotificationEventType,
     NotificationSourceType,
@@ -155,6 +156,7 @@ export class WebhookService {
         private readonly imageModel: typeof Image,
         // private readonly websocketService: WebsocketService,
         private readonly notificationService: NotificationService,
+        private readonly sseService: SseService,
         private readonly bunnyService: BunnyService,
         private readonly httpService: HttpService,
     ) { }
@@ -534,6 +536,10 @@ export class WebhookService {
         }
 
         await row.reload();
+
+        if (jobId || type === VideoType.HIGHLIGHT) {
+            return { success: true, id: row.id, notificationSkipped: true };
+        }
 
         await this.notificationService.createAndEmit({
             userId,
@@ -1498,6 +1504,25 @@ export class WebhookService {
             this.logger.log(
                 `Created direct-upload image row image_id=${row.image_id} user_id=${userId} type=${imageType} (no job_id)`,
             );
+        }
+
+        if (imageType !== MascotImageType.MASCOT) {
+            this.sseService.emitToUser(userId, {
+                type: NotificationSseEventType.UPLOAD_IMAGE_COMPLETED,
+                data: {
+                    success: true,
+                    data: {
+                        imageId: row.image_id,
+                        url: row.url,
+                        name: row.name,
+                        type: row.type,
+                        job_id: jobId,
+                    },
+                    timestamp: new Date().toISOString(),
+                },
+            });
+
+            return { success: true, id: row.image_id, notificationSkipped: true };
         }
 
         await this.notificationService.createAndEmit({

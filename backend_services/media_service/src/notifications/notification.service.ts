@@ -87,6 +87,25 @@ export class NotificationService {
     // chỉ emit SSE. Đó là intent ban đầu — nhưng version cũ pass `undefined`
     // vào buildCreatedEvent → crash. Fix: build event từ input thay vì DB row.
     let notification: Notification | null = null;
+    const shouldDedupeBySource =
+      (input.eventType === NotificationEventType.VIDEO_UPLOAD_COMPLETED ||
+        input.eventType === NotificationEventType.IMAGE_UPLOAD_COMPLETED) &&
+      input.sourceType !== undefined &&
+      input.sourceId !== undefined;
+
+    if (shouldDedupeBySource) {
+      const existing = await this.notificationModel.findOne({
+        where: {
+          user_id: input.userId,
+          event_type: input.eventType,
+          source_type: input.sourceType,
+          source_id: input.sourceId,
+        },
+        order: [['created_at', 'DESC']],
+      });
+      if (existing) return existing;
+    }
+
     if (input.eventType !== NotificationEventType.VIDEO_JOB_PROGRESS) {
       notification = await this.notificationModel.create({
         user_id: input.userId,

@@ -22,6 +22,31 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY,
 );
 
+const nowInAppTimezone = () => new Date();
+
+const toLocalTransactionStatus = (status) => {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "PAID") return "paid";
+  if (normalized === "CANCELLED" || normalized === "FAILED") return "failed";
+  return null;
+};
+
+const syncTransactionStatus = async (orderCode, remoteStatus, transaction) => {
+  const localStatus = toLocalTransactionStatus(remoteStatus);
+  if (!localStatus) return;
+
+  if (transaction.status !== localStatus) {
+    await updateTransactionStatus(orderCode, localStatus);
+    transaction.status = localStatus;
+  }
+
+  const existingData = (await getPaymentData(orderCode)) || {};
+  await savePaymentData(orderCode, {
+    ...existingData,
+    status: localStatus,
+  });
+};
+
 const PORT = process.env.PORT || 3000;
 const CANCEL_URL =
   process.env.PAYOS_CANCEL_URL || `http://localhost:${PORT}/payment/cancel`;
@@ -255,7 +280,7 @@ const createPaymentLink = async (courseIds, userId) => {
         if (paymentInfo && paymentInfo.status !== "PAID") {
           await payos.paymentRequests.cancel(orderCode, "Expired");
           await updateTransactionStatus(orderCode, "failed");
-          await savePaymentData(orderCode, { status: "failed" });
+          await savePaymentData(orderCode, { ...(await getPaymentData(orderCode)), status: "failed" });
           console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
         }
       } catch (e) {
@@ -374,7 +399,7 @@ const buyNow = async (courseId, userId) => {
         if (paymentInfo && paymentInfo.status !== "PAID") {
           await payos.paymentRequests.cancel(orderCode, "Expired");
           await updateTransactionStatus(orderCode, "failed");
-          await savePaymentData(orderCode, { status: "failed" });
+          await savePaymentData(orderCode, { ...(await getPaymentData(orderCode)), status: "failed" });
           console.log(`❌ Huỷ đơn hàng ${orderCode} sau 5 phút`);
         }
       } catch (e) {
@@ -408,7 +433,7 @@ const saveTransactionToDB = async (data, t = null) => {
         status: data.status || "pending",
         provider: data.provider || "payos",
         provider_order_id: data.provider_order_id,
-        created_at: new Date(),
+        created_at: nowInAppTimezone(),
       },
       { transaction: t },
     );
@@ -476,7 +501,7 @@ const updateTransactionStatus = async (providerOrderId, status, t = null) => {
   try {
     const updateData = { status };
     if (status === "paid") {
-      updateData.paid_at = new Date();
+      updateData.paid_at = nowInAppTimezone();
     }
     const options = { where: { provider_order_id: String(providerOrderId) } };
     if (t) options.transaction = t;
@@ -513,13 +538,19 @@ const getOrderStatus = async (orderCode, userId) => {
     const cached = await getPaymentData(orderCode);
     if (cached?.status) {
       const s = cached.status.toUpperCase();
-      if (s === "PAID" || s === "FAILED" || s === "CANCELLED") return s;
+      if (s === "PAID" || s === "FAILED" || s === "CANCELLED") {
+        await syncTransactionStatus(orderCode, s, transaction);
+        return s;
+      }
     }
   } catch (_) {}
 
   // Fallback: hỏi trực tiếp PayOS
   try {
     const paymentInfo = await payos.paymentRequests.get(orderCode);
+    const remoteStatus = String(paymentInfo.status || "").toUpperCase();
+    await syncTransactionStatus(orderCode, remoteStatus, transaction);
+
     return paymentInfo.status;
   } catch (err) {
     console.warn(

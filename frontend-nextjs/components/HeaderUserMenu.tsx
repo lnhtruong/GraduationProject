@@ -85,7 +85,7 @@ export function HeaderUserMenu({
             </span>
             <RoleBadge
               role={user?.role}
-              className="h-5 w-fit max-w-full px-1.5 py-0 text-[10px] leading-none [&_svg]:h-3 [&_svg]:w-3"
+              className="h-5 min-w-[4.75rem] justify-center px-2 py-0 text-[10px] leading-none [&_svg]:h-3 [&_svg]:w-3"
             />
           </div>
         </Button>
