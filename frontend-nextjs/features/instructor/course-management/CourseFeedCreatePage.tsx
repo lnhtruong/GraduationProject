@@ -259,6 +259,11 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
 
   const handleEditFeedVideo = useCallback(
     async (video: CourseFeedCandidateVideo) => {
+      if (video.type === "mascot") {
+        toast.info("Video Mascot đã hoàn tất, không thể chỉnh Mascot thêm.");
+        return;
+      }
+
       const ensured = await highlightUpload.ensureProjectForClip({
         name: video.name,
         url: video.url,
@@ -908,6 +913,7 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                               const isUsedInFeed = showAllVideos && video.isUsedInFeed;
                               const thumbnail = getVideoThumbnail(video);
                               const videoTypeLabel = video.type === "mascot" ? "Mascot" : "Highlight";
+                              const canEditInStudio = video.type !== "mascot";
                               const canEditSegments = Boolean(
                                 video.type === "highlight" &&
                                   video.original_video_id &&
@@ -981,23 +987,25 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </div>
                                     </div>
                                   </button>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="icon-sm"
-                                        aria-label={`Mở Studio chỉnh sửa ${video.name}`}
-                                        className="absolute left-2 top-2 hidden h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 sm:inline-flex sm:opacity-0 sm:group-hover/card:opacity-100"
-                                        onClick={() => {
-                                          void handleEditFeedVideo(video);
-                                        }}
-                                      >
-                                        <Edit3 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">Mở Studio chỉnh sửa</TooltipContent>
-                                  </Tooltip>
+                                  {canEditInStudio ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          size="icon-sm"
+                                          aria-label={`Mở Studio chỉnh sửa ${video.name}`}
+                                          className="absolute left-2 top-2 hidden h-7 w-7 rounded-full border border-white/70 bg-black/65 text-white opacity-100 shadow-sm hover:bg-primary hover:text-white focus:opacity-100 focus:ring-primary/40 sm:inline-flex sm:opacity-0 sm:group-hover/card:opacity-100"
+                                          onClick={() => {
+                                            void handleEditFeedVideo(video);
+                                          }}
+                                        >
+                                          <Edit3 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">Mở Studio chỉnh sửa</TooltipContent>
+                                    </Tooltip>
+                                  ) : null}
                                   {showSegmentEditButton ? (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -1039,15 +1047,17 @@ export default function CourseFeedCreatePage({ courseId }: Props) {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" sideOffset={8} className="w-48 rounded-xl p-1">
-                                      <DropdownMenuItem
-                                        onSelect={() => {
-                                          void handleEditFeedVideo(video);
-                                        }}
-                                        className="cursor-pointer gap-2 rounded-lg"
-                                      >
-                                        <Edit3 className="h-4 w-4" />
-                                        Mở Studio chỉnh sửa
-                                      </DropdownMenuItem>
+                                      {canEditInStudio ? (
+                                        <DropdownMenuItem
+                                          onSelect={() => {
+                                            void handleEditFeedVideo(video);
+                                          }}
+                                          className="cursor-pointer gap-2 rounded-lg"
+                                        >
+                                          <Edit3 className="h-4 w-4" />
+                                          Mở Studio chỉnh sửa
+                                        </DropdownMenuItem>
+                                      ) : null}
                                       {showSegmentEditButton ? (
                                         <DropdownMenuItem
                                           disabled={!canEditSegments}
