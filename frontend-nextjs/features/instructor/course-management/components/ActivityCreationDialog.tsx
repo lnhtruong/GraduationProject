@@ -68,6 +68,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lessonId: number;
+  courseId?: number | null;
   lessonTitle: string;
   lessonVideoId?: number | null;
   draftVideoBlobUrl?: string | null;
@@ -170,6 +171,7 @@ export function ActivityCreationDialog({
   open,
   onOpenChange,
   lessonId,
+  courseId,
   lessonTitle,
   lessonVideoId,
   draftVideoBlobUrl,
@@ -301,11 +303,12 @@ export function ActivityCreationDialog({
       setStage("");
       setView("review");
       clearAiQuizWatcher();
-      await Promise.all([invalidateLessonQuizCache(queryClient, lessonId)]);
+      await invalidateLessonQuizCache(queryClient, lessonId, courseId);
       return true;
     },
     [
       clearAiQuizWatcher,
+      courseId,
       findGeneratedQuizForActivity,
       lessonId,
       queryClient,
@@ -494,7 +497,7 @@ export function ActivityCreationDialog({
     );
 
     await createQuizMutation.mutateAsync(payload);
-    await invalidateLessonQuizCache(queryClient, lessonId);
+    await invalidateLessonQuizCache(queryClient, lessonId, courseId);
     toast.success("Đã tạo quiz từ popup");
     handleOpenChange(false);
     router.refresh();
@@ -596,29 +599,7 @@ export function ActivityCreationDialog({
         return;
       }
       finalizedActivityIdsRef.current.add(activityId);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["instructor-lesson-activity", "lessonId", lessonId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: [
-            "lesson-quizzes",
-            "by-lesson",
-            lessonId,
-            "in_video",
-            "all",
-          ],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: [
-            "lesson-quizzes",
-            "by-lesson",
-            lessonId,
-            "after_video",
-            "all",
-          ],
-        }),
-      ]);
+      await invalidateLessonQuizCache(queryClient, lessonId, courseId);
     }
     setGeneratedActivityId(null);
     clearAiQuizSession(lessonId);

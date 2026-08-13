@@ -364,7 +364,7 @@ export function LessonForm({ lesson, courseId, course, onSave, onSaved, onVideoC
         ...pendingQuiz,
         lessonActivityId: createdActivity.id,
       });
-      await invalidateLessonQuizCache(queryClient, targetLessonId);
+      await invalidateLessonQuizCache(queryClient, targetLessonId, courseId);
     }
 
     setPendingQuizStates([]);
@@ -393,7 +393,7 @@ export function LessonForm({ lesson, courseId, course, onSave, onSaved, onVideoC
       );
 
       await createQuizMutation.mutateAsync(quizPayload);
-      await invalidateLessonQuizCache(queryClient, lessonId);
+      await invalidateLessonQuizCache(queryClient, lessonId, courseId);
 
       toast.success("Đã tạo quiz");
       setShowQuizEditorModal(false);
@@ -661,6 +661,8 @@ export function LessonForm({ lesson, courseId, course, onSave, onSaved, onVideoC
             }
           }}
           lessonTitle={lesson?.title ?? "Bài học"}
+          lessonId={lessonId}
+          courseId={courseId}
           lessonActivityId={editingOutsideQuizTarget?.activityId ?? null}
           quizId={editingOutsideQuizTarget?.quizId ?? null}
         />

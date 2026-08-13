@@ -133,8 +133,9 @@ export default function CourseOverviewPage({ courseId }: Props) {
   const [expandedDescriptionCourseId, setExpandedDescriptionCourseId] =
     useState<number | null>(null);
   const descriptionExpanded = expandedDescriptionCourseId === courseId;
-  const deleteLessonCreatesChangeRequest =
+  const canRequestCourseChanges =
     course?.status === "publish" || course?.status === "approved";
+  const deleteLessonCreatesChangeRequest = canRequestCourseChanges;
   const deleteLessonDialogCopy =
     course?.status === "publish"
       ? {
@@ -398,7 +399,9 @@ export default function CourseOverviewPage({ courseId }: Props) {
             </Button>
           )}
 
-          <InstructorChangeRequestPanel courseId={course.id} />
+          {canRequestCourseChanges ? (
+            <InstructorChangeRequestPanel courseId={course.id} />
+          ) : null}
 
           <Link
             href={`/instructor/courses/${course.id}/edit`}

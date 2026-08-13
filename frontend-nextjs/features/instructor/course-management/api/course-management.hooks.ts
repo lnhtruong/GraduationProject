@@ -415,14 +415,35 @@ export async function invalidateLessonQuizCache(
     invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<void>;
   },
   lessonId?: number | null,
+  courseId?: number | null,
 ) {
   const invalidations = [
     queryClient.invalidateQueries({ queryKey: lessonQuizKeys.root }),
+    queryClient.invalidateQueries({ queryKey: instructorLessonKeys.root }),
   ];
   if (typeof lessonId === "number") {
     invalidations.push(
       queryClient.invalidateQueries({
         queryKey: lessonQuizKeys.custom("by-lesson", lessonId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: lessonQuizKeys.custom("timeline", lessonId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: instructorLessonKeys.detail(lessonId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["instructor-lesson-activity", "lessonId", lessonId],
+      }),
+    );
+  }
+  if (typeof courseId === "number") {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: instructorLessonKeys.custom("courseId", courseId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: instructorCourseKeys.detail(courseId),
       }),
     );
   }
