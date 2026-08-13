@@ -154,6 +154,34 @@ export default function Editor() {
       effectivePanelBindings.onMascotCreateVideo,
   );
 
+  const mascotCreateDisabledReason = (() => {
+    if (isProjectFinalized) {
+      return "Video mascot đã được tạo hoàn chỉnh cho dự án này.";
+    }
+    if (!effectivePanelBindings) {
+      return "Đang tải dữ liệu editor, vui lòng chờ một chút.";
+    }
+    if (effectivePanelBindings.isCreatingMascotVideo) {
+      return effectivePanelBindings.mascotProgress || "Video mascot đang được tạo, vui lòng chờ hệ thống xử lý.";
+    }
+    if (effectivePanelBindings.isApplyingMascot) {
+      return "Đang lưu lớp mascot, vui lòng chờ trước khi tạo video hoàn chỉnh.";
+    }
+    if (effectivePanelBindings.mascot.type === "none") {
+      return "Hãy chọn một mascot trước khi tạo video hoàn chỉnh.";
+    }
+    if (!effectivePanelBindings.videoFile && !effectivePanelBindings.videoSourceUrl) {
+      return "Hãy thêm hoặc chọn video nguồn trước khi tạo video hoàn chỉnh.";
+    }
+    if (effectivePanelBindings.mascot.scale < 0.1 || effectivePanelBindings.mascot.scale > 2) {
+      return "Kích thước mascot chưa hợp lệ. Hãy chỉnh trong khoảng 10% đến 200%.";
+    }
+    if (!effectivePanelBindings.onMascotCreateVideo) {
+      return "Chưa sẵn sàng tạo video mascot cho dự án này.";
+    }
+    return undefined;
+  })();
+
   return (
     <>
       <div className="relative flex min-h-[100dvh] w-full bg-background text-foreground">
@@ -192,6 +220,7 @@ export default function Editor() {
           }
           isCreatingMascotVideo={effectivePanelBindings?.isCreatingMascotVideo ?? false}
           canCreateMascotVideo={canCreateMascotVideo}
+          mascotCreateDisabledReason={mascotCreateDisabledReason}
           onCreateMascotVideo={() => setIsMascotRenderDialogOpen(true)}
           isFinalized={isProjectFinalized}
         />
@@ -234,6 +263,7 @@ export default function Editor() {
           onChange={effectivePanelBindings.onMascotChange}
           onCreateVideo={effectivePanelBindings.onMascotCreateVideo}
           canCreateVideo={canCreateMascotVideo}
+          disabledReason={mascotCreateDisabledReason}
           isCreatingVideo={effectivePanelBindings.isCreatingMascotVideo}
           mascotProgress={effectivePanelBindings.mascotProgress}
           videoDurationSec={

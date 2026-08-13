@@ -10,8 +10,8 @@ interface Props {
   courses: InstructorCourse[];
 }
 
-function StatusBadge({ status }: { status: CourseStatus }) {
-  const config: Record<CourseStatus, { label: string; className: string }> = {
+function StatusBadge({ status }: { status: CourseStatus | string | null | undefined }) {
+  const config: Partial<Record<CourseStatus | string, { label: string; className: string }>> = {
     publish: {
       label: "Đã xuất bản",
       className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400",
@@ -32,8 +32,16 @@ function StatusBadge({ status }: { status: CourseStatus }) {
       label: "Bị từ chối",
       className: "bg-destructive/10 text-destructive",
     },
+    banned: {
+      label: "Bị cấm",
+      className: "border-red-700 bg-red-600 text-white",
+    },
   };
-  const { label, className } = config[status];
+  const normalizedStatus = String(status ?? "").trim().toLowerCase();
+  const { label, className } = config[normalizedStatus] ?? {
+    label: normalizedStatus || "Không rõ",
+    className: "bg-muted text-muted-foreground",
+  };
   return (
     <Badge variant="outline" className={cn("text-[11px]", className)}>
       {label}

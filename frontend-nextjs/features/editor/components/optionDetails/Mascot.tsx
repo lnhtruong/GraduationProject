@@ -16,6 +16,11 @@ import { useUploadMascotImage } from "@/features/editor/api/mascot-image.hooks";
 import { imageApi } from "@/features/image/api/image.api";
 import type { MascotImage, MascotOption } from "@/features/editor/types";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { QuotaNotice, useQuotaCost } from "@/features/_shared/quota";
 import {
   Collapsible,
@@ -709,6 +714,7 @@ interface MascotRenderDialogProps {
   canCreateVideo: boolean;
   isCreatingVideo?: boolean;
   mascotProgress?: string;
+  disabledReason?: string;
   /** Thời lượng video đang mở, giây. Dùng để hiển thị chi phí credit. */
   videoDurationSec?: number;
 }
@@ -722,9 +728,16 @@ export function MascotRenderDialog({
   canCreateVideo,
   isCreatingVideo = false,
   mascotProgress = "",
+  disabledReason,
   videoDurationSec,
 }: MascotRenderDialogProps) {
   const { blocked: quotaBlocked } = useQuotaCost("mascot", videoDurationSec);
+  const isCreateDisabled = !canCreateVideo || isCreatingVideo || quotaBlocked;
+  const createTooltip = isCreatingVideo
+    ? mascotProgress || "Video mascot đang được tạo, vui lòng chờ hệ thống xử lý."
+    : quotaBlocked
+      ? "Bạn không đủ quota để tạo video mascot cho video này."
+      : disabledReason || "Chưa đủ điều kiện tạo video mascot.";
 
   const updateMascot = (patch: Partial<MascotOption>) => {
     onChange(withMascotDefaults({ ...value, ...patch }));
@@ -849,19 +862,26 @@ export function MascotRenderDialog({
           >
             Hủy
           </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              void onCreateVideo?.();
-            }}
-            disabled={!canCreateVideo || isCreatingVideo || quotaBlocked}
-            className="gap-2"
-          >
-            {isCreatingVideo ? (
-              <Loader size={16} className="animate-spin" />
-            ) : null}
-            {isCreatingVideo ? "Đang tạo..." : "Tạo video"}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void onCreateVideo?.();
+                  }}
+                  disabled={isCreateDisabled}
+                  className="gap-2"
+                >
+                  {isCreatingVideo ? (
+                    <Loader size={16} className="animate-spin" />
+                  ) : null}
+                  {isCreatingVideo ? "Đang tạo..." : "Tạo video"}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">{createTooltip}</TooltipContent>
+          </Tooltip>
         </DialogFooter>
       </DialogContent>
     </Dialog>

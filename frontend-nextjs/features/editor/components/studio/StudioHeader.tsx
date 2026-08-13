@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Clapperboard, Loader, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -15,6 +20,7 @@ interface StudioHeaderProps {
   isCreatingMascotVideo?: boolean;
   onCreateMascotVideo?: () => void | Promise<void>;
   canCreateMascotVideo?: boolean;
+  mascotCreateDisabledReason?: string;
   isFinalized?: boolean;
 }
 
@@ -27,6 +33,7 @@ export function StudioHeader({
   isCreatingMascotVideo = false,
   onCreateMascotVideo,
   canCreateMascotVideo = true,
+  mascotCreateDisabledReason,
   isFinalized = false,
 }: StudioHeaderProps) {
   const [draftName, setDraftName] = useState(activeSessionName);
@@ -47,6 +54,16 @@ export function StudioHeader({
 
   const trimmedDraftName = useMemo(() => draftName.trim(), [draftName]);
   const canSave = Boolean(activeEditId) && !isLoading && !isSaving && !isFinalized;
+  const isMascotCreateDisabled = isFinalized || !canCreateMascotVideo || isCreatingMascotVideo || isLoading;
+  const mascotCreateTooltip = isMascotCreateDisabled
+    ? isFinalized
+      ? "Video mascot đã được tạo hoàn chỉnh cho dự án này."
+      : isCreatingMascotVideo
+      ? "Video mascot đang được tạo, vui lòng chờ hệ thống xử lý."
+      : isLoading
+        ? "Đang tải dữ liệu editor, vui lòng chờ một chút."
+        : mascotCreateDisabledReason || "Chưa đủ điều kiện tạo video hoàn chỉnh."
+    : "Tạo video hoàn chỉnh với mascot hiện tại.";
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -174,29 +191,36 @@ export function StudioHeader({
             </Button>
           ) : null}
 
-          {activeEditId && !isFinalized && onCreateMascotVideo ? (
-            <Button
-              size="sm"
-              disabled={!canCreateMascotVideo || isCreatingMascotVideo || isLoading}
-              onClick={() => {
-                void onCreateMascotVideo?.();
-              }}
-              className="h-9 gap-1.5 px-3 font-semibold"
-            >
-              {isCreatingMascotVideo ? (
-                <>
-                  <Loader size={16} className="animate-spin" />
-                  <span className="hidden sm:inline">Đang tạo...</span>
-                  <span className="sm:hidden">Đang tạo</span>
-                </>
-              ) : (
-                <>
-                  <Clapperboard size={16} />
-                  <span className="hidden sm:inline">Tạo video hoàn chỉnh</span>
-                  <span className="sm:hidden">Tạo</span>
-                </>
-              )}
-            </Button>
+          {activeEditId && onCreateMascotVideo ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    size="sm"
+                    disabled={isMascotCreateDisabled}
+                    onClick={() => {
+                      void onCreateMascotVideo?.();
+                    }}
+                    className="h-9 gap-1.5 px-3 font-semibold"
+                  >
+                    {isCreatingMascotVideo ? (
+                      <>
+                        <Loader size={16} className="animate-spin" />
+                        <span className="hidden sm:inline">Đang tạo...</span>
+                        <span className="sm:hidden">Đang tạo</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clapperboard size={16} />
+                        <span className="hidden sm:inline">Tạo video hoàn chỉnh</span>
+                        <span className="sm:hidden">Tạo</span>
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{mascotCreateTooltip}</TooltipContent>
+            </Tooltip>
           ) : null}
         </div>
       </div>
