@@ -6,7 +6,8 @@ export type CourseStatus =
   | "pending"
   | "approved"
   | "rejected"
-  | "publish";
+  | "publish"
+  | "banned";
 
 export interface InstructorCourse {
   id: number;
